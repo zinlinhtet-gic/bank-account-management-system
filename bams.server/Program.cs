@@ -50,7 +50,7 @@ else
 }
 
 app.UseMiddleware<GlobalExceptionHandler>();
-
+app.MapControllers();
 app.UseHttpsRedirection();
 app.UseRouting();
 
@@ -58,12 +58,5 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
-
-app.MapRazorPages()
-    .WithStaticAssets();
 
 app.Run();

@@ -1,0 +1,13 @@
+###
+GET http://localhost:5121/api/accounts
+Accept: application/json
+
+###
+POST http://localhost:5121/api/accounts
+Content-Type: application/json
+
+{
+    "Name": "John Doe",
+    "Type": 1,
+    "OpeningBalance": 1000.00
+}

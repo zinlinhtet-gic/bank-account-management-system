@@ -10,6 +10,8 @@ namespace bams.server.Controllers;
 [Route("api/accounts")]
 public sealed class AccountsController : ControllerBase
 {
+    private const string GetAccountByIdRouteName = "GetAccountById";
+
     private readonly IAccountService _accountService;
 
     public AccountsController(IAccountService accountService)
@@ -32,7 +34,7 @@ public sealed class AccountsController : ControllerBase
     /// <summary>
     /// Gets a single account by its unique identifier.
     /// </summary>
-    [HttpGet("{id:long}")]
+    [HttpGet("{id:long}", Name = GetAccountByIdRouteName)]
     public async Task<ActionResult<AccountResponse>> GetAccountByIdAsync(
         long id,
         CancellationToken cancellationToken)
@@ -55,8 +57,8 @@ public sealed class AccountsController : ControllerBase
             MessageCode.AccountCreatedSuccessfully,
             account);
 
-        return CreatedAtAction(
-            nameof(GetAccountByIdAsync),
+        return CreatedAtRoute(
+            GetAccountByIdRouteName,
             new { id = account.Id },
             response);
     }
