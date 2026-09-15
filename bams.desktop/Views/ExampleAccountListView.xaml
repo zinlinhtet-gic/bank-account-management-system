@@ -1,0 +1,56 @@
+<UserControl x:Class="bams.desktop.Views.ExampleAccountListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="320"
+             d:DesignWidth="640">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            FontSize="20"
+            FontWeight="SemiBold"
+            Text="Example Accounts" />
+
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,12,0,12"
+            Orientation="Horizontal">
+            <Button
+                MinWidth="120"
+                Padding="12,6"
+                Command="{Binding LoadAccountsCommand}"
+                Content="Load Accounts" />
+
+            <TextBlock
+                Margin="12,0,0,0"
+                VerticalAlignment="Center"
+                Text="{Binding StatusMessage}" />
+        </StackPanel>
+
+        <DataGrid
+            Grid.Row="2"
+            AutoGenerateColumns="False"
+            CanUserAddRows="False"
+            IsReadOnly="True"
+            ItemsSource="{Binding Accounts}">
+            <DataGrid.Columns>
+                <DataGridTextColumn
+                    Binding="{Binding AccountNumber}"
+                    Header="Account Number" />
+                <DataGridTextColumn
+                    Binding="{Binding CustomerName}"
+                    Header="Customer" />
+                <DataGridTextColumn
+                    Binding="{Binding FormattedBalance}"
+                    Header="Balance" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>
