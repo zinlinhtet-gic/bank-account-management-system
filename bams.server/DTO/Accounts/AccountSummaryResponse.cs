@@ -1,11 +1,10 @@
-using bams.server.Models;
+using bams.server.Models.Accounts;
 
 namespace bams.server.DTO.Accounts;
 
 public sealed record AccountSummaryResponse(
     long Id,
-    string AccountNumber,
-    string Name,
-    AccountType Type,
+    string AccountNo,
+    string AccountTypeCode,
     AccountStatus Status,
-    decimal Balance);
+    decimal AvailableBalance);

@@ -1,12 +1,14 @@
-using bams.server.Models;
+using bams.server.Models.Accounts;
 
 namespace bams.server.DTO.Accounts;
 
 public sealed record AccountResponse(
     long Id,
-    string AccountNumber,
-    string Name,
-    AccountType Type,
+    string AccountNo,
+    long AccountTypeId,
+    string AccountTypeCode,
     AccountStatus Status,
-    decimal Balance,
-    DateTime CreatedAtUtc);
+    decimal AvailableBalance,
+    decimal LedgerBalance,
+    DateTime OpenedAt,
+    DateTime CreatedAt);

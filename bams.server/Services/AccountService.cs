@@ -4,7 +4,7 @@ using bams.server.DTO.Accounts;
 using bams.server.Exceptions;
 using bams.server.Mapping;
 using bams.server.Messages;
-using bams.server.Models;
+using bams.server.Models.Accounts;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,11 +30,10 @@ public sealed class AccountService : IAccountService
             .OrderBy(account => account.Id)
             .Select(account => new AccountSummaryResponse(
                 account.Id,
-                account.AccountNumber,
-                account.Name,
-                account.Type,
+                account.AccountNo,
+                account.AccountType!.Code,
                 account.Status,
-                account.Balance))
+                account.AvailableBalance))
             .ToListAsync(cancellationToken);
     }
 
@@ -47,6 +46,7 @@ public sealed class AccountService : IAccountService
     {
         var account = await _dbContext.Accounts
             .AsNoTracking()
+            .Include(account => account.AccountType)
             .FirstOrDefaultAsync(account => account.Id == id, cancellationToken);
 
         if (account is null)
@@ -64,41 +64,39 @@ public sealed class AccountService : IAccountService
         CreateAccountRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateCreateAccountRequest(request);
+        var accountType = await _dbContext.AccountTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(type => type.Id == request.AccountTypeId, cancellationToken);
 
+        if (accountType is null)
+        {
+            throw new NotFoundException(MessageCode.AccountTypeNotFound);
+        }
+
+        if (request.OpeningBalance < accountType.MinimumOpeningBalance)
+        {
+            throw new ValidationException(MessageCode.OpeningBalanceInvalid);
+        }
+
+        var now = DateTime.UtcNow;
         var account = new Account
         {
-            AccountNumber = GenerateAccountNumber(),
-            Name = request.Name.Trim(),
-            Type = request.Type,
+            AccountNo = GenerateAccountNumber(),
+            AccountTypeId = request.AccountTypeId,
             Status = AccountStatus.Active,
-            Balance = request.OpeningBalance,
-            CreatedAtUtc = DateTime.UtcNow
+            OpenedAt = now,
+            AvailableBalance = request.OpeningBalance,
+            LedgerBalance = request.OpeningBalance,
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         await _dbContext.Accounts.AddAsync(account, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        account.AccountType = accountType;
+
         return account.ToResponse();
-    }
-
-    // Enforces request and business validation before an account entity is created.
-    private static void ValidateCreateAccountRequest(CreateAccountRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new ValidationException(MessageCode.AccountNameRequired);
-        }
-
-        if (!Enum.IsDefined(request.Type))
-        {
-            throw new ValidationException(MessageCode.AccountTypeInvalid);
-        }
-
-        if (request.OpeningBalance < AccountConstants.MinimumOpeningBalance)
-        {
-            throw new ValidationException(MessageCode.OpeningBalanceInvalid);
-        }
     }
 
     // Generates a readable account number without relying on client-provided identifiers.

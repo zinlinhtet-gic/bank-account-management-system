@@ -10,8 +10,6 @@ public enum MessageCode
     ValidationFailed = 3000,
     InvalidRequest = 3002,
     InvalidAmount = 3003,
-    AccountNameRequired = 3100,
-    AccountTypeInvalid = 3101,
     OpeningBalanceInvalid = 3102,
 
     // Authorization: 4100 - 4199
@@ -19,9 +17,7 @@ public enum MessageCode
 
     // Not Found: 4200 - 4299
     AccountNotFound = 4201,
-
-    // Conflict: 4300 - 4399
-    AccountAlreadyExists = 4302,
+    AccountTypeNotFound = 4203,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,

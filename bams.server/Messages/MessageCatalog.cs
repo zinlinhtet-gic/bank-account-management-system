@@ -10,11 +10,11 @@ public static class MessageCatalog
             [MessageCode.ValidationFailed] = "One or more validation errors occurred.",
             [MessageCode.InvalidRequest] = "The request is invalid.",
             [MessageCode.InvalidAmount] = "The provided amount is invalid.",
-            [MessageCode.AccountNameRequired] = "Account name is required.",
-            [MessageCode.AccountTypeInvalid] = "Account type is invalid.",
-            [MessageCode.OpeningBalanceInvalid] = "Opening balance is invalid.",
+            [MessageCode.OpeningBalanceInvalid] = "Opening balance is below the account type's minimum.",
+            [MessageCode.AccessDenied] = "Access denied.",
             [MessageCode.AccountNotFound] = "Account was not found.",
-            [MessageCode.AccountAlreadyExists] = "Account already exists.",
+            [MessageCode.AccountTypeNotFound] = "Account type was not found.",
+            [MessageCode.BusinessRuleViolation] = "The requested operation violates a business rule.",
             [MessageCode.InternalServerError] = "An unexpected error occurred."
         };
 

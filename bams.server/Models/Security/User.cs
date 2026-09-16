@@ -1,0 +1,24 @@
+namespace bams.server.Models.Security;
+
+public sealed class User
+{
+    public long Id { get; set; }
+
+    public string Username { get; set; } = string.Empty;
+
+    public string Email { get; set; } = string.Empty;
+
+    public string PasswordHash { get; set; } = string.Empty;
+
+    public string FullName { get; set; } = string.Empty;
+
+    public string? Phone { get; set; }
+
+    public OnlineStatus OnlineStatus { get; set; } = OnlineStatus.Inactive;
+
+    public DateTime? LastLoginAt { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
+}

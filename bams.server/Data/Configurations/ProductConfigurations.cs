@@ -1,0 +1,54 @@
+using bams.server.Models.Products;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace bams.server.Data.Configurations;
+
+public sealed class AccountTypeConfiguration : IEntityTypeConfiguration<AccountType>
+{
+    public void Configure(EntityTypeBuilder<AccountType> builder)
+    {
+        builder.HasKey(t => t.Id);
+
+        builder.Property(t => t.Code).IsRequired().HasMaxLength(40);
+        builder.Property(t => t.Name).IsRequired().HasMaxLength(150);
+        builder.Property(t => t.Category).HasMaxLength(40);
+        builder.Property(t => t.Status).IsRequired().HasMaxLength(20);
+
+        builder.HasIndex(t => t.Code).IsUnique();
+    }
+}
+
+public sealed class InterestRateRuleConfiguration : IEntityTypeConfiguration<InterestRateRule>
+{
+    public void Configure(EntityTypeBuilder<InterestRateRule> builder)
+    {
+        builder.HasKey(r => r.Id);
+
+        builder.Property(r => r.AnnualRate).HasPrecision(9, 4);
+        builder.Property(r => r.EarlyWithdrawalRate).HasPrecision(9, 4);
+        builder.Property(r => r.Status).IsRequired().HasMaxLength(20);
+
+        builder.HasOne(r => r.AccountType)
+            .WithMany()
+            .HasForeignKey(r => r.AccountTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
+{
+    public void Configure(EntityTypeBuilder<FeeRule> builder)
+    {
+        builder.HasKey(r => r.Id);
+
+        builder.Property(r => r.Percentage).HasPrecision(9, 4);
+        builder.Property(r => r.TaxRate).HasPrecision(9, 4);
+        builder.Property(r => r.Status).IsRequired().HasMaxLength(20);
+
+        builder.HasOne(r => r.AccountType)
+            .WithMany()
+            .HasForeignKey(r => r.AccountTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
