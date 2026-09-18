@@ -5,6 +5,7 @@ using bams.server.Exceptions;
 using bams.server.Mapping;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
+using bams.server.Models.Accounts.Enums;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
