@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Geometry x:Key="Icon.Dashboard">
+        M3,3 H10 V10 H3 Z M14,3 H21 V10 H14 Z M14,14 H21 V21 H14 Z M3,14 H10 V21 H3 Z
+    </Geometry>
+    <Geometry x:Key="Icon.Accounts">
+        M2,5 H22 V19 H2 Z M2,10 H22
+    </Geometry>
+    <Geometry x:Key="Icon.Transactions">
+        M23,6 L13.5,15.5 L8.5,10.5 L1,18 M17,6 H23 V12
+    </Geometry>
+    <Geometry x:Key="Icon.Transfers">
+        M17,1 L21,5 L17,9 M3,11 V9 A4,4 0 0 1 7,5 H21 M7,23 L3,19 L7,15 M21,13 V15 A4,4 0 0 1 17,19 H3
+    </Geometry>
+    <Geometry x:Key="Icon.Loans">
+        M12,1 V23 M17,5 H9.5 A3.5,3.5 0 0 0 9.5,12 H14.5 A3.5,3.5 0 0 1 14.5,19 H6
+    </Geometry>
+    <Geometry x:Key="Icon.Reports">
+        M14,2 H6 A2,2 0 0 0 4,4 V20 A2,2 0 0 0 6,22 H18 A2,2 0 0 0 20,20 V8 Z M14,2 V8 H20 M16,13 H8 M16,17 H8
+    </Geometry>
+    <Geometry x:Key="Icon.Settings">
+        M12,9 A3,3 0 1 0 12,15 A3,3 0 1 0 12,9 Z
+    </Geometry>
+    <Geometry x:Key="Icon.Bank">
+        M3,10 H21 V21 H3 Z M3,10 L12,3 L21,10 M12,10 V21
+    </Geometry>
+    <Geometry x:Key="Icon.Menu">
+        M3,6 H21 M3,12 H21 M3,18 H21
+    </Geometry>
+    <Geometry x:Key="Icon.MenuNarrow">
+        M5,6 H19 M5,12 H19 M5,18 H19
+    </Geometry>
+</ResourceDictionary>

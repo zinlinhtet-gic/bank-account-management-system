@@ -1,0 +1,182 @@
+<UserControl x:Class="Bams.Desktop.Components.NavBar.NavBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Bams.Desktop.Components.NavBar"
+             xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
+             x:Name="Root">
+
+    <Border Background="{StaticResource CardBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="0,0,1,0">
+        <Border.Width>
+            <Binding Path="DataContext.IsCollapsed"
+                     ElementName="Root"
+                     Converter="{StaticResource CollapsedWidthConverter}"/>
+        </Border.Width>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- header -->
+                <RowDefinition Height="*"/>
+                <!-- nav items -->
+                <RowDefinition Height="Auto"/>
+                <!-- user -->
+            </Grid.RowDefinitions>
+
+            <!-- ===== Header / Logo ===== -->
+            <Border Grid.Row="0"
+                    Height="56"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,0,1">
+                <Grid Margin="16,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                            Width="28"
+                            Height="28"
+                            Command="{Binding DataContext.ToggleCollapsedCommand, ElementName=Root}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="0"
+                            Cursor="Hand">
+                        <Border CornerRadius="4"
+                                Background="{StaticResource AccentBrush}">
+                            <Path Data="{StaticResource Icon.Bank}"
+                                  Stroke="{StaticResource AccentForegroundBrush}"
+                                  StrokeThickness="2"
+                                  Stretch="Uniform"
+                                  Margin="5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"/>
+                        </Border>
+                    </Button>
+
+                    <!-- Like {!collapsed && (...)} -->
+                    <StackPanel Grid.Column="1"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding DataContext.IsCollapsed, ElementName=Root,
+                                             Converter={StaticResource BoolToCollapsedVisibility}}">
+                        <TextBlock Text="DaLanBank"
+                                   FontFamily="{StaticResource SerifFont}"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ForegroundBrush}"/>
+                        <TextBlock Text="MANAGEMENT"
+                                   FontSize="10"
+                                   Foreground="{StaticResource MutedForegroundBrush}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="2"
+                            Command="{Binding DataContext.ToggleCollapsedCommand, ElementName=Root}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="4"
+                            Cursor="Hand">
+                        <Path Width="14"
+                              Height="14"
+                              Stroke="{StaticResource MutedForegroundBrush}"
+                              StrokeThickness="2"
+                              Stretch="Uniform"
+                              Data="{Binding DataContext.IsCollapsed, ElementName=Root,
+                                     Converter={StaticResource MenuIconConverter}}"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ===== Nav Items ===== -->
+            <ScrollViewer Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="0,12">
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:NavItem}">
+                            <Button Command="{Binding Command}"
+                                    HorizontalContentAlignment="Left"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Grid Background="{TemplateBinding Background}">
+                                            <!-- Active left bar -->
+                                            <Rectangle Width="3"
+                                                       HorizontalAlignment="Left"
+                                                       Margin="0,4,0,4"
+                                                       RadiusX="2"
+                                                    RadiusY="2"
+                                                       Fill="{StaticResource AccentBrush}">
+                                                <Rectangle.Visibility>
+                                                    <MultiBinding Converter="{StaticResource ActiveToVisibility}">
+                                                        <Binding Path="DataContext.ActiveItem"
+                                                                 RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                        <Binding Path="Label"/>
+                                                    </MultiBinding>
+                                                </Rectangle.Visibility>
+                                            </Rectangle>
+                                            <StackPanel Orientation="Horizontal"
+                                                    Margin="16,10">
+                                                <icon:Icon Size="16"
+                                                           StrokeThickness="1.8"
+                                                           Geometry="{Binding IconKey,
+                                                               Converter={StaticResource IconKeyToGeometry}}"
+                                                           Foreground="{StaticResource MutedForegroundBrush}"/>
+
+                                                <TextBlock Text="{Binding Label}"
+                                                           Margin="12,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Foreground="{StaticResource ForegroundBrush}"
+                                                           Visibility="{Binding DataContext.IsCollapsed,
+                                                                        RelativeSource={RelativeSource AncestorType=UserControl},
+                                                                        Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- ===== User ===== -->
+            <Border Grid.Row="2"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="16,12">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="28"
+                            Height="28"
+                            CornerRadius="14"
+                            Background="{StaticResource PrimaryBrush}">
+                        <TextBlock Text="{Binding UserInitials}"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource PrimaryForegroundBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding DataContext.IsCollapsed, ElementName=Root,
+                                             Converter={StaticResource BoolToCollapsedVisibility}}">
+                        <TextBlock Text="{Binding UserName}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ForegroundBrush}"/>
+                        <TextBlock Text="{Binding UserRole}"
+                                   FontSize="10"
+                                   Foreground="{StaticResource MutedForegroundBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
