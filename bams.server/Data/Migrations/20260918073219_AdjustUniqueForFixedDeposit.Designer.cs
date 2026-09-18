@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bams.server.Data;
 
@@ -10,9 +11,11 @@ using bams.server.Data;
 namespace bams.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918073219_AdjustUniqueForFixedDeposit")]
+    partial class AdjustUniqueForFixedDeposit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1006,9 +1009,6 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<bool>("MustChangePassword")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<int>("OnlineStatus")
                         .HasColumnType("int");
 
@@ -1640,7 +1640,7 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.HasOne("bams.server.Models.Security.User", "User")
-                        .WithMany("UserRoles")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1769,11 +1769,6 @@ namespace bams.server.Data.Migrations
                     b.Navigation("GlAccount");
 
                     b.Navigation("Transaction");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Security.User", b =>
-                {
-                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }
