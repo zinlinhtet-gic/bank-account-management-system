@@ -1,5 +1,5 @@
 using bams.server.Models.Products;
-
+using bams.server.Models.Accounts.Enums;
 namespace bams.server.Models.Accounts;
 
 public sealed class Account

@@ -52,7 +52,7 @@ public sealed class FixedDepositConfiguration : IEntityTypeConfiguration<FixedDe
         builder.Property(f => f.AppliedAnnualRate).HasPrecision(9, 4);
         builder.Property(f => f.Status).IsRequired().HasMaxLength(20);
 
-        builder.HasIndex(f => f.AccountId).IsUnique();
+        builder.HasIndex(f => new { f.AccountId, f.StartDate, f.MaturityDate }).IsUnique();
 
         builder.HasOne(f => f.Account)
             .WithMany()

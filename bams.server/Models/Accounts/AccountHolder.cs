@@ -1,4 +1,5 @@
 using bams.server.Models.Customers;
+using bams.server.Models.Accounts.Enums;
 
 namespace bams.server.Models.Accounts;
 
