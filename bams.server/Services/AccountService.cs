@@ -7,6 +7,8 @@ using bams.server.Mapping;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
+using bams.server.Models.Customers;
+using bams.server.Models.Products;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
