@@ -23,4 +23,5 @@ public interface IAccountService
     Task<AccountResponse> CreateAccountAsync(
         CreateAccountRequest request,
         CancellationToken cancellationToken);
+
 }

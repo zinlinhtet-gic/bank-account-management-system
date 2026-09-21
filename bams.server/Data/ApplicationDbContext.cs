@@ -26,6 +26,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     // Product configuration
     public DbSet<AccountType> AccountTypes => Set<AccountType>();
+    public DbSet<AccountTypeRequiredDocument> AccountTypeRequiredDocuments => Set<AccountTypeRequiredDocument>();
     public DbSet<InterestRateRule> InterestRateRules => Set<InterestRateRule>();
     public DbSet<FeeRule> FeeRules => Set<FeeRule>();
 
@@ -34,6 +35,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<AccountHolder> AccountHolders => Set<AccountHolder>();
     public DbSet<FixedDeposit> FixedDeposits => Set<FixedDeposit>();
     public DbSet<AccountStatusHistory> AccountStatusHistories => Set<AccountStatusHistory>();
+    public DbSet<AccountNumberGeneration> AccountNumberGenerations => Set<AccountNumberGeneration>();
+    public DbSet<AccountDocument> AccountDocuments => Set<AccountDocument>();
 
     // Transactions
     public DbSet<Transaction> Transactions => Set<Transaction>();
