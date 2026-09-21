@@ -62,6 +62,25 @@ public sealed class AccountTypeRequiredDocumentConfiguration
     }
 }
 
+public sealed class AccountTypeRequiredDocumentConfiguration
+    : IEntityTypeConfiguration<AccountTypeRequiredDocument>
+{
+    public void Configure(EntityTypeBuilder<AccountTypeRequiredDocument> builder)
+    {
+        builder.HasKey(requirement => new
+            {
+                requirement.AccountTypeId,
+                requirement.DocumentType
+            });
+
+        builder.HasOne(requirement => requirement.AccountType)
+            .WithMany()
+            .HasForeignKey(requirement => requirement.AccountTypeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+    }
+}
+
 public sealed class InterestRateRuleConfiguration : IEntityTypeConfiguration<InterestRateRule>
 {
     public void Configure(EntityTypeBuilder<InterestRateRule> builder)
