@@ -1,4 +1,6 @@
+using bams.server.Constants;
 using bams.server.Models.Accounts;
+using bams.server.Models.Products;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,6 +20,62 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
             .WithMany()
             .HasForeignKey(a => a.AccountTypeId)
             .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class AccountNumberGenerationConfiguration : IEntityTypeConfiguration<AccountNumberGeneration>
+{
+    // Configures the persisted counter used to allocate account numbers per type and UTC hour.
+    public void Configure(EntityTypeBuilder<AccountNumberGeneration> builder)
+    {
+        builder.HasKey(generation => generation.Id);
+
+        builder.Property(generation => generation.GenerationPeriod)
+            .IsRequired()
+            .HasMaxLength(AccountConstants.AccountNumberTimestampFormat.Length);
+
+        builder.HasIndex(generation => new
+            {
+                generation.AccountTypeId,
+                generation.GenerationPeriod
+            })
+            .IsUnique();
+
+        builder.HasOne<AccountType>()
+            .WithMany()
+            .HasForeignKey(generation => generation.AccountTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class AccountDocumentConfiguration : IEntityTypeConfiguration<AccountDocument>
+{
+    public void Configure(EntityTypeBuilder<AccountDocument> builder)
+    {
+        builder.HasKey(document => document.Id);
+
+        builder.Property(document => document.DocumentNumber)
+            .HasMaxLength(DocumentConstants.DocumentNumberMaximumLength);
+        builder.Property(document => document.OriginalFileName)
+            .IsRequired()
+            .HasMaxLength(DocumentConstants.OriginalFileNameMaximumLength);
+        builder.Property(document => document.FileReference)
+            .IsRequired()
+            .HasMaxLength(DocumentConstants.FileReferenceMaximumLength);
+        builder.Property(document => document.ContentType)
+            .IsRequired()
+            .HasMaxLength(DocumentConstants.ContentTypeMaximumLength);
+        builder.Property(document => document.Status)
+            .IsRequired()
+            .HasMaxLength(DocumentConstants.StatusMaximumLength);
+
+        builder.HasIndex(document => new { document.AccountId, document.DocumentType })
+            .IsUnique();
+
+        builder.HasOne(document => document.Account)
+            .WithMany()
+            .HasForeignKey(document => document.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 

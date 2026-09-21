@@ -30,3 +30,8 @@ All auth failures use the standard `ApiErrorResponse` body:
 turns `ApiErrorResponse` into `ApiException` (keeping the server `Code`, `Message` and `TraceId`), and turns transport
 failures into `NetworkException`. Both derive from `AppException`, so ViewModels catch `AppException` and decide by
 `exception.Code`, never by message text.
+Account creation accepts multipart form data. `AccountDocumentService` validates account-type document requirements, delegates private file handling to `FileUploadUtils`, and persists `AccountDocument` metadata. Files are stored outside `wwwroot`; only relative generated references are stored in the database.
+
+Account type document requirements are normalized through `AccountTypeRequiredDocument`, allowing required document lists to change without adding product-specific columns.
+
+Database migrations run during application startup, followed by the idempotent `ProductSeeder`. EF configurations contain schema mapping only; product and required-document population belongs under `Data/Seeders`.

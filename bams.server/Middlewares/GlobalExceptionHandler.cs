@@ -43,7 +43,7 @@ public sealed class GlobalExceptionHandler
             ? appException.Code
             : MessageCode.InternalServerError;
 
-        if (exception is not AppException)
+        if (exception is not AppException || exception is FileStorageException)
         {
             _logger.LogError(
                 exception,

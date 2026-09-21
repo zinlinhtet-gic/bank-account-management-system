@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bams.server.Data;
 
@@ -10,9 +11,11 @@ using bams.server.Data;
 namespace bams.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921071400_AddAccountNumberGeneration")]
+    partial class AddAccountNumberGeneration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -195,56 +198,6 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("AccountTypeId");
 
                     b.ToTable("Accounts");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("AccountId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("DocumentNumber")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<int>("DocumentType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FileReference")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("varchar(300)");
-
-                    b.Property<long>("FileSizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId", "DocumentType")
-                        .IsUnique();
-
-                    b.ToTable("AccountDocuments");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
@@ -897,19 +850,6 @@ namespace bams.server.Data.Migrations
                     b.ToTable("AccountTypes");
                 });
 
-            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
-                {
-                    b.Property<long>("AccountTypeId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("DocumentType")
-                        .HasColumnType("int");
-
-                    b.HasKey("AccountTypeId", "DocumentType");
-
-                    b.ToTable("AccountTypeRequiredDocuments");
-                });
-
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
                 {
                     b.Property<long>("Id")
@@ -1094,9 +1034,6 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<bool>("MustChangePassword")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<int>("OnlineStatus")
                         .HasColumnType("int");
 
@@ -1107,9 +1044,6 @@ namespace bams.server.Data.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -1497,17 +1431,6 @@ namespace bams.server.Data.Migrations
                     b.Navigation("AccountType");
                 });
 
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
-                {
-                    b.HasOne("bams.server.Models.Accounts.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-                });
-
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
                 {
                     b.HasOne("bams.server.Models.Accounts.Account", "Account")
@@ -1701,17 +1624,6 @@ namespace bams.server.Data.Migrations
                     b.Navigation("PostedTransaction");
                 });
 
-            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
-                {
-                    b.HasOne("bams.server.Models.Products.AccountType", "AccountType")
-                        .WithMany()
-                        .HasForeignKey("AccountTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AccountType");
-                });
-
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
                 {
                     b.HasOne("bams.server.Models.Products.AccountType", "AccountType")
@@ -1762,7 +1674,7 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.HasOne("bams.server.Models.Security.User", "User")
-                        .WithMany("UserRoles")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1891,11 +1803,6 @@ namespace bams.server.Data.Migrations
                     b.Navigation("GlAccount");
 
                     b.Navigation("Transaction");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Security.User", b =>
-                {
-                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

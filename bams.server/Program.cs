@@ -2,6 +2,9 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using bams.server.Constants;
+using bams.server.Configuration;
 using bams.server.Data;
 using bams.server.Data.Seeders;
 using bams.server.DTO.Common;
@@ -9,7 +12,9 @@ using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
+using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +30,15 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySQL(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.Configure<FileUploadOptions>(
+    builder.Configuration.GetSection(FileUploadOptions.SectionName));
+var maximumUploadRequestSize = builder.Configuration.GetValue<long?>(
+    $"{FileUploadOptions.SectionName}:MaximumRequestSizeBytes")
+    ?? FileUploadOptions.DefaultMaximumRequestSizeBytes;
+builder.Services.Configure<FormOptions>(options =>
+    options.MultipartBodyLengthLimit = maximumUploadRequestSize);
+builder.WebHost.ConfigureKestrel(options =>
+    options.Limits.MaxRequestBodySize = maximumUploadRequestSize);
 
 // Configure JWT authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not found in configuration");
@@ -85,8 +99,21 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
+builder.Services.AddScoped<ProductSeeder>();
+builder.Services.AddSingleton<FileUploadUtils>();
 
 var app = builder.Build();
+
+// Apply schema changes before idempotently populating product reference data.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+
+    var productSeeder = scope.ServiceProvider.GetRequiredService<ProductSeeder>();
+    await productSeeder.SeedAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
