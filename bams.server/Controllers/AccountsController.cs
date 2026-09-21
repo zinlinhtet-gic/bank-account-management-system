@@ -48,8 +48,9 @@ public sealed class AccountsController : ControllerBase
     /// Creates a new account from the supplied API request contract.
     /// </summary>
     [HttpPost]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> CreateAccountAsync(
-        CreateAccountRequest request,
+        [FromForm] CreateAccountRequest request,
         CancellationToken cancellationToken)
     {
         var account = await _accountService.CreateAccountAsync(request, cancellationToken);
