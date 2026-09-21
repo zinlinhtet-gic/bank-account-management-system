@@ -35,10 +35,6 @@ The complete multipart request is limited to 60 MB by default.
 
 The six seeded account types are Current, Normal Saving, Special Saving, Normal Deposit, Special Deposit, and Hundred-Days Deposit. Each requires NRC, Photo, ProofOfAddress, HouseholdRegistration, and SourceOfFunds documents.
 
-The three Deposit products are stored with `IsFixedDeposit = true`. Service consumers can classify an already loaded product through `IAccountTypeService.IsFixedDeposit` without another database query.
-
-Fixed-deposit account requests also provide `InterestRateRuleId`, `RenewalInstruction`, and `CalculateFromCurrent`. `PayoutAccountId` is optional; when omitted, the primary holder's active individual Normal Saving account is selected. These fields must be omitted for non-fixed account types.
-
 Files are stored beneath the configured `FileUploads:RootPath` with GUID-generated names. The API does not expose a public document-download endpoint.
 
 ## Account Status Actions
