@@ -926,29 +926,6 @@ namespace bams.server.Data.Migrations
                     b.ToTable("AccountTypes");
                 });
 
-            modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
-                {
-                    b.HasOne("bams.server.Models.Products.AccountType", "RequiredProduct")
-                        .WithMany()
-                        .HasForeignKey("RequiredProductId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("RequiredProduct");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
-                {
-                    b.Property<long>("AccountTypeId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("DocumentType")
-                        .HasColumnType("int");
-
-                    b.HasKey("AccountTypeId", "DocumentType");
-
-                    b.ToTable("AccountTypeRequiredDocuments");
-                });
-
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
                 {
                     b.Property<long>("Id")
@@ -1534,17 +1511,6 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("AccountType");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
-                {
-                    b.HasOne("bams.server.Models.Accounts.Account", "Account")
-                        .WithMany("AccountHolders")
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
