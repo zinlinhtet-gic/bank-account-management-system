@@ -54,8 +54,9 @@ public sealed class AccountsController : ControllerBase
     /// </summary>
     [HttpPost]
     [RequirePermission(SecurityConstants.AccountManagement)]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> CreateAccountAsync(
-        CreateAccountRequest request,
+        [FromForm] CreateAccountRequest request,
         CancellationToken cancellationToken)
     {
         var account = await _accountService.CreateAccountAsync(request, cancellationToken);
