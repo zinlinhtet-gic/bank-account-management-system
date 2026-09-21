@@ -13,3 +13,9 @@ The initial account template includes:
 - `Account` as the EF Core entity.
 - Account request and response DTOs under `DTO/Accounts`.
 - Central message, exception, and middleware infrastructure.
+
+Account creation accepts multipart form data. `AccountDocumentService` validates account-type document requirements, delegates private file handling to `FileUploadUtils`, and persists `AccountDocument` metadata. Files are stored outside `wwwroot`; only relative generated references are stored in the database.
+
+Account type document requirements are normalized through `AccountTypeRequiredDocument`, allowing required document lists to change without adding product-specific columns.
+
+Database migrations run during application startup, followed by the idempotent `ProductSeeder`. EF configurations contain schema mapping only; product and required-document population belongs under `Data/Seeders`.
