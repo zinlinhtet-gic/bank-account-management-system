@@ -8,8 +8,6 @@ using bams.server.Mapping;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
-using bams.server.Models.Customers;
-using bams.server.Models.Products;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.WebUtilities;
@@ -20,13 +18,31 @@ public sealed class AccountService : IAccountService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IAccountDocumentService _accountDocumentService;
+    private readonly IAccountHolderService _accountHolderService;
+    private readonly IAccountTypeService _accountTypeService;
+    private readonly IFixedDepositService _fixedDepositService;
+    private readonly IAuditLogService _auditLogService;
+    private readonly IAccountTransactionService _accountTransactionService;
+    private readonly IAccountingReportService _accountingReportService;
 
     public AccountService(
         ApplicationDbContext dbContext,
-        IAccountDocumentService accountDocumentService)
+        IAccountDocumentService accountDocumentService,
+        IAccountHolderService accountHolderService,
+        IAccountTypeService accountTypeService,
+        IFixedDepositService fixedDepositService,
+        IAuditLogService auditLogService,
+        IAccountTransactionService accountTransactionService,
+        IAccountingReportService accountingReportService)
     {
         _dbContext = dbContext;
         _accountDocumentService = accountDocumentService;
+        _accountHolderService = accountHolderService;
+        _accountTypeService = accountTypeService;
+        _fixedDepositService = fixedDepositService;
+        _auditLogService = auditLogService;
+        _accountTransactionService = accountTransactionService;
+        _accountingReportService = accountingReportService;
     }
 
     /// <summary>
@@ -176,26 +192,60 @@ public sealed class AccountService : IAccountService
         CreateAccountRequest request,
         CancellationToken cancellationToken)
     {
-        var accountType = await _dbContext.AccountTypes
-            .AsNoTracking()
-            .FirstOrDefaultAsync(type => type.Id == accountTypeId, cancellationToken);
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        ValidateAccountStatusReason(reason);
 
-        if (accountType is null)
+        var changedAt = DateTime.UtcNow;
+        var oldStatus = account.Status;
+
+        switch (newStatus)
         {
-            throw new NotFoundException(MessageCode.AccountTypeNotFound);
+            case AccountStatus.Active:
+                await ChangeToActiveStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Closed:
+                await ChangeToClosedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Frozen:
+                await ChangeToFrozenStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Suspended:
+                await ChangeToSuspendedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Dormant:
+                await ChangeToDormantStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            default:
+                throw new ValidationException(MessageCode.AccountStatusInvalid);
         }
 
-        return accountType;
+        await _auditLogService.RecordAccountStatusUpdateLogAsync(
+            account.Id,
+            oldStatus,
+            account.Status,
+            reason,
+            changedBy,
+            changedAt,
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return account.ToResponse();
     }
 
-    // Enforces the configured minimum opening balance for the account type.
-    private void ValidateOpeningBalance(
-        decimal openingBalance,
-        AccountType accountType)
+    // Applies the supplied adjustment to both balances and returns the updated account.
+    public async Task<AccountResponse> UpdateAccountBalanceAsync(
+        long accountId,
+        decimal balanceAdjustment,
+        long changedBy,
+        CancellationToken cancellationToken)
     {
-        if (openingBalance < accountType.MinimumOpeningBalance)
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        var oldBalance = account.AvailableBalance;
+        decimal newBalance = account.AvailableBalance + balanceAdjustment;
+
+        if (newBalance < 0)
         {
-            throw new ValidationException(MessageCode.OpeningBalanceInvalid);
+            throw new ValidationException(MessageCode.AccountBalanceCannotBeNegative);
         }
 
         var now = DateTime.UtcNow;
