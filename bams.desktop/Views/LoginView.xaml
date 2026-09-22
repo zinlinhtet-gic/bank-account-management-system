@@ -38,12 +38,36 @@
                            FontWeight="SemiBold"
                            Foreground="#34495E"/>
 
-                <PasswordBox x:Name="PasswordBox"
-                             Padding="8"
-                             Margin="0,0,0,16"
+                <Grid Margin="0,0,0,16">
+                    <PasswordBox x:Name="PasswordBox"
+                                 Padding="8,8,40,8"
+                                 BorderBrush="#BDC3C7"
+                                 BorderThickness="1"
+                                 PasswordChanged="OnPasswordChanged"/>
+
+                    <TextBox x:Name="PasswordTextBox"
+                             Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="8,8,40,8"
                              BorderBrush="#BDC3C7"
                              BorderThickness="1"
-                             PasswordChanged="OnPasswordChanged"/>
+                             Visibility="Collapsed"/>
+
+                    <Button Click="OnTogglePasswordClick"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Width="40"
+                            ToolTip="Toggle password visibility">
+                        <TextBlock x:Name="EyeIcon"
+                                   Text="👁‍🗨"
+                                   FontSize="16"
+                                   Foreground="#7F8C8D"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                    </Button>
+                </Grid>
 
                 <Button Content="Login"
                         Command="{Binding LoginCommand}"
@@ -51,8 +75,7 @@
                         Foreground="White"
                         Padding="12"
                         Margin="0,8,0,0"
-                        FontWeight="SemiBold"
-                        IsEnabled="{Binding IsNotBusy}"/>
+                        FontWeight="SemiBold"/>
 
                 <TextBlock Text="{Binding ErrorMessage}"
                            Foreground="#E74C3C"

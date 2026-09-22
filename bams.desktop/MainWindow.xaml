@@ -15,6 +15,9 @@
         <!-- Login View -->
         <ContentControl x:Name="LoginContentControl" Content="{Binding LoginView}"/>
         
+        <!-- Change Password View -->
+        <ContentControl x:Name="ChangePasswordContentControl" Visibility="Collapsed"/>
+        
         <!-- Main Application Shell -->
         <Grid x:Name="MainAppGrid" Visibility="Collapsed">
             <Grid.ColumnDefinitions>

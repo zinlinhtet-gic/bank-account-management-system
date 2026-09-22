@@ -19,6 +19,7 @@ public sealed class LoginViewModel : ViewModelBase
     private bool _isBusy;
     private string _errorMessage = string.Empty;
     private string _statusMessage = string.Empty;
+    private bool _requiresPasswordChange;
 
     public LoginViewModel(IAuthenticationService authenticationService, AuthContext authContext)
     {
@@ -96,13 +97,25 @@ public sealed class LoginViewModel : ViewModelBase
 
     public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
 
+    public bool RequiresPasswordChange
+    {
+        get => _requiresPasswordChange;
+        private set
+        {
+            if (SetProperty(ref _requiresPasswordChange, value))
+            {
+                OnPropertyChanged(nameof(DoesNotRequirePasswordChange));
+            }
+        }
+    }
+
+    public bool DoesNotRequirePasswordChange => !RequiresPasswordChange;
+
     public RelayCommand LoginCommand { get; }
 
     private bool CanLogin()
     {
-        return !IsBusy &&
-               !string.IsNullOrWhiteSpace(Username) &&
-               !string.IsNullOrWhiteSpace(Password);
+        return !IsBusy;
     }
 
     // Authenticates the user through the service layer and sets up the auth context.
@@ -119,11 +132,34 @@ public sealed class LoginViewModel : ViewModelBase
             ErrorMessage = string.Empty;
             StatusMessage = string.Empty;
 
+            // Validate input
+            if (string.IsNullOrWhiteSpace(Username))
+            {
+                ErrorMessage = "Please enter your username.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                ErrorMessage = "Please enter your password.";
+                return;
+            }
+
             var request = new LoginRequest(Username, Password);
             var response = await _authenticationService.LoginAsync(request, cancellationToken);
 
             // Set auth token for subsequent requests
             _authenticationService.SetAuthToken(response.Token);
+
+            // Check if password change is required
+            RequiresPasswordChange = response.RequiresPasswordChange;
+
+            if (RequiresPasswordChange)
+            {
+                StatusMessage = "You must change your password before continuing.";
+                OnPasswordChangeRequired?.Invoke();
+                return;
+            }
 
             // Fetch user permissions
             var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
@@ -144,15 +180,39 @@ public sealed class LoginViewModel : ViewModelBase
         }
         catch (NetworkException)
         {
-            ErrorMessage = "Network error: Unable to connect to the server. Please check your connection.";
+            ErrorMessage = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
         }
         catch (ApiException ex)
         {
-            ErrorMessage = $"Authentication error: {ex.Message}";
+            // Provide more specific error messages based on the exception message
+            if (ex.Message.Contains("Invalid credentials") || ex.Message.Contains("Invalid username or password"))
+            {
+                ErrorMessage = "Invalid username or password. Please check your credentials and try again.";
+            }
+            else if (ex.Message.Contains("Account not found") || ex.Message.Contains("User not found"))
+            {
+                ErrorMessage = "Account not found. Please check your username or contact your administrator.";
+            }
+            else if (ex.Message.Contains("Account locked") || ex.Message.Contains("Account disabled"))
+            {
+                ErrorMessage = "Your account has been locked or disabled. Please contact your administrator.";
+            }
+            else if (ex.Message.Contains("Authentication required"))
+            {
+                ErrorMessage = "Authentication session expired. Please log in again.";
+            }
+            else if (ex.Message.Contains("Access denied") || ex.Message.Contains("Unauthorized"))
+            {
+                ErrorMessage = "Access denied. You do not have permission to access this system.";
+            }
+            else
+            {
+                ErrorMessage = $"Authentication error: {ex.Message}";
+            }
         }
         catch (Exception)
         {
-            ErrorMessage = "An unexpected error occurred during login.";
+            ErrorMessage = "An unexpected error occurred during login. Please try again or contact support if the problem persists.";
         }
         finally
         {
@@ -162,4 +222,7 @@ public sealed class LoginViewModel : ViewModelBase
 
     // Event raised when login is successful for navigation purposes
     public event Action? OnLoginSuccess;
+
+    // Event raised when password change is required
+    public event Action? OnPasswordChangeRequired;
 }

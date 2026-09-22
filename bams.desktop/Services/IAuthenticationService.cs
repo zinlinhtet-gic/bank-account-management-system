@@ -18,4 +18,9 @@ public interface IAuthenticationService
     /// Sets the JWT token for authenticated requests.
     /// </summary>
     void SetAuthToken(string token);
+
+    /// <summary>
+    /// Changes the user's password.
+    /// </summary>
+    Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken);
 }

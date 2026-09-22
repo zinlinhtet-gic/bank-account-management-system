@@ -13,4 +13,9 @@ public interface IAuthenticationService
     /// Gets the permissions for a user based on their roles.
     /// </summary>
     Task<PermissionsResponse> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Changes the user's password.
+    /// </summary>
+    Task<ChangePasswordResponse> ChangePasswordAsync(long userId, ChangePasswordRequest request, CancellationToken cancellationToken);
 }

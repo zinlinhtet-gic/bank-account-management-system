@@ -18,6 +18,8 @@ public sealed class User
 
     public DateTime? LastLoginAt { get; set; }
 
+    public bool MustChangePassword { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
