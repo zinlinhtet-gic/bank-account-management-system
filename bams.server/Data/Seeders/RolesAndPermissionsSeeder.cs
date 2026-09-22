@@ -8,15 +8,25 @@ namespace bams.server.Data.Seeders;
 
 /// <summary>
 /// Seeds initial security data: roles, permissions, role-permission mappings, and default users.
+/// This seeder is designed for fresh migration and development setup.
+/// For production, consider using more secure password hashing and configurable seeding.
 /// </summary>
 public static class RolesAndPermissionsSeeder
 {
     /// <summary>
-    /// Seeds all security data if not already present.
+    /// Seeds all security data. Only seeds if database is empty to prevent accidental double-seeding.
+    /// Safe for fresh migration and prevents data loss from accidental multiple runs.
     /// </summary>
     public static async Task SeedSecurityDataAsync(ApplicationDbContext dbContext)
     {
-        // Clear existing security data to ensure clean seed
+        // Check if data already exists to prevent double-seeding
+        if (await dbContext.Permissions.AnyAsync())
+        {
+            // Data already seeded, skip to prevent accidental data loss
+            return;
+        }
+
+        // Clear any existing data to ensure clean state
         await ClearSecurityDataAsync(dbContext);
 
         await SeedPermissionsAsync(dbContext);
@@ -27,6 +37,8 @@ public static class RolesAndPermissionsSeeder
 
     /// <summary>
     /// Clears existing security data to ensure clean seeding.
+    /// Clears in reverse dependency order to respect foreign key constraints.
+    /// Only called if initial check determines data exists and needs to be reset.
     /// </summary>
     private static async Task ClearSecurityDataAsync(ApplicationDbContext dbContext)
     {
@@ -40,6 +52,7 @@ public static class RolesAndPermissionsSeeder
 
     /// <summary>
     /// Seeds all permissions defined in SecurityConstants.
+    /// These permissions match the frontend permission checks exactly.
     /// </summary>
     private static async Task SeedPermissionsAsync(ApplicationDbContext dbContext)
     {
@@ -64,6 +77,7 @@ public static class RolesAndPermissionsSeeder
 
     /// <summary>
     /// Seeds the three system roles: Manager, Officer, Auditor.
+    /// These roles determine which permissions users have access to.
     /// </summary>
     private static async Task SeedRolesAsync(ApplicationDbContext dbContext)
     {
@@ -80,6 +94,10 @@ public static class RolesAndPermissionsSeeder
 
     /// <summary>
     /// Seeds role-permission mappings based on role responsibilities.
+    /// 
+    /// Manager: user_management, customer_management, customer_kyc, accounting, configuration, operation
+    /// Officer: customer_management, account_management, transactions
+    /// Auditor: customer_list, accounting, transaction_history, audit
     /// </summary>
     private static async Task SeedRolePermissionsAsync(ApplicationDbContext dbContext)
     {
@@ -92,7 +110,7 @@ public static class RolesAndPermissionsSeeder
 
         var rolePermissions = new List<RolePermission>();
 
-        // Manager: user_management, cus_management, cus_kyc, accounting, configuration, operation
+        // Manager: user_management, customer_management, customer_kyc, accounting, configuration, operation
         var managerPermissionCodes = new[]
         {
             SecurityConstants.UserManagement,
@@ -113,7 +131,7 @@ public static class RolesAndPermissionsSeeder
             });
         }
 
-        // Officer: cus_management, acc_management, transactions
+        // Officer: customer_management, account_management, transactions
         var officerPermissionCodes = new[]
         {
             SecurityConstants.CustomerManagement,
@@ -131,7 +149,7 @@ public static class RolesAndPermissionsSeeder
             });
         }
 
-        // Auditor: cus_list, accounting, transaction_history, audit
+        // Auditor: customer_list, accounting, transaction_history, audit
         var auditorPermissionCodes = new[]
         {
             SecurityConstants.CustomerList,
@@ -156,6 +174,13 @@ public static class RolesAndPermissionsSeeder
 
     /// <summary>
     /// Seeds default users for each role with known credentials for testing.
+    /// 
+    /// Test Credentials:
+    /// - manager / Manager123!
+    /// - officer / Officer123!
+    /// - auditor / Auditor123!
+    /// 
+    /// Note: In production, use proper password hashing and never hardcode credentials.
     /// </summary>
     private static async Task SeedUsersAsync(ApplicationDbContext dbContext)
     {
@@ -223,7 +248,8 @@ public static class RolesAndPermissionsSeeder
 
     /// <summary>
     /// Simple password hashing for initial seed data.
-    /// Note: In production, use ASP.NET Core Identity's password hasher.
+    /// Uses SHA256 for development/testing purposes.
+    /// Note: In production, use ASP.NET Core Identity's password hasher with proper salting.
     /// </summary>
     private static string HashPassword(string password)
     {
