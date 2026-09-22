@@ -45,9 +45,19 @@ public sealed class AuthenticationService : IAuthenticationService
                 request,
                 cancellationToken);
 
-            response.EnsureSuccessStatusCode();
-
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Parse error response from server
+                var errorResponse = JsonSerializer.Deserialize<ApiErrorResponse>(
+                    content,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                var errorMessage = errorResponse?.Message ?? "Login failed";
+                throw new ApiException(errorMessage);
+            }
+
             var apiResponse = JsonSerializer.Deserialize<ApiResponse<LoginResponse>>(
                 content,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -62,6 +72,10 @@ public sealed class AuthenticationService : IAuthenticationService
         catch (HttpRequestException ex)
         {
             throw new NetworkException("Unable to connect to server", ex);
+        }
+        catch (ApiException)
+        {
+            throw; // Re-throw API exceptions as-is
         }
         catch (Exception ex)
         {
@@ -80,9 +94,19 @@ public sealed class AuthenticationService : IAuthenticationService
                 $"{AuthPath}/permissions",
                 cancellationToken);
 
-            response.EnsureSuccessStatusCode();
-
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Parse error response from server
+                var errorResponse = JsonSerializer.Deserialize<ApiErrorResponse>(
+                    content,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                var errorMessage = errorResponse?.Message ?? "Failed to get permissions";
+                throw new ApiException(errorMessage);
+            }
+
             var apiResponse = JsonSerializer.Deserialize<ApiResponse<PermissionsResponse>>(
                 content,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -97,6 +121,10 @@ public sealed class AuthenticationService : IAuthenticationService
         catch (HttpRequestException ex)
         {
             throw new NetworkException("Unable to connect to server", ex);
+        }
+        catch (ApiException)
+        {
+            throw; // Re-throw API exceptions as-is
         }
         catch (Exception ex)
         {
@@ -118,9 +146,19 @@ public sealed class AuthenticationService : IAuthenticationService
                 request,
                 cancellationToken);
 
-            response.EnsureSuccessStatusCode();
-
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Parse error response from server
+                var errorResponse = JsonSerializer.Deserialize<ApiErrorResponse>(
+                    content,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                var errorMessage = errorResponse?.Message ?? "Password change failed";
+                throw new ApiException(errorMessage);
+            }
+
             var apiResponse = JsonSerializer.Deserialize<ApiResponse<ChangePasswordResponse>>(
                 content,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -136,6 +174,10 @@ public sealed class AuthenticationService : IAuthenticationService
         {
             throw new NetworkException("Unable to connect to server", ex);
         }
+        catch (ApiException)
+        {
+            throw; // Re-throw API exceptions as-is
+        }
         catch (Exception ex)
         {
             throw new ApiException($"Server error: {ex.Message}", ex);
@@ -148,4 +190,11 @@ public sealed class AuthenticationService : IAuthenticationService
         string Name,
         string Message,
         T Data);
+
+    // API error response wrapper to match server error response format
+    private record ApiErrorResponse(
+        int Code,
+        string Name,
+        string Message,
+        string? TraceId = null);
 }

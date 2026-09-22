@@ -11,6 +11,7 @@ public static class MessageCatalog
             [MessageCode.InvalidRequest] = "The request is invalid.",
             [MessageCode.InvalidAmount] = "The provided amount is invalid.",
             [MessageCode.InvalidCredentials] = "Invalid username or password.",
+            [MessageCode.PasswordDoesNotMeetRequirements] = "Password must be at least 8 characters long and include: 1 uppercase letter (A-Z), 1 lowercase letter (a-z), 1 number (0-9), and 1 special character (!@#$%^&*).",
             [MessageCode.OpeningBalanceInvalid] = "Opening balance is below the account type's minimum.",
             [MessageCode.AuthenticationRequired] = "Authentication is required.",
             [MessageCode.PasswordChangeRequired] = "You must change your password before continuing.",

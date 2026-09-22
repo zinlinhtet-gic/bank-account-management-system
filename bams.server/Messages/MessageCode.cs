@@ -11,6 +11,7 @@ public enum MessageCode
     InvalidRequest = 3002,
     InvalidAmount = 3003,
     InvalidCredentials = 3004,
+    PasswordDoesNotMeetRequirements = 3005,
     OpeningBalanceInvalid = 3102,
 
     // Authentication: 4000 - 4099

@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -171,6 +172,12 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
+        // Validate new password complexity
+        if (!IsPasswordValid(request.NewPassword))
+        {
+            throw new ValidationException(MessageCode.PasswordDoesNotMeetRequirements);
+        }
+
         // Hash new password
         var newPasswordHash = HashPassword(request.NewPassword);
 
@@ -196,5 +203,23 @@ public sealed class AuthenticationService : IAuthenticationService
         var bytes = Encoding.UTF8.GetBytes(password);
         var hash = sha256.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
+    }
+
+    /// <summary>
+    /// Validates password complexity requirements.
+    /// </summary>
+    private bool IsPasswordValid(string password)
+    {
+        if (password.Length < 8)
+        {
+            return false;
+        }
+
+        bool hasUpper = password.Any(char.IsUpper);
+        bool hasLower = password.Any(char.IsLower);
+        bool hasDigit = password.Any(char.IsDigit);
+        bool hasSpecial = password.Any(c => !char.IsLetterOrDigit(c));
+
+        return hasUpper && hasLower && hasDigit && hasSpecial;
     }
 }
