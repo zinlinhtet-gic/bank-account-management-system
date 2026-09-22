@@ -152,6 +152,9 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)");
 
+                    b.Property<DateTime?>("ActiveAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<long>("AccountTypeId")
                         .HasColumnType("bigint");
 
@@ -166,6 +169,9 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("DormantAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FrozenAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("LastActivityAt")
@@ -361,6 +367,9 @@ namespace bams.server.Data.Migrations
                     b.Property<decimal>("AppliedAnnualRate")
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)");
+
+                    b.Property<bool>("CalculateFromCurrent")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
@@ -867,6 +876,9 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<bool>("IsFixedDeposit")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<decimal>("MinimumMaintainedBalance")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -884,6 +896,9 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
+                    b.Property<long?>("RequiredProductId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -894,7 +909,19 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
+                    b.HasIndex("RequiredProductId");
+
                     b.ToTable("AccountTypes");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
+                {
+                    b.HasOne("bams.server.Models.Products.AccountType", "RequiredProduct")
+                        .WithMany()
+                        .HasForeignKey("RequiredProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("RequiredProduct");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
@@ -1494,7 +1521,7 @@ namespace bams.server.Data.Migrations
             modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
                 {
                     b.HasOne("bams.server.Models.Accounts.Account", "Account")
-                        .WithMany()
+                        .WithMany("AccountHolders")
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1885,6 +1912,11 @@ namespace bams.server.Data.Migrations
                     b.Navigation("GlAccount");
 
                     b.Navigation("Transaction");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
+                {
+                    b.Navigation("AccountHolders");
                 });
 #pragma warning restore 612, 618
         }
