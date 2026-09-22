@@ -39,6 +39,8 @@ public sealed class FixedDeposit
 
     public decimal CurrentPrincipal { get; set; }
 
+    public bool CalculateFromCurrent { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
