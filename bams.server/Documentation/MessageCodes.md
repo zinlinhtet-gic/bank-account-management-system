@@ -20,6 +20,7 @@
 | 3206 | CustomerEmailInvalid | The supplied customer email address is not a valid format. |
 | 4100 | AccessDenied | The user is not allowed to perform the operation. |
 | 4201 | AccountNotFound | The requested account does not exist. |
+| 4202 | CustomerNotFound | The requested customer does not exist. |
 | 4302 | AccountAlreadyExists | An account conflicts with an existing account. |
 | 4305 | CustomerAlreadyExists | A customer with the same NRC number, passport number, or email already exists. |
 | 4400 | BusinessRuleViolation | A business rule was violated. |

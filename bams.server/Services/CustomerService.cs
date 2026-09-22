@@ -31,6 +31,47 @@ public sealed class CustomerService : ICustomerService
     }
 
     /// <summary>
+    /// Gets all customer summaries using a read-only database query.
+    /// </summary>
+    public async Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Customers
+            .AsNoTracking()
+            .OrderBy(customer => customer.Id)
+            .Select(customer => new CustomerSummaryResponse(
+                customer.Id,
+                customer.CustomerNo,
+                customer.CustomerType,
+                customer.FullName,
+                customer.Phone,
+                customer.Email,
+                customer.KycStatus,
+                customer.Status))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets a single customer, including its documents, by unique identifier.
+    /// </summary>
+    public async Task<CustomerResponse> GetCustomerByIdAsync(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _dbContext.Customers
+            .AsNoTracking()
+            .Include(customer => customer.Documents)
+            .FirstOrDefaultAsync(customer => customer.Id == id, cancellationToken);
+
+        if (customer is null)
+        {
+            throw new NotFoundException(MessageCode.CustomerNotFound);
+        }
+
+        return customer.ToResponse();
+    }
+
+    /// <summary>
     /// Creates a customer, its identity documents, and any uploaded files as a single unit of work.
     /// </summary>
     public async Task<CustomerResponse> CreateCustomerAsync(

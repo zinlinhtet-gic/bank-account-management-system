@@ -26,6 +26,7 @@ public enum MessageCode
 
     // Not Found: 4200 - 4299
     AccountNotFound = 4201,
+    CustomerNotFound = 4202,
     AccountTypeNotFound = 4203,
 
     // Conflict: 4300 - 4399

@@ -8,6 +8,7 @@ using bams.server.Models.Products;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace bams.server.Data;
 
@@ -62,10 +63,44 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
+
+        // MySql.EntityFrameworkCore's ADO.NET reader cannot materialize DateOnly directly
+        // (it throws InvalidCastException reading a `date` column), so every DateOnly
+        // property round-trips through DateTime instead, while keeping the `date` column type.
+        configurationBuilder.Properties<DateOnly>()
+            .HaveConversion<DateOnlyConverter>()
+            .HaveColumnType("date");
+
+        configurationBuilder.Properties<DateOnly?>()
+            .HaveConversion<NullableDateOnlyConverter>()
+            .HaveColumnType("date");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+    }
+
+    // Converts DateOnly <-> DateTime so the MySQL provider never has to read a `date`
+    // column as DateOnly directly.
+    private sealed class DateOnlyConverter : ValueConverter<DateOnly, DateTime>
+    {
+        public DateOnlyConverter()
+            : base(
+                dateOnly => dateOnly.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+        {
+        }
+    }
+
+    // Nullable counterpart of DateOnlyConverter for optional DateOnly columns.
+    private sealed class NullableDateOnlyConverter : ValueConverter<DateOnly?, DateTime?>
+    {
+        public NullableDateOnlyConverter()
+            : base(
+                dateOnly => dateOnly.HasValue ? dateOnly.Value.ToDateTime(TimeOnly.MinValue) : null,
+                dateTime => dateTime.HasValue ? DateOnly.FromDateTime(dateTime.Value) : null)
+        {
+        }
     }
 }

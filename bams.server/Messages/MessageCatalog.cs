@@ -21,6 +21,7 @@ public static class MessageCatalog
             [MessageCode.CustomerEmailInvalid] = "The email address is invalid.",
             [MessageCode.AccessDenied] = "Access denied.",
             [MessageCode.AccountNotFound] = "Account was not found.",
+            [MessageCode.CustomerNotFound] = "Customer was not found.",
             [MessageCode.AccountTypeNotFound] = "Account type was not found.",
             [MessageCode.CustomerAlreadyExists] = "A customer with the same NRC number, passport number, or email already exists.",
             [MessageCode.BusinessRuleViolation] = "The requested operation violates a business rule.",
