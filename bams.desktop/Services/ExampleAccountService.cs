@@ -1,6 +1,6 @@
 using bams.desktop.Models;
 
-namespace bams.desktop.Services.Impls;
+namespace bams.desktop.Services;
 
 /// <summary>
 /// Provides temporary sample account data until the real API service is wired in.

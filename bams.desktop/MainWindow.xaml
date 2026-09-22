@@ -4,9 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:bams.desktop"
+        xmlns:views="clr-namespace:bams.desktop.Views"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="BAMS - Bank Account Management System" 
+        Height="600" 
+        Width="900"
+        WindowStartupLocation="CenterScreen">
     <Grid>
-
+        <ContentControl x:Name="MainContentControl"/>
     </Grid>
 </Window>

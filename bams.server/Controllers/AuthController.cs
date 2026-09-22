@@ -1,0 +1,61 @@
+using System.Security.Claims;
+using bams.server.DTO.Auth;
+using bams.server.DTO.Common;
+using bams.server.Messages;
+using bams.server.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace bams.server.Controllers;
+
+[ApiController]
+[Route("api/auth")]
+public sealed class AuthController : ControllerBase
+{
+    private readonly IAuthenticationService _authenticationService;
+
+    public AuthController(IAuthenticationService authenticationService)
+    {
+        _authenticationService = authenticationService;
+    }
+
+    /// <summary>
+    /// Authenticates a user and returns a JWT token.
+    /// </summary>
+    [HttpPost("login")]
+    public async Task<ActionResult<ApiMessageResponse<LoginResponse>>> LoginAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _authenticationService.LoginAsync(request, cancellationToken);
+        var apiResponse = ApiMessageResponse<LoginResponse>.FromCode(
+            MessageCode.Success,
+            response);
+
+        return Ok(apiResponse);
+    }
+
+    /// <summary>
+    /// Gets the current user's permissions.
+    /// </summary>
+    [HttpGet("permissions")]
+    [Authorize]
+    public async Task<ActionResult<ApiMessageResponse<PermissionsResponse>>> GetPermissionsAsync(
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
+        {
+            return Unauthorized(ApiMessageResponse<PermissionsResponse>.FromCode(
+                MessageCode.AuthenticationRequired,
+                null));
+        }
+
+        var permissions = await _authenticationService.GetUserPermissionsAsync(userId, cancellationToken);
+        var apiResponse = ApiMessageResponse<PermissionsResponse>.FromCode(
+            MessageCode.Success,
+            permissions!);
+
+        return Ok(apiResponse);
+    }
+}

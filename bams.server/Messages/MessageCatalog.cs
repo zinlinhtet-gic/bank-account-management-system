@@ -10,6 +10,7 @@ public static class MessageCatalog
             [MessageCode.ValidationFailed] = "One or more validation errors occurred.",
             [MessageCode.InvalidRequest] = "The request is invalid.",
             [MessageCode.InvalidAmount] = "The provided amount is invalid.",
+            [MessageCode.InvalidCredentials] = "Invalid username or password.",
             [MessageCode.OpeningBalanceInvalid] = "Opening balance is below the account type's minimum.",
             [MessageCode.AccessDenied] = "Access denied.",
             [MessageCode.AccountNotFound] = "Account was not found.",

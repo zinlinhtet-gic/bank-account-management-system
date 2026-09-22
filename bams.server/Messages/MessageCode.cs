@@ -10,12 +10,18 @@ public enum MessageCode
     ValidationFailed = 3000,
     InvalidRequest = 3002,
     InvalidAmount = 3003,
+    InvalidCredentials = 3004,
     OpeningBalanceInvalid = 3102,
+
+    // Authentication: 4000 - 4099
+    AuthenticationRequired = 4000,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
+    InsufficientPermission = 4101,
 
     // Not Found: 4200 - 4299
+    ResourceNotFound = 4200,
     AccountNotFound = 4201,
     AccountTypeNotFound = 4203,
 

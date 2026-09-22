@@ -2,8 +2,18 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:bams.desktop"
-             StartupUri="MainWindow.xaml">
+             xmlns:converters="clr-namespace:bams.desktop.Converters">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            
+            <!-- Drop shadow effect -->
+            <DropShadowEffect x:Key="DropShadow"
+                            Color="#000000"
+                            Direction="270"
+                            ShadowDepth="4"
+                            BlurRadius="8"
+                            Opacity="0.2"/>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

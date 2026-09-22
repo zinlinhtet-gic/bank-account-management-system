@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bams.server.Data;
 
@@ -10,9 +11,11 @@ using bams.server.Data;
 namespace bams.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918051523_AddUserRolesNavigation")]
+    partial class AddUserRolesNavigation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -57,7 +60,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("SummaryDate", "GlAccountId")
                         .IsUnique();
 
-                    b.ToTable("DailySummaries", (string)null);
+                    b.ToTable("DailySummaries");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.GlAccount", b =>
@@ -94,7 +97,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("ParentId");
 
-                    b.ToTable("GlAccounts", (string)null);
+                    b.ToTable("GlAccounts");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.MonthlySummary", b =>
@@ -138,7 +141,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Year", "Month", "GlAccountId")
                         .IsUnique();
 
-                    b.ToTable("MonthlySummaries", (string)null);
+                    b.ToTable("MonthlySummaries");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
@@ -194,7 +197,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("AccountTypeId");
 
-                    b.ToTable("Accounts", (string)null);
+                    b.ToTable("Accounts");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
@@ -237,7 +240,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("AccountHolders", (string)null);
+                    b.ToTable("AccountHolders");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountStatusHistory", b =>
@@ -271,7 +274,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("ChangedBy");
 
-                    b.ToTable("AccountStatusHistories", (string)null);
+                    b.ToTable("AccountStatusHistories");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.FixedDeposit", b =>
@@ -340,7 +343,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("PayoutAccountId");
 
-                    b.ToTable("FixedDeposits", (string)null);
+                    b.ToTable("FixedDeposits");
                 });
 
             modelBuilder.Entity("bams.server.Models.Audit.AuditLog", b =>
@@ -388,7 +391,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs", (string)null);
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("bams.server.Models.Customers.Customer", b =>
@@ -483,7 +486,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("CustomerNo")
                         .IsUnique();
 
-                    b.ToTable("Customers", (string)null);
+                    b.ToTable("Customers");
                 });
 
             modelBuilder.Entity("bams.server.Models.Customers.CustomerDocument", b =>
@@ -529,7 +532,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("VerifiedBy");
 
-                    b.ToTable("CustomerDocuments", (string)null);
+                    b.ToTable("CustomerDocuments");
                 });
 
             modelBuilder.Entity("bams.server.Models.External.OtherBank", b =>
@@ -562,7 +565,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("BankCode")
                         .IsUnique();
 
-                    b.ToTable("OtherBanks", (string)null);
+                    b.ToTable("OtherBanks");
                 });
 
             modelBuilder.Entity("bams.server.Models.External.ReconciliationBatch", b =>
@@ -606,7 +609,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("PerformedBy");
 
-                    b.ToTable("ReconciliationBatches", (string)null);
+                    b.ToTable("ReconciliationBatches");
                 });
 
             modelBuilder.Entity("bams.server.Models.External.ReconciliationItem", b =>
@@ -653,7 +656,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("ReconciliationItems", (string)null);
+                    b.ToTable("ReconciliationItems");
                 });
 
             modelBuilder.Entity("bams.server.Models.InterestFees.FeeAccrual", b =>
@@ -706,7 +709,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("PostedTransactionId")
                         .IsUnique();
 
-                    b.ToTable("FeeAccruals", (string)null);
+                    b.ToTable("FeeAccruals");
                 });
 
             modelBuilder.Entity("bams.server.Models.InterestFees.InterestAccrual", b =>
@@ -761,7 +764,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("PostedTransactionId");
 
-                    b.ToTable("InterestAccruals", (string)null);
+                    b.ToTable("InterestAccruals");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
@@ -819,7 +822,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("AccountTypes", (string)null);
+                    b.ToTable("AccountTypes");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
@@ -869,7 +872,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("AccountTypeId");
 
-                    b.ToTable("FeeRules", (string)null);
+                    b.ToTable("FeeRules");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.InterestRateRule", b =>
@@ -918,7 +921,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("AccountTypeId");
 
-                    b.ToTable("InterestRateRules", (string)null);
+                    b.ToTable("InterestRateRules");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.Permission", b =>
@@ -942,7 +945,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Permissions", (string)null);
+                    b.ToTable("Permissions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.Role", b =>
@@ -966,7 +969,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Roles", (string)null);
+                    b.ToTable("Roles");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.RolePermission", b =>
@@ -981,7 +984,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("RolePermissions", (string)null);
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.User", b =>
@@ -1033,7 +1036,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.UserRole", b =>
@@ -1048,7 +1051,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("UserRoles", (string)null);
+                    b.ToTable("UserRoles");
                 });
 
             modelBuilder.Entity("bams.server.Models.Transactions.AccountTransaction", b =>
@@ -1114,7 +1117,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("AccountTransactions", (string)null);
+                    b.ToTable("AccountTransactions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Transactions.InterbankTransferDetail", b =>
@@ -1163,7 +1166,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("TransactionId")
                         .IsUnique();
 
-                    b.ToTable("InterbankTransferDetails", (string)null);
+                    b.ToTable("InterbankTransferDetails");
                 });
 
             modelBuilder.Entity("bams.server.Models.Transactions.NrcCashTransferDetail", b =>
@@ -1238,7 +1241,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("TransactionId")
                         .IsUnique();
 
-                    b.ToTable("NrcCashTransferDetails", (string)null);
+                    b.ToTable("NrcCashTransferDetails");
                 });
 
             modelBuilder.Entity("bams.server.Models.Transactions.Transaction", b =>
@@ -1314,7 +1317,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("TransactionNo")
                         .IsUnique();
 
-                    b.ToTable("Transactions", (string)null);
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Transactions.TransactionEntry", b =>
@@ -1357,7 +1360,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("TransactionEntries", (string)null);
+                    b.ToTable("TransactionEntries");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.DailySummary", b =>
