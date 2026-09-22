@@ -3,14 +3,27 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:nav="clr-namespace:Bams.Desktop.Components.NavBar"
+        xmlns:header="clr-namespace:Bams.Desktop.Components.Header"
         xmlns:local="clr-namespace:bams.desktop"
         xmlns:views="clr-namespace:bams.desktop.Views"
         mc:Ignorable="d"
-        Title="BAMS - Bank Account Management System" 
-        Height="600" 
-        Width="900"
-        WindowStartupLocation="CenterScreen">
+        Title="DaLanBank" Height="720" Width="1280">
     <Grid>
-        <ContentControl x:Name="MainContentControl"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="{StaticResource NavBarHeaderRowHeight}"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <nav:NavBar x:Name="Nav" Grid.RowSpan="2"/>
+
+        <header:Header Grid.Row="0"
+                   Grid.Column="1"
+                   SelectedTitle="{Binding ViewModel.ActiveItem, ElementName=Nav}"/>
+        <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}"/>
     </Grid>
 </Window>
