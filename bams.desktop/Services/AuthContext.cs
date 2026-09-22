@@ -128,8 +128,7 @@ public sealed class AuthContext : INotifyPropertyChanged
     {
         return new PermissionFlags
         {
-            CanViewAccounts = HasPermission("account_management"),
-            CanCreateAccounts = HasPermission("account_management"),
+            CanManageAccounts = HasPermission("account_management"),
             CanManageCustomers = HasPermission("customer_management"),
             CanPerformKYC = HasPermission("customer_kyc"),
             CanManageUsers = HasPermission("user_management"),
@@ -209,8 +208,7 @@ public sealed class AuthContext : INotifyPropertyChanged
 /// </summary>
 public sealed class PermissionFlags
 {
-    public bool CanViewAccounts { get; set; }
-    public bool CanCreateAccounts { get; set; }
+    public bool CanManageAccounts { get; set; }
     public bool CanManageCustomers { get; set; }
     public bool CanPerformKYC { get; set; }
     public bool CanManageUsers { get; set; }

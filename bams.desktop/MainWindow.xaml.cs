@@ -2,6 +2,7 @@
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.Views;
+using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace bams.desktop;
@@ -34,44 +35,22 @@ public partial class MainWindow : Window
         // Subscribe to login success event
         loginViewModel.OnLoginSuccess += ShowMainApplication;
         
-        MainContentControl.Content = loginView;
+        // Show login view, hide main app
+        LoginContentControl.Content = loginView;
+        MainAppGrid.Visibility = Visibility.Collapsed;
     }
 
     private void ShowMainApplication()
     {
-        // For now, show a simple main application view
-        // In production, this would navigate to the main banking application
-        var mainAppViewModel = new MainAppViewModel(_authContext);
+        // Create the main application view model with navigation
+        var navBarViewModel = _serviceProvider.GetRequiredService<NavBarViewModel>();
+        var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
         
-        // Create a simple content for demonstration
-        var mainContent = new System.Windows.Controls.StackPanel
-        {
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-            VerticalAlignment = System.Windows.VerticalAlignment.Center
-        };
+        // Set the data context for the main window
+        DataContext = mainViewModel;
         
-        mainContent.Children.Add(new System.Windows.Controls.TextBlock
-        {
-            Text = mainAppViewModel.WelcomeMessage,
-            FontSize = 32,
-            FontWeight = System.Windows.FontWeights.Bold,
-            Margin = new System.Windows.Thickness(0, 0, 0, 20)
-        });
-        
-        mainContent.Children.Add(new System.Windows.Controls.TextBlock
-        {
-            Text = mainAppViewModel.UserRole,
-            FontSize = 18,
-            Margin = new System.Windows.Thickness(0, 0, 0, 10)
-        });
-        
-        mainContent.Children.Add(new System.Windows.Controls.TextBlock
-        {
-            Text = "Main Application - Implement your banking UI here",
-            FontSize = 24,
-            Margin = new System.Windows.Thickness(0, 20, 0, 0)
-        });
-        
-        MainContentControl.Content = mainContent;
+        // Hide login view, show main app
+        LoginContentControl.Content = null;
+        MainAppGrid.Visibility = Visibility.Visible;
     }
 }

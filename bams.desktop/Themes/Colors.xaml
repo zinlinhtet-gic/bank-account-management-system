@@ -18,6 +18,7 @@
     <SolidColorBrush x:Key="ForegroundBrush"       Color="{StaticResource ForegroundColor}"/>
     <SolidColorBrush x:Key="MutedForegroundBrush"  Color="{StaticResource MutedForegroundColor}"/>
     <SolidColorBrush x:Key="SecondaryBrush"        Color="{StaticResource SecondaryColor}"/>
+    <SolidColorBrush x:Key="BackgroundBrush"       Color="#F9FAFB"/>
     <SolidColorBrush x:Key="HoverBrush"            Color="#F3F4F6"/>
     <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="White"/>
     <SolidColorBrush x:Key="AccentForegroundBrush"  Color="White"/>

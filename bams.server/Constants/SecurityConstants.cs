@@ -12,14 +12,14 @@ public static class SecurityConstants
 
     // Permission codes
     public const string UserManagement = "user_management";
-    public const string CustomerManagement = "cus_management";
-    public const string CustomerKyc = "cus_kyc";
+    public const string CustomerManagement = "customer_management";
+    public const string CustomerKyc = "customer_kyc";
     public const string Accounting = "accounting";
     public const string Configuration = "configuration";
     public const string Operation = "operation";
-    public const string AccountManagement = "acc_management";
+    public const string AccountManagement = "account_management";
     public const string Transactions = "transactions";
     public const string TransactionHistory = "transaction_history";
     public const string Audit = "audit";
-    public const string CustomerList = "cus_list";
+    public const string CustomerList = "customer_list";
 }

@@ -120,7 +120,7 @@ app.MapStaticAssets();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await SecuritySeeder.SeedSecurityDataAsync(dbContext);
+    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
 }
 
 app.Run();

@@ -13,11 +13,22 @@ namespace bams.desktop.Services;
 public sealed class AuthenticationService : IAuthenticationService
 {
     private readonly HttpClient _httpClient;
-    private const string BaseUrl = "http://localhost:5121/api/auth"; // TODO: Move to configuration
+    private const string AuthPath = "api/auth";
+    private string? _authToken;
 
     public AuthenticationService(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    /// <summary>
+    /// Sets the JWT token for authenticated requests.
+    /// </summary>
+    public void SetAuthToken(string token)
+    {
+        _authToken = token;
+        _httpClient.DefaultRequestHeaders.Authorization = 
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
     }
 
     /// <summary>
@@ -30,7 +41,7 @@ public sealed class AuthenticationService : IAuthenticationService
         try
         {
             var response = await _httpClient.PostAsJsonAsync(
-                $"{BaseUrl}/login",
+                $"{AuthPath}/login",
                 request,
                 cancellationToken);
 
@@ -66,7 +77,7 @@ public sealed class AuthenticationService : IAuthenticationService
         try
         {
             var response = await _httpClient.GetAsync(
-                $"{BaseUrl}/permissions",
+                $"{AuthPath}/permissions",
                 cancellationToken);
 
             response.EnsureSuccessStatusCode();

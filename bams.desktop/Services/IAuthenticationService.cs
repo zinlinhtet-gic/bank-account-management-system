@@ -13,4 +13,9 @@ public interface IAuthenticationService
     /// Gets the current user's permissions from the server.
     /// </summary>
     Task<PermissionsResponse> GetPermissionsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sets the JWT token for authenticated requests.
+    /// </summary>
+    void SetAuthToken(string token);
 }

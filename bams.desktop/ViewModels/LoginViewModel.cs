@@ -122,6 +122,9 @@ public sealed class LoginViewModel : ViewModelBase
             var request = new LoginRequest(Username, Password);
             var response = await _authenticationService.LoginAsync(request, cancellationToken);
 
+            // Set auth token for subsequent requests
+            _authenticationService.SetAuthToken(response.Token);
+
             // Fetch user permissions
             var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
 

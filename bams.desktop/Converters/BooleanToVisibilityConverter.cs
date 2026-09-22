@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace bams.desktop.Converters;
+namespace Bams.Desktop.Converters;
 
 /// <summary>
 /// Converts boolean values to Visibility values.
