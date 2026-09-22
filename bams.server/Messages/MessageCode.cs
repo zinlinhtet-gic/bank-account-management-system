@@ -11,6 +11,7 @@ public enum MessageCode
     InvalidRequest = 3002,
     InvalidAmount = 3003,
     OpeningBalanceInvalid = 3102,
+    InvalidDate = 3004,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
@@ -18,6 +19,7 @@ public enum MessageCode
     // Not Found: 4200 - 4299
     AccountNotFound = 4201,
     AccountTypeNotFound = 4203,
+    ResourceNotFound = 4204,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
