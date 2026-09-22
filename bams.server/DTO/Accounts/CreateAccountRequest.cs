@@ -1,3 +1,5 @@
+using bams.server.Models.Accounts.Enums;
+
 namespace bams.server.DTO.Accounts;
 
 public sealed record CreateAccountRequest(
@@ -9,5 +11,10 @@ public sealed record CreateAccountRequest(
     decimal? OwnershipPercentage1,
     decimal? OwnershipPercentage2,
     string? SigningRule,
-    List<AccountDocumentUploadRequest>? Documents
+    List<AccountDocumentUploadRequest>? Documents,
+    long CreatedBy,
+    long? PayoutAccountId,
+    long? InterestRateRuleId,
+    RenewalInstruction? RenewalInstruction,
+    bool? CalculateFromCurrent
     );

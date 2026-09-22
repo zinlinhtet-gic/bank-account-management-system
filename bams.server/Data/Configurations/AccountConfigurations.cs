@@ -86,11 +86,12 @@ public sealed class AccountHolderConfiguration : IEntityTypeConfiguration<Accoun
         builder.HasKey(h => h.Id);
 
         builder.Property(h => h.OwnershipPercentage).HasPrecision(5, 2);
-        builder.Property(h => h.SigningRule).HasMaxLength(100);
+        builder.Property(h => h.SigningRule)
+            .HasMaxLength(AccountConstants.AccountHolderSigningRuleMaximumLength);
         builder.Property(h => h.Status).IsRequired().HasMaxLength(20);
 
         builder.HasOne(h => h.Account)
-            .WithMany()
+            .WithMany(account => account.AccountHolders)
             .HasForeignKey(h => h.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -135,7 +136,8 @@ public sealed class AccountStatusHistoryConfiguration : IEntityTypeConfiguration
     {
         builder.HasKey(h => h.Id);
 
-        builder.Property(h => h.Reason).HasMaxLength(300);
+        builder.Property(h => h.Reason)
+            .HasMaxLength(AccountConstants.AccountStatusReasonMaximumLength);
 
         builder.HasOne(h => h.Account)
             .WithMany()

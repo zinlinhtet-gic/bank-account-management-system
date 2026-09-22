@@ -99,8 +99,15 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
+builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
+builder.Services.AddScoped<IFixedDepositService, FixedDepositService>();
 builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IAccountTransactionService, AccountTransactionService>();
+builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
 builder.Services.AddScoped<ProductSeeder>();
+builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
 
 var app = builder.Build();
@@ -113,6 +120,13 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     var productSeeder = scope.ServiceProvider.GetRequiredService<ProductSeeder>();
     await productSeeder.SeedAsync();
+
+    // Populate deterministic sample customers and accounts only in development environments.
+    if (app.Environment.IsDevelopment())
+    {
+        var testDataSeeder = scope.ServiceProvider.GetRequiredService<TestDataSeeder>();
+        await testDataSeeder.SeedAsync();
+    }
 }
 
 // Configure the HTTP request pipeline.

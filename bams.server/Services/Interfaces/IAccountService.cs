@@ -1,4 +1,5 @@
 using bams.server.DTO.Accounts;
+using bams.server.Models.Accounts.Enums;
 
 namespace bams.server.Services.Interfaces;
 
@@ -22,6 +23,34 @@ public interface IAccountService
     /// </summary>
     Task<AccountResponse> CreateAccountAsync(
         CreateAccountRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the status of an existing account and records the responsible user.
+    /// </summary>
+    Task<AccountResponse> UpdateAccountStatusAsync(
+        long id,
+        AccountStatus status,
+        long changedBy,
+        string? reason,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Applies an adjustment to an existing account's balance.
+    /// </summary>
+    Task<AccountResponse> UpdateAccountBalanceAsync(
+        long id,
+        decimal balanceAdjustment,
+        long changedBy,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the editable details of an account's existing joint holders.
+    /// </summary>
+    Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
+        long accountId,
+        UpdateAccountHoldersRequest updateRequest,
+        long changedBy,
         CancellationToken cancellationToken);
 
 }

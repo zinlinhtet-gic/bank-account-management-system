@@ -7,6 +7,7 @@ using bams.server.Models.InterestFees;
 using bams.server.Models.Products;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
+using bams.server.Data.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Data;
@@ -65,6 +66,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
+
+        // MySQL materializes DATE columns as DateTime, so convert them explicitly to DateOnly.
+        configurationBuilder.Properties<DateOnly>()
+            .HaveConversion<DateOnlyValueConverter>()
+            .HaveColumnType("date");
+        configurationBuilder.Properties<DateOnly?>()
+            .HaveConversion<NullableDateOnlyValueConverter>()
+            .HaveColumnType("date");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

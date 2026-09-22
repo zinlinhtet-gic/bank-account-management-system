@@ -5,6 +5,10 @@ public enum MessageCode
     // Success: 1000 - 1999
     Success = 1000,
     AccountCreatedSuccessfully = 1100,
+    AccountStatusUpdatedSuccessfully = 1101,
+    AccountBalanceUpdatedSuccessfully = 1102,
+    AccountHoldersUpdatedSuccessfully = 1103,
+    FixedDepositUpdatedSuccessfully = 1104,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -29,6 +33,15 @@ public enum MessageCode
     UnsupportedAccountDocumentType = 3115,
     UploadedFileNameTooLong = 3116,
     AccountDocumentNumberTooLong = 3117,
+    AccountStatusInvalid = 3118,
+    AccountBalanceCannotBeNegative = 3119,
+    CustomerDoesNotHaveRequiredProducts = 3120,
+    AccountHolderSelectionInvalid = 3121,
+    AccountHolderSigningRuleTooLong = 3122,
+    SharedAccountRequiresExactlyOnePrimaryHolder = 3123,
+    FixedDepositRequestInvalid = 3124,
+    FixedDepositCurrentPrincipalInvalid = 3125,
+    FixedDepositUpdateRequiresChanges = 3126,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -46,6 +59,10 @@ public enum MessageCode
     CustomerNotFound = 4202,
     AccountTypeNotFound = 4203,
     UserNotFound = 4204,
+    FixedDepositNotFound = 4205,
+    InterestRateRuleNotFound = 4206,
+    PayoutAccountNotFound = 4207,
+    RequiredPayoutAccountNotFound = 4208,
 
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
@@ -55,6 +72,11 @@ public enum MessageCode
     BusinessRuleViolation = 4400,
     AccountTypeIdentifierOutOfRange = 4401,
     AccountNumberSequenceExhausted = 4402,
+    AccountStatusTransitionNotAllowed = 4403,
+    AccountHolderUpdateNotAllowed = 4404,
+    InterestRateRuleNotApplicable = 4405,
+    RequiredPayoutAccountNotConfigured = 4406,
+    FixedDepositStatusTransitionNotAllowed = 4407,
 
     // System / Infrastructure: 5000 - 5999
     InternalServerError = 5000,
