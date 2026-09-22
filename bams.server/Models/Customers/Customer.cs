@@ -45,4 +45,6 @@ public sealed class Customer
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public ICollection<CustomerDocument> Documents { get; set; } = new List<CustomerDocument>();
 }

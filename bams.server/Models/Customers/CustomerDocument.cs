@@ -25,6 +25,4 @@ public sealed class CustomerDocument
     public long? VerifiedBy { get; set; }
 
     public User? VerifiedByUser { get; set; }
-
-    public string Status { get; set; } = string.Empty;
 }

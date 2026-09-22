@@ -35,6 +35,10 @@ builder.Services.AddRazorPages();
 // -------------------------
 
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<CustomerNumberGenerator>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+
 
 var app = builder.Build();
 

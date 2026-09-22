@@ -13,3 +13,15 @@ The initial account template includes:
 - `Account` as the EF Core entity.
 - Account request and response DTOs under `DTO/Accounts`.
 - Central message, exception, and middleware infrastructure.
+
+The customer vertical currently supports creation only:
+
+- `CustomersController` for thin customer API endpoints. `CreateCustomerAsync` accepts `[FromForm]` so the request can carry uploaded document files alongside customer fields (multipart form data).
+- `ICustomerService` and `CustomerService` for application behavior. `CreateCustomerAsync` is a thin orchestrator that delegates to focused private steps: `ValidateRequest`, `EnsureCustomerIsUniqueAsync`, `BuildCustomer`, `AttachCustomerDocumentsAsync`, and (on failure) `DeleteSavedFilesAsync`.
+- `CustomerNumberGenerator` for generating the next sequential customer number.
+- `IFileStorageService` / `LocalFileStorageService` for saving and deleting uploaded document files on local disk (under `wwwroot`-adjacent `uploads/<folder>`), independent of business logic in `CustomerService`.
+- `Customer` and `CustomerDocument` as the EF Core entities (one customer has many documents).
+- Customer and customer-document request/response DTOs under `DTO/Customers`.
+- `CustomerConstants` for customer business invariants (name length, minimum age, number prefix, email format, document upload folder).
+
+Creating a customer with documents is a single transactional operation: `CustomerService` opens a database transaction, saves any uploaded files first, adds the customer (with its documents attached via the `Customer.Documents` navigation), and commits. If saving to the database fails, the transaction rolls back and any files already written are deleted, so a failed request never leaves orphaned uploads behind.
