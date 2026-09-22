@@ -114,12 +114,7 @@ public sealed class ChangePasswordViewModel : ViewModelBase
 
     private bool CanChangePassword()
     {
-        return !IsBusy &&
-               !string.IsNullOrWhiteSpace(CurrentPassword) &&
-               !string.IsNullOrWhiteSpace(NewPassword) &&
-               !string.IsNullOrWhiteSpace(ConfirmPassword) &&
-               NewPassword == ConfirmPassword &&
-               IsPasswordValid(NewPassword);
+        return !IsBusy;
     }
 
     // Validates password complexity requirements.
@@ -188,6 +183,27 @@ public sealed class ChangePasswordViewModel : ViewModelBase
             IsBusy = true;
             ErrorMessage = string.Empty;
             StatusMessage = string.Empty;
+
+            // Validate current password
+            if (string.IsNullOrWhiteSpace(CurrentPassword))
+            {
+                ErrorMessage = "Please enter your current password.";
+                return;
+            }
+
+            // Validate new password
+            if (string.IsNullOrWhiteSpace(NewPassword))
+            {
+                ErrorMessage = "Please enter a new password.";
+                return;
+            }
+
+            // Validate confirm password
+            if (string.IsNullOrWhiteSpace(ConfirmPassword))
+            {
+                ErrorMessage = "Please confirm your new password.";
+                return;
+            }
 
             // Validate passwords match
             if (NewPassword != ConfirmPassword)

@@ -115,9 +115,7 @@ public sealed class LoginViewModel : ViewModelBase
 
     private bool CanLogin()
     {
-        return !IsBusy &&
-               !string.IsNullOrWhiteSpace(Username) &&
-               !string.IsNullOrWhiteSpace(Password);
+        return !IsBusy;
     }
 
     // Authenticates the user through the service layer and sets up the auth context.
@@ -133,6 +131,19 @@ public sealed class LoginViewModel : ViewModelBase
             IsBusy = true;
             ErrorMessage = string.Empty;
             StatusMessage = string.Empty;
+
+            // Validate input
+            if (string.IsNullOrWhiteSpace(Username))
+            {
+                ErrorMessage = "Please enter your username.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                ErrorMessage = "Please enter your password.";
+                return;
+            }
 
             var request = new LoginRequest(Username, Password);
             var response = await _authenticationService.LoginAsync(request, cancellationToken);
