@@ -5,13 +5,30 @@
 - Account names are required and capped by `AccountConstants.AccountNameMaximumLength`.
 - Opening balances cannot be below `AccountConstants.MinimumOpeningBalance`.
 - Account types must be valid `AccountType` enum values.
+- Fixed-deposit classification uses the persisted `AccountType.IsFixedDeposit` flag rather than product-name or category parsing.
+- Normal Deposit, Special Deposit, and Hundred-Days Deposit are fixed-deposit account types.
+- Every fixed-deposit account type requires an individual Normal Saving account for payout.
+- Fixed-deposit creation requires an applicable interest-rate rule, renewal instruction, and calculation-source flag.
+- A supplied or inferred payout account must be the primary holder's active individual Normal Saving account.
+- Fixed-deposit principal cannot be negative. Closed and Cancelled deposits are terminal.
+- Maturing a renewable deposit creates a successor term using the same rate, term, payout account, and renewal configuration.
+- Renewal uses CurrentPrincipal when `CalculateFromCurrent` is true and OriginalPrincipal otherwise.
+- Account opening, account updates, holder updates, and fixed-deposit writes create transactional audit records.
 - New accounts are created with `AccountStatus.Active`.
 - Account numbers are generated server-side using `AccountConstants.AccountNumberPrefix`.
+- Active accounts may become Dormant, Suspended, Frozen, or Closed.
+- Dormant accounts may become Active, Suspended, or Frozen.
+- Suspended and Frozen accounts may become Active. Closed accounts are terminal.
+- Every status change records the old status, new status, reason, user, and UTC change time in `AccountStatusHistory`.
+- Accounts retain the latest UTC time at which they entered each supported status.
 - A customer cannot hold more than one active individual account of the same account type.
 - Individual accounts require one registered customer NRC.
 - Shared accounts require two registered customer NRCs and create joint ownership records for both customers.
 - Individual account holders are stored with 100 percent ownership.
 - Joint holder percentages must each be greater than zero, no greater than 100, and total exactly 100 percent.
+- Joint accounts have exactly two distinct holders and exactly one primary holder.
+- Existing holder details may be updated only for non-closed joint accounts; customers cannot be added, removed, or replaced by this operation.
+- A holder update supplies the complete desired primary designation, ownership percentages, and one shared signing rule for both holders.
 - Account numbers are generated server-side as 16 digits in `TTyyyyMMddHHSSSS` format.
 - `TT` is the two-digit account type identifier, `yyyyMMddHH` is the UTC generation hour, and `SSSS` is a four-digit sequence.
 - The sequence is maintained independently per account type and UTC hour, starts at `0001`, and supports up to `9999` accounts per type per hour.

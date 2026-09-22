@@ -82,12 +82,12 @@ public sealed class ProductSeeder
     {
         return
         [
-            CreateProduct(1, "CURRENT", "Current", "Current", true),
-            CreateProduct(2, "NORMAL_SAVING", "Normal Saving", "Saving", true),
-            CreateProduct(3, "SPECIAL_SAVING", "Special Saving", "Saving", true),
-            CreateProduct(4, "NORMAL_DEPOSIT", "Normal Deposit", "Deposit", false),
-            CreateProduct(5, "SPECIAL_DEPOSIT", "Special Deposit", "Deposit", false),
-            CreateProduct(6, "HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", "Deposit", false)
+            CreateProduct(1, "CURRENT", "Current", "Current", true, false, null),
+            CreateProduct(2, "NORMAL_SAVING", "Normal Saving", "Saving", true, false, null),
+            CreateProduct(3, "SPECIAL_SAVING", "Special Saving", "Saving", true, false, null),
+            CreateProduct(4, "NORMAL_DEPOSIT", "Normal Deposit", "Deposit", false, true, 2),
+            CreateProduct(5, "SPECIAL_DEPOSIT", "Special Deposit", "Deposit", false, true, 2),
+            CreateProduct(6, "HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", "Deposit", false, true, 2)
         ];
     }
 
@@ -97,7 +97,9 @@ public sealed class ProductSeeder
         string code,
         string name,
         string category,
-        bool allowsTransactions)
+        bool allowsTransactions,
+        bool isFixedDeposit,
+        long? requiredProductId)
     {
         return new AccountType
         {
@@ -112,6 +114,8 @@ public sealed class ProductSeeder
             AllowWithdrawal = allowsTransactions,
             AllowTransfer = allowsTransactions,
             AllowPartialWithdrawal = allowsTransactions,
+            IsFixedDeposit = isFixedDeposit,
+            RequiredProductId = requiredProductId,
             Status = "Active"
         };
     }

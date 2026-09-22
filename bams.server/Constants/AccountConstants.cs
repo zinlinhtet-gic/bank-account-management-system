@@ -7,6 +7,9 @@ public static class AccountConstants
 {
     public const int AccountNameMaximumLength = 100;
     public const int AccountNumberMaximumLength = 32;
+    public const int AccountStatusReasonMaximumLength = 300;
+    public const int AccountHolderSigningRuleMaximumLength = 100;
+    public const int RequiredJointAccountHolderCount = 2;
     public const int AccountNumberRequiredLength = 16;
     public const int AccountTypeIdentifierWidth = 2;
     public const int MaximumAccountTypeIdentifier = 99;
