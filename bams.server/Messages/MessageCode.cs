@@ -13,6 +13,7 @@ public enum MessageCode
     InvalidCredentials = 3004,
     PasswordDoesNotMeetRequirements = 3005,
     OpeningBalanceInvalid = 3102,
+    InvalidDate = 3004,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -27,6 +28,7 @@ public enum MessageCode
     ResourceNotFound = 4200,
     AccountNotFound = 4201,
     AccountTypeNotFound = 4203,
+    ResourceNotFound = 4204,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,

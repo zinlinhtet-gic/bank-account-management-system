@@ -92,6 +92,8 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 var app = builder.Build();
 
