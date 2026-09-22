@@ -15,6 +15,8 @@ public enum MessageCode
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
+    PasswordChangeRequired = 4001,
+    PasswordChangedSuccessfully = 4002,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,

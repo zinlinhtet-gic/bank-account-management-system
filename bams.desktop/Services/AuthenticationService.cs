@@ -104,6 +104,44 @@ public sealed class AuthenticationService : IAuthenticationService
         }
     }
 
+    /// <summary>
+    /// Changes the user's password.
+    /// </summary>
+    public async Task<ChangePasswordResponse> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                $"{AuthPath}/change-password",
+                request,
+                cancellationToken);
+
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var apiResponse = JsonSerializer.Deserialize<ApiResponse<ChangePasswordResponse>>(
+                content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (apiResponse?.Data == null)
+            {
+                throw new ApiException("Invalid response from server");
+            }
+
+            return apiResponse.Data;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new NetworkException("Unable to connect to server", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new ApiException($"Server error: {ex.Message}", ex);
+        }
+    }
+
     // API response wrapper to match server response format
     private record ApiResponse<T>(
         int Code,

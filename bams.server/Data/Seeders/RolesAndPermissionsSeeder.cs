@@ -202,6 +202,7 @@ public static class RolesAndPermissionsSeeder
                 FullName = "system manager",
                 Phone = "555-0100",
                 OnlineStatus = OnlineStatus.Inactive,
+                MustChangePassword = true,
                 CreatedAt = now,
                 UpdatedAt = now
             },
@@ -214,6 +215,7 @@ public static class RolesAndPermissionsSeeder
                 FullName = "bank officer",
                 Phone = "555-0101",
                 OnlineStatus = OnlineStatus.Inactive,
+                MustChangePassword = true,
                 CreatedAt = now,
                 UpdatedAt = now
             },
@@ -226,6 +228,7 @@ public static class RolesAndPermissionsSeeder
                 FullName = "system auditor",
                 Phone = "555-0102",
                 OnlineStatus = OnlineStatus.Inactive,
+                MustChangePassword = true,
                 CreatedAt = now,
                 UpdatedAt = now
             }

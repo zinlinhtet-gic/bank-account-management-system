@@ -19,6 +19,7 @@ public sealed class LoginViewModel : ViewModelBase
     private bool _isBusy;
     private string _errorMessage = string.Empty;
     private string _statusMessage = string.Empty;
+    private bool _requiresPasswordChange;
 
     public LoginViewModel(IAuthenticationService authenticationService, AuthContext authContext)
     {
@@ -96,6 +97,20 @@ public sealed class LoginViewModel : ViewModelBase
 
     public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
 
+    public bool RequiresPasswordChange
+    {
+        get => _requiresPasswordChange;
+        private set
+        {
+            if (SetProperty(ref _requiresPasswordChange, value))
+            {
+                OnPropertyChanged(nameof(DoesNotRequirePasswordChange));
+            }
+        }
+    }
+
+    public bool DoesNotRequirePasswordChange => !RequiresPasswordChange;
+
     public RelayCommand LoginCommand { get; }
 
     private bool CanLogin()
@@ -124,6 +139,16 @@ public sealed class LoginViewModel : ViewModelBase
 
             // Set auth token for subsequent requests
             _authenticationService.SetAuthToken(response.Token);
+
+            // Check if password change is required
+            RequiresPasswordChange = response.RequiresPasswordChange;
+
+            if (RequiresPasswordChange)
+            {
+                StatusMessage = "You must change your password before continuing.";
+                OnPasswordChangeRequired?.Invoke();
+                return;
+            }
 
             // Fetch user permissions
             var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
@@ -162,4 +187,7 @@ public sealed class LoginViewModel : ViewModelBase
 
     // Event raised when login is successful for navigation purposes
     public event Action? OnLoginSuccess;
+
+    // Event raised when password change is required
+    public event Action? OnPasswordChangeRequired;
 }

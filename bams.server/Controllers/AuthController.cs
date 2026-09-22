@@ -58,4 +58,29 @@ public sealed class AuthController : ControllerBase
 
         return Ok(apiResponse);
     }
+
+    /// <summary>
+    /// Changes the current user's password.
+    /// </summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<ActionResult<ApiMessageResponse<ChangePasswordResponse>>> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
+        {
+            return Unauthorized(ApiMessageResponse<ChangePasswordResponse>.FromCode(
+                MessageCode.AuthenticationRequired,
+                null));
+        }
+
+        var response = await _authenticationService.ChangePasswordAsync(userId, request, cancellationToken);
+        var apiResponse = ApiMessageResponse<ChangePasswordResponse>.FromCode(
+            MessageCode.Success,
+            response);
+
+        return Ok(apiResponse);
+    }
 }

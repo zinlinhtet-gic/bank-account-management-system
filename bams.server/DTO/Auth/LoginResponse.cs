@@ -5,4 +5,5 @@ public sealed record LoginResponse(
     string Username,
     string FullName,
     string Role,
-    DateTime Expiration);
+    DateTime Expiration,
+    bool RequiresPasswordChange);

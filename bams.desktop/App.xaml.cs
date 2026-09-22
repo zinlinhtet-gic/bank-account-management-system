@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Net.Http;
+using System.Windows;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
@@ -33,17 +34,16 @@ public partial class App : Application
         // Register AuthContext instance (singleton pattern)
         services.AddSingleton(sp => AuthContext.Instance);
 
-        // Register HTTP client with base URL
-        services.AddHttpClient<Services.IAuthenticationService, Services.AuthenticationService>(client =>
-        {
-            client.BaseAddress = new Uri("http://localhost:5121");
-        });
+        // Register HTTP client with base URL (singleton to share auth token across app)
+        services.AddSingleton<HttpClient>(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5121") });
+        services.AddSingleton<Services.IAuthenticationService, Services.AuthenticationService>();
 
         // Register Navigation Service
         services.AddSingleton<Services.INavigationService, Services.NavigationService>();
 
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
+        services.AddTransient<ChangePasswordViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<NavBarViewModel>();
 
@@ -62,6 +62,7 @@ public partial class App : Application
 
         // Register Views
         services.AddTransient<Views.LoginView>();
+        services.AddTransient<Views.ChangePasswordView>();
 
         // Register main window
         services.AddTransient<MainWindow>();

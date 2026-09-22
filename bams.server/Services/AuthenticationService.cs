@@ -49,6 +49,10 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
+        // Check if this is first-time login
+        var isFirstTimeLogin = user.LastLoginAt == null;
+        var requiresPasswordChange = user.MustChangePassword || isFirstTimeLogin;
+
         // Update last login time
         user.LastLoginAt = DateTime.UtcNow;
         user.OnlineStatus = OnlineStatus.Active;
@@ -63,7 +67,8 @@ public sealed class AuthenticationService : IAuthenticationService
             user.Username,
             user.FullName,
             role.ToLower(),
-            DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Jwt:ExpiryMinutes", 60)));
+            DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Jwt:ExpiryMinutes", 60)),
+            requiresPasswordChange);
     }
 
     /// <summary>
@@ -145,5 +150,51 @@ public sealed class AuthenticationService : IAuthenticationService
             user.Username,
             role.ToLower(),
             permissions);
+    }
+
+    /// <summary>
+    /// Changes the user's password.
+    /// </summary>
+    public async Task<ChangePasswordResponse> ChangePasswordAsync(long userId, ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            throw new NotFoundException(MessageCode.AccountNotFound);
+        }
+
+        // Verify current password
+        if (!VerifyPassword(request.CurrentPassword, user.PasswordHash))
+        {
+            throw new ValidationException(MessageCode.InvalidCredentials);
+        }
+
+        // Hash new password
+        var newPasswordHash = HashPassword(request.NewPassword);
+
+        // Update password and clear the must-change flag
+        user.PasswordHash = newPasswordHash;
+        user.MustChangePassword = false;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ChangePasswordResponse(
+            true,
+            "Password changed successfully");
+    }
+
+    /// <summary>
+    /// Hashes a password using SHA256.
+    /// </summary>
+    private string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(password);
+        var hash = sha256.ComputeHash(bytes);
+        return Convert.ToBase64String(hash);
     }
 }

@@ -35,8 +35,27 @@ public partial class MainWindow : Window
         // Subscribe to login success event
         loginViewModel.OnLoginSuccess += ShowMainApplication;
         
+        // Subscribe to password change required event
+        loginViewModel.OnPasswordChangeRequired += ShowChangePasswordView;
+        
         // Show login view, hide main app
         LoginContentControl.Content = loginView;
+        ChangePasswordContentControl.Visibility = Visibility.Collapsed;
+        MainAppGrid.Visibility = Visibility.Collapsed;
+    }
+
+    private void ShowChangePasswordView()
+    {
+        var changePasswordViewModel = _serviceProvider.GetRequiredService<ChangePasswordViewModel>();
+        var changePasswordView = new ChangePasswordView(changePasswordViewModel);
+        
+        // Subscribe to password change success event
+        changePasswordViewModel.OnPasswordChangeSuccess += ShowMainApplication;
+        
+        // Show change password view, hide login and main app
+        ChangePasswordContentControl.Content = changePasswordView;
+        ChangePasswordContentControl.Visibility = Visibility.Visible;
+        LoginContentControl.Content = null;
         MainAppGrid.Visibility = Visibility.Collapsed;
     }
 
