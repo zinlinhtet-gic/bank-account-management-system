@@ -28,7 +28,6 @@ public enum MessageCode
     ResourceNotFound = 4200,
     AccountNotFound = 4201,
     AccountTypeNotFound = 4203,
-    ResourceNotFound = 4204,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
