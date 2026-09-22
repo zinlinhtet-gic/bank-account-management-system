@@ -48,7 +48,7 @@
 
             <!-- ===== Header / Logo ===== -->
             <Border Grid.Row="0"
-                    Height="56"
+                    Height="{StaticResource NavBarHeaderHeight}"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,0,1">
                 <Grid Margin="16,0">

@@ -31,4 +31,5 @@
     <system:Double x:Key="NavBarExpandedWidth" xmlns:system="clr-namespace:System;assembly=mscorlib">220</system:Double>
     <system:Double x:Key="NavBarCollapsedWidth" xmlns:system="clr-namespace:System;assembly=mscorlib">56</system:Double>
     <system:Double x:Key="NavBarHeaderHeight" xmlns:system="clr-namespace:System;assembly=mscorlib">56</system:Double>
+    <GridLength x:Key="NavBarHeaderRowHeight">56</GridLength>
 </ResourceDictionary>

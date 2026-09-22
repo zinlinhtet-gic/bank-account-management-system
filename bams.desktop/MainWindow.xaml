@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:nav="clr-namespace:Bams.Desktop.Components.NavBar"
+        xmlns:header="clr-namespace:Bams.Desktop.Components.Header"
         xmlns:local="clr-namespace:bams.desktop"
         mc:Ignorable="d"
         Title="DaLanBank" Height="720" Width="1280">
@@ -12,9 +13,16 @@
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="{StaticResource NavBarHeaderRowHeight}"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-        <nav:NavBar x:Name="Nav"/>
+        <nav:NavBar x:Name="Nav" Grid.RowSpan="2"/>
 
-        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}"/>
+        <header:Header Grid.Row="0"
+                   Grid.Column="1"
+                   SelectedTitle="{Binding ViewModel.ActiveItem, ElementName=Nav}"/>
+        <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}"/>
     </Grid>
 </Window>
