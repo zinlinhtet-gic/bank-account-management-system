@@ -16,6 +16,11 @@ public sealed class AccountTypeConfiguration : IEntityTypeConfiguration<AccountT
         builder.Property(t => t.Status).IsRequired().HasMaxLength(20);
 
         builder.HasIndex(t => t.Code).IsUnique();
+
+        builder.HasOne(t => t.RequiredProduct)
+            .WithMany()
+            .HasForeignKey(t => t.RequiredProductId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
