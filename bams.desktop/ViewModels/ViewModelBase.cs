@@ -22,10 +22,14 @@ public abstract class ViewModelBase : INotifyPropertyChanged
         }
 
         field = value;
-        PropertyChanged?.Invoke(
-            this,
-            new PropertyChangedEventArgs(propertyName));
+        OnPropertyChanged(propertyName);
 
         return true;
+    }
+
+    // Raises the PropertyChanged event for the specified property.
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
