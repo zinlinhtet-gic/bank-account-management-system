@@ -8,7 +8,7 @@ namespace Bams.Desktop.Components.NavBar;
 public partial class NavBarViewModel : ObservableObject
 {
     [ObservableProperty] private bool _isCollapsed;
-    [ObservableProperty] private string _activeItem = "Dashboard";
+    [ObservableProperty] private string _activeItem = "User Management";
 
     public string UserName { get; set; } = "Kaung Myat Htun";
     public string UserRole { get; set; } = "Branch Manager";
@@ -21,13 +21,14 @@ public partial class NavBarViewModel : ObservableObject
 
     public NavBarViewModel()
     {
-        Items.Add(new() { Label = "Dashboard",    IconKey = "Icon.Dashboard"    });
-        Items.Add(new() { Label = "Accounts",     IconKey = "Icon.Accounts"     });
-        Items.Add(new() { Label = "Transactions", IconKey = "Icon.Transactions", Badge = "4" });
-        Items.Add(new() { Label = "Transfers",    IconKey = "Icon.Transfers"    });
-        Items.Add(new() { Label = "Loans",        IconKey = "Icon.Loans"        });
-        Items.Add(new() { Label = "Reports",      IconKey = "Icon.Reports"      });
-        Items.Add(new() { Label = "Settings",     IconKey = "Icon.Settings"     });
+        Items.Add(new() { Label = "User Management", IconKey = "Icon.Accounts", IsActive = true });
+        Items.Add(new() { Label = "Customer Management", IconKey = "Icon.Accounts" });
+        Items.Add(new() { Label = "Accounting", IconKey = "Icon.Accounts" });
+        Items.Add(new() { Label = "Operations", IconKey = "Icon.Transactions" });
+        Items.Add(new() { Label = "Transactions", IconKey = "Icon.Transactions" });
+        Items.Add(new() { Label = "Transaction History", IconKey = "Icon.Reports" });
+        Items.Add(new() { Label = "Audit", IconKey = "Icon.Settings" });
+        Items.Add(new() { Label = "Configurations", IconKey = "Icon.Settings" });
 
         foreach (var item in Items)
             item.Command = new RelayCommand(() => Select(item));
@@ -38,6 +39,9 @@ public partial class NavBarViewModel : ObservableObject
 
     private void Select(NavItem item)
     {
+        foreach (var navItem in Items)
+            navItem.IsActive = navItem == item;
+
         ActiveItem = item.Label;
         NavigateCommand?.Execute(item.Label);
     }

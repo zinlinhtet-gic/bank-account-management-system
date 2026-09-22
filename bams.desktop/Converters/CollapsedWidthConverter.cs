@@ -6,7 +6,7 @@ namespace Bams.Desktop.Converters;
 public class CollapsedWidthConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => (bool)value ? 60d : 220d;
+        => (bool)value ? 63d : 220d;
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotImplementedException();

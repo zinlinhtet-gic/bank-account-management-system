@@ -8,11 +8,33 @@
     <Border Background="{StaticResource CardBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,0,1,0">
-        <Border.Width>
-            <Binding Path="DataContext.IsCollapsed"
-                     ElementName="Root"
-                     Converter="{StaticResource CollapsedWidthConverter}"/>
-        </Border.Width>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="Width" Value="220"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding DataContext.IsCollapsed, ElementName=Root}" Value="True">
+                        <DataTrigger.EnterActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                     To="63"
+                                                     Duration="0:0:0.22"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </DataTrigger.EnterActions>
+                        <DataTrigger.ExitActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                     To="220"
+                                                     Duration="0:0:0.22"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </DataTrigger.ExitActions>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
 
         <Grid>
             <Grid.RowDefinitions>
@@ -97,6 +119,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:NavItem}">
                             <Button Command="{Binding Command}"
+                                    Height="36"
                                     HorizontalContentAlignment="Left"
                                     Background="Transparent"
                                     BorderThickness="0"
@@ -104,13 +127,14 @@
                                     Cursor="Hand">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
-                                        <Grid Background="{TemplateBinding Background}">
+                                        <Grid x:Name="RootGrid"
+                                                Background="{TemplateBinding Background}">
                                             <!-- Active left bar -->
                                             <Rectangle Width="3"
                                                        HorizontalAlignment="Left"
                                                        Margin="0,4,0,4"
                                                        RadiusX="2"
-                                                    RadiusY="2"
+                                                       RadiusY="2"
                                                        Fill="{StaticResource AccentBrush}">
                                                 <Rectangle.Visibility>
                                                     <MultiBinding Converter="{StaticResource ActiveToVisibility}">
@@ -120,24 +144,60 @@
                                                     </MultiBinding>
                                                 </Rectangle.Visibility>
                                             </Rectangle>
+
                                             <StackPanel Orientation="Horizontal"
                                                     Margin="16,10">
-                                                <icon:Icon Size="16"
+                                                <icon:Icon x:Name="TabIcon"
+                                                           Size="16"
                                                            StrokeThickness="1.8"
-                                                           Geometry="{Binding IconKey,
-                                                               Converter={StaticResource IconKeyToGeometry}}"
-                                                           Foreground="{StaticResource MutedForegroundBrush}"/>
+                                                           Foreground="{StaticResource MutedForegroundBrush}"
+                                                           Geometry="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"/>
 
-                                                <TextBlock Text="{Binding Label}"
+                                                <TextBlock x:Name="TabText"
+                                                           Text="{Binding Label}"
                                                            Margin="12,0,0,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Foreground="{StaticResource ForegroundBrush}"
                                                            Visibility="{Binding DataContext.IsCollapsed,
-                                                                        RelativeSource={RelativeSource AncestorType=UserControl},
-                                                                        Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                                        RelativeSource={RelativeSource AncestorType=UserControl},
+                                        Converter={StaticResource BoolToCollapsedVisibility}}"/>
                                             </StackPanel>
+
+                                            <Border x:Name="ActiveBackground"
+                                                    Background="{StaticResource AccentBrush}"
+                                                    Opacity="0.08"
+                                                    CornerRadius="4"
+                                                    Margin="4,2"
+                                                    Visibility="Collapsed"
+                                                    Panel.ZIndex="-1"/>
                                         </Grid>
+
+                                        <ControlTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                <Setter TargetName="RootGrid"
+                                                        Property="Background"
+                                                        Value="{StaticResource SecondaryBrush}"/>
+                                                <Setter TargetName="ActiveBackground"
+                                                        Property="Visibility"
+                                                        Value="Visible"/>
+                                                <Setter TargetName="TabIcon"
+                                                        Property="Foreground"
+                                                        Value="{StaticResource AccentBrush}"/>
+                                                <Setter TargetName="TabText"
+                                                        Property="Foreground"
+                                                        Value="{StaticResource AccentBrush}"/>
+                                                <Setter TargetName="TabText"
+                                                        Property="FontWeight"
+                                                        Value="SemiBold"/>
+                                            </DataTrigger>
+
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="RootGrid"
+                                                        Property="Background"
+                                                        Value="{StaticResource HoverBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>

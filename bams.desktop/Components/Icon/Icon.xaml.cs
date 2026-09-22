@@ -17,10 +17,6 @@ public partial class Icon : UserControl
         DependencyProperty.Register(nameof(StrokeThickness), typeof(double), typeof(Icon),
             new PropertyMetadata(1.8d));
 
-    public static readonly DependencyProperty ForegroundProperty =
-        DependencyProperty.Register(nameof(Foreground), typeof(Brush), typeof(Icon),
-            new PropertyMetadata(Brushes.Black));
-
     public Geometry Geometry
     {
         get => (Geometry)GetValue(GeometryProperty);
@@ -37,12 +33,6 @@ public partial class Icon : UserControl
     {
         get => (double)GetValue(StrokeThicknessProperty);
         set => SetValue(StrokeThicknessProperty, value);
-    }
-
-    public Brush Foreground
-    {
-        get => (Brush)GetValue(ForegroundProperty);
-        set => SetValue(ForegroundProperty, value);
     }
 
     public Icon() => InitializeComponent();
