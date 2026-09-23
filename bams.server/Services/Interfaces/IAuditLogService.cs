@@ -6,14 +6,11 @@ namespace bams.server.Services.Interfaces;
 
 public interface IAuditLogService
 {
-    
-
     /// <summary>
     /// Creates a new account from the API request contract.
     /// </summary>
     Task RecordAccountOpeningLogAsync(
         Account account,
-        long performedBy,
         DateTime performedAt,
         CancellationToken cancellationToken);
 
@@ -24,7 +21,6 @@ public interface IAuditLogService
         long accountId,
         decimal oldBalance,
         decimal newBalance,
-        long performedBy,
         DateTime performedAt,
         CancellationToken cancellationToken);
 
@@ -36,7 +32,6 @@ public interface IAuditLogService
         AccountStatus oldStatus,
         AccountStatus newStatus,
         string? reason,
-        long performedBy,
         DateTime performedAt,
         CancellationToken cancellationToken);
 
@@ -47,7 +42,6 @@ public interface IAuditLogService
         long accountId,
         IReadOnlyList<AccountHolderResponse> oldHolders,
         IReadOnlyList<AccountHolderResponse> newHolders,
-        long performedBy,
         DateTime performedAt,
         CancellationToken cancellationToken);
 
@@ -56,7 +50,6 @@ public interface IAuditLogService
     /// </summary>
     Task RecordFixedDepositCreationLogAsync(
         FixedDepositResponse fixedDeposit,
-        long performedBy,
         DateTime performedAt,
         CancellationToken cancellationToken);
 
@@ -66,7 +59,6 @@ public interface IAuditLogService
     Task RecordFixedDepositUpdateLogAsync(
         FixedDepositResponse oldFixedDeposit,
         FixedDepositResponse newFixedDeposit,
-        long performedBy,
         DateTime performedAt,
         CancellationToken cancellationToken);
 

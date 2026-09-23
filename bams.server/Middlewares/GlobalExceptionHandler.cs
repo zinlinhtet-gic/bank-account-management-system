@@ -68,6 +68,7 @@ public sealed class GlobalExceptionHandler
     {
         return exception switch
         {
+            AuthenticationRequiredException => HttpStatusCode.Unauthorized,
             NotFoundException => HttpStatusCode.NotFound,
             ValidationException => HttpStatusCode.BadRequest,
             UnauthorizedException => HttpStatusCode.Unauthorized,

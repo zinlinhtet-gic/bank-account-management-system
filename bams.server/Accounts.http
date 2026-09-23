@@ -9,11 +9,13 @@
 @payoutAccountId = 1
 @accountPageSize = 2
 @accountCursor = replace-with-nextCursor
+@authToken = replace-with-login-token
 
 # Start the server with the HTTP launch profile before running these requests.
 # Replace the IDs above with records from the local database. Holder IDs are
 # AccountHolder row IDs, and fixedDepositId is the FixedDeposit row ID.
-# Until authentication is enabled, update requests are audited as user ID 1.
+# Supply a valid bearer token for account mutations. Audit attribution comes from
+# the token's name-identifier claim and cannot be supplied in request data.
 
 ### List available account types
 GET {{baseUrl}}/api/account-types
@@ -37,6 +39,7 @@ Accept: application/json
 
 ### Create an individual account with all seeded required documents
 POST {{baseUrl}}/api/accounts
+Authorization: Bearer {{authToken}}
 Accept: application/json
 Content-Type: multipart/form-data; boundary=AccountBoundary
 
@@ -56,10 +59,6 @@ false
 Content-Disposition: form-data; name="HolderNRC1"
 
 {{primaryHolderNrc}}
---AccountBoundary
-Content-Disposition: form-data; name="CreatedBy"
-
-1
 --AccountBoundary
 Content-Disposition: form-data; name="Documents[0].DocumentType"
 
@@ -113,6 +112,7 @@ Content-Type: application/pdf
 
 ### Change account status
 PATCH {{baseUrl}}/api/accounts/{{accountId}}/status
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 Accept: application/json
 
@@ -123,6 +123,7 @@ Accept: application/json
 
 ### Deposit through a positive balance adjustment
 PATCH {{baseUrl}}/api/accounts/{{accountId}}/balance
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 Accept: application/json
 
@@ -132,6 +133,7 @@ Accept: application/json
 
 ### Withdraw through a negative balance adjustment
 PATCH {{baseUrl}}/api/accounts/{{accountId}}/balance
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 Accept: application/json
 
@@ -141,6 +143,7 @@ Accept: application/json
 
 ### Update the primary holder, ownership percentages, and signing rule
 PUT {{baseUrl}}/api/accounts/{{jointAccountId}}/holders
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 Accept: application/json
 
@@ -162,6 +165,7 @@ Accept: application/json
 
 ### Update fixed-deposit instructions and principal settings
 PATCH {{baseUrl}}/api/accounts/fixed-deposits/{{fixedDepositId}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 Accept: application/json
 
