@@ -25,6 +25,7 @@ public sealed class AccountService : IAccountService
     private readonly IAuditLogService _auditLogService;
     private readonly IAccountTransactionService _accountTransactionService;
     private readonly IAccountingReportService _accountingReportService;
+    private readonly ICurrentUserService _currentUserService;
 
     public AccountService(
         ApplicationDbContext dbContext,
@@ -34,7 +35,8 @@ public sealed class AccountService : IAccountService
         IFixedDepositService fixedDepositService,
         IAuditLogService auditLogService,
         IAccountTransactionService accountTransactionService,
-        IAccountingReportService accountingReportService)
+        IAccountingReportService accountingReportService,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _accountDocumentService = accountDocumentService;
@@ -44,6 +46,7 @@ public sealed class AccountService : IAccountService
         _auditLogService = auditLogService;
         _accountTransactionService = accountTransactionService;
         _accountingReportService = accountingReportService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -250,7 +253,6 @@ public sealed class AccountService : IAccountService
             // Record audit log for account opening
             await _auditLogService.RecordAccountOpeningLogAsync(
                 account,
-                request.CreatedBy,
                 now,
                 cancellationToken);
             // Record account transaction for opening balance
@@ -296,7 +298,6 @@ public sealed class AccountService : IAccountService
     public async Task<AccountResponse> UpdateAccountStatusAsync(
         long accountId,
         AccountStatus newStatus,
-        long changedBy,
         string? reason,
         CancellationToken cancellationToken)
     {
@@ -304,6 +305,7 @@ public sealed class AccountService : IAccountService
         ValidateAccountStatusReason(reason);
 
         var changedAt = DateTime.UtcNow;
+        var changedBy = _currentUserService.GetCurrentUserId();
         var oldStatus = account.Status;
 
         switch (newStatus)
@@ -332,7 +334,6 @@ public sealed class AccountService : IAccountService
             oldStatus,
             account.Status,
             reason,
-            changedBy,
             changedAt,
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -344,7 +345,6 @@ public sealed class AccountService : IAccountService
     public async Task<AccountResponse> UpdateAccountBalanceAsync(
         long accountId,
         decimal balanceAdjustment,
-        long changedBy,
         CancellationToken cancellationToken)
     {
         var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
@@ -365,7 +365,6 @@ public sealed class AccountService : IAccountService
             account.Id,
             oldBalance,
             newBalance,
-            changedBy,
             updatedAt,
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -379,7 +378,6 @@ public sealed class AccountService : IAccountService
     public async Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
         long accountId,
         UpdateAccountHoldersRequest updateRequest,
-        long changedBy,
         CancellationToken cancellationToken)
     {
         var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
@@ -387,7 +385,6 @@ public sealed class AccountService : IAccountService
         return await _accountHolderService.UpdateHoldersOfAccountAsync(
             account,
             updateRequest,
-            changedBy,
             cancellationToken);
     }
 

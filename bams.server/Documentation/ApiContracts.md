@@ -27,7 +27,6 @@ Documents[0].File=<binary file>
 ```
 
 The authenticated user's JWT name-identifier claim supplies the user ID for the account-opening audit record. Clients cannot supply or override audit attribution.
-`CreatedBy` is the numeric user identifier responsible for opening the account and is included in the account-opening audit record.
 
 Repeat the indexed group for each required document. Each document type may appear once. Supported file formats are PDF, JPEG, and PNG, with a maximum size of 10 MB per file.
 
