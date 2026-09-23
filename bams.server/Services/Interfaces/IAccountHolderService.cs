@@ -44,7 +44,6 @@ public interface IAccountHolderService
     Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
         Account account,
         UpdateAccountHoldersRequest request,
-        long changedBy,
         CancellationToken cancellationToken);
 
     /// <summary>

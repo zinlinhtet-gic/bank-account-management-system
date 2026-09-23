@@ -104,6 +104,8 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
 builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
 builder.Services.AddScoped<IFixedDepositService, FixedDepositService>();

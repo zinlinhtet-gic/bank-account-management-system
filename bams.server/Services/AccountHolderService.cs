@@ -141,7 +141,6 @@ public sealed class AccountHolderService : IAccountHolderService
     public async Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
         Account account,
         UpdateAccountHoldersRequest request,
-        long changedBy,
         CancellationToken cancellationToken)
     {
         var accountHolders = await _dbContext.AccountHolders
@@ -177,7 +176,6 @@ public sealed class AccountHolderService : IAccountHolderService
             account.Id,
             oldHolders,
             newHolders,
-            changedBy,
             updatedAt,
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);

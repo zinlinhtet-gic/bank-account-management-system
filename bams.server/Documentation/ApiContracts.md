@@ -24,7 +24,7 @@ Documents[0].DocumentNumber=optional-number
 Documents[0].File=<binary file>
 ```
 
-`CreatedBy` is the numeric user identifier responsible for opening the account and is included in the account-opening audit record.
+The authenticated user's JWT name-identifier claim supplies the user ID for the account-opening audit record. Clients cannot supply or override audit attribution.
 
 Repeat the indexed group for each required document. Each document type may appear once. Supported file formats are PDF, JPEG, and PNG, with a maximum size of 10 MB per file.
 
@@ -56,4 +56,4 @@ Files are stored beneath the configured `FileUploads:RootPath` with GUID-generat
 
 `PATCH /api/accounts/fixed-deposits/{fixedDepositId}` accepts any supported combination of `renewalInstruction`, `payoutAccountId`, `currentPrincipal`, `calculateFromCurrent`, and `status`. The route identifier is the fixed-deposit row ID, not the account ID. The response wraps the updated `FixedDepositResponse` with message code `1104`.
 
-Update endpoints resolve the acting user from the standard name-identifier claim. While authentication integration is incomplete, requests without a valid claim temporarily use development user ID `1` for audit attribution.
+All account mutation endpoints require the `account_management` permission. Audit logs and account-status history resolve the acting user from the standard JWT name-identifier claim; a missing or invalid identity is rejected with message code `4000` and HTTP 401.

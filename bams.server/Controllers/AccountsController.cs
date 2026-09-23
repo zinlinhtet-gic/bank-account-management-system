@@ -1,11 +1,8 @@
-using bams.server.Constants;
-using System.Security.Claims;
 using bams.server.DTO.Accounts;
 using bams.server.DTO.Common;
 using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bams.server.Controllers;
@@ -15,8 +12,6 @@ namespace bams.server.Controllers;
 public sealed class AccountsController : ControllerBase
 {
     private const string GetAccountByIdRouteName = "GetAccountById";
-    private const long DevelopmentFallbackUserId = 1;
-
     private readonly IAccountService _accountService;
     private readonly IFixedDepositService _fixedDepositService;
 
@@ -81,6 +76,7 @@ public sealed class AccountsController : ControllerBase
     /// Changes an account's status and records the acting user.
     /// </summary>
     [HttpPatch("{id:long}/status")]
+    [RequirePermission("account_management")]
     public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> UpdateAccountStatusAsync(
         long id,
         [FromBody] UpdateAccountStatusRequest request,
@@ -89,7 +85,6 @@ public sealed class AccountsController : ControllerBase
         var account = await _accountService.UpdateAccountStatusAsync(
             id,
             request.Status,
-            GetCurrentUserId(),
             request.Reason,
             cancellationToken);
         var response = ApiMessageResponse<AccountResponse>.FromCode(
@@ -103,6 +98,7 @@ public sealed class AccountsController : ControllerBase
     /// Applies a positive or negative adjustment to an account's balance.
     /// </summary>
     [HttpPatch("{id:long}/balance")]
+    [RequirePermission("account_management")]
     public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> UpdateAccountBalanceAsync(
         long id,
         [FromBody] UpdateAccountBalanceRequest request,
@@ -111,7 +107,6 @@ public sealed class AccountsController : ControllerBase
         var account = await _accountService.UpdateAccountBalanceAsync(
             id,
             request.Amount,
-            GetCurrentUserId(),
             cancellationToken);
         var response = ApiMessageResponse<AccountResponse>.FromCode(
             MessageCode.AccountBalanceUpdatedSuccessfully,
@@ -124,6 +119,7 @@ public sealed class AccountsController : ControllerBase
     /// Updates the editable holder details of an existing joint account.
     /// </summary>
     [HttpPut("{id:long}/holders")]
+    [RequirePermission("account_management")]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<AccountHolderResponse>>>> UpdateAccountHoldersAsync(
         long id,
         [FromBody] UpdateAccountHoldersRequest request,
@@ -132,7 +128,6 @@ public sealed class AccountsController : ControllerBase
         var holders = await _accountService.UpdateHoldersOfAccountAsync(
             id,
             request,
-            GetCurrentUserId(),
             cancellationToken);
         var response = ApiMessageResponse<IReadOnlyList<AccountHolderResponse>>.FromCode(
             MessageCode.AccountHoldersUpdatedSuccessfully,
@@ -145,6 +140,7 @@ public sealed class AccountsController : ControllerBase
     /// Updates the editable lifecycle details of an existing fixed deposit.
     /// </summary>
     [HttpPatch("fixed-deposits/{fixedDepositId:long}")]
+    [RequirePermission("account_management")]
     public async Task<ActionResult<ApiMessageResponse<FixedDepositResponse>>> UpdateFixedDepositAsync(
         long fixedDepositId,
         [FromBody] UpdateFixedDepositRequest request,
@@ -153,7 +149,6 @@ public sealed class AccountsController : ControllerBase
         var fixedDeposit = await _fixedDepositService.UpdateFixedDepositAsync(
             fixedDepositId,
             request,
-            GetCurrentUserId(),
             cancellationToken);
         var response = ApiMessageResponse<FixedDepositResponse>.FromCode(
             MessageCode.FixedDepositUpdatedSuccessfully,
@@ -162,17 +157,4 @@ public sealed class AccountsController : ControllerBase
         return Ok(response);
     }
 
-    // Resolves the acting user while authentication is still being integrated.
-    private long GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (long.TryParse(userIdClaim, out var userId) && userId > 0)
-        {
-            return userId;
-        }
-
-        // TODO: Remove this development fallback when authentication middleware is enabled.
-        return DevelopmentFallbackUserId;
-    }
 }
