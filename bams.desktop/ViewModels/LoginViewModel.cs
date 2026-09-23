@@ -156,6 +156,16 @@ public sealed class LoginViewModel : ViewModelBase
 
             if (RequiresPasswordChange)
             {
+                // Preserve the authenticated identity while the password change screen is shown.
+                // Permissions are loaded after the password is changed.
+                _authContext.SetSession(
+                    response.Username,
+                    response.FullName,
+                    response.Role,
+                    new List<string>(),
+                    response.Token,
+                    response.Expiration);
+
                 StatusMessage = "You must change your password before continuing.";
                 OnPasswordChangeRequired?.Invoke();
                 return;

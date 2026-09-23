@@ -14,6 +14,7 @@ namespace bams.desktop.ViewModels;
 public sealed class ChangePasswordViewModel : ViewModelBase
 {
     private readonly IAuthenticationService _authenticationService;
+    private readonly AuthContext _authContext;
     private string _currentPassword = string.Empty;
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
@@ -21,9 +22,10 @@ public sealed class ChangePasswordViewModel : ViewModelBase
     private string _errorMessage = string.Empty;
     private string _statusMessage = string.Empty;
 
-    public ChangePasswordViewModel(IAuthenticationService authenticationService)
+    public ChangePasswordViewModel(IAuthenticationService authenticationService, AuthContext authContext)
     {
         _authenticationService = authenticationService;
+        _authContext = authContext;
         ChangePasswordCommand = new RelayCommand(
             async _ => await ChangePasswordAsync(CancellationToken.None),
             _ => CanChangePassword());
@@ -224,6 +226,16 @@ public sealed class ChangePasswordViewModel : ViewModelBase
 
             if (response.Success)
             {
+                var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
+
+                _authContext.SetSession(
+                    _authContext.Username ?? string.Empty,
+                    _authContext.FullName ?? string.Empty,
+                    _authContext.Role ?? string.Empty,
+                    permissionsResponse.Permissions.ToList(),
+                    _authContext.Token ?? string.Empty,
+                    _authContext.TokenExpiry);
+
                 StatusMessage = response.Message;
                 OnPasswordChangeSuccess?.Invoke();
             }
