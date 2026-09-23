@@ -89,6 +89,7 @@ authorization (4100-4199) codes are added only by the permission owner.
 | 3124 | FixedDepositRequestInvalid | Fixed-deposit creation fields are missing or supplied for a non-fixed account. |
 | 3125 | FixedDepositCurrentPrincipalInvalid | A fixed-deposit principal update is negative. |
 | 3126 | FixedDepositUpdateRequiresChanges | A fixed-deposit update contains no fields to change. |
+| 3127 | AccountCursorInvalid | An account pagination cursor is malformed or uses an unsupported version. |
 | 4100 | AccessDenied | The user is not allowed to perform the operation. |
 | 4201 | AccountNotFound | The requested account does not exist. |
 | 4202 | CustomerNotFound | No customer exists for the provided NRC. |
