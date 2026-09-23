@@ -60,7 +60,6 @@ public sealed class FixedDepositService : IFixedDepositService
             createdAt);
         await InsertFixedDepositWithAuditAsync(
             fixedDeposit,
-            request.CreatedBy,
             createdAt,
             cancellationToken);
         return fixedDeposit;
@@ -70,7 +69,6 @@ public sealed class FixedDepositService : IFixedDepositService
     public async Task<FixedDepositResponse> UpdateFixedDepositAsync(
         long fixedDepositId,
         UpdateFixedDepositRequest request,
-        long changedBy,
         CancellationToken cancellationToken)
     {
         ValidateFixedDepositUpdateRequest(request);
@@ -85,7 +83,7 @@ public sealed class FixedDepositService : IFixedDepositService
             fixedDeposit, oldStatus, request.Status, updatedAt, cancellationToken);
         fixedDeposit.UpdatedAt = updatedAt;
         return await PersistFixedDepositUpdateWithAuditAsync(
-            fixedDeposit, renewedDeposit, oldResponse, changedBy, updatedAt, cancellationToken);
+            fixedDeposit, renewedDeposit, oldResponse, updatedAt, cancellationToken);
     }
 
     // Ensures all fixed-deposit-only creation values are present.
@@ -132,7 +130,6 @@ public sealed class FixedDepositService : IFixedDepositService
     // Persists a fixed deposit and its creation audit entry within the caller's transaction.
     private async Task InsertFixedDepositWithAuditAsync(
         FixedDeposit fixedDeposit,
-        long createdBy,
         DateTime createdAt,
         CancellationToken cancellationToken)
     {
@@ -140,7 +137,6 @@ public sealed class FixedDepositService : IFixedDepositService
         await _dbContext.SaveChangesAsync(cancellationToken);
         await _auditLogService.RecordFixedDepositCreationLogAsync(
             ToResponse(fixedDeposit),
-            createdBy,
             createdAt,
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -254,7 +250,6 @@ public sealed class FixedDepositService : IFixedDepositService
         FixedDeposit fixedDeposit,
         FixedDeposit? renewedDeposit,
         FixedDepositResponse oldResponse,
-        long changedBy,
         DateTime updatedAt,
         CancellationToken cancellationToken)
     {
@@ -262,11 +257,11 @@ public sealed class FixedDepositService : IFixedDepositService
         await _dbContext.SaveChangesAsync(cancellationToken);
         var newResponse = ToResponse(fixedDeposit);
         await _auditLogService.RecordFixedDepositUpdateLogAsync(
-            oldResponse, newResponse, changedBy, updatedAt, cancellationToken);
+            oldResponse, newResponse, updatedAt, cancellationToken);
         if (renewedDeposit is not null)
         {
             await _auditLogService.RecordFixedDepositCreationLogAsync(
-                ToResponse(renewedDeposit), changedBy, updatedAt, cancellationToken);
+                ToResponse(renewedDeposit), updatedAt, cancellationToken);
         }
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using bams.server.Data;
+using bams.server.Exceptions;
+using bams.server.Messages;
 using bams.server.Models.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -24,15 +26,9 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var userIdClaim = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
+        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId) || userId <= 0)
         {
-            context.Result = new UnauthorizedObjectResult(new
-            {
-                success = false,
-                code = "AUTHENTICATION_REQUIRED",
-                message = "Authentication required"
-            });
-            return;
+            throw new AuthenticationRequiredException(MessageCode.AuthenticationRequired);
         }
 
         var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();

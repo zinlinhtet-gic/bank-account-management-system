@@ -33,7 +33,6 @@ public interface IAccountService
     Task<AccountResponse> UpdateAccountStatusAsync(
         long id,
         AccountStatus status,
-        long changedBy,
         string? reason,
         CancellationToken cancellationToken);
 
@@ -43,7 +42,6 @@ public interface IAccountService
     Task<AccountResponse> UpdateAccountBalanceAsync(
         long id,
         decimal balanceAdjustment,
-        long changedBy,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -52,7 +50,6 @@ public interface IAccountService
     Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
         long accountId,
         UpdateAccountHoldersRequest updateRequest,
-        long changedBy,
         CancellationToken cancellationToken);
 
 }

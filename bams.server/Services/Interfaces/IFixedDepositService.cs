@@ -24,6 +24,5 @@ public interface IFixedDepositService
     Task<FixedDepositResponse> UpdateFixedDepositAsync(
         long fixedDepositId,
         UpdateFixedDepositRequest request,
-        long changedBy,
         CancellationToken cancellationToken);
 }
