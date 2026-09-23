@@ -1,5 +1,13 @@
 # API Contracts
 
+## List Accounts
+
+`GET /api/accounts` returns account summaries using forward-only cursor pagination ordered by account ID. The first request omits `cursor`; subsequent requests send the opaque `nextCursor` returned by the previous response.
+
+The optional query parameters are `search` for a partial account-number match, `accountTypeId` for an account-type identifier, and `status` for an `AccountStatus` enum name. Filters are combined and must remain unchanged while following a cursor chain. `pageSize` defaults to 20 and accepts values from 1 through 100.
+
+The response contains `items`, `hasMore`, and `nextCursor`. `nextCursor` is `null` when no further matching accounts exist. The endpoint intentionally does not execute a total-count query or return page numbers.
+
 ## Available Account Types
 
 `GET /api/account-types` returns all account products whose status is `Active`, ordered by identifier. The response contains account-opening limits, transaction capabilities, required-product information, and fixed-deposit classification without exposing the database entity directly.

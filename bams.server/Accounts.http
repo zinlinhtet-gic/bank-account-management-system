@@ -7,6 +7,8 @@
 @secondAccountHolderId = 2
 @fixedDepositId = 1
 @payoutAccountId = 1
+@accountPageSize = 2
+@accountCursor = replace-with-nextCursor
 
 # Start the server with the HTTP launch profile before running these requests.
 # Replace the IDs above with records from the local database. Holder IDs are
@@ -18,7 +20,15 @@ GET {{baseUrl}}/api/account-types
 Accept: application/json
 
 ### List accounts
-GET {{baseUrl}}/api/accounts
+GET {{baseUrl}}/api/accounts?pageSize={{accountPageSize}}
+Accept: application/json
+
+### Continue listing accounts with the previous response's nextCursor
+GET {{baseUrl}}/api/accounts?pageSize={{accountPageSize}}&cursor={{accountCursor}}
+Accept: application/json
+
+### Search and filter accounts (preserve these parameters when following nextCursor)
+GET {{baseUrl}}/api/accounts?pageSize={{accountPageSize}}&search=1234&accountTypeId={{accountTypeId}}&status=Active
 Accept: application/json
 
 ### Get an account

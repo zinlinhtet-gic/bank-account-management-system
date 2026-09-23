@@ -42,6 +42,7 @@ public enum MessageCode
     FixedDepositRequestInvalid = 3124,
     FixedDepositCurrentPrincipalInvalid = 3125,
     FixedDepositUpdateRequiresChanges = 3126,
+    AccountCursorInvalid = 3127,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,

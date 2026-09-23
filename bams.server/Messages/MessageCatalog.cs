@@ -46,6 +46,7 @@ public static class MessageCatalog
             [MessageCode.FixedDepositRequestInvalid] = "The fixed-deposit request is incomplete or invalid.",
             [MessageCode.FixedDepositCurrentPrincipalInvalid] = "The fixed-deposit current principal cannot be negative.",
             [MessageCode.FixedDepositUpdateRequiresChanges] = "At least one fixed-deposit field must be supplied for update.",
+            [MessageCode.AccountCursorInvalid] = "The account pagination cursor is invalid or unsupported.",
             [MessageCode.AccessDenied] = "Access denied.",
             [MessageCode.InsufficientPermission] = "You do not have permission to perform this operation.",
             [MessageCode.AccountNotFound] = "Account was not found.",
