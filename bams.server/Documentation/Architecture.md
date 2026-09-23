@@ -45,7 +45,7 @@ It delegates account-type lookup and account-type-specific validation to `Accoun
 
 Account listing uses forward-only keyset pagination over the immutable account identifier. The service applies account-number search, account-type, and status filters before reading one more row than the requested page size to determine whether a continuation cursor is available without running a total-count query.
 
-`AuditLogService` tracks audit entities without committing independently, allowing the owning business operation to persist its data and audit record in the same transaction.
+`CurrentUserService` resolves the authenticated user ID from the standard JWT name-identifier claim and rejects missing or invalid identities. `AuditLogService` uses that trusted identity while tracking audit entities without committing independently, allowing the owning business operation to persist its data and audit record in the same transaction. Account status history uses the same current-user abstraction for `ChangedBy` attribution.
 
 Database migrations run during application startup, followed by the idempotent `ProductSeeder`. EF configurations contain schema mapping only; product and required-document population belongs under `Data/Seeders`.
 

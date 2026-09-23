@@ -12,7 +12,6 @@ public sealed record CreateAccountRequest(
     decimal? OwnershipPercentage2,
     string? SigningRule,
     List<AccountDocumentUploadRequest>? Documents,
-    long CreatedBy,
     long? PayoutAccountId,
     long? InterestRateRuleId,
     RenewalInstruction? RenewalInstruction,
