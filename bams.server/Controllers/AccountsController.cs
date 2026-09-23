@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using bams.server.DTO.Accounts;
 using bams.server.DTO.Common;
 using bams.server.Messages;
