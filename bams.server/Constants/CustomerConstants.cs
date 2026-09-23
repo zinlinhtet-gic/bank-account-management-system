@@ -13,4 +13,5 @@ public static class CustomerConstants
     public const string DefaultStatus = "Inactive";
     public const string DocumentUploadFolder = "customers";
     public const string CustomerEmailRegexPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+    public const int CustomersPageSize = 10;
 }

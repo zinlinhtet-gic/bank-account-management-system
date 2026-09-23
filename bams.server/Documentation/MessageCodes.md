@@ -5,6 +5,8 @@
 | 1000 | Success | General successful operation. |
 | 1100 | AccountCreatedSuccessfully | Account creation succeeded. |
 | 1300 | CustomerCreatedSuccessfully | Customer creation succeeded. |
+| 1301 | CustomerUpdatedSuccessfully | Customer update succeeded. |
+| 1302 | CustomerKycReviewedSuccessfully | Customer KYC review decision recorded successfully. |
 | 3000 | ValidationFailed | One or more validation errors occurred. |
 | 3002 | InvalidRequest | The request shape or content is invalid. |
 | 3003 | InvalidAmount | A supplied amount is invalid. |
@@ -18,9 +20,13 @@
 | 3204 | PassportNumberRequired | Passport number is required for foreigner customers. |
 | 3205 | CustomerDocumentFileEmpty | An uploaded customer document file is empty. |
 | 3206 | CustomerEmailInvalid | The supplied customer email address is not a valid format. |
+| 3207 | CustomerDocumentTypeRequired | A new document entry (no Id) must specify a document type. |
+| 3208 | InvalidKycReviewStatus | A KYC review must set the status to Verified or Rejected, not Pending. |
 | 4100 | AccessDenied | The user is not allowed to perform the operation. |
 | 4201 | AccountNotFound | The requested account does not exist. |
 | 4202 | CustomerNotFound | The requested customer does not exist. |
+| 4204 | CustomerDocumentNotFound | A document Id in an update request does not belong to the customer. |
+| 4205 | KycReviewerNotFound | The user performing a KYC review does not exist. |
 | 4302 | AccountAlreadyExists | An account conflicts with an existing account. |
 | 4305 | CustomerAlreadyExists | A customer with the same NRC number, passport number, or email already exists. |
 | 4400 | BusinessRuleViolation | A business rule was violated. |

@@ -1,11 +1,13 @@
 using System.Text.RegularExpressions;
 using bams.server.Constants;
 using bams.server.Data;
+using bams.server.DTO.Common;
 using bams.server.DTO.Customers;
 using bams.server.Exceptions;
 using bams.server.Mapping;
 using bams.server.Messages;
 using bams.server.Models.Customers;
+using bams.server.Models.Security;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,14 +33,24 @@ public sealed class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// Gets all customer summaries using a read-only database query.
+    /// Gets a page of customer summaries using a read-only database query, applying whichever
+    /// filters were supplied (customer number, name, KYC status, status, risk level).
     /// </summary>
-    public async Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(
+    public async Task<PagedResponse<CustomerSummaryResponse>> GetCustomersAsync(
+        GetCustomersRequest request,
         CancellationToken cancellationToken)
     {
-        return await _dbContext.Customers
-            .AsNoTracking()
+        var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+
+        var query = BuildCustomerFilterQuery(request);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var customers = await query
             .OrderBy(customer => customer.Id)
+            .Skip((pageNumber - 1) * CustomerConstants.CustomersPageSize)
+            .Take(CustomerConstants.CustomersPageSize)
+            .Include(customer => customer.Documents)
             .Select(customer => new CustomerSummaryResponse(
                 customer.Id,
                 customer.CustomerNo,
@@ -47,9 +59,22 @@ public sealed class CustomerService : ICustomerService
                 customer.Phone,
                 customer.Email,
                 customer.KycStatus,
-                customer.Status))
+                customer.RiskLevel,
+                customer.Status,
+                customer.Documents.ToList()))
             .ToListAsync(cancellationToken);
+
+        var totalPages = (int)Math.Ceiling(totalCount / (double)CustomerConstants.CustomersPageSize);
+
+        return new PagedResponse<CustomerSummaryResponse>(
+            customers,
+            pageNumber,
+            CustomerConstants.CustomersPageSize,
+            totalCount,
+            totalPages);
     }
+
+
 
     /// <summary>
     /// Gets a single customer, including its documents, by unique identifier.
@@ -78,8 +103,20 @@ public sealed class CustomerService : ICustomerService
         CreateCustomerRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateRequest(request);
-        await EnsureCustomerIsUniqueAsync(request, cancellationToken);
+        ValidateCustomerFields(
+            request.CustomerType,
+            request.FullName,
+            request.DateOfBirth,
+            request.NrcNumber,
+            request.PassportNumber,
+            request.Email);
+
+        await EnsureCustomerIsUniqueAsync(
+            request.NrcNumber,
+            request.PassportNumber,
+            request.Email,
+            excludeCustomerId: null,
+            cancellationToken);
 
         var customerNo = await _customerNumberGenerator.GenerateAsync(cancellationToken);
         var customer = BuildCustomer(request, customerNo);
@@ -109,10 +146,166 @@ public sealed class CustomerService : ICustomerService
         }
     }
 
-    // Validates request fields and simple business rules that do not require a database lookup.
-    private static void ValidateRequest(CreateCustomerRequest request)
+    /// <summary>
+    /// Partially updates a customer's fields and documents as a single unit of work: only
+    /// supplied fields change, document entries with an Id edit an existing document
+    /// (optionally replacing its file), and entries without one add a new document.
+    /// </summary>
+    public async Task<CustomerResponse> UpdateCustomerAsync(
+        long id,
+        UpdateCustomerRequest request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.FullName))
+        var customer = await _dbContext.Customers
+            .Include(customer => customer.Documents)
+            .FirstOrDefaultAsync(customer => customer.Id == id, cancellationToken);
+
+        if (customer is null)
+        {
+            throw new NotFoundException(MessageCode.CustomerNotFound);
+        }
+
+        // Merge: a supplied (non-null) value replaces the existing one; an omitted
+        // (null) value keeps whatever the customer already has.
+        var customerType = request.CustomerType ?? customer.CustomerType;
+        var fullName = request.FullName ?? customer.FullName;
+        var dateOfBirth = request.DateOfBirth ?? customer.DateOfBirth;
+        var nrcNumber = request.NrcNumber ?? customer.NrcNumber;
+        var passportNumber = request.PassportNumber ?? customer.PassportNumber;
+        var email = request.Email ?? customer.Email;
+
+        ValidateCustomerFields(customerType, fullName, dateOfBirth, nrcNumber, passportNumber, email);
+        await EnsureCustomerIsUniqueAsync(nrcNumber, passportNumber, email, customer.Id, cancellationToken);
+        ValidateDocumentChangeRequests(customer, request.Documents);
+
+        customer.CustomerType = customerType;
+        customer.FullName = fullName.Trim();
+        customer.DateOfBirth = dateOfBirth;
+        customer.NrcNumber = nrcNumber;
+        customer.PassportNumber = passportNumber;
+        customer.Email = email;
+        customer.Nationality = request.Nationality ?? customer.Nationality;
+        customer.Phone = request.Phone ?? customer.Phone;
+        customer.Occupation = request.Occupation ?? customer.Occupation;
+        customer.AddressLine1 = request.AddressLine1 ?? customer.AddressLine1;
+        customer.AddressLine2 = request.AddressLine2 ?? customer.AddressLine2;
+        customer.City = request.City ?? customer.City;
+        customer.State = request.State ?? customer.State;
+        customer.PostalCode = request.PostalCode ?? customer.PostalCode;
+        customer.Country = request.Country ?? customer.Country;
+        customer.UpdatedAt = DateTime.UtcNow;
+
+        // New files are written to disk outside the database transaction, so track them for
+        // rollback cleanup; a replaced document's old file is only deleted after commit succeeds,
+        // so a failed save never leaves a document pointing at a file that no longer exists.
+        var newFileReferences = new List<string>();
+        var replacedFileReferences = new List<string>();
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            await ApplyCustomerDocumentChangesAsync(
+                customer,
+                request.Documents,
+                newFileReferences,
+                replacedFileReferences,
+                cancellationToken);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            await DeleteSavedFilesAsync(replacedFileReferences, cancellationToken);
+
+            return customer.ToResponse();
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await DeleteSavedFilesAsync(newFileReferences, cancellationToken);
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Records a KYC review decision for a customer. Approving stamps every one of the
+    /// customer's documents as verified; rejecting only changes the customer's KycStatus.
+    /// </summary>
+    public async Task<CustomerResponse> ReviewCustomerKycAsync(
+        long id,
+        ReviewCustomerKycRequest request,
+        CancellationToken cancellationToken)
+    {
+        // A review always makes a decision; Pending is the default state, not a reviewable outcome.
+        if (request.KycStatus != KycStatus.Verified && request.KycStatus != KycStatus.Rejected)
+        {
+            throw new ValidationException(MessageCode.InvalidKycReviewStatus);
+        }
+
+        var customer = await _dbContext.Customers
+            .Include(customer => customer.Documents)
+            .FirstOrDefaultAsync(customer => customer.Id == id, cancellationToken);
+
+        if (customer is null)
+        {
+            throw new NotFoundException(MessageCode.CustomerNotFound);
+        }
+
+        var reviewerExists = await _dbContext.Users
+            .AsNoTracking()
+            .AnyAsync(user => user.Id == request.ReviewedByUserId, cancellationToken);
+
+        if (!reviewerExists)
+        {
+            throw new NotFoundException(MessageCode.KycReviewerNotFound);
+        }
+
+        // Only a user holding the Manager role may record a KYC review decision.
+        var reviewerIsManager = await _dbContext.UserRoles
+            .AsNoTracking()
+            .AnyAsync(
+                userRole => userRole.UserId == request.ReviewedByUserId
+                    && userRole.Role!.Code == RoleConstants.Manager,
+                cancellationToken);
+
+        if (!reviewerIsManager)
+        {
+            throw new ForbiddenException(MessageCode.AccessDenied);
+        }
+
+        customer.KycStatus = request.KycStatus;
+        customer.UpdatedAt = DateTime.UtcNow;
+
+        // Approval verifies every document currently on file; rejection leaves documents untouched.
+        if (request.KycStatus == KycStatus.Verified)
+        {
+            var reviewedAt = DateTime.UtcNow;
+            customer.Status = "Active";
+
+            foreach (var document in customer.Documents)
+            {
+                document.VerifiedAt = reviewedAt;
+                document.VerifiedBy = request.ReviewedByUserId;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return customer.ToResponse();
+    }
+
+    // Validates the resolved customer fields and simple business rules that do not require a database lookup.
+    // Shared by create (request fields) and update (request fields merged over the existing customer).
+    private static void ValidateCustomerFields(
+        CustomerType customerType,
+        string fullName,
+        DateOnly dateOfBirth,
+        string? nrcNumber,
+        string? passportNumber,
+        string? email)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
         {
             throw new ValidationException(MessageCode.CustomerFullNameRequired);
         }
@@ -120,46 +313,51 @@ public sealed class CustomerService : ICustomerService
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         // Reject a birth date that has not happened yet.
-        if (request.DateOfBirth > today)
+        if (dateOfBirth > today)
         {
             throw new ValidationException(MessageCode.CustomerDateOfBirthInvalid);
         }
 
         // Enforce the minimum age required to open a customer profile.
-        if (CalculateAge(request.DateOfBirth, today) < CustomerConstants.MinimumAgeYears)
+        if (CalculateAge(dateOfBirth, today) < CustomerConstants.MinimumAgeYears)
         {
             throw new ValidationException(MessageCode.CustomerBelowMinimumAge);
         }
 
         // Citizens are identified by NRC number; foreigners by passport number.
-        if (request.CustomerType == CustomerType.Citizen && string.IsNullOrWhiteSpace(request.NrcNumber))
+        if (customerType == CustomerType.Citizen && string.IsNullOrWhiteSpace(nrcNumber))
         {
             throw new ValidationException(MessageCode.NrcNumberRequired);
         }
 
-        if (request.CustomerType == CustomerType.Foreigner && string.IsNullOrWhiteSpace(request.PassportNumber))
+        if (customerType == CustomerType.Foreigner && string.IsNullOrWhiteSpace(passportNumber))
         {
             throw new ValidationException(MessageCode.PassportNumberRequired);
         }
 
-        if (request.Email is not null && !Regex.IsMatch(request.Email, CustomerConstants.CustomerEmailRegexPattern))
+        if (email is not null && !Regex.IsMatch(email, CustomerConstants.CustomerEmailRegexPattern))
         {
             throw new ValidationException(MessageCode.CustomerEmailInvalid);
         }
     }
 
-    // Rejects a request that would duplicate an existing customer's NRC number, passport number, or email.
+    // Rejects a request that would duplicate another existing customer's NRC number, passport number, or
+    // email. On update, excludeCustomerId keeps the customer being edited from conflicting with itself.
     private async Task EnsureCustomerIsUniqueAsync(
-        CreateCustomerRequest request,
+        string? nrcNumber,
+        string? passportNumber,
+        string? email,
+        long? excludeCustomerId,
         CancellationToken cancellationToken)
     {
         var hasDuplicate = await _dbContext.Customers
             .AsNoTracking()
             .AnyAsync(
                 existing =>
-                    (request.NrcNumber != null && existing.NrcNumber == request.NrcNumber) ||
-                    (request.PassportNumber != null && existing.PassportNumber == request.PassportNumber) ||
-                    (request.Email != null && existing.Email == request.Email),
+                    existing.Id != excludeCustomerId &&
+                    ((nrcNumber != null && existing.NrcNumber == nrcNumber) ||
+                     (passportNumber != null && existing.PassportNumber == passportNumber) ||
+                     (email != null && existing.Email == email)),
                 cancellationToken);
 
         if (hasDuplicate)
@@ -243,6 +441,99 @@ public sealed class CustomerService : ICustomerService
         }
     }
 
+    // Validates document change requests before any file I/O: every Id must reference a document
+    // the customer already has, and a new document (no Id) must specify a document type.
+    private static void ValidateDocumentChangeRequests(
+        Customer customer,
+        List<UpdateCustomerDocumentRequest>? documentRequests)
+    {
+        if (documentRequests is null)
+        {
+            return;
+        }
+
+        foreach (var documentRequest in documentRequests)
+        {
+            if (documentRequest.Id is long documentId)
+            {
+                var documentExists = customer.Documents.Any(document => document.Id == documentId);
+
+                if (!documentExists)
+                {
+                    throw new NotFoundException(MessageCode.CustomerDocumentNotFound);
+                }
+            }
+            else if (documentRequest.DocumentType is null)
+            {
+                throw new ValidationException(MessageCode.CustomerDocumentTypeRequired);
+            }
+        }
+    }
+
+    // Adds new documents (no Id) and edits existing ones (Id set) on the customer, saving any
+    // uploaded files. New file references are recorded for rollback cleanup on failure; a
+    // replaced document's previous file is recorded for cleanup only after a successful commit.
+    private async Task ApplyCustomerDocumentChangesAsync(
+        Customer customer,
+        List<UpdateCustomerDocumentRequest>? documentRequests,
+        List<string> newFileReferences,
+        List<string> replacedFileReferences,
+        CancellationToken cancellationToken)
+    {
+        if (documentRequests is null || documentRequests.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var documentRequest in documentRequests)
+        {
+            string? savedFileReference = null;
+
+            if (documentRequest.File is not null)
+            {
+                savedFileReference = await _fileStorageService.SaveAsync(
+                    documentRequest.File,
+                    CustomerConstants.DocumentUploadFolder,
+                    cancellationToken);
+
+                newFileReferences.Add(savedFileReference);
+            }
+
+            if (documentRequest.Id is long documentId)
+            {
+                // Existing document; ValidateDocumentChangeRequests already confirmed it exists.
+                var document = customer.Documents.First(document => document.Id == documentId);
+
+                document.DocumentType = documentRequest.DocumentType ?? document.DocumentType;
+                document.DocumentNumber = documentRequest.DocumentNumber ?? document.DocumentNumber;
+                document.IssuedDate = documentRequest.IssuedDate ?? document.IssuedDate;
+                document.ExpiryDate = documentRequest.ExpiryDate ?? document.ExpiryDate;
+
+                if (savedFileReference is not null)
+                {
+                    if (document.FileReference is not null)
+                    {
+                        replacedFileReferences.Add(document.FileReference);
+                    }
+
+                    document.FileReference = savedFileReference;
+                }
+            }
+            else
+            {
+                // ValidateDocumentChangeRequests already confirmed DocumentType is present for new documents.
+                customer.Documents.Add(new CustomerDocument
+                {
+                    DocumentType = documentRequest.DocumentType!.Value,
+                    DocumentNumber = documentRequest.DocumentNumber,
+                    FileReference = savedFileReference,
+                    IssuedDate = documentRequest.IssuedDate,
+                    ExpiryDate = documentRequest.ExpiryDate
+                });
+            }
+        }
+    }
+
     // Best-effort cleanup of files already written to storage when the surrounding transaction fails.
     private async Task DeleteSavedFilesAsync(
         IReadOnlyList<string> savedFileReferences,
@@ -265,5 +556,38 @@ public sealed class CustomerService : ICustomerService
         }
 
         return age;
+    }
+
+    // Applies whichever customer-list filters were supplied to a read-only query.
+    private IQueryable<Customer> BuildCustomerFilterQuery(GetCustomersRequest request)
+    {
+        var query = _dbContext.Customers.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.CustomerNo))
+        {
+            query = query.Where(customer => customer.CustomerNo.Contains(request.CustomerNo));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CustomerName))
+        {
+            query = query.Where(customer => customer.FullName.Contains(request.CustomerName));
+        }
+
+        if (request.KycStatus is not null)
+        {
+            query = query.Where(customer => customer.KycStatus == request.KycStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            query = query.Where(customer => customer.Status == request.Status);
+        }
+
+        if (request.RiskLevel is not null)
+        {
+            query = query.Where(customer => customer.RiskLevel == request.RiskLevel);
+        }
+
+        return query;
     }
 }

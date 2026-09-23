@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using bams.server.Data;
+using bams.server.Data.Seeders;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
@@ -46,6 +47,14 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
+
+    // Seed baseline Users/Roles/UserRoles for local development only; no admin
+    // flow exists yet to create them through the API.
+    using (var seedScope = app.Services.CreateScope())
+    {
+        var dbContext = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await SecuritySeeder.SeedAsync(dbContext);
+    }
 }
 else
 {

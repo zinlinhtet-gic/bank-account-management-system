@@ -10,4 +10,6 @@ public sealed record CustomerSummaryResponse(
     string? Phone,
     string? Email,
     KycStatus KycStatus,
-    string Status);
+    RiskLevel RiskLevel,
+    string Status,
+    List<CustomerDocument> Documents);

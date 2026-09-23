@@ -6,6 +6,8 @@ public enum MessageCode
     Success = 1000,
     AccountCreatedSuccessfully = 1100,
     CustomerCreatedSuccessfully = 1300,
+    CustomerUpdatedSuccessfully = 1301,
+    CustomerKycReviewedSuccessfully = 1302,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -20,6 +22,8 @@ public enum MessageCode
     CustomerDocumentFileEmpty = 3205,
 
     CustomerEmailInvalid = 3206,
+    CustomerDocumentTypeRequired = 3207,
+    InvalidKycReviewStatus = 3208,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
@@ -28,6 +32,8 @@ public enum MessageCode
     AccountNotFound = 4201,
     CustomerNotFound = 4202,
     AccountTypeNotFound = 4203,
+    CustomerDocumentNotFound = 4204,
+    KycReviewerNotFound = 4205,
 
     // Conflict: 4300 - 4399
     CustomerAlreadyExists = 4305,
