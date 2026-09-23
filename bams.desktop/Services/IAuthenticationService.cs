@@ -20,6 +20,11 @@ public interface IAuthenticationService
     void SetAuthToken(string token);
 
     /// <summary>
+    /// Removes the JWT token from authenticated requests.
+    /// </summary>
+    void ClearAuthToken();
+
+    /// <summary>
     /// Changes the user's password.
     /// </summary>
     Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken);
