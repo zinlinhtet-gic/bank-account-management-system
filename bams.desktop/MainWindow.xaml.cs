@@ -14,6 +14,7 @@ public partial class MainWindow : Window
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly AuthContext _authContext;
+    private readonly IAuthenticationService _authenticationService;
 
     public MainWindow(IServiceProvider serviceProvider)
     {
@@ -21,6 +22,7 @@ public partial class MainWindow : Window
         
         _serviceProvider = serviceProvider;
         _authContext = _serviceProvider.GetRequiredService<AuthContext>();
+        _authenticationService = _serviceProvider.GetRequiredService<IAuthenticationService>();
 
         // Show login view on startup
         ShowLoginView();
@@ -64,6 +66,8 @@ public partial class MainWindow : Window
         // Create the main application view model with navigation
         var navBarViewModel = _serviceProvider.GetRequiredService<NavBarViewModel>();
         var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+
+        mainViewModel.OnLogoutRequested += HandleLogoutRequested;
         
         // Set the data context for the main window
         DataContext = mainViewModel;
@@ -71,5 +75,23 @@ public partial class MainWindow : Window
         // Hide login view, show main app
         LoginContentControl.Content = null;
         MainAppGrid.Visibility = Visibility.Visible;
+    }
+
+    private void HandleLogoutRequested()
+    {
+        var result = MessageBox.Show(
+            "Are you sure you want to logout?",
+            "Confirm Logout",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        _authenticationService.ClearAuthToken();
+        _authContext.ClearSession();
+        ShowLoginView();
     }
 }

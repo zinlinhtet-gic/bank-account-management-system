@@ -32,6 +32,15 @@ public sealed class AuthenticationService : IAuthenticationService
     }
 
     /// <summary>
+    /// Removes the JWT token from authenticated requests.
+    /// </summary>
+    public void ClearAuthToken()
+    {
+        _authToken = null;
+        _httpClient.DefaultRequestHeaders.Authorization = null;
+    }
+
+    /// <summary>
     /// Authenticates a user with the server and returns login response.
     /// </summary>
     public async Task<LoginResponse> LoginAsync(

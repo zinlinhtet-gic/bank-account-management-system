@@ -24,6 +24,7 @@ public sealed class MainViewModel : ViewModelBase
         
         // Wire up navigation from NavBar
         NavBar.NavigateCommand = new RelayCommand(NavigateToPage);
+        LogoutCommand = new RelayCommand(_ => OnLogoutRequested?.Invoke());
         
         // Initialize with user info from AuthContext
         UpdateUserInfo();
@@ -33,6 +34,10 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public NavBarViewModel NavBar { get; }
+
+    public RelayCommand LogoutCommand { get; }
+
+    public event Action? OnLogoutRequested;
 
     public object? CurrentPage
     {
