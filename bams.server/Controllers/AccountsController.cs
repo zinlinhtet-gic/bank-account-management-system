@@ -29,14 +29,15 @@ public sealed class AccountsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets all account summaries.
+    /// Gets a forward-only cursor page of account summaries.
     /// </summary>
     [HttpGet]
     [RequirePermission("account_management")]
-    public async Task<ActionResult<IReadOnlyList<AccountSummaryResponse>>> GetAccountsAsync(
+    public async Task<ActionResult<CursorPagedResponse<AccountSummaryResponse>>> GetAccountsAsync(
+        [FromQuery] GetAccountsRequest request,
         CancellationToken cancellationToken)
     {
-        var accounts = await _accountService.GetAccountsAsync(cancellationToken);
+        var accounts = await _accountService.GetAccountsAsync(request, cancellationToken);
 
         return Ok(accounts);
     }
