@@ -1,0 +1,17 @@
+<UserControl x:Class="bams.desktop.Components.Icon.Icon"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Viewbox Width="{Binding Size, ElementName=Root}"
+             Height="{Binding Size, ElementName=Root}"
+             Stretch="Uniform">
+        <Canvas Width="24" Height="24">
+            <Path Data="{Binding Geometry, ElementName=Root}"
+                  Stroke="{Binding Foreground, ElementName=Root}"
+                  StrokeThickness="{Binding StrokeThickness, ElementName=Root}"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round"/>
+        </Canvas>
+    </Viewbox>
+</UserControl>
