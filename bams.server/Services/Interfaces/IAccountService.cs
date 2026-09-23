@@ -1,4 +1,5 @@
 using bams.server.DTO.Accounts;
+using bams.server.DTO.Common;
 using bams.server.Models.Accounts.Enums;
 
 namespace bams.server.Services.Interfaces;
@@ -6,9 +7,10 @@ namespace bams.server.Services.Interfaces;
 public interface IAccountService
 {
     /// <summary>
-    /// Gets all account summaries.
+    /// Gets a forward-only cursor page of account summaries matching the supplied criteria.
     /// </summary>
-    Task<IReadOnlyList<AccountSummaryResponse>> GetAccountsAsync(
+    Task<CursorPagedResponse<AccountSummaryResponse>> GetAccountsAsync(
+        GetAccountsRequest request,
         CancellationToken cancellationToken);
 
     /// <summary>
