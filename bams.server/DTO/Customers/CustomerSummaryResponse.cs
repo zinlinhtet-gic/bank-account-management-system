@@ -12,4 +12,5 @@ public sealed record CustomerSummaryResponse(
     KycStatus KycStatus,
     RiskLevel RiskLevel,
     string Status,
+    DateTime CreatedAt,
     List<CustomerDocument> Documents);

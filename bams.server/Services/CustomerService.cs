@@ -61,6 +61,7 @@ public sealed class CustomerService : ICustomerService
                 customer.KycStatus,
                 customer.RiskLevel,
                 customer.Status,
+                customer.CreatedAt,
                 customer.Documents.ToList()))
             .ToListAsync(cancellationToken);
 
@@ -586,6 +587,19 @@ public sealed class CustomerService : ICustomerService
         if (request.RiskLevel is not null)
         {
             query = query.Where(customer => customer.RiskLevel == request.RiskLevel);
+        }
+
+        // Filter by the customer's created date, inclusive on both ends.
+        if (request.StartDate is not null)
+        {
+            var startDateTime = request.StartDate.Value.ToDateTime(TimeOnly.MinValue);
+            query = query.Where(customer => customer.CreatedAt >= startDateTime);
+        }
+
+        if (request.EndDate is not null)
+        {
+            var endDateTimeExclusive = request.EndDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue);
+            query = query.Where(customer => customer.CreatedAt < endDateTimeExclusive);
         }
 
         return query;

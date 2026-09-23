@@ -6,6 +6,8 @@ namespace bams.server.DTO.Customers;
 /// Query parameters for listing customers: 1-based page number (page size is fixed by
 /// <see cref="Constants.CustomerConstants.CustomersPageSize"/>) plus optional filters.
 /// Each supplied filter narrows the result; omitted filters are not applied.
+/// <see cref="StartDate"/>/<see cref="EndDate"/> filter by the customer's created date
+/// (inclusive on both ends).
 /// </summary>
 public sealed record GetCustomersRequest(
     int PageNumber,
@@ -13,4 +15,6 @@ public sealed record GetCustomersRequest(
     string? CustomerName,
     KycStatus? KycStatus,
     string? Status,
-    RiskLevel? RiskLevel);
+    RiskLevel? RiskLevel,
+    DateOnly? StartDate,
+    DateOnly? EndDate);
