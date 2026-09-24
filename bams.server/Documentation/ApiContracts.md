@@ -87,11 +87,4 @@ The operation cannot add, remove, or replace customers. It requires exactly one 
 
 Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.
 
-`PATCH /api/accounts/fixed-deposits/{fixedDepositId}` accepts the last-read `version` together with `renewalInstruction`, `payoutAccountId`, or both. The route identifier is the fixed-deposit row ID, not the account ID. The response wraps the updated `FixedDepositResponse` with message code `1104`.
-
-`CalculateFromCurrent` is fixed when the deposit is created. Current-principal and status changes are available only to internal application workflows through `IFixedDepositService`; they are not accepted by an HTTP request contract.
-
-Account, account-holder, and fixed-deposit responses include a `version`. Mutation callers must return the latest version they received. A stale account, holder, or fixed-deposit version rejects the complete operation with HTTP 409 and message code `4304`; clients must refresh the resource before retrying.
-
-All account mutation endpoints require the `account_management` permission. Audit logs and account-status history resolve the acting user from the standard JWT name-identifier claim; a missing or invalid identity is rejected with message code `4000` and HTTP 401.
-Update endpoints resolve the acting user from the standard name-identifier claim. While authentication integration is incomplete, requests without a valid claim temporarily use development user ID `1` for audit attribution.
+Success mutations use `ApiMessageResponse<T>`. Expected failures use `ApiErrorResponse` with `code`, `name`, `message`, and `traceId`. Clients must branch on `code`, not message text.

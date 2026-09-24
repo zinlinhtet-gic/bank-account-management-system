@@ -257,12 +257,382 @@ public sealed class AccountService : IAccountService
         }
 
         var now = DateTime.UtcNow;
+        IReadOnlyList<string> storedFileReferences = [];
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var accountNumber = await GenerateAccountNumberAsync(
+                request.AccountTypeId,
+                now,
+                cancellationToken);
+            var account = await InsertAccountAsync(
+                request,
+                accountNumber,
+                now,
+                cancellationToken);
+            await _accountHolderService.CreateAccountHoldersAsync(
+                account,
+                customers,
+                ownershipPercentages,
+                request,
+                now,
+                cancellationToken);
+            // Persist the account first so its database identifier can organize private files.
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            if (isFixedDeposit)
+            {
+                await _fixedDepositService.CreateFixedDepositAsync(
+                    account,
+                    accountType,
+                    customers[0],
+                    request,
+                    now,
+                    cancellationToken);
+            }
+            storedFileReferences = await _accountDocumentService.StoreAccountDocumentsAsync(
+                account,
+                documents,
+                now,
+                cancellationToken);
+            // Record audit log for account opening
+            await _auditLogService.RecordAccountOpeningLogAsync(
+                account,
+                now,
+                cancellationToken);
+            // Record account transaction for opening balance
+            await _accountTransactionService.RecordAccountOpeningTransactionAsync(
+                account,
+                request.OpeningBalance,
+                now,
+                cancellationToken);
+            // Record accounting report for account opening
+            await _accountingReportService.RecordAccountOpeningTransactionAsync(
+                request.OpeningBalance,
+                now,
+                cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            account.AccountType = accountType;
+            return account.ToResponse();
+        }
+        catch
+        {
+            // File storage cannot participate in the database transaction, so compensate on failure.
+            _accountDocumentService.DeleteStoredFiles(storedFileReferences);
+            throw;
+        }
+    }
+
+    // Rejects fixed-deposit-only fields when opening a non-fixed account.
+    private static void ValidateFixedDepositFields(
+        CreateAccountRequest request,
+        bool isFixedDeposit)
+    {
+        if (!isFixedDeposit &&
+            (request.PayoutAccountId.HasValue || request.InterestRateRuleId.HasValue ||
+             request.RenewalInstruction.HasValue || request.CalculateFromCurrent.HasValue))
+        {
+            throw new ValidationException(MessageCode.FixedDepositRequestInvalid);
+        }
+    }
+
+    /// <summary>
+    /// Changes an account to a permitted status and records who made the change.
+    /// </summary>
+    public async Task<AccountResponse> UpdateAccountStatusAsync(
+        long accountId,
+        AccountStatus newStatus,
+        string? reason,
+        long expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            expectedVersion;
+        ValidateAccountStatusReason(reason);
+
+        var changedAt = DateTime.UtcNow;
+        var changedBy = _currentUserService.GetCurrentUserId();
+        var oldStatus = account.Status;
+
+        switch (newStatus)
+        {
+            case AccountStatus.Active:
+                await ChangeToActiveStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Closed:
+                await ChangeToClosedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Frozen:
+                await ChangeToFrozenStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Suspended:
+                await ChangeToSuspendedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Dormant:
+                await ChangeToDormantStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            default:
+                throw new ValidationException(MessageCode.AccountStatusInvalid);
+        }
+
+        await _auditLogService.RecordAccountStatusUpdateLogAsync(
+            account.Id,
+            oldStatus,
+            account.Status,
+            reason,
+            changedAt,
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return account.ToResponse();
+    }
+
+    // Applies the supplied adjustment to both balances and returns the updated account.
+    public async Task<AccountResponse> UpdateAccountBalanceAsync(
+        long accountId,
+        decimal balanceAdjustment,
+        long expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            expectedVersion;
+        var oldBalance = account.AvailableBalance;
+        decimal newBalance = account.AvailableBalance + balanceAdjustment;
+
+        if (newBalance < 0)
+        {
+            throw new ValidationException(MessageCode.AccountBalanceCannotBeNegative);
+        }
+
+        account.AvailableBalance = newBalance;
+        account.LedgerBalance = newBalance;
+        var updatedAt = DateTime.UtcNow;
+        account.UpdatedAt = updatedAt;
+
+        await _auditLogService.RecordAccountBalanceUpdateLogAsync(
+            account.Id,
+            oldBalance,
+            newBalance,
+            updatedAt,
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return account.ToResponse();
+    }
+
+    /// <summary>
+    /// Updates the editable details of an account's existing joint holders.
+    /// </summary>
+    public async Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
+        long accountId,
+        UpdateAccountHoldersRequest updateRequest,
+        CancellationToken cancellationToken)
+    {
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+
+        return await _accountHolderService.UpdateHoldersOfAccountAsync(
+            account,
+            updateRequest,
+            cancellationToken);
+    }
+
+    // Gets a tracked account with the related type required for update responses.
+    private async Task<Account> GetTrackedAccountByIdAsync(
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        var account = await _dbContext.Accounts
+            .Include(existingAccount => existingAccount.AccountType)
+            .FirstOrDefaultAsync(existingAccount => existingAccount.Id == accountId, cancellationToken);
+
+        if (account is null)
+        {
+            throw new NotFoundException(MessageCode.AccountNotFound);
+        }
+
+        return account;
+    }
+
+    // Rejects a status-change reason that cannot fit in the history record.
+    private static void ValidateAccountStatusReason(string? reason)
+    {
+        if (reason?.Length > AccountConstants.AccountStatusReasonMaximumLength)
+        {
+            throw new ValidationException(MessageCode.InvalidRequest);
+        }
+    }
+
+    // Reactivates an account only from a reversible restricted status.
+    private async Task ChangeToActiveStatusAsync(
+        Account account,
+        long changedBy,
+        string? reason,
+        DateTime changedAt,
+        CancellationToken cancellationToken)
+    {
+        if (account.Status is not (AccountStatus.Dormant or AccountStatus.Suspended or AccountStatus.Frozen))
+        {
+            throw new BusinessRuleException(MessageCode.AccountStatusTransitionNotAllowed);
+        }
+
+        account.ActiveAt = changedAt;
+        await ApplyAccountStatusChangeAsync(account, AccountStatus.Active, changedBy, reason, changedAt, cancellationToken);
+    }
+
+    // Marks an active account as dormant.
+    private async Task ChangeToDormantStatusAsync(
+        Account account,
+        long changedBy,
+        string? reason,
+        DateTime changedAt,
+        CancellationToken cancellationToken)
+    {
+        if (account.Status != AccountStatus.Active)
+        {
+            throw new BusinessRuleException(MessageCode.AccountStatusTransitionNotAllowed);
+        }
+
+        account.DormantAt = changedAt;
+        await ApplyAccountStatusChangeAsync(account, AccountStatus.Dormant, changedBy, reason, changedAt, cancellationToken);
+    }
+
+    // Suspends an account that is active or dormant.
+    private async Task ChangeToSuspendedStatusAsync(
+        Account account,
+        long changedBy,
+        string? reason,
+        DateTime changedAt,
+        CancellationToken cancellationToken)
+    {
+        if (account.Status is not (AccountStatus.Active or AccountStatus.Dormant))
+        {
+            throw new BusinessRuleException(MessageCode.AccountStatusTransitionNotAllowed);
+        }
+
+        account.SuspendedAt = changedAt;
+        await ApplyAccountStatusChangeAsync(account, AccountStatus.Suspended, changedBy, reason, changedAt, cancellationToken);
+    }
+
+    // Freezes an account that is active or dormant.
+    private async Task ChangeToFrozenStatusAsync(
+        Account account,
+        long changedBy,
+        string? reason,
+        DateTime changedAt,
+        CancellationToken cancellationToken)
+    {
+        if (account.Status is not (AccountStatus.Active or AccountStatus.Dormant))
+        {
+            throw new BusinessRuleException(MessageCode.AccountStatusTransitionNotAllowed);
+        }
+
+        account.FrozenAt = changedAt;
+        await ApplyAccountStatusChangeAsync(account, AccountStatus.Frozen, changedBy, reason, changedAt, cancellationToken);
+    }
+
+    // Permanently closes an active account.
+    private async Task ChangeToClosedStatusAsync(
+        Account account,
+        long changedBy,
+        string? reason,
+        DateTime changedAt,
+        CancellationToken cancellationToken)
+    {
+        if (account.Status != AccountStatus.Active)
+        {
+            throw new BusinessRuleException(MessageCode.AccountStatusTransitionNotAllowed);
+        }
+
+        account.ClosedAt = changedAt;
+        await ApplyAccountStatusChangeAsync(account, AccountStatus.Closed, changedBy, reason, changedAt, cancellationToken);
+    }
+
+    // Applies a validated status change and tracks its immutable history entry.
+    private async Task ApplyAccountStatusChangeAsync(
+        Account account,
+        AccountStatus newStatus,
+        long changedBy,
+        string? reason,
+        DateTime changedAt,
+        CancellationToken cancellationToken)
+    {
+        var oldStatus = account.Status;
+        account.Status = newStatus;
+        account.UpdatedAt = changedAt;
+
+        var history = new AccountStatusHistory
+        {
+            Account = account,
+            OldStatus = oldStatus,
+            NewStatus = newStatus,
+            Reason = reason,
+            ChangedBy = changedBy,
+            ChangedAt = changedAt
+        };
+
+        await _dbContext.AccountStatusHistories.AddAsync(history, cancellationToken);
+    }
+
+    // Allocates the next sequence for the account type and UTC hour, then builds a 16-digit number.
+    private async Task<string> GenerateAccountNumberAsync(
+        long accountTypeId,
+        DateTime currentDateTime,
+        CancellationToken cancellationToken)
+    {
+        if (accountTypeId is < 1 or > AccountConstants.MaximumAccountTypeIdentifier)
+        {
+            throw new BusinessRuleException(MessageCode.AccountTypeIdentifierOutOfRange);
+        }
+
+        var generationPeriod = currentDateTime.ToString(
+            AccountConstants.AccountNumberTimestampFormat,
+            CultureInfo.InvariantCulture);
+
+        var sequenceNumber = await GetSequenceNumberAsync(
+            accountTypeId,
+            generationPeriod,
+            cancellationToken);
+
+        if (sequenceNumber > AccountConstants.MaximumHourlyAccountNumberSequence)
+        {
+            throw new BusinessRuleException(MessageCode.AccountNumberSequenceExhausted);
+        }
+
+        var accountNumber = string.Concat(
+            accountTypeId.ToString(
+                $"D{AccountConstants.AccountTypeIdentifierWidth}",
+                CultureInfo.InvariantCulture),
+            generationPeriod,
+            sequenceNumber.ToString(
+                $"D{AccountConstants.AccountNumberSequenceWidth}",
+                CultureInfo.InvariantCulture));
+
+        if (accountNumber.Length != AccountConstants.AccountNumberRequiredLength)
+        {
+            throw new InvalidOperationException(
+                "Generated account number does not have the required length.");
+        }
+
+        return accountNumber;
+    }
+
+    // Creates and tracks a new active account for the validated request.
+    private async Task<Account> InsertAccountAsync(
+        CreateAccountRequest request,
+        string accountNumber,
+        DateTime currentDateTime,
+        CancellationToken cancellationToken)
+    {
         var account = new Account
         {
             AccountNo = accountNumber,
             AccountTypeId = request.AccountTypeId,
             Status = AccountStatus.Active,
-            OpenedAt = now,
+            OpenedAt = currentDateTime,
+            ActiveAt = currentDateTime,
             AvailableBalance = request.OpeningBalance,
             LedgerBalance = request.OpeningBalance,
             CreatedAt = currentDateTime,
@@ -270,18 +640,37 @@ public sealed class AccountService : IAccountService
         };
 
         await _dbContext.Accounts.AddAsync(account, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        account.AccountType = accountType;
-
-        return account.ToResponse();
+        return account;
     }
 
-    // Generates a readable account number without relying on client-provided identifiers.
-    private static string GenerateAccountNumber()
+    // Atomically creates or increments the sequence for an account type and UTC hour.
+    private async Task<int> GetSequenceNumberAsync(
+        long accountTypeId,
+        string generationPeriod,
+        CancellationToken cancellationToken)
     {
-        return string.Concat(
-            AccountConstants.AccountNumberPrefix,
-            DateTime.UtcNow.ToString(AccountConstants.AccountNumberTimestampFormat));
+        // The unique period key makes this MySQL insert-or-increment atomic for concurrent requests.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO `AccountNumberGenerations`
+                (`AccountTypeId`, `GenerationPeriod`, `LastSequenceNumber`)
+            VALUES
+                ({accountTypeId}, {generationPeriod}, 1)
+            ON DUPLICATE KEY UPDATE
+                `LastSequenceNumber` = `LastSequenceNumber` + 1
+            """,
+            cancellationToken);
+
+        // The transaction retains the row lock until the generated account is persisted.
+        var sequenceNumber = await _dbContext.AccountNumberGenerations
+            .AsNoTracking()
+            .Where(generation =>
+                generation.AccountTypeId == accountTypeId &&
+                generation.GenerationPeriod == generationPeriod)
+            .Select(generation => generation.LastSequenceNumber)
+            .SingleAsync(cancellationToken);
+
+        return sequenceNumber;
     }
+
 }

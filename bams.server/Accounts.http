@@ -16,6 +16,7 @@
 # AccountHolder row IDs, and fixedDepositId is the FixedDeposit row ID.
 # Supply a valid bearer token for account mutations. Audit attribution comes from
 # the token's name-identifier claim and cannot be supplied in request data.
+# Until authentication is enabled, update requests are audited as user ID 1.
 
 ### List available account types
 GET {{baseUrl}}/api/account-types
