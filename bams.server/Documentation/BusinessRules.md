@@ -1,6 +1,22 @@
 # Business Rules
 
-## Accounts
+## Account creation and numbering
+
+- Opening balances must satisfy the selected product's minimum.
+- New accounts start in `AccountStatus.Active`.
+- A customer cannot hold more than one active individual account of the same product.
+- Account numbers are generated server-side as 16 digits in `TTyyyyMMddHHSSSS` format.
+- `TT` is the two-digit account-type ID, `yyyyMMddHH` is the UTC generation hour, and `SSSS` is a per-product, per-hour sequence from `0001` through `9999`.
+
+## Holders
+
+- Individual accounts require one registered customer and store 100% ownership.
+- Joint accounts require two distinct registered customers and exactly one primary holder.
+- Joint ownership percentages must each be greater than zero, no greater than 100, and total exactly 100.
+- Joint-holder updates provide the complete desired percentages, primary designation, and shared signing rule.
+- Existing holder updates cannot add, remove, or replace customers and are forbidden after account closure.
+
+## Status lifecycle
 
 - Account names are required and capped by `AccountConstants.AccountNameMaximumLength`.
 - Opening balances cannot be below `AccountConstants.MinimumOpeningBalance`.

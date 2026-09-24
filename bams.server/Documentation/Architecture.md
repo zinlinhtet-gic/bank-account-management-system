@@ -1,61 +1,52 @@
 # Architecture
 
-This project follows a layered ASP.NET Core structure:
+## Application flow
 
-HTTP request -> Controller -> DTO -> Service -> Model/Entity -> Database.
+The server follows a layered ASP.NET Core design:
 
-Controllers only handle HTTP routing and response concerns. Services contain business logic, validation, persistence coordination, and DTO mapping.
+```text
+HTTP request → Controller → Request DTO → Service → Entity Framework model → MySQL
+MySQL → Entity Framework model → Service mapping → Response DTO → HTTP response
+```
 
-The account API includes:
+Controllers handle routing, binding, authorization attributes, and response envelopes. Services own validation, business rules, persistence coordination, auditing, and entity-to-DTO mapping. Database entities are never returned directly by controllers.
 
-- `AccountsController` for thin account API endpoints.
-- `AccountTypesController` for the read-only available-product catalog endpoint.
-- `IAccountService` and `AccountService` for application behavior.
-- `IAccountHolderService` and `AccountHolderService` for holder resolution, validation, creation, and joint-holder updates.
-- `IAccountTypeService` and `AccountTypeService` for account-type lookup, opening-balance validation, and product classification.
-- `IFixedDepositService` and `FixedDepositService` for fixed-deposit creation, updates, payout validation, maturity, and renewal.
-- `Account` as the EF Core entity.
-- Account request and response DTOs under `DTO/Accounts`.
-- Central message, exception, and middleware infrastructure.
+## Account subsystem
 
-## Authentication and authorization errors
+- `AccountsController` exposes account queries, creation, freeze/suspend/reactivate actions, joint-holder updates, and fixed-deposit configuration updates.
+- `AccountTypesController` exposes the read-only catalog of active account products.
+- `AccountService` coordinates account operations and delegates holder, account-type, fixed-deposit, document, audit, transaction, and accounting responsibilities.
+- `AccountHolderService` owns holder resolution, ownership validation, creation, and joint-holder updates.
+- `AccountTypeService` owns product lookup, opening-balance validation, and fixed-deposit classification.
+- `FixedDepositService` owns fixed-deposit creation, payout validation, editable instructions, principal/status lifecycle operations, maturity, and renewal.
+- `AccountDocumentService` validates document requirements and coordinates private file storage.
 
-All auth failures use the standard `ApiErrorResponse` body:
+## Authentication and authorization
 
-- `[RequirePermission]` (`Middlewares/MiddlewareAttribute.cs`) throws `UnauthorizedException` (401) for a missing
-  or unknown user, and `ForbiddenException` (403) for a disabled user or missing permission. `GlobalExceptionHandler`
-  turns these into responses.
-- `[Authorize]` challenges are written by the `JwtBearerEvents.OnChallenge` handler in `Program.cs`.
-- Controllers read the caller's id with `User.GetRequiredUserId()` (`Utils/Extensions/ClaimsPrincipalExtensions.cs`).
+Protected account endpoints require `SecurityConstants.AccountManagement` through `[RequirePermission]`.
 
-## WPF client error flow
+- Missing or unknown users produce HTTP 401.
+- Disabled users or users without the required permission produce HTTP 403.
+- `CurrentUserService` obtains the authenticated user ID from the JWT name-identifier claim.
+- Clients cannot supply audit attribution.
 
-`bams.desktop/Api/ApiClient.cs` is the single place that sends HTTP requests. It unwraps `ApiMessageResponse<T>.Data`,
-turns `ApiErrorResponse` into `ApiException` (keeping the server `Code`, `Message` and `TraceId`), and turns transport
-failures into `NetworkException`. Both derive from `AppException`, so ViewModels catch `AppException` and decide by
-`exception.Code`, never by message text.
-`AccountsController` exposes account queries and creation together with status, balance-adjustment, joint-holder, and fixed-deposit update endpoints. It resolves the acting user from the standard name-identifier claim and currently uses a documented development fallback until authentication is enabled.
+Authentication and authorization failures use `ApiErrorResponse`. `GlobalExceptionHandler` converts expected application exceptions into stable message codes and HTTP statuses.
 
-`AccountsController` exposes account queries and creation together with status, balance-adjustment, joint-holder, and fixed-deposit update endpoints. Account mutation endpoints require the account-management permission and do not accept actor identifiers from clients.
+## Persistence and consistency
 
-`AccountsController` exposes account queries and creation together with dedicated freeze, suspend, and reactivate actions, balance-adjustment, joint-holder, and fixed-deposit update endpoints. Account mutation endpoints require the account-management permission and do not accept actor identifiers from clients.
+- EF Core uses MySQL and applies schema migrations during startup.
+- `DateOnly` converters keep nullable and non-nullable dates stored as MySQL `date` columns.
+- `Account`, `AccountHolder`, and `FixedDeposit` use application-managed optimistic concurrency versions.
+- Stale writes raise `DbUpdateConcurrencyException`, returned as HTTP 409 with `ConcurrentModification`.
+- Audit entities are tracked without committing independently so the owning operation controls the transaction boundary.
+- Joint-holder and fixed-deposit lifecycle writes keep business data and audit records atomic.
 
+## Files and reference data
 
-Account creation accepts multipart form data. `AccountDocumentService` validates account-type document requirements, delegates private file handling to `FileUploadUtils`, and persists `AccountDocument` metadata. Files are stored outside `wwwroot`; only relative generated references are stored in the database.
+Account documents are validated against `AccountTypeRequiredDocument`. Files are stored below the configured private upload root, outside `wwwroot`, using generated filenames; the database stores only relative references and metadata.
 
-Account type document requirements are normalized through `AccountTypeRequiredDocument`, allowing required document lists to change without adding product-specific columns.
+After migrations, the idempotent `ProductSeeder` populates reference products. In Development only, `TestDataSeeder` adds deterministic sample customers and accounts.
 
-`AccountService` remains the account-operation facade and delegates holder-specific rules and persistence to `AccountHolderService`.
-It delegates account-type lookup and account-type-specific validation to `AccountTypeService`.
+## Desktop client integration
 
-Account listing uses forward-only keyset pagination over the immutable account identifier. The service applies account-number search, account-type, and status filters before reading one more row than the requested page size to determine whether a continuation cursor is available without running a total-count query.
-
-`CurrentUserService` resolves the authenticated user ID from the standard JWT name-identifier claim and rejects missing or invalid identities. `AuditLogService` uses that trusted identity while tracking audit entities without committing independently, allowing the owning business operation to persist its data and audit record in the same transaction. Account status history uses the same current-user abstraction for `ChangedBy` attribution.
-`AuditLogService` tracks audit entities without committing independently, allowing the owning business operation to persist its data and audit record in the same transaction.
-
-
-Database migrations run during application startup, followed by the idempotent `ProductSeeder`. EF configurations contain schema mapping only; product and required-document population belongs under `Data/Seeders`.
-
-The EF model applies global `DateOnly` value converters because the MySQL provider materializes `DATE` values as `DateTime`. Both nullable and non-nullable date properties remain stored as database `date` columns.
-
-In the Development environment, the idempotent `TestDataSeeder` runs after product seeding and creates two verified test customers with three individual accounts each. Test data is never inserted during non-development startup.
+`bams.desktop/Api/ApiClient.cs` sends requests, unwraps `ApiMessageResponse<T>.Data`, and converts `ApiErrorResponse` into `ApiException`. Transport failures become `NetworkException`. ViewModels handle stable message codes rather than comparing message text.

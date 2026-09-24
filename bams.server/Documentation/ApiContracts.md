@@ -1,24 +1,43 @@
 # API Contracts
 
-The machine-readable OpenAPI contract for the routes currently exposed by `AccountsController` and `AccountTypesController` is maintained in `AccountsApi.openapi.yaml`.
+The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by `AccountsController` and `AccountTypesController`.
 
-## List Accounts
+## Endpoint overview
 
-`GET /api/accounts` returns account summaries using forward-only cursor pagination ordered by account ID. The first request omits `cursor`; subsequent requests send the opaque `nextCursor` returned by the previous response.
+| Method | Route | Authentication | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/account-types` | Public | List active account products. |
+| GET | `/api/accounts` | `account_management` | List accounts with cursor pagination. |
+| GET | `/api/accounts/{id}` | `account_management` | Get one account. |
+| POST | `/api/accounts` | `account_management` | Create an account. |
+| PATCH | `/api/accounts/{id}/freeze` | `account_management` | Freeze an Active or Dormant account. |
+| PATCH | `/api/accounts/{id}/suspend` | `account_management` | Suspend an Active or Dormant account. |
+| PATCH | `/api/accounts/{id}/reactivate` | `account_management` | Reactivate a Dormant, Suspended, or Frozen account. |
+| PUT | `/api/accounts/{id}/holders` | `account_management` | Update both holders of a joint account. |
+| PATCH | `/api/accounts/fixed-deposits/{fixedDepositId}` | `account_management` | Update payout and renewal instructions. |
 
-The optional query parameters are `search` for a partial account-number match, `accountTypeId` for an account-type identifier, and `status` for an `AccountStatus` enum name. Filters are combined and must remain unchanged while following a cursor chain. `pageSize` defaults to 20 and accepts values from 1 through 100.
+## Available account types
 
-The response contains `items`, `hasMore`, and `nextCursor`. `nextCursor` is `null` when no further matching accounts exist. The endpoint intentionally does not execute a total-count query or return page numbers.
+`GET /api/account-types` returns active products ordered by ID. Each `AccountTypeResponse` includes opening and maintained balances, transaction limits and capabilities, required-product information, and fixed-deposit classification.
 
-## Available Account Types
+## List accounts
 
-`GET /api/account-types` returns all account products whose status is `Active`, ordered by identifier. The response contains account-opening limits, transaction capabilities, required-product information, and fixed-deposit classification without exposing the database entity directly.
+`GET /api/accounts` returns a forward-only page ordered by account ID.
 
-## Create Account
+- `pageSize` defaults to 20 and accepts 1–100.
+- `search` partially matches the account number.
+- `accountTypeId` and `status` filter by product and `AccountStatus`.
+- Filters must remain unchanged while following a cursor chain.
+- Send the previous `nextCursor` as `cursor`; `nextCursor` is `null` on the final page.
+- The response contains `items`, `hasMore`, and `nextCursor` and does not run a total-count query.
 
-`POST /api/accounts` consumes `multipart/form-data`.
+## Get an account
 
-Account fields retain their existing names. Documents use indexed keys:
+`GET /api/accounts/{id}` returns `AccountResponse`, including the current optimistic-lock `version`. Unknown IDs return `AccountNotFound`.
+
+## Create an account
+
+`POST /api/accounts` consumes `multipart/form-data`. Document fields use indexed form keys:
 
 ```text
 Documents[0].DocumentType=Nrc
@@ -26,35 +45,47 @@ Documents[0].DocumentNumber=optional-number
 Documents[0].File=<binary file>
 ```
 
-The authenticated user's JWT name-identifier claim supplies the user ID for the account-opening audit record. Clients cannot supply or override audit attribution.
+- The complete multipart request is limited to 60 MB by default.
+- Each required document is one PDF, JPEG, or PNG file up to 10 MB.
+- Seeded products require NRC, Photo, ProofOfAddress, HouseholdRegistration, and SourceOfFunds.
+- Files are stored under `FileUploads:RootPath`; no public download endpoint is exposed.
+- The authenticated user's JWT identity supplies audit attribution.
 
-Repeat the indexed group for each required document. Each document type may appear once. Supported file formats are PDF, JPEG, and PNG, with a maximum size of 10 MB per file.
+Fixed-deposit creation additionally requires `interestRateRuleId`, `renewalInstruction`, and `calculateFromCurrent`. `payoutAccountId` is optional; if omitted, the primary holder's eligible individual payout account is selected. Fixed-deposit-only fields must be omitted for other products.
 
-The complete multipart request is limited to 60 MB by default.
+## Account status actions
 
-The six seeded account types are Current, Normal Saving, Special Saving, Normal Deposit, Special Deposit, and Hundred-Days Deposit. Each requires NRC, Photo, ProofOfAddress, HouseholdRegistration, and SourceOfFunds documents.
+The three status routes accept this JSON body:
 
-The three Deposit products are stored with `IsFixedDeposit = true`. Service consumers can classify an already loaded product through `IAccountTypeService.IsFixedDeposit` without another database query.
+```json
+{
+  "reason": "Optional audit reason",
+  "version": 1
+}
+```
 
-Fixed-deposit account requests also provide `InterestRateRuleId`, `RenewalInstruction`, and `CalculateFromCurrent`. `PayoutAccountId` is optional; when omitted, the primary holder's active individual Normal Saving account is selected. These fields must be omitted for non-fixed account types.
+The route fixes the target status; clients cannot send an arbitrary status. Successful responses use `AccountStatusUpdatedSuccessfully` and contain the new account version. Invalid transitions return `AccountStatusTransitionNotAllowed`.
 
-Files are stored beneath the configured `FileUploads:RootPath` with GUID-generated names. The API does not expose a public document-download endpoint.
+## Update account holders
 
-## Account Status Actions
+`PUT /api/accounts/{id}/holders` replaces the editable state of both existing joint holders. The request contains:
 
-`PATCH /api/accounts/{id}/freeze`, `PATCH /api/accounts/{id}/suspend`, and `PATCH /api/accounts/{id}/reactivate` accept the last-read `version` and an optional `reason`. The route selects `AccountStatus.Frozen`, `AccountStatus.Suspended`, or `AccountStatus.Active`; clients cannot supply a status value in the request body. Each response wraps the updated `AccountResponse` with message code `1101`.
+- The parent account's `accountVersion`.
+- Exactly two existing holder IDs.
+- Each holder's current `version`, ownership percentage, and primary designation.
+- One nullable signing rule shared by both holders.
 
-## Adjust Account Balance
+The operation cannot add, remove, or replace customers. It requires exactly one primary holder and ownership percentages totaling 100.
 
-`PATCH /api/accounts/{id}/balance` accepts an `amount` and the last-read `version`. The amount is an adjustment rather than an absolute balance: positive values deposit funds and negative values withdraw funds. An adjustment that would make the balance negative is rejected. The response wraps the updated `AccountResponse` with message code `1102`.
+## Update a fixed deposit
 
-## Update Account Holders
+`PATCH /api/accounts/fixed-deposits/{fixedDepositId}` accepts the fixed-deposit `version` and at least one of `renewalInstruction` or `payoutAccountId`. The route ID is the fixed-deposit row ID, not the account ID.
 
-`UpdateHoldersOfAccountAsync` accepts an account identifier and an `UpdateAccountHoldersRequest`. The request contains the account version, exactly two existing account-holder IDs, each holder's version, complete ownership percentage and primary designation, and one nullable signing rule shared by both holders.
+`calculateFromCurrent` is immutable after creation. Current-principal and status changes are internal `IFixedDepositService` operations and are not exposed through HTTP.
 
-`PUT /api/accounts/{id}/holders` exposes the operation for non-closed joint accounts and wraps the two updated `AccountHolderResponse` records with message code `1103`. It does not add, remove, or replace customers.
+## Concurrency and errors
 
-## Update Fixed Deposit
+Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.
 
 `PATCH /api/accounts/fixed-deposits/{fixedDepositId}` accepts the last-read `version` together with `renewalInstruction`, `payoutAccountId`, or both. The route identifier is the fixed-deposit row ID, not the account ID. The response wraps the updated `FixedDepositResponse` with message code `1104`.
 
