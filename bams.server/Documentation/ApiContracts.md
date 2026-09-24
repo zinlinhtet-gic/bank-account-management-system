@@ -27,7 +27,6 @@ Documents[0].File=<binary file>
 ```
 
 The authenticated user's JWT name-identifier claim supplies the user ID for the account-opening audit record. Clients cannot supply or override audit attribution.
-`CreatedBy` is the numeric user identifier responsible for opening the account and is included in the account-opening audit record.
 
 Repeat the indexed group for each required document. Each document type may appear once. Supported file formats are PDF, JPEG, and PNG, with a maximum size of 10 MB per file.
 
@@ -64,4 +63,3 @@ Files are stored beneath the configured `FileUploads:RootPath` with GUID-generat
 Account, account-holder, and fixed-deposit responses include a `version`. Mutation callers must return the latest version they received. A stale account, holder, or fixed-deposit version rejects the complete operation with HTTP 409 and message code `4304`; clients must refresh the resource before retrying.
 
 All account mutation endpoints require the `account_management` permission. Audit logs and account-status history resolve the acting user from the standard JWT name-identifier claim; a missing or invalid identity is rejected with message code `4000` and HTTP 401.
-Update endpoints resolve the acting user from the standard name-identifier claim. While authentication integration is incomplete, requests without a valid claim temporarily use development user ID `1` for audit attribution.

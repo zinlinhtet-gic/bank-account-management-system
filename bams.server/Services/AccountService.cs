@@ -19,13 +19,34 @@ public sealed class AccountService : IAccountService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IAccountDocumentService _accountDocumentService;
+    private readonly IAccountHolderService _accountHolderService;
+    private readonly IAccountTypeService _accountTypeService;
+    private readonly IFixedDepositService _fixedDepositService;
+    private readonly IAuditLogService _auditLogService;
+    private readonly IAccountTransactionService _accountTransactionService;
+    private readonly IAccountingReportService _accountingReportService;
+    private readonly ICurrentUserService _currentUserService;
 
     public AccountService(
         ApplicationDbContext dbContext,
-        IAccountDocumentService accountDocumentService)
+        IAccountDocumentService accountDocumentService,
+        IAccountHolderService accountHolderService,
+        IAccountTypeService accountTypeService,
+        IFixedDepositService fixedDepositService,
+        IAuditLogService auditLogService,
+        IAccountTransactionService accountTransactionService,
+        IAccountingReportService accountingReportService,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _accountDocumentService = accountDocumentService;
+        _accountHolderService = accountHolderService;
+        _accountTypeService = accountTypeService;
+        _fixedDepositService = fixedDepositService;
+        _auditLogService = auditLogService;
+        _accountTransactionService = accountTransactionService;
+        _accountingReportService = accountingReportService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -229,6 +250,22 @@ public sealed class AccountService : IAccountService
                 documents,
                 now,
                 cancellationToken);
+            // Record audit log for account opening
+            await _auditLogService.RecordAccountOpeningLogAsync(
+                account,
+                now,
+                cancellationToken);
+            // Record account transaction for opening balance
+            await _accountTransactionService.RecordAccountOpeningTransactionAsync(
+                account,
+                request.OpeningBalance,
+                now,
+                cancellationToken);
+            // Record accounting report for account opening
+            await _accountingReportService.RecordAccountOpeningTransactionAsync(
+                request.OpeningBalance,
+                now,
+                cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             account.AccountType = accountType;
@@ -242,44 +279,131 @@ public sealed class AccountService : IAccountService
         }
     }
 
-    // Gets an account type by identifier and rejects unknown account types.
-    private async Task<AccountType> GetAccountTypeByIdAsync(
-        long accountTypeId,
+    // Rejects fixed-deposit-only fields when opening a non-fixed account.
+    private static void ValidateFixedDepositFields(
+        CreateAccountRequest request,
+        bool isFixedDeposit)
+    {
+        if (!isFixedDeposit &&
+            (request.PayoutAccountId.HasValue || request.InterestRateRuleId.HasValue ||
+             request.RenewalInstruction.HasValue || request.CalculateFromCurrent.HasValue))
+        {
+            throw new ValidationException(MessageCode.FixedDepositRequestInvalid);
+        }
+    }
+
+    /// <summary>
+    /// Changes an account to a permitted status and records who made the change.
+    /// </summary>
+    public async Task<AccountResponse> UpdateAccountStatusAsync(
+        long accountId,
+        AccountStatus newStatus,
+        string? reason,
+        long expectedVersion,
         CancellationToken cancellationToken)
     {
-        var accountType = await _dbContext.AccountTypes
-            .AsNoTracking()
-            .FirstOrDefaultAsync(type => type.Id == accountTypeId, cancellationToken);
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            expectedVersion;
+        ValidateAccountStatusReason(reason);
 
-        if (accountType is null)
+        var changedAt = DateTime.UtcNow;
+        var changedBy = _currentUserService.GetCurrentUserId();
+        var oldStatus = account.Status;
+
+        switch (newStatus)
         {
-            throw new NotFoundException(MessageCode.AccountTypeNotFound);
+            case AccountStatus.Active:
+                await ChangeToActiveStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Closed:
+                await ChangeToClosedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Frozen:
+                await ChangeToFrozenStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Suspended:
+                await ChangeToSuspendedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            case AccountStatus.Dormant:
+                await ChangeToDormantStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
+                break;
+            default:
+                throw new ValidationException(MessageCode.AccountStatusInvalid);
         }
+
+        await _auditLogService.RecordAccountStatusUpdateLogAsync(
+            account.Id,
+            oldStatus,
+            account.Status,
+            reason,
+            changedAt,
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         return account.ToResponse();
     }
 
-    // Enforces the configured minimum opening balance for the account type.
-    private void ValidateOpeningBalance(
-        decimal openingBalance,
-        AccountType accountType)
+    // Applies the supplied adjustment to both balances and returns the updated account.
+    public async Task<AccountResponse> UpdateAccountBalanceAsync(
+        long accountId,
+        decimal balanceAdjustment,
+        long expectedVersion,
+        CancellationToken cancellationToken)
     {
-        if (openingBalance < accountType.MinimumOpeningBalance)
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            expectedVersion;
+        var oldBalance = account.AvailableBalance;
+        decimal newBalance = account.AvailableBalance + balanceAdjustment;
+
+        if (newBalance < 0)
         {
             throw new ValidationException(MessageCode.AccountBalanceCannotBeNegative);
         }
+
+        account.AvailableBalance = newBalance;
+        account.LedgerBalance = newBalance;
+        var updatedAt = DateTime.UtcNow;
+        account.UpdatedAt = updatedAt;
+
+        await _auditLogService.RecordAccountBalanceUpdateLogAsync(
+            account.Id,
+            oldBalance,
+            newBalance,
+            updatedAt,
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return account.ToResponse();
     }
 
-    // Normalizes individual ownership and validates joint ownership percentages.
-    private IReadOnlyList<decimal> ValidateOwnershipPercentages(
-        CreateAccountRequest request)
+    /// <summary>
+    /// Updates the editable details of an account's existing joint holders.
+    /// </summary>
+    public async Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
+        long accountId,
+        UpdateAccountHoldersRequest updateRequest,
+        CancellationToken cancellationToken)
     {
-        if (!request.IsSharedAccount)
-        {
-            return [AccountConstants.FullOwnershipPercentage];
-        }
+        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
 
-        if (!request.OwnershipPercentage1.HasValue || !request.OwnershipPercentage2.HasValue)
+        return await _accountHolderService.UpdateHoldersOfAccountAsync(
+            account,
+            updateRequest,
+            cancellationToken);
+    }
+
+    // Gets a tracked account with the related type required for update responses.
+    private async Task<Account> GetTrackedAccountByIdAsync(
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        var account = await _dbContext.Accounts
+            .Include(existingAccount => existingAccount.AccountType)
+            .FirstOrDefaultAsync(existingAccount => existingAccount.Id == accountId, cancellationToken);
+
+        if (account is null)
         {
             throw new NotFoundException(MessageCode.AccountNotFound);
         }
