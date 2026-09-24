@@ -43,6 +43,12 @@ public sealed class UserDetailsViewModel : ViewModelBase, IDialogViewModel
 
     public string StatusText => User.Status.ToString();
 
+    /// <summary>e.g. "Online · Active now" or "Offline · Last seen 12 min ago".</summary>
+    public string PresenceText =>
+        $"{(User.IsOnline ? "Online" : "Offline")} · " + PresenceFormatter.FormatLastSeen(
+            User.LastSeenAt is null ? null : DateTimeDisplay.ToLocal(User.LastSeenAt.Value),
+            User.IsOnline);
+
     public string LastLoginText => User.LastLoginAt is null
         ? "Never signed in"
         : DateTimeDisplay.ToLocal(User.LastLoginAt.Value).ToString(DisplayFormats.DateTime);

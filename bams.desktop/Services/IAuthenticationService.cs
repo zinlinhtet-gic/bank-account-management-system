@@ -28,4 +28,14 @@ public interface IAuthenticationService
     /// Changes the user's password.
     /// </summary>
     Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Tells the server the signed-in user is still using the app, so they stay shown as online.
+    /// </summary>
+    Task SendHeartbeatAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Tells the server the user signed out, so they are shown as offline at once.
+    /// </summary>
+    Task LogoutAsync(CancellationToken cancellationToken);
 }

@@ -11,6 +11,8 @@ public static class ApiConstants
     public const string LoginEndpoint = AuthEndpoint + "/login";
     public const string PermissionsEndpoint = AuthEndpoint + "/permissions";
     public const string ChangePasswordEndpoint = AuthEndpoint + "/change-password";
+    public const string HeartbeatEndpoint = AuthEndpoint + "/heartbeat";
+    public const string LogoutEndpoint = AuthEndpoint + "/logout";
 
     // User Management. Routes with an id: $"{UsersEndpoint}/{id}" and $"{UsersEndpoint}/{id}/{ResetPasswordSegment}".
     public const string UsersEndpoint = "api/users";

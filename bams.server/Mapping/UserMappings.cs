@@ -1,3 +1,4 @@
+using bams.server.Constants;
 using bams.server.DTO.Users;
 using bams.server.Models.Security;
 
@@ -20,6 +21,19 @@ public static class UserMappings
             user.LastLoginAt,
             user.MustChangePassword,
             user.CreatedAt,
-            user.UpdatedAt);
+            user.UpdatedAt,
+            IsOnline(user.OnlineStatus, user.LastSeenAt, DateTime.UtcNow),
+            user.LastSeenAt);
+    }
+
+    /// <summary>
+    /// The single online rule: signed in (not logged out) and seen within <see cref="UserConstants.OnlinePresenceTimeout"/>.
+    /// A missing heartbeat (app closed, PC offline) therefore turns into "offline" on its own.
+    /// </summary>
+    public static bool IsOnline(OnlineStatus onlineStatus, DateTime? lastSeenAtUtc, DateTime nowUtc)
+    {
+        return onlineStatus == OnlineStatus.Active
+            && lastSeenAtUtc is not null
+            && nowUtc - lastSeenAtUtc.Value <= UserConstants.OnlinePresenceTimeout;
     }
 }
