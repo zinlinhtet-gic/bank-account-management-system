@@ -8,6 +8,7 @@ Codes are stable once released. The WPF client mirrors the server codes below 60
 | 1000 | Success | 200 | General successful operation. |
 | 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
 | 3000 | ValidationFailed | 400 | One or more validation errors occurred. |
+| 3001 | RequiredFieldMissing | 400 | A required field is empty. |
 | 3002 | InvalidRequest | 400 | The request shape or content is invalid. |
 | 3003 | InvalidAmount | 400 | A supplied amount is invalid. |
 | 3004 | InvalidCredentials | 400 | Username or password is wrong (login), or the current password is wrong (change password). |
@@ -37,3 +38,18 @@ Codes are stable once released. The WPF client mirrors the server codes below 60
 | 6002 | RequestTimeout | The server did not answer in time. |
 | 6003 | InvalidServerResponse | The server response could not be read. |
 | 6010 | CurrentPasswordIncorrect | Change-password screen text for a server `InvalidCredentials`. |
+
+## Number blocks per feature
+
+Duplicate enum values compile without error, so each feature takes numbers only from its own block.
+
+| Feature                         | Success   | Validation | Not Found | Conflict  | Business rule |
+| ------------------------------- | --------- | ---------- | --------- | --------- | ------------- |
+| Common / Auth / Users           | 1000-1099 | 3000-3099  | 4200-4204 | 4300-4309 | 4400          |
+| Accounts (incl. fixed deposits) | 1100-1199 | 3100-3199  | 4205-4229 | 4310-4319 | 4401-4429     |
+| Transactions / history          | 1200-1299 | 3300-3399  | 4240-4249 | 4330-4339 | 4440-4459     |
+| Customers / KYC                 | 1300-1399 | 3200-3299  | 4230-4239 | 4320-4329 | 4430-4439     |
+| Accounting / Operations / Config / Audit | 1400-1499 | 3400-3499 | 4250-4259 | 4340-4349 | 4460-4479 |
+
+Core "not found" codes 4200-4204 (Resource, Account, Customer, AccountType, User) are shared by all features. Authentication (4000-4099) and
+authorization (4100-4199) codes are added only by the permission owner.

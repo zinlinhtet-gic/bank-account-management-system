@@ -8,6 +8,7 @@ public enum MessageCode
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
+    RequiredFieldMissing = 3001,
     InvalidRequest = 3002,
     InvalidAmount = 3003,
     InvalidCredentials = 3004,

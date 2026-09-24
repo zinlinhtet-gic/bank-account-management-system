@@ -1,3 +1,4 @@
+using bams.desktop.Constants;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using bams.desktop.Commands;
@@ -11,7 +12,7 @@ namespace Bams.Desktop.Components.NavBar;
 public partial class NavBarViewModel : ObservableObject
 {
     [ObservableProperty] private bool _isCollapsed;
-    [ObservableProperty] private string _activeItem = "User Management";
+    [ObservableProperty] private string _activeItem = PageNames.UserManagement;
 
     public string UserName { get; set; } = "Kaung Myat Htun";
     public string UserRole { get; set; } = "Branch Manager";
@@ -37,37 +38,37 @@ public partial class NavBarViewModel : ObservableObject
 
         // Add items based on permissions
         if (flags.CanManageUsers)
-            AddNavItem("User Management", "Icon.Users", true);
+            AddNavItem(PageNames.UserManagement, "Icon.Users", true);
 
         if (flags.CanManageCustomers)
-            AddNavItem("Customer Management", "Icon.Accounts", Items.Count == 0);
+            AddNavItem(PageNames.CustomerManagement, "Icon.Accounts", Items.Count == 0);
 
         if (flags.CanPerformKYC)
-            AddNavItem("Customer KYC", "Icon.UserCheck");
+            AddNavItem(PageNames.CustomerKyc, "Icon.UserCheck");
 
         if (flags.CanManageAccounts)
-            AddNavItem("Account Management", "Icon.Accounts", Items.Count == 0);
+            AddNavItem(PageNames.AccountManagement, "Icon.Accounts", Items.Count == 0);
 
         if (flags.CanViewTransactions)
-            AddNavItem("Transactions", "Icon.Transactions", Items.Count == 0);
+            AddNavItem(PageNames.Transactions, "Icon.Transactions", Items.Count == 0);
 
         if (flags.CanViewTransactionHistory)
-            AddNavItem("Transaction History", "Icon.Reports");
+            AddNavItem(PageNames.TransactionHistory, "Icon.Reports");
 
         if (flags.CanAccessAccounting)
-            AddNavItem("Accounting", "Icon.Finance");
+            AddNavItem(PageNames.Accounting, "Icon.Finance");
 
         if (flags.CanPerformOperations)
-            AddNavItem("Operations", "Icon.Settings");
+            AddNavItem(PageNames.Operations, "Icon.Settings");
 
         if (flags.CanViewAudit)
-            AddNavItem("Audit", "Icon.Shield");
+            AddNavItem(PageNames.Audit, "Icon.Shield");
 
         if (flags.CanConfigureSystem)
-            AddNavItem("Configurations", "Icon.Settings");
+            AddNavItem(PageNames.Configurations, "Icon.Settings");
 
         if (flags.CanViewCustomerList)
-            AddNavItem("Customer List", "Icon.Users");
+            AddNavItem(PageNames.CustomerList, "Icon.Users");
 
         // Set first item as active if none is active
         if (Items.Count > 0 && !Items.Any(i => i.IsActive))
@@ -98,15 +99,15 @@ public partial class NavBarViewModel : ObservableObject
     private void BuildDefaultNavigationItems()
     {
         Items.Clear();
-        Items.Add(new() { Label = "User Management", IconKey = "Icon.Users", IsActive = true });
-        Items.Add(new() { Label = "Customer Management", IconKey = "Icon.Accounts" });
-        Items.Add(new() { Label = "Account Management", IconKey = "Icon.Accounts" });
-        Items.Add(new() { Label = "Transactions", IconKey = "Icon.Transactions" });
-        Items.Add(new() { Label = "Transaction History", IconKey = "Icon.Reports" });
-        Items.Add(new() { Label = "Accounting", IconKey = "Icon.Finance" });
-        Items.Add(new() { Label = "Operations", IconKey = "Icon.Settings" });
-        Items.Add(new() { Label = "Audit", IconKey = "Icon.Shield" });
-        Items.Add(new() { Label = "Configurations", IconKey = "Icon.Settings" });
+        Items.Add(new() { Label = PageNames.UserManagement, IconKey = "Icon.Users", IsActive = true });
+        Items.Add(new() { Label = PageNames.CustomerManagement, IconKey = "Icon.Accounts" });
+        Items.Add(new() { Label = PageNames.AccountManagement, IconKey = "Icon.Accounts" });
+        Items.Add(new() { Label = PageNames.Transactions, IconKey = "Icon.Transactions" });
+        Items.Add(new() { Label = PageNames.TransactionHistory, IconKey = "Icon.Reports" });
+        Items.Add(new() { Label = PageNames.Accounting, IconKey = "Icon.Finance" });
+        Items.Add(new() { Label = PageNames.Operations, IconKey = "Icon.Settings" });
+        Items.Add(new() { Label = PageNames.Audit, IconKey = "Icon.Shield" });
+        Items.Add(new() { Label = PageNames.Configurations, IconKey = "Icon.Settings" });
 
         foreach (var item in Items)
             item.Command = new RelayCommand(_ => Select(item));
