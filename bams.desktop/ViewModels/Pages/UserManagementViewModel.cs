@@ -1,4 +1,5 @@
 using bams.desktop.Commands;
+using bams.desktop.Constants;
 using bams.desktop.DTOs.Users;
 using bams.desktop.Exceptions;
 using bams.desktop.Models;
@@ -109,6 +110,34 @@ public sealed class UserManagementViewModel : ViewModelBase, IAsyncInitializable
     {
         await LoadRolesAsync(cancellationToken);
         await ReloadUsersAsync(cancellationToken);
+
+        // Keep the Online / Offline column current while the page is open. The token is cancelled when the
+        // user navigates away, which ends the loop (MainViewModel treats that cancellation as normal).
+        await RefreshPresencePeriodicallyAsync(cancellationToken);
+    }
+
+    // Refreshes who is online every interval. Failures are ignored here: a background refresh should never
+    // replace the page's banners, and the next user action or refresh reports real problems.
+    private async Task RefreshPresencePeriodicallyAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(PresenceConstants.UserListRefreshInterval);
+
+        while (await timer.WaitForNextTickAsync(cancellationToken))
+        {
+            var (filter, error) = Filter.BuildFilter();
+            if (error is not null)
+            {
+                continue;
+            }
+
+            try
+            {
+                await List.RefreshPresenceAsync(filter!, cancellationToken);
+            }
+            catch (AppException)
+            {
+            }
+        }
     }
 
     // async void is intentional: an event handler; ReloadUsersAsync catches every expected failure itself.
@@ -246,7 +275,7 @@ public sealed class UserManagementViewModel : ViewModelBase, IAsyncInitializable
 
         if (form.ChangedOwnRole)
         {
-            _sessionService.EndSession();
+            await _sessionService.EndSessionAsync();
             return;
         }
 
@@ -331,7 +360,7 @@ public sealed class UserManagementViewModel : ViewModelBase, IAsyncInitializable
         // The server now refuses this session, so leave instead of showing errors.
         if (row.IsCurrentUser)
         {
-            _sessionService.EndSession();
+            await _sessionService.EndSessionAsync();
             return;
         }
 

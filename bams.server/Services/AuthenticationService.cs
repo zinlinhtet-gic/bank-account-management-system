@@ -58,8 +58,10 @@ public sealed class AuthenticationService : IAuthenticationService
         var isFirstTimeLogin = user.LastLoginAt == null;
         var requiresPasswordChange = user.MustChangePassword || isFirstTimeLogin;
 
-        // Update last login time
-        user.LastLoginAt = DateTime.UtcNow;
+        // Update last login time and mark the user online
+        var now = DateTime.UtcNow;
+        user.LastLoginAt = now;
+        user.LastSeenAt = now;
         user.OnlineStatus = OnlineStatus.Active;
         _dbContext.Users.Update(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -204,6 +206,48 @@ public sealed class AuthenticationService : IAuthenticationService
             MessageCatalog.GetMessage(MessageCode.PasswordChangedSuccessfully));
     }
 
+
+    /// <summary>
+    /// Records that the signed-in user is still using the app, keeping them shown as online.
+    /// </summary>
+    public async Task RecordHeartbeatAsync(long userId, CancellationToken cancellationToken)
+    {
+        var user = await GetSignedInUserAsync(userId, cancellationToken);
+
+        user.LastSeenAt = DateTime.UtcNow;
+        user.OnlineStatus = OnlineStatus.Active;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Marks the user offline at once. The token itself stays valid until it expires; the client discards it.
+    /// </summary>
+    public async Task LogoutAsync(long userId, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        // Logging out a user who no longer exists has nothing to record.
+        if (user is null)
+        {
+            return;
+        }
+
+        user.OnlineStatus = OnlineStatus.Inactive;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    // Loads a tracked user who may still use the app, or throws UserNotFound / UserAccountDisabled / UserAccountDeleted.
+    private async Task<User> GetSignedInUserAsync(long userId, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw new NotFoundException(MessageCode.UserNotFound);
+
+        user.Status.EnsureCanSignIn();
+
+        return user;
+    }
 
     /// <summary>
     /// Validates password complexity requirements.

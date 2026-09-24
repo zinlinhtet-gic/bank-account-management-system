@@ -1,8 +1,9 @@
 namespace bams.desktop.Services;
 
 /// <summary>
-/// Ends the signed-in session from anywhere in the app (logout button, or a page that just removed the
-/// current user's own access). <c>MainWindow</c> listens to <see cref="SessionEnded"/> and returns to sign-in.
+/// Owns the signed-in session's lifetime: keeps the user shown as online while the app is open, and ends the
+/// session from anywhere (logout button, or a page that just removed the current user's own access).
+/// <c>MainWindow</c> listens to <see cref="SessionEnded"/> and returns to sign-in.
 /// </summary>
 public interface ISessionService
 {
@@ -12,7 +13,13 @@ public interface ISessionService
     event Action? SessionEnded;
 
     /// <summary>
-    /// Clears the token and the signed-in user, then raises <see cref="SessionEnded"/>. Does not ask for confirmation.
+    /// Starts the presence heartbeat. Call once the main application is shown after sign-in.
     /// </summary>
-    void EndSession();
+    void StartSession();
+
+    /// <summary>
+    /// Stops the heartbeat, tells the server the user signed out (best effort), clears the token and the
+    /// signed-in user, then raises <see cref="SessionEnded"/>. Does not ask for confirmation.
+    /// </summary>
+    Task EndSessionAsync();
 }

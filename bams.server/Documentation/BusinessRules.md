@@ -37,5 +37,10 @@
   `MustChangePassword = true`, so the user must choose a new password at the next login.
 - Delete is a soft delete: `Status = Deleted`, the row is kept. A deleted user who logs in with the correct password
   gets `UserAccountDeleted`; any token they still hold stops working at once.
+- Online presence (the list's Status column): a user is **online** when `OnlineStatus = Active` and `LastSeenAt` is
+  within `UserConstants.OnlinePresenceTimeout` (3 minutes). Login sets both; the desktop calls
+  `POST api/auth/heartbeat` every minute while signed in; `POST api/auth/logout` sets `OnlineStatus = Inactive`.
+  An app closed without logging out drops to offline once its heartbeats stop. The rule lives only in
+  `UserMappings.IsOnline`.
 - Self-delete is allowed, but the bank must keep one active manager: deleting the only active manager, or changing
   that manager's role, fails with `LastManagerCannotBeRemoved` (422).

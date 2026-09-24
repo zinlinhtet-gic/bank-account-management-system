@@ -21,6 +21,13 @@ public static class UserConstants
     public const string PhonePattern = @"^[0-9+\-\s()]{6,32}$";
 
     /// <summary>
+    /// A signed-in user counts as online while their last login or heartbeat is newer than this.
+    /// The desktop sends a heartbeat every minute, so this allows two missed heartbeats before showing offline
+    /// (e.g. after the app was closed without logging out or the PC lost its connection).
+    /// </summary>
+    public static readonly TimeSpan OnlinePresenceTimeout = TimeSpan.FromMinutes(3);
+
+    /// <summary>
     /// Password given to a new user and after a password reset. The user must change it at the next login.
     /// Every role that can be assigned in User Management needs an entry here.
     /// </summary>
