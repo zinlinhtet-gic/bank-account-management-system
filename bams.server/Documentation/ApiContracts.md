@@ -1,5 +1,7 @@
 # API Contracts
 
+The machine-readable OpenAPI contract for the routes currently exposed by `AccountsController` and `AccountTypesController` is maintained in `AccountsApi.openapi.yaml`.
+
 ## List Accounts
 
 `GET /api/accounts` returns account summaries using forward-only cursor pagination ordered by account ID. The first request omits `cursor`; subsequent requests send the opaque `nextCursor` returned by the previous response.
@@ -38,22 +40,26 @@ Fixed-deposit account requests also provide `InterestRateRuleId`, `RenewalInstru
 
 Files are stored beneath the configured `FileUploads:RootPath` with GUID-generated names. The API does not expose a public document-download endpoint.
 
-## Update Account Status
+## Account Status Actions
 
-`PATCH /api/accounts/{id}/status` accepts a JSON body containing `status` and an optional `reason`. Status values use the `AccountStatus` enum names. The response wraps the updated `AccountResponse` with message code `1101`.
+`PATCH /api/accounts/{id}/freeze`, `PATCH /api/accounts/{id}/suspend`, and `PATCH /api/accounts/{id}/reactivate` accept the last-read `version` and an optional `reason`. The route selects `AccountStatus.Frozen`, `AccountStatus.Suspended`, or `AccountStatus.Active`; clients cannot supply a status value in the request body. Each response wraps the updated `AccountResponse` with message code `1101`.
 
 ## Adjust Account Balance
 
-`PATCH /api/accounts/{id}/balance` accepts an `amount`. The amount is an adjustment rather than an absolute balance: positive values deposit funds and negative values withdraw funds. An adjustment that would make the balance negative is rejected. The response wraps the updated `AccountResponse` with message code `1102`.
+`PATCH /api/accounts/{id}/balance` accepts an `amount` and the last-read `version`. The amount is an adjustment rather than an absolute balance: positive values deposit funds and negative values withdraw funds. An adjustment that would make the balance negative is rejected. The response wraps the updated `AccountResponse` with message code `1102`.
 
 ## Update Account Holders
 
-`UpdateHoldersOfAccountAsync` accepts an account identifier and an `UpdateAccountHoldersRequest`. The request contains exactly two existing account-holder IDs, each holder's complete ownership percentage and primary designation, and one nullable signing rule shared by both holders.
+`UpdateHoldersOfAccountAsync` accepts an account identifier and an `UpdateAccountHoldersRequest`. The request contains the account version, exactly two existing account-holder IDs, each holder's version, complete ownership percentage and primary designation, and one nullable signing rule shared by both holders.
 
 `PUT /api/accounts/{id}/holders` exposes the operation for non-closed joint accounts and wraps the two updated `AccountHolderResponse` records with message code `1103`. It does not add, remove, or replace customers.
 
 ## Update Fixed Deposit
 
-`PATCH /api/accounts/fixed-deposits/{fixedDepositId}` accepts any supported combination of `renewalInstruction`, `payoutAccountId`, `currentPrincipal`, `calculateFromCurrent`, and `status`. The route identifier is the fixed-deposit row ID, not the account ID. The response wraps the updated `FixedDepositResponse` with message code `1104`.
+`PATCH /api/accounts/fixed-deposits/{fixedDepositId}` accepts the last-read `version` together with `renewalInstruction`, `payoutAccountId`, or both. The route identifier is the fixed-deposit row ID, not the account ID. The response wraps the updated `FixedDepositResponse` with message code `1104`.
+
+`CalculateFromCurrent` is fixed when the deposit is created. Current-principal and status changes are available only to internal application workflows through `IFixedDepositService`; they are not accepted by an HTTP request contract.
+
+Account, account-holder, and fixed-deposit responses include a `version`. Mutation callers must return the latest version they received. A stale account, holder, or fixed-deposit version rejects the complete operation with HTTP 409 and message code `4304`; clients must refresh the resource before retrying.
 
 All account mutation endpoints require the `account_management` permission. Audit logs and account-status history resolve the acting user from the standard JWT name-identifier claim; a missing or invalid identity is rejected with message code `4000` and HTTP 401.

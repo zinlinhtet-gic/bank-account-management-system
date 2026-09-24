@@ -62,6 +62,9 @@ public enum MessageCode
     PayoutAccountNotFound = 4206,
     RequiredPayoutAccountNotFound = 4207,
 
+    // Conflict: 4300 - 4399
+    ConcurrentModification = 4304,
+
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
     AccountTypeIdentifierOutOfRange = 4401,

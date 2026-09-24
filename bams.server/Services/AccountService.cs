@@ -299,9 +299,12 @@ public sealed class AccountService : IAccountService
         long accountId,
         AccountStatus newStatus,
         string? reason,
+        long expectedVersion,
         CancellationToken cancellationToken)
     {
         var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            expectedVersion;
         ValidateAccountStatusReason(reason);
 
         var changedAt = DateTime.UtcNow;
@@ -345,9 +348,12 @@ public sealed class AccountService : IAccountService
     public async Task<AccountResponse> UpdateAccountBalanceAsync(
         long accountId,
         decimal balanceAdjustment,
+        long expectedVersion,
         CancellationToken cancellationToken)
     {
         var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            expectedVersion;
         var oldBalance = account.AvailableBalance;
         decimal newBalance = account.AvailableBalance + balanceAdjustment;
 

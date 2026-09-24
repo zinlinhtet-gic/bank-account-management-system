@@ -12,6 +12,8 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
     {
         builder.HasKey(a => a.Id);
 
+        builder.Property(a => a.Version).IsConcurrencyToken();
+
         builder.Property(a => a.AccountNo).IsRequired().HasMaxLength(32);
 
         builder.HasIndex(a => a.AccountNo).IsUnique();
@@ -85,6 +87,8 @@ public sealed class AccountHolderConfiguration : IEntityTypeConfiguration<Accoun
     {
         builder.HasKey(h => h.Id);
 
+        builder.Property(h => h.Version).IsConcurrencyToken();
+
         builder.Property(h => h.OwnershipPercentage).HasPrecision(5, 2);
         builder.Property(h => h.SigningRule)
             .HasMaxLength(AccountConstants.AccountHolderSigningRuleMaximumLength);
@@ -107,6 +111,8 @@ public sealed class FixedDepositConfiguration : IEntityTypeConfiguration<FixedDe
     public void Configure(EntityTypeBuilder<FixedDeposit> builder)
     {
         builder.HasKey(f => f.Id);
+
+        builder.Property(f => f.Version).IsConcurrencyToken();
 
         builder.Property(f => f.AppliedAnnualRate).HasPrecision(9, 4);
         builder.Property(f => f.Status).IsRequired().HasMaxLength(20);

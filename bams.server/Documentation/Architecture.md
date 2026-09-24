@@ -18,7 +18,7 @@ The account API includes:
 - Account request and response DTOs under `DTO/Accounts`.
 - Central message, exception, and middleware infrastructure.
 
-`AccountsController` exposes account queries and creation together with status, balance-adjustment, joint-holder, and fixed-deposit update endpoints. Account mutation endpoints require the account-management permission and do not accept actor identifiers from clients.
+`AccountsController` exposes account queries and creation together with dedicated freeze, suspend, and reactivate actions, balance-adjustment, joint-holder, and fixed-deposit update endpoints. Account mutation endpoints require the account-management permission and do not accept actor identifiers from clients.
 
 Account creation accepts multipart form data. `AccountDocumentService` validates account-type document requirements, delegates private file handling to `FileUploadUtils`, and persists `AccountDocument` metadata. Files are stored outside `wwwroot`; only relative generated references are stored in the database.
 

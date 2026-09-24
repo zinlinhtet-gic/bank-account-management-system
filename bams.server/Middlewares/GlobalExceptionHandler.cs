@@ -2,6 +2,7 @@ using System.Net;
 using bams.server.DTO.Common;
 using bams.server.Exceptions;
 using bams.server.Messages;
+using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Middlewares;
 
@@ -39,11 +40,21 @@ public sealed class GlobalExceptionHandler
         Exception exception)
     {
         var statusCode = GetStatusCode(exception);
-        var messageCode = exception is AppException appException
-            ? appException.Code
-            : MessageCode.InternalServerError;
+        var messageCode = exception switch
+        {
+            AppException appException => appException.Code,
+            DbUpdateConcurrencyException => MessageCode.ConcurrentModification,
+            _ => MessageCode.InternalServerError
+        };
 
-        if (exception is not AppException || exception is FileStorageException)
+        if (exception is DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning(
+                exception,
+                "Optimistic concurrency conflict returned message code {MessageCode}",
+                messageCode);
+        }
+        else if (exception is not AppException || exception is FileStorageException)
         {
             _logger.LogError(
                 exception,
@@ -72,6 +83,7 @@ public sealed class GlobalExceptionHandler
             NotFoundException => HttpStatusCode.NotFound,
             ValidationException => HttpStatusCode.BadRequest,
             ConflictException => HttpStatusCode.Conflict,
+            DbUpdateConcurrencyException => HttpStatusCode.Conflict,
             ForbiddenException => HttpStatusCode.Forbidden,
             BusinessRuleException => HttpStatusCode.UnprocessableEntity,
             _ => HttpStatusCode.InternalServerError

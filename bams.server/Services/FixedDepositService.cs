@@ -73,17 +73,62 @@ public sealed class FixedDepositService : IFixedDepositService
     {
         ValidateFixedDepositUpdateRequest(request);
         var fixedDeposit = await GetFixedDepositForUpdateAsync(fixedDepositId, cancellationToken);
+        ApplyExpectedVersion(fixedDeposit, request.Version);
         var oldResponse = ToResponse(fixedDeposit);
         var oldStatus = ParseStatus(fixedDeposit.Status);
         ValidateFixedDepositCanBeUpdated(oldStatus);
         var updatedAt = DateTime.UtcNow;
-        ApplyFixedDepositFieldUpdates(fixedDeposit, request);
+        ApplyApiEditableFieldUpdates(fixedDeposit, request);
         await ApplyPayoutAccountUpdateAsync(fixedDeposit, request.PayoutAccountId, cancellationToken);
-        var renewedDeposit = await ApplyStatusUpdateAsync(
-            fixedDeposit, oldStatus, request.Status, updatedAt, cancellationToken);
         fixedDeposit.UpdatedAt = updatedAt;
         return await PersistFixedDepositUpdateWithAuditAsync(
-            fixedDeposit, renewedDeposit, oldResponse, updatedAt, cancellationToken);
+            fixedDeposit, null, oldResponse, updatedAt, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<FixedDepositResponse> UpdateFixedDepositCurrentPrincipalAsync(
+        long fixedDepositId,
+        decimal currentPrincipal,
+        long expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        return UpdateFixedDepositLifecycleAsync(
+            fixedDepositId,
+            currentPrincipal,
+            null,
+            expectedVersion,
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<FixedDepositResponse> UpdateFixedDepositStatusAsync(
+        long fixedDepositId,
+        FixedDepositStatus status,
+        long expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        return UpdateFixedDepositLifecycleAsync(
+            fixedDepositId,
+            null,
+            status,
+            expectedVersion,
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<FixedDepositResponse> UpdateFixedDepositCurrentPrincipalAndStatusAsync(
+        long fixedDepositId,
+        decimal currentPrincipal,
+        FixedDepositStatus status,
+        long expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        return UpdateFixedDepositLifecycleAsync(
+            fixedDepositId,
+            currentPrincipal,
+            status,
+            expectedVersion,
+            cancellationToken);
     }
 
     // Ensures all fixed-deposit-only creation values are present.
@@ -147,8 +192,7 @@ public sealed class FixedDepositService : IFixedDepositService
     // Rejects update requests that do not supply any mutable fixed-deposit field.
     private static void ValidateFixedDepositUpdateRequest(UpdateFixedDepositRequest request)
     {
-        if (request.RenewalInstruction is null && request.PayoutAccountId is null &&
-            request.CurrentPrincipal is null && request.CalculateFromCurrent is null && request.Status is null)
+        if (request.RenewalInstruction is null && request.PayoutAccountId is null)
         {
             throw new ValidationException(MessageCode.FixedDepositUpdateRequiresChanges);
         }
@@ -179,27 +223,68 @@ public sealed class FixedDepositService : IFixedDepositService
         }
     }
 
-    // Applies scalar updates after validating the current principal.
-    private static void ApplyFixedDepositFieldUpdates(
+    // Applies the fixed-deposit fields that callers may change through the API.
+    private static void ApplyApiEditableFieldUpdates(
         FixedDeposit fixedDeposit,
         UpdateFixedDepositRequest request)
     {
-        if (request.CurrentPrincipal.HasValue)
-        {
-            if (request.CurrentPrincipal.Value < 0)
-            {
-                throw new ValidationException(MessageCode.FixedDepositCurrentPrincipalInvalid);
-            }
-            fixedDeposit.CurrentPrincipal = request.CurrentPrincipal.Value;
-        }
         if (request.RenewalInstruction.HasValue)
         {
             fixedDeposit.RenewalInstruction = request.RenewalInstruction.Value;
         }
-        if (request.CalculateFromCurrent.HasValue)
+    }
+
+    // Updates internal lifecycle fields together so maturity renewal observes the new principal.
+    private async Task<FixedDepositResponse> UpdateFixedDepositLifecycleAsync(
+        long fixedDepositId,
+        decimal? currentPrincipal,
+        FixedDepositStatus? status,
+        long expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var fixedDeposit = await GetFixedDepositForUpdateAsync(fixedDepositId, cancellationToken);
+        ApplyExpectedVersion(fixedDeposit, expectedVersion);
+        var oldResponse = ToResponse(fixedDeposit);
+        var oldStatus = ParseStatus(fixedDeposit.Status);
+        ValidateFixedDepositCanBeUpdated(oldStatus);
+
+        if (currentPrincipal.HasValue)
         {
-            fixedDeposit.CalculateFromCurrent = request.CalculateFromCurrent.Value;
+            ValidateCurrentPrincipal(currentPrincipal.Value);
+            fixedDeposit.CurrentPrincipal = currentPrincipal.Value;
         }
+
+        var updatedAt = DateTime.UtcNow;
+        var renewedDeposit = await ApplyStatusUpdateAsync(
+            fixedDeposit,
+            oldStatus,
+            status,
+            updatedAt,
+            cancellationToken);
+        fixedDeposit.UpdatedAt = updatedAt;
+
+        return await PersistFixedDepositUpdateWithAuditAsync(
+            fixedDeposit,
+            renewedDeposit,
+            oldResponse,
+            updatedAt,
+            cancellationToken);
+    }
+
+    // Rejects lifecycle calculations that would make the current principal negative.
+    private static void ValidateCurrentPrincipal(decimal currentPrincipal)
+    {
+        if (currentPrincipal < 0)
+        {
+            throw new ValidationException(MessageCode.FixedDepositCurrentPrincipalInvalid);
+        }
+    }
+
+    // Applies the caller's token as the original value used by EF's concurrency check.
+    private void ApplyExpectedVersion(FixedDeposit fixedDeposit, long expectedVersion)
+    {
+        _dbContext.Entry(fixedDeposit).Property(deposit => deposit.Version).OriginalValue =
+            expectedVersion;
     }
 
     // Validates and applies a requested payout account change.
@@ -395,6 +480,6 @@ public sealed class FixedDepositService : IFixedDepositService
             deposit.InterestRateRuleId, deposit.AppliedAnnualRate, deposit.StartDate, deposit.MaturityDate,
             deposit.TermDays, deposit.TermMonths, deposit.RenewalInstruction, deposit.PayoutAccountId,
             ParseStatus(deposit.Status), deposit.OriginalPrincipal, deposit.CurrentPrincipal,
-            deposit.CalculateFromCurrent, deposit.CreatedAt, deposit.UpdatedAt);
+            deposit.CalculateFromCurrent, deposit.CreatedAt, deposit.UpdatedAt, deposit.Version);
     }
 }
