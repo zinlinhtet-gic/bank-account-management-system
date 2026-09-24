@@ -34,6 +34,7 @@ public interface IAccountService
         long id,
         AccountStatus status,
         string? reason,
+        long expectedVersion,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -42,6 +43,7 @@ public interface IAccountService
     Task<AccountResponse> UpdateAccountBalanceAsync(
         long id,
         decimal balanceAdjustment,
+        long expectedVersion,
         CancellationToken cancellationToken);
 
     /// <summary>

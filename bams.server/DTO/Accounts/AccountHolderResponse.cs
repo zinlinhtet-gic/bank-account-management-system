@@ -12,4 +12,5 @@ public sealed record AccountHolderResponse(
     bool IsPrimary,
     string? SigningRule,
     string Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    long Version);

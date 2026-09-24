@@ -12,4 +12,5 @@ public sealed record AccountResponse(
     decimal AvailableBalance,
     decimal LedgerBalance,
     DateTime OpenedAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    long Version);

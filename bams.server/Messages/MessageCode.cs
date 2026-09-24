@@ -69,6 +69,9 @@ public enum MessageCode
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
 
+    // Conflict: 4300 - 4399
+    ConcurrentModification = 4304,
+
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
     AccountTypeIdentifierOutOfRange = 4401,

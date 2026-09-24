@@ -2,6 +2,7 @@ using bams.server.DTO.Accounts;
 using bams.server.DTO.Common;
 using bams.server.Messages;
 using bams.server.Middlewares;
+using bams.server.Models.Accounts.Enums;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -73,19 +74,20 @@ public sealed class AccountsController : ControllerBase
     }
 
     /// <summary>
-    /// Changes an account's status and records the acting user.
+    /// Freezes an active or dormant account.
     /// </summary>
-    [HttpPatch("{id:long}/status")]
+    [HttpPatch("{id:long}/freeze")]
     [RequirePermission("account_management")]
-    public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> UpdateAccountStatusAsync(
+    public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> FreezeAccountAsync(
         long id,
         [FromBody] UpdateAccountStatusRequest request,
         CancellationToken cancellationToken)
     {
         var account = await _accountService.UpdateAccountStatusAsync(
             id,
-            request.Status,
+            AccountStatus.Frozen,
             request.Reason,
+            request.Version,
             cancellationToken);
         var response = ApiMessageResponse<AccountResponse>.FromCode(
             MessageCode.AccountStatusUpdatedSuccessfully,
@@ -95,21 +97,46 @@ public sealed class AccountsController : ControllerBase
     }
 
     /// <summary>
-    /// Applies a positive or negative adjustment to an account's balance.
+    /// Suspends an active or dormant account.
     /// </summary>
-    [HttpPatch("{id:long}/balance")]
+    [HttpPatch("{id:long}/suspend")]
     [RequirePermission("account_management")]
-    public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> UpdateAccountBalanceAsync(
+    public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> SuspendAccountAsync(
         long id,
-        [FromBody] UpdateAccountBalanceRequest request,
+        [FromBody] UpdateAccountStatusRequest request,
         CancellationToken cancellationToken)
     {
-        var account = await _accountService.UpdateAccountBalanceAsync(
+        var account = await _accountService.UpdateAccountStatusAsync(
             id,
-            request.Amount,
+            AccountStatus.Suspended,
+            request.Reason,
+            request.Version,
             cancellationToken);
         var response = ApiMessageResponse<AccountResponse>.FromCode(
-            MessageCode.AccountBalanceUpdatedSuccessfully,
+            MessageCode.AccountStatusUpdatedSuccessfully,
+            account);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Reactivates a dormant, suspended, or frozen account.
+    /// </summary>
+    [HttpPatch("{id:long}/reactivate")]
+    [RequirePermission("account_management")]
+    public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> ReactivateAccountAsync(
+        long id,
+        [FromBody] UpdateAccountStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var account = await _accountService.UpdateAccountStatusAsync(
+            id,
+            AccountStatus.Active,
+            request.Reason,
+            request.Version,
+            cancellationToken);
+        var response = ApiMessageResponse<AccountResponse>.FromCode(
+            MessageCode.AccountStatusUpdatedSuccessfully,
             account);
 
         return Ok(response);
@@ -137,7 +164,7 @@ public sealed class AccountsController : ControllerBase
     }
 
     /// <summary>
-    /// Updates the editable lifecycle details of an existing fixed deposit.
+    /// Updates the payout account and renewal instruction of an existing fixed deposit.
     /// </summary>
     [HttpPatch("fixed-deposits/{fixedDepositId:long}")]
     [RequirePermission("account_management")]

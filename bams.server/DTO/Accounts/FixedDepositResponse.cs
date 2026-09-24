@@ -19,4 +19,5 @@ public sealed record FixedDepositResponse(
     decimal CurrentPrincipal,
     bool CalculateFromCurrent,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    long Version);

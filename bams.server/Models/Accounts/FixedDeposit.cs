@@ -3,7 +3,7 @@ using bams.server.Models.Accounts.Enums;
 
 namespace bams.server.Models.Accounts;
 
-public sealed class FixedDeposit
+public sealed class FixedDeposit : IConcurrencyTracked
 {
     public long Id { get; set; }
 
@@ -44,4 +44,6 @@ public sealed class FixedDeposit
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public long Version { get; set; } = 1;
 }

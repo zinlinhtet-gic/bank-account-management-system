@@ -99,6 +99,7 @@ authorization (4100-4199) codes are added only by the permission owner.
 | 4206 | PayoutAccountNotFound | The supplied payout account is not valid for the primary holder. |
 | 4207 | RequiredPayoutAccountNotFound | The primary holder has no active individual account of the required type. |
 | 4302 | AccountAlreadyExists | An account conflicts with an existing account. |
+| 4304 | ConcurrentModification | A versioned record changed after the caller read it. |
 | 4400 | BusinessRuleViolation | A business rule was violated. |
 | 4401 | AccountTypeIdentifierOutOfRange | The account type identifier cannot fit the two-digit account-number segment. |
 | 4402 | AccountNumberSequenceExhausted | The account type has used all account-number sequences for the current UTC hour. |
