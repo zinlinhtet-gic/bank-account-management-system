@@ -1,3 +1,4 @@
+using bams.desktop.Constants;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,17 +25,17 @@ public sealed class NavigationService : INavigationService
     {
         return pageLabel switch
         {
-            "User Management" => _serviceProvider.GetService<UserManagementViewModel>(),
-            "Customer Management" => _serviceProvider.GetService<CustomerManagementViewModel>(),
-            "Customer KYC" => _serviceProvider.GetService<CustomerKYCViewModel>(),
-            "Account Management" => _serviceProvider.GetService<AccountManagementViewModel>(),
-            "Transactions" => _serviceProvider.GetService<TransactionsViewModel>(),
-            "Transaction History" => _serviceProvider.GetService<TransactionHistoryViewModel>(),
-            "Accounting" => _serviceProvider.GetService<AccountingViewModel>(),
-            "Operations" => _serviceProvider.GetService<OperationsViewModel>(),
-            "Audit" => _serviceProvider.GetService<AuditViewModel>(),
-            "Configurations" => _serviceProvider.GetService<ConfigurationsViewModel>(),
-            "Customer List" => _serviceProvider.GetService<CustomerListViewModel>(),
+            PageNames.UserManagement => _serviceProvider.GetService<UserManagementViewModel>(),
+            PageNames.CustomerManagement => _serviceProvider.GetService<CustomerManagementViewModel>(),
+            PageNames.CustomerKyc => _serviceProvider.GetService<CustomerKYCViewModel>(),
+            PageNames.AccountManagement => _serviceProvider.GetService<AccountManagementViewModel>(),
+            PageNames.Transactions => _serviceProvider.GetService<TransactionsViewModel>(),
+            PageNames.TransactionHistory => _serviceProvider.GetService<TransactionHistoryViewModel>(),
+            PageNames.Accounting => _serviceProvider.GetService<AccountingViewModel>(),
+            PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
+            PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
+            PageNames.Configurations => _serviceProvider.GetService<ConfigurationsViewModel>(),
+            PageNames.CustomerList => _serviceProvider.GetService<CustomerListViewModel>(),
             _ => null
         };
     }
