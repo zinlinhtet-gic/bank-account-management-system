@@ -38,6 +38,39 @@ Accept: application/json
 GET {{baseUrl}}/api/accounts/{{accountId}}
 Accept: application/json
 
+### Freeze an active or dormant account
+PATCH {{baseUrl}}/api/accounts/{{accountId}}/freeze
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Compliance review",
+  "version": 1
+}
+
+### Suspend an active or dormant account
+PATCH {{baseUrl}}/api/accounts/{{accountId}}/suspend
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Temporary operational restriction",
+  "version": 1
+}
+
+### Reactivate a dormant, suspended, or frozen account
+PATCH {{baseUrl}}/api/accounts/{{accountId}}/reactivate
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Restriction cleared",
+  "version": 2
+}
+
 ### Create an individual account with all seeded required documents
 POST {{baseUrl}}/api/accounts
 Authorization: Bearer {{authToken}}
@@ -111,37 +144,6 @@ Content-Type: application/pdf
 < ./TestData/sample-account-document.pdf
 --AccountBoundary--
 
-### Change account status
-PATCH {{baseUrl}}/api/accounts/{{accountId}}/status
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-Accept: application/json
-
-{
-  "status": "Dormant",
-  "reason": "Manual API smoke test"
-}
-
-### Deposit through a positive balance adjustment
-PATCH {{baseUrl}}/api/accounts/{{accountId}}/balance
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-Accept: application/json
-
-{
-  "amount": 1000.00
-}
-
-### Withdraw through a negative balance adjustment
-PATCH {{baseUrl}}/api/accounts/{{accountId}}/balance
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-Accept: application/json
-
-{
-  "amount": -250.00
-}
-
 ### Update the primary holder, ownership percentages, and signing rule
 PUT {{baseUrl}}/api/accounts/{{jointAccountId}}/holders
 Authorization: Bearer {{authToken}}
@@ -153,18 +155,21 @@ Accept: application/json
     {
       "accountHolderId": {{firstAccountHolderId}},
       "ownershipPercentage": 40.00,
-      "isPrimary": false
+      "isPrimary": false,
+      "version": 1
     },
     {
       "accountHolderId": {{secondAccountHolderId}},
       "ownershipPercentage": 60.00,
-      "isPrimary": true
+      "isPrimary": true,
+      "version": 1
     }
   ],
-  "signingRule": "Either holder may sign"
+  "signingRule": "Either holder may sign",
+  "accountVersion": 1
 }
 
-### Update fixed-deposit instructions and principal settings
+### Update fixed-deposit payout and renewal instructions
 PATCH {{baseUrl}}/api/accounts/fixed-deposits/{{fixedDepositId}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
@@ -173,7 +178,5 @@ Accept: application/json
 {
   "renewalInstruction": "PrincipalAndInterest",
   "payoutAccountId": {{payoutAccountId}},
-  "currentPrincipal": 100000.00,
-  "calculateFromCurrent": true,
-  "status": "Active"
+  "version": 1
 }

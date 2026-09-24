@@ -49,6 +49,7 @@ public static class MessageCatalog
             [MessageCode.AccountCursorInvalid] = "The account pagination cursor is invalid or unsupported.",
             [MessageCode.AccessDenied] = "Access denied.",
             [MessageCode.InsufficientPermission] = "You do not have permission to perform this operation.",
+            [MessageCode.ConcurrentModification] = "The record was modified by another operation. Refresh it and try again.",
             [MessageCode.AccountNotFound] = "Account was not found.",
             [MessageCode.CustomerNotFound] = "Customer was not found for the provided NRC.",
             [MessageCode.AccountTypeNotFound] = "Account type was not found.",

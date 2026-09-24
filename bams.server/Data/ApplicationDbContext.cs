@@ -4,6 +4,7 @@ using bams.server.Models.Audit;
 using bams.server.Models.Customers;
 using bams.server.Models.External;
 using bams.server.Models.InterestFees;
+using bams.server.Models;
 using bams.server.Models.Products;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
@@ -79,5 +80,38 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+    }
+
+    /// <summary>
+    /// Saves changes after advancing application-managed concurrency versions.
+    /// </summary>
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        AdvanceConcurrencyVersions();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    /// <summary>
+    /// Asynchronously saves changes after advancing application-managed concurrency versions.
+    /// </summary>
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        AdvanceConcurrencyVersions();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    // Advances only modified entities so newly inserted rows retain their initial version of one.
+    private void AdvanceConcurrencyVersions()
+    {
+        ChangeTracker.DetectChanges();
+
+        foreach (var entry in ChangeTracker.Entries<IConcurrencyTracked>()
+                     .Where(entry => entry.State == EntityState.Modified))
+        {
+            var versionProperty = entry.Property(entity => entity.Version);
+            versionProperty.CurrentValue = checked(versionProperty.OriginalValue + 1);
+        }
     }
 }

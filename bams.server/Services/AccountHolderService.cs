@@ -161,9 +161,14 @@ public sealed class AccountHolderService : IAccountHolderService
         var requestedHolders = request.Holders.ToDictionary(holder => holder.AccountHolderId);
         var oldHolders = accountHolders.Select(ToResponse).ToList();
 
+        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
+            request.AccountVersion;
+
         foreach (var accountHolder in accountHolders)
         {
             var requestedHolder = requestedHolders[accountHolder.Id];
+            _dbContext.Entry(accountHolder).Property(holder => holder.Version).OriginalValue =
+                requestedHolder.Version;
             accountHolder.OwnershipPercentage = requestedHolder.OwnershipPercentage;
             accountHolder.IsPrimary = requestedHolder.IsPrimary;
             accountHolder.SigningRule = signingRule;
@@ -171,6 +176,10 @@ public sealed class AccountHolderService : IAccountHolderService
 
         var updatedAt = DateTime.UtcNow;
         account.UpdatedAt = updatedAt;
+
+        // Save versioned entities first so audit data and the response contain the committed versions.
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
         var newHolders = accountHolders.Select(ToResponse).ToList();
         await _auditLogService.RecordAccountHolderUpdateLogAsync(
             account.Id,
@@ -179,6 +188,7 @@ public sealed class AccountHolderService : IAccountHolderService
             updatedAt,
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return newHolders
             .OrderByDescending(holder => holder.IsPrimary)
@@ -330,6 +340,7 @@ public sealed class AccountHolderService : IAccountHolderService
             holder.IsPrimary,
             holder.SigningRule,
             holder.Status,
-            holder.CreatedAt);
+            holder.CreatedAt,
+            holder.Version);
     }
 }

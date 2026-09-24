@@ -2,7 +2,7 @@ using bams.server.Models.Products;
 using bams.server.Models.Accounts.Enums;
 namespace bams.server.Models.Accounts;
 
-public sealed class Account
+public sealed class Account : IConcurrencyTracked
 {
     public long Id { get; set; }
 
@@ -37,4 +37,6 @@ public sealed class Account
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public long Version { get; set; } = 1;
 }
