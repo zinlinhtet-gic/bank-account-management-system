@@ -62,12 +62,14 @@
                             <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding AccountTypes}" SelectedItem="{Binding SelectedCreateType}" DisplayMemberPath="Name" t:ThemeAssist.Placeholder="Choose an account type"/>
                             <TextBlock Text="Opening balance" Style="{StaticResource Text.FieldLabel}" Margin="0,14,0,0"/>
                             <TextBox Style="{StaticResource Input.Text}" Text="{Binding OpeningBalance, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="Interest rule" Style="{StaticResource Text.FieldLabel}" Margin="0,14,0,0"/>
+                            <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding InterestRateRules}" SelectedItem="{Binding SelectedInterestRateRule}" DisplayMemberPath="DisplayName" t:ThemeAssist.Placeholder="Choose an interest rule"/>
+                            <TextBlock Text="Loading interest rulesâ€¦" Foreground="{StaticResource MutedForegroundBrush}" Margin="0,5,0,0" Visibility="{Binding IsLoadingInterestRateRules, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <TextBlock Text="No interest rules are available for this account type." Foreground="{StaticResource MutedForegroundBrush}" Margin="0,5,0,0" Visibility="{Binding HasNoInterestRateRules, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             <StackPanel Visibility="{Binding IsFixedDeposit, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="Fixed deposit settings" FontWeight="SemiBold" Margin="0,18,0,8"/>
                                 <TextBlock Text="Payout account ID" Style="{StaticResource Text.FieldLabel}"/>
                                 <TextBox Style="{StaticResource Input.Text}" Text="{Binding PayoutAccountId, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Text="Interest rate rule ID" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,0"/>
-                                <TextBox Style="{StaticResource Input.Text}" Text="{Binding InterestRateRuleId, UpdateSourceTrigger=PropertyChanged}"/>
                                 <TextBlock Text="Renewal instruction" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,0"/>
                                 <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding RenewalInstructions}" SelectedItem="{Binding RenewalInstruction}"/>
                                 <CheckBox Content="Calculate interest from current principal" IsChecked="{Binding CalculateFromCurrent}" Margin="0,10,0,0" Style="{StaticResource Input.Check}"/>

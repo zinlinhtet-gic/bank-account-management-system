@@ -15,6 +15,7 @@ Controllers handle routing, binding, authorization attributes, and response enve
 
 - `AccountsController` exposes account queries, creation, freeze/suspend/reactivate actions, joint-holder updates, and fixed-deposit configuration updates.
 - `AccountTypesController` exposes the read-only catalog of active account products.
+- `InterestRateRulesController` exposes active, currently effective rates filtered by account type.
 - `AccountService` coordinates account operations and delegates holder, account-type, fixed-deposit, document, audit, transaction, and accounting responsibilities.
 - `AccountHolderService` owns holder resolution, ownership validation, creation, and joint-holder updates.
 - `AccountTypeService` owns product lookup, opening-balance validation, and fixed-deposit classification.
@@ -63,7 +64,7 @@ Authentication and authorization failures use `ApiErrorResponse`. `GlobalExcepti
 
 Account documents are validated against `AccountTypeRequiredDocument`. Files are stored below the configured private upload root, outside `wwwroot`, using generated filenames; the database stores only relative references and metadata.
 
-After migrations, the idempotent `ProductSeeder` populates reference products. In Development only, `TestDataSeeder` adds deterministic sample customers and accounts.
+After migrations, the idempotent `ProductSeeder` populates reference products, required documents, and demo interest rules. In Development only, `TestDataSeeder` adds deterministic sample customers and accounts.
 
 ## Desktop client integration
 

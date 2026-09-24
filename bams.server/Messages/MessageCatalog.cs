@@ -82,7 +82,7 @@ public static class MessageCatalog
             [MessageCode.RequiredPayoutAccountNotConfigured] = "The fixed-deposit account type does not configure a required payout product.",
             [MessageCode.FixedDepositStatusTransitionNotAllowed] = "The requested fixed-deposit status transition is not allowed.",
             [MessageCode.InternalServerError] = "An unexpected error occurred.",
-            [MessageCode.FileStorageFailed] = "The uploaded document could not be stored."
+            [MessageCode.FileStorageFailed] = "The uploaded document could not be stored.",
             [MessageCode.LastManagerCannotBeRemoved] = "This is the only active manager. Add another manager before deleting this account or changing its role.",
             [MessageCode.InternalServerError] = "An unexpected error occurred."
         };

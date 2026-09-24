@@ -35,7 +35,52 @@ public sealed class TestDataSeeder
             "09222222222",
             "su.mon.test@example.com",
             "2 Test Street",
-            "Mandalay")
+            "Mandalay"),
+        new(
+            "CUST-TEST-003",
+            "Thandar Hlaing Test",
+            new DateOnly(1988, 2, 11),
+            "5/AAA(N)135791",
+            "09333333333",
+            "thandar.hlaing.test@example.com",
+            "3 Test Street",
+            "Naypyidaw"),
+        new(
+            "CUST-TEST-004",
+            "Kyaw Zin Test",
+            new DateOnly(1992, 7, 8),
+            "6/BBB(N)246802",
+            "09444444444",
+            "kyaw.zin.test@example.com",
+            "4 Test Street",
+            "Bago"),
+        new(
+            "CUST-TEST-005",
+            "Hnin Pwint Test",
+            new DateOnly(1996, 11, 23),
+            "7/CCC(N)357913",
+            "09555555555",
+            "hnin.pwint.test@example.com",
+            "5 Test Street",
+            "Taunggyi"),
+        new(
+            "CUST-TEST-006",
+            "Min Khant Test",
+            new DateOnly(1985, 4, 17),
+            "8/DDD(N)468024",
+            "09666666666",
+            "min.khant.test@example.com",
+            "6 Test Street",
+            "Mawlamyine"),
+        new(
+            "CUST-TEST-007",
+            "Ei Ei Phyu Test",
+            new DateOnly(1999, 1, 30),
+            "9/EEE(N)579135",
+            "09777777777",
+            "ei.ei.phyu.test@example.com",
+            "7 Test Street",
+            "Pathein")
     ];
 
     private static readonly AccountSeed[] AccountSeeds =
@@ -45,7 +90,17 @@ public sealed class TestDataSeeder
         new("0399000000010003", "CUST-TEST-001", "SPECIAL_SAVING", 300_000m),
         new("0199000000020001", "CUST-TEST-002", "CURRENT", 150_000m),
         new("0299000000020002", "CUST-TEST-002", "NORMAL_SAVING", 250_000m),
-        new("0399000000020003", "CUST-TEST-002", "SPECIAL_SAVING", 350_000m)
+        new("0399000000020003", "CUST-TEST-002", "SPECIAL_SAVING", 350_000m),
+        new("0199000000030001", "CUST-TEST-003", "CURRENT", 175_000m),
+        new("0299000000030002", "CUST-TEST-003", "NORMAL_SAVING", 275_000m),
+        new("0199000000040001", "CUST-TEST-004", "CURRENT", 200_000m),
+        new("0299000000040002", "CUST-TEST-004", "NORMAL_SAVING", 300_000m),
+        new("0199000000050001", "CUST-TEST-005", "CURRENT", 225_000m),
+        new("0299000000050002", "CUST-TEST-005", "NORMAL_SAVING", 325_000m),
+        new("0199000000060001", "CUST-TEST-006", "CURRENT", 250_000m),
+        new("0299000000060002", "CUST-TEST-006", "NORMAL_SAVING", 350_000m),
+        new("0199000000070001", "CUST-TEST-007", "CURRENT", 275_000m),
+        new("0299000000070002", "CUST-TEST-007", "NORMAL_SAVING", 375_000m)
     ];
 
     private readonly ApplicationDbContext _dbContext;
@@ -56,7 +111,7 @@ public sealed class TestDataSeeder
     }
 
     /// <summary>
-    /// Idempotently creates two development customers with three accounts each.
+    /// Idempotently creates configured development customers and their test accounts.
     /// </summary>
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {

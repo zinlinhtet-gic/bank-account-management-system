@@ -26,6 +26,15 @@ public sealed class AccountManagementService : IAccountManagementService
             cancellationToken);
     }
 
+    public Task<IReadOnlyList<InterestRateRuleResponse>> GetInterestRateRulesAsync(
+        long accountTypeId,
+        CancellationToken cancellationToken)
+    {
+        return _apiClient.GetRawAsync<IReadOnlyList<InterestRateRuleResponse>>(
+            $"{ApiConstants.InterestRateRulesEndpoint}?accountTypeId={accountTypeId.ToString(CultureInfo.InvariantCulture)}",
+            cancellationToken);
+    }
+
     public Task<AccountPageResponse> GetAccountsAsync(
         AccountListCriteria criteria,
         CancellationToken cancellationToken)

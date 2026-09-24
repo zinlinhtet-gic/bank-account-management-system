@@ -3,8 +3,8 @@ info:
   title: Bank Account Management API
   version: 1.0.0
   description: |
-    OpenAPI contract for the endpoints currently exposed by AccountsController
-    and AccountTypesController. Account mutations require a bearer token with
+    OpenAPI contract for the endpoints currently exposed by AccountsController,
+    AccountTypesController, and InterestRateRulesController. Account operations require a bearer token with
     the account_management permission. Version fields provide optimistic locking.
 servers:
   - url: https://localhost:7018
@@ -16,6 +16,8 @@ tags:
     description: Account queries, creation, status actions, and related updates.
   - name: Account Types
     description: Account products available for opening.
+  - name: Interest Rate Rules
+    description: Active rate rules available for account products.
 
 paths:
   /api/accounts:
@@ -297,6 +299,42 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AccountTypeResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/interest-rate-rules:
+    get:
+      tags: [Interest Rate Rules]
+      operationId: getAvailableInterestRateRules
+      summary: List effective interest rules for an account type
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountTypeId
+          in: query
+          required: true
+          description: Product identifier used to filter available interest rules.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Active rules effective on the current UTC date.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InterestRateRuleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -857,6 +895,45 @@ components:
           nullable: true
         isFixedDeposit:
           type: boolean
+
+    InterestRateRuleResponse:
+      type: object
+      required: [id, accountTypeId, annualRate, effectiveFrom]
+      properties:
+        id:
+          type: integer
+          format: int64
+        accountTypeId:
+          type: integer
+          format: int64
+        termDays:
+          type: integer
+          nullable: true
+        termMonths:
+          type: integer
+          nullable: true
+        balanceMin:
+          type: number
+          format: decimal
+          nullable: true
+        balanceMax:
+          type: number
+          format: decimal
+          nullable: true
+        annualRate:
+          type: number
+          format: decimal
+        earlyWithdrawalRate:
+          type: number
+          format: decimal
+          nullable: true
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: string
+          format: date
+          nullable: true
 
     AccountMessageResponse:
       allOf:

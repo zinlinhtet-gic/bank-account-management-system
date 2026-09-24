@@ -14,6 +14,7 @@ public static class ApiConstants
 
     public const string AccountsEndpoint = "api/accounts";
     public const string AccountTypesEndpoint = "api/account-types";
+    public const string InterestRateRulesEndpoint = "api/interest-rate-rules";
     // User Management. Routes with an id: $"{UsersEndpoint}/{id}" and $"{UsersEndpoint}/{id}/{ResetPasswordSegment}".
     public const string UsersEndpoint = "api/users";
     public const string UserRolesEndpoint = UsersEndpoint + "/roles";

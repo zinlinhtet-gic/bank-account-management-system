@@ -1,12 +1,13 @@
 # API Contracts
 
-The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by `AccountsController` and `AccountTypesController`.
+The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by `AccountsController`, `AccountTypesController`, and `InterestRateRulesController`.
 
 ## Endpoint overview
 
 | Method | Route | Authentication | Purpose |
 | --- | --- | --- | --- |
 | GET | `/api/account-types` | Public | List active account products. |
+| GET | `/api/interest-rate-rules?accountTypeId={id}` | `account_management` | List active interest rules currently effective for one account type. |
 | GET | `/api/accounts` | `account_management` | List accounts with cursor pagination. |
 | GET | `/api/accounts/{id}` | `account_management` | Get one account. |
 | POST | `/api/accounts` | `account_management` | Create an account. |
@@ -19,6 +20,10 @@ The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.
 ## Available account types
 
 `GET /api/account-types` returns active products ordered by ID. Each `AccountTypeResponse` includes opening and maintained balances, transaction limits and capabilities, required-product information, and fixed-deposit classification.
+
+## Available interest rules
+
+`GET /api/interest-rate-rules?accountTypeId={id}` returns rules for the selected product whose status is `Active` and whose effective date range includes the current UTC date. A positive unknown account type ID returns `AccountTypeNotFound`; a type with no applicable rules returns an empty array. Current accounts intentionally have no seeded rule.
 
 ## List accounts
 

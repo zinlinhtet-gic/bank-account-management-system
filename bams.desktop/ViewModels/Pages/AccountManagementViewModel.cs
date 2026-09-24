@@ -15,6 +15,7 @@ namespace bams.desktop.ViewModels.Pages;
 public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly IAccountManagementService _accountService;
+    private CancellationTokenSource? _interestRulesRequest;
     private string _screen = "List";
     private string _searchText = string.Empty;
     private string? _selectedStatus;
@@ -31,7 +32,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private string _signingRule = string.Empty;
     private bool _isSharedAccount;
     private string _payoutAccountId = string.Empty;
-    private string _interestRateRuleId = string.Empty;
+    private InterestRateRuleResponse? _selectedInterestRateRule;
     private string _renewalInstruction = "AtMaturity";
     private bool _calculateFromCurrent;
     private bool _isBusy;
@@ -87,10 +88,19 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             if (SetProperty(ref _selectedCreateType, value))
             {
                 OnPropertyChanged(nameof(IsFixedDeposit));
+                _ = LoadInterestRateRulesAsync(value?.Id);
             }
         }
     }
     public bool IsFixedDeposit => SelectedCreateType?.IsFixedDeposit == true;
+    public ObservableCollection<InterestRateRuleResponse> InterestRateRules { get; } = [];
+    public InterestRateRuleResponse? SelectedInterestRateRule
+    {
+        get => _selectedInterestRateRule;
+        set => SetProperty(ref _selectedInterestRateRule, value);
+    }
+    public bool IsLoadingInterestRateRules { get; private set; }
+    public bool HasNoInterestRateRules => SelectedCreateType is not null && !IsLoadingInterestRateRules && InterestRateRules.Count == 0;
     public AccountResponse? SelectedAccount { get => _selectedAccount; private set => SetProperty(ref _selectedAccount, value); }
     public string ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
     public string InfoMessage { get => _infoMessage; private set => SetProperty(ref _infoMessage, value); }
@@ -102,7 +112,6 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public string SigningRule { get => _signingRule; set => SetProperty(ref _signingRule, value); }
     public bool IsSharedAccount { get => _isSharedAccount; set => SetProperty(ref _isSharedAccount, value); }
     public string PayoutAccountId { get => _payoutAccountId; set => SetProperty(ref _payoutAccountId, value); }
-    public string InterestRateRuleId { get => _interestRateRuleId; set => SetProperty(ref _interestRateRuleId, value); }
     public string RenewalInstruction { get => _renewalInstruction; set => SetProperty(ref _renewalInstruction, value); }
     public bool CalculateFromCurrent { get => _calculateFromCurrent; set => SetProperty(ref _calculateFromCurrent, value); }
     public string SelectedDocumentType { get; set; } = "Nrc";
@@ -250,9 +259,9 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         }
 
         if (IsFixedDeposit && (!TryOptionalLong(PayoutAccountId, out var payoutAccountId) || payoutAccountId is null ||
-            !TryOptionalLong(InterestRateRuleId, out var interestRateRuleId) || interestRateRuleId is null))
+            SelectedInterestRateRule is null))
         {
-            ErrorMessage = "Enter valid payout account and interest rate rule IDs for this fixed deposit.";
+            ErrorMessage = "Enter a valid payout account ID and choose an interest rate rule for this fixed deposit.";
             return;
         }
 
@@ -267,7 +276,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             NullIfBlank(SigningRule),
             Documents.ToArray(),
             IsFixedDeposit && TryOptionalLong(PayoutAccountId, out var payout) ? payout : null,
-            IsFixedDeposit && TryOptionalLong(InterestRateRuleId, out var rule) ? rule : null,
+            IsFixedDeposit ? SelectedInterestRateRule?.Id : null,
             IsFixedDeposit ? RenewalInstruction : null,
             IsFixedDeposit ? CalculateFromCurrent : null);
 
@@ -321,7 +330,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         SigningRule = string.Empty;
         IsSharedAccount = false;
         PayoutAccountId = string.Empty;
-        InterestRateRuleId = string.Empty;
+        SelectedInterestRateRule = null;
         RenewalInstruction = RenewalInstructions[0];
         CalculateFromCurrent = false;
         Documents.Clear();
@@ -359,6 +368,72 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         {
             IsBusy = false;
         }
+    }
+
+    private async Task LoadInterestRateRulesAsync(long? accountTypeId)
+    {
+        _interestRulesRequest?.Cancel();
+        _interestRulesRequest?.Dispose();
+        _interestRulesRequest = null;
+        InterestRateRules.Clear();
+        SelectedInterestRateRule = null;
+        OnPropertyChanged(nameof(HasNoInterestRateRules));
+        ErrorMessage = string.Empty;
+        if (!accountTypeId.HasValue)
+        {
+            SetLoadingInterestRateRules(false);
+            return;
+        }
+
+        var request = new CancellationTokenSource();
+        _interestRulesRequest = request;
+        SetLoadingInterestRateRules(true);
+        try
+        {
+            var rules = await _accountService.GetInterestRateRulesAsync(accountTypeId.Value, request.Token);
+            if (request.IsCancellationRequested || SelectedCreateType?.Id != accountTypeId.Value)
+            {
+                return;
+            }
+            foreach (var rule in rules)
+            {
+                InterestRateRules.Add(rule);
+            }
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested)
+        {
+            // A newer product selection replaced this request.
+        }
+        catch (Exception exception)
+        {
+            if (!request.IsCancellationRequested && SelectedCreateType?.Id == accountTypeId.Value)
+            {
+                ErrorMessage = exception is AppException or IOException
+                    ? exception.Message
+                    : "Could not load interest rate rules for this account type.";
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_interestRulesRequest, request))
+            {
+                _interestRulesRequest = null;
+                SetLoadingInterestRateRules(false);
+            }
+            request.Dispose();
+            OnPropertyChanged(nameof(HasNoInterestRateRules));
+        }
+    }
+
+    private void SetLoadingInterestRateRules(bool value)
+    {
+        if (IsLoadingInterestRateRules == value)
+        {
+            return;
+        }
+        IsLoadingInterestRateRules = value;
+        OnPropertyChanged(nameof(IsLoadingInterestRateRules));
+        OnPropertyChanged(nameof(HasNoInterestRateRules));
     }
 
     private void NotifyScreenChanged()

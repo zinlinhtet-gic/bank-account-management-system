@@ -6,6 +6,8 @@ namespace bams.server.Data.Seeders;
 
 public sealed class ProductSeeder
 {
+    private const string ActiveStatus = "Active";
+
     private static readonly DocumentType[] RequiredDocumentTypes =
     [
         DocumentType.Nrc,
@@ -75,6 +77,78 @@ public sealed class ProductSeeder
                 cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        await SeedInterestRateRulesAsync(
+            persistedProducts.ToDictionary(product => product.Code, product => product.Id),
+            cancellationToken);
+    }
+
+    // Adds missing demo rates by product, term, and balance band without overwriting configured rules.
+    private async Task SeedInterestRateRulesAsync(
+        IReadOnlyDictionary<string, long> productIdsByCode,
+        CancellationToken cancellationToken)
+    {
+        var accountTypeIds = productIdsByCode.Values.ToArray();
+        var existingRules = await _dbContext.InterestRateRules
+            .Where(rule => accountTypeIds.Contains(rule.AccountTypeId))
+            .Select(rule => new
+            {
+                rule.AccountTypeId,
+                rule.TermDays,
+                rule.TermMonths,
+                rule.BalanceMin,
+                rule.BalanceMax
+            })
+            .ToListAsync(cancellationToken);
+        var existingKeys = existingRules
+            .Select(rule => (rule.AccountTypeId, rule.TermDays, rule.TermMonths, rule.BalanceMin, rule.BalanceMax))
+            .ToHashSet();
+        var effectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow);
+        var missingRules = CreateInterestRateRuleSeeds()
+            .Select(seed =>
+            {
+                var accountTypeId = productIdsByCode[seed.AccountTypeCode];
+                var key = (accountTypeId, seed.TermDays, seed.TermMonths, (decimal?)null, (decimal?)null);
+                return (Seed: seed, AccountTypeId: accountTypeId, Key: key);
+            })
+            .Where(item => !existingKeys.Contains(item.Key))
+            .Select(item => new InterestRateRule
+            {
+                AccountTypeId = item.AccountTypeId,
+                TermDays = item.Seed.TermDays,
+                TermMonths = item.Seed.TermMonths,
+                AnnualRate = item.Seed.AnnualRate,
+                EffectiveFrom = effectiveFrom,
+                Status = ActiveStatus
+            })
+            .ToList();
+
+        if (missingRules.Count == 0)
+        {
+            return;
+        }
+
+        await _dbContext.InterestRateRules.AddRangeAsync(missingRules, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    // Keeps the requested demo rates as annual percentages and leaves Current without a rule.
+    private static IReadOnlyList<InterestRateRuleSeed> CreateInterestRateRuleSeeds()
+    {
+        return
+        [
+            new("NORMAL_SAVING", null, null, 6.5m),
+            new("SPECIAL_SAVING", null, null, 8m),
+            new("NORMAL_DEPOSIT", null, 1, 8.5m),
+            new("NORMAL_DEPOSIT", null, 3, 9m),
+            new("NORMAL_DEPOSIT", null, 6, 9.5m),
+            new("NORMAL_DEPOSIT", null, 12, 10m),
+            new("SPECIAL_DEPOSIT", null, 1, 9m),
+            new("SPECIAL_DEPOSIT", null, 3, 9.5m),
+            new("SPECIAL_DEPOSIT", null, 6, 10m),
+            new("SPECIAL_DEPOSIT", null, 12, 10.5m),
+            new("HUNDRED_DAYS_DEPOSIT", 100, null, 9.25m)
+        ];
     }
 
     // Defines the initial account products independently from EF model configuration.
@@ -116,7 +190,13 @@ public sealed class ProductSeeder
             AllowPartialWithdrawal = allowsTransactions,
             IsFixedDeposit = isFixedDeposit,
             RequiredProductId = requiredProductId,
-            Status = "Active"
+            Status = ActiveStatus
         };
     }
+
+    private sealed record InterestRateRuleSeed(
+        string AccountTypeCode,
+        int? TermDays,
+        int? TermMonths,
+        decimal AnnualRate);
 }

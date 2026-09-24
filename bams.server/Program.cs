@@ -103,6 +103,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
 builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
+builder.Services.AddScoped<IInterestRateRuleService, InterestRateRuleService>();
 builder.Services.AddScoped<IFixedDepositService, FixedDepositService>();
 builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
