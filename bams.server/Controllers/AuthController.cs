@@ -1,8 +1,8 @@
-using System.Security.Claims;
 using bams.server.DTO.Auth;
 using bams.server.DTO.Common;
 using bams.server.Messages;
 using bams.server.Services.Interfaces;
+using bams.server.Utils.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,18 +43,11 @@ public sealed class AuthController : ControllerBase
     public async Task<ActionResult<ApiMessageResponse<PermissionsResponse>>> GetPermissionsAsync(
         CancellationToken cancellationToken)
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
-        {
-            return Unauthorized(ApiMessageResponse<PermissionsResponse>.FromCode(
-                MessageCode.AuthenticationRequired,
-                null));
-        }
-
+        var userId = User.GetRequiredUserId();
         var permissions = await _authenticationService.GetUserPermissionsAsync(userId, cancellationToken);
         var apiResponse = ApiMessageResponse<PermissionsResponse>.FromCode(
             MessageCode.Success,
-            permissions!);
+            permissions);
 
         return Ok(apiResponse);
     }
@@ -68,17 +61,10 @@ public sealed class AuthController : ControllerBase
         ChangePasswordRequest request,
         CancellationToken cancellationToken)
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
-        {
-            return Unauthorized(ApiMessageResponse<ChangePasswordResponse>.FromCode(
-                MessageCode.AuthenticationRequired,
-                null));
-        }
-
+        var userId = User.GetRequiredUserId();
         var response = await _authenticationService.ChangePasswordAsync(userId, request, cancellationToken);
         var apiResponse = ApiMessageResponse<ChangePasswordResponse>.FromCode(
-            MessageCode.Success,
+            MessageCode.PasswordChangedSuccessfully,
             response);
 
         return Ok(apiResponse);

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using bams.desktop.Constants;
 
 namespace bams.desktop.Services;
 
@@ -128,17 +129,17 @@ public sealed class AuthContext : INotifyPropertyChanged
     {
         return new PermissionFlags
         {
-            CanManageAccounts = HasPermission("account_management"),
-            CanManageCustomers = HasPermission("customer_management"),
-            CanPerformKYC = HasPermission("customer_kyc"),
-            CanManageUsers = HasPermission("user_management"),
-            CanViewTransactions = HasPermission("transactions"),
-            CanViewTransactionHistory = HasPermission("transaction_history"),
-            CanAccessAccounting = HasPermission("accounting"),
-            CanConfigureSystem = HasPermission("configuration"),
-            CanPerformOperations = HasPermission("operation"),
-            CanViewAudit = HasPermission("audit"),
-            CanViewCustomerList = HasPermission("customer_list")
+            CanManageAccounts = HasPermission(PermissionCodes.AccountManagement),
+            CanManageCustomers = HasPermission(PermissionCodes.CustomerManagement),
+            CanPerformKYC = HasPermission(PermissionCodes.CustomerKyc),
+            CanManageUsers = HasPermission(PermissionCodes.UserManagement),
+            CanViewTransactions = HasPermission(PermissionCodes.Transactions),
+            CanViewTransactionHistory = HasPermission(PermissionCodes.TransactionHistory),
+            CanAccessAccounting = HasPermission(PermissionCodes.Accounting),
+            CanConfigureSystem = HasPermission(PermissionCodes.Configuration),
+            CanPerformOperations = HasPermission(PermissionCodes.Operation),
+            CanViewAudit = HasPermission(PermissionCodes.Audit),
+            CanViewCustomerList = HasPermission(PermissionCodes.CustomerList)
         };
     }
 

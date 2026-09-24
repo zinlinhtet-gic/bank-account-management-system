@@ -16,9 +16,14 @@ public static class MessageCatalog
             [MessageCode.AuthenticationRequired] = "Authentication is required.",
             [MessageCode.PasswordChangeRequired] = "You must change your password before continuing.",
             [MessageCode.PasswordChangedSuccessfully] = "Password changed successfully.",
+            [MessageCode.UserAccountDisabled] = "This user account is disabled. Please contact your administrator.",
             [MessageCode.AccessDenied] = "Access denied.",
+            [MessageCode.InsufficientPermission] = "You do not have permission to perform this operation.",
             [MessageCode.AccountNotFound] = "Account was not found.",
             [MessageCode.AccountTypeNotFound] = "Account type was not found.",
+            [MessageCode.UserNotFound] = "User was not found.",
+            [MessageCode.UsernameAlreadyExists] = "A user with this username already exists.",
+            [MessageCode.EmailAlreadyExists] = "A user with this email already exists.",
             [MessageCode.BusinessRuleViolation] = "The requested operation violates a business rule.",
             [MessageCode.InternalServerError] = "An unexpected error occurred."
         };

@@ -50,6 +50,9 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
+        // Checked only after the password is verified so account state is not revealed to unauthenticated callers.
+        EnsureUserIsActive(user);
+
         // Check if this is first-time login
         var isFirstTimeLogin = user.LastLoginAt == null;
         var requiresPasswordChange = user.MustChangePassword || isFirstTimeLogin;
@@ -127,8 +130,10 @@ public sealed class AuthenticationService : IAuthenticationService
 
         if (user is null)
         {
-            throw new NotFoundException(MessageCode.AccountNotFound);
+            throw new NotFoundException(MessageCode.UserNotFound);
         }
+
+        EnsureUserIsActive(user);
 
         var role = user.UserRoles.FirstOrDefault()?.Role?.Code ?? string.Empty;
 
@@ -163,8 +168,10 @@ public sealed class AuthenticationService : IAuthenticationService
 
         if (user is null)
         {
-            throw new NotFoundException(MessageCode.AccountNotFound);
+            throw new NotFoundException(MessageCode.UserNotFound);
         }
+
+        EnsureUserIsActive(user);
 
         // Verify current password
         if (!VerifyPassword(request.CurrentPassword, user.PasswordHash))
@@ -191,7 +198,16 @@ public sealed class AuthenticationService : IAuthenticationService
 
         return new ChangePasswordResponse(
             true,
-            "Password changed successfully");
+            MessageCatalog.GetMessage(MessageCode.PasswordChangedSuccessfully));
+    }
+
+    // Rejects any authentication operation for a user whose account has been disabled.
+    private static void EnsureUserIsActive(User user)
+    {
+        if (user.Status != UserStatus.Active)
+        {
+            throw new ForbiddenException(MessageCode.UserAccountDisabled);
+        }
     }
 
     /// <summary>

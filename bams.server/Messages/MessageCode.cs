@@ -18,6 +18,7 @@ public enum MessageCode
     AuthenticationRequired = 4000,
     PasswordChangeRequired = 4001,
     PasswordChangedSuccessfully = 4002,
+    UserAccountDisabled = 4003,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
@@ -27,6 +28,11 @@ public enum MessageCode
     ResourceNotFound = 4200,
     AccountNotFound = 4201,
     AccountTypeNotFound = 4203,
+    UserNotFound = 4204,
+
+    // Conflict: 4300 - 4399
+    UsernameAlreadyExists = 4305,
+    EmailAlreadyExists = 4306,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
