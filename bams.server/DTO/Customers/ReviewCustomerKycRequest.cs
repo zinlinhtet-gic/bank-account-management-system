@@ -8,5 +8,4 @@ namespace bams.server.DTO.Customers;
 /// decides one or the other, never resets a customer back to Pending.
 /// </summary>
 public sealed record ReviewCustomerKycRequest(
-    KycStatus KycStatus,
-    long ReviewedByUserId);
+    KycStatus KycStatus);

@@ -2,6 +2,7 @@ using bams.server.DTO.Common;
 using bams.server.DTO.Customers;
 using bams.server.Messages;
 using bams.server.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bams.server.Controllers;
@@ -50,6 +51,7 @@ public sealed class CustomersController : ControllerBase
     /// Creates a new customer from the supplied API request contract.
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "manager, officer")]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> CreateCustomerAsync(
         [FromForm] CreateCustomerRequest request,
         CancellationToken cancellationToken)
@@ -71,6 +73,7 @@ public sealed class CustomersController : ControllerBase
     /// entries without one add a new document. Multipart form data, so new files can be attached.
     /// </summary>
     [HttpPatch("{id:long}")]
+    [Authorize(Roles = "manager,officer")]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> UpdateCustomerAsync(
         long id,
         [FromForm] UpdateCustomerRequest request,
@@ -89,6 +92,7 @@ public sealed class CustomersController : ControllerBase
     /// of the customer's documents as verified; rejecting only changes the customer's KycStatus.
     /// </summary>
     [HttpPost("{id:long}/kyc-review")]
+    [Authorize(Roles = "manager")]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> ReviewCustomerKycAsync(
         long id,
         [FromBody] ReviewCustomerKycRequest request,

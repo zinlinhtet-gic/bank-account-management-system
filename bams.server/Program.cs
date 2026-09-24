@@ -82,7 +82,7 @@ builder.Services.AddRazorPages();
 // -------------------------
 // Services define here
 // -------------------------
-
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<CustomerNumberGenerator>();
@@ -97,13 +97,6 @@ if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
 
-    // Seed baseline Users/Roles/UserRoles for local development only; no admin
-    // flow exists yet to create them through the API.
-    using (var seedScope = app.Services.CreateScope())
-    {
-        var dbContext = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await SecuritySeeder.SeedAsync(dbContext);
-    }
 }
 else
 {

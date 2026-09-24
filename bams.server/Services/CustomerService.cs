@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using bams.server.Constants;
 using bams.server.Data;
@@ -9,6 +10,7 @@ using bams.server.Messages;
 using bams.server.Models.Customers;
 using bams.server.Models.Security;
 using bams.server.Services.Interfaces;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
@@ -20,16 +22,20 @@ public sealed class CustomerService : ICustomerService
     private readonly ILogger<CustomerService> _logger;
     private readonly CustomerNumberGenerator _customerNumberGenerator;
 
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
     public CustomerService(
         ApplicationDbContext dbContext,
         IFileStorageService fileStorageService,
         ILogger<CustomerService> logger,
-        CustomerNumberGenerator customerNumberGenerator)
+        CustomerNumberGenerator customerNumberGenerator,
+        IHttpContextAccessor httpContextAccessor)
     {
         _dbContext = dbContext;
         _fileStorageService = fileStorageService;
         _logger = logger;
         _customerNumberGenerator = customerNumberGenerator;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     /// <summary>
@@ -244,6 +250,16 @@ public sealed class CustomerService : ICustomerService
             throw new ValidationException(MessageCode.InvalidKycReviewStatus);
         }
 
+        var reviewerIdClaim = _httpContextAccessor.HttpContext?
+        .User
+        .FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!long.TryParse(reviewerIdClaim, out var reviewerId))
+        {
+            throw new NotFoundException(
+                MessageCode.KycReviewerNotFound);
+        }
+
         var customer = await _dbContext.Customers
             .Include(customer => customer.Documents)
             .FirstOrDefaultAsync(customer => customer.Id == id, cancellationToken);
@@ -251,28 +267,6 @@ public sealed class CustomerService : ICustomerService
         if (customer is null)
         {
             throw new NotFoundException(MessageCode.CustomerNotFound);
-        }
-
-        var reviewerExists = await _dbContext.Users
-            .AsNoTracking()
-            .AnyAsync(user => user.Id == request.ReviewedByUserId, cancellationToken);
-
-        if (!reviewerExists)
-        {
-            throw new NotFoundException(MessageCode.KycReviewerNotFound);
-        }
-
-        // Only a user holding the Manager role may record a KYC review decision.
-        var reviewerIsManager = await _dbContext.UserRoles
-            .AsNoTracking()
-            .AnyAsync(
-                userRole => userRole.UserId == request.ReviewedByUserId
-                    && userRole.Role!.Code == RoleConstants.Manager,
-                cancellationToken);
-
-        if (!reviewerIsManager)
-        {
-            throw new ForbiddenException(MessageCode.AccessDenied);
         }
 
         customer.KycStatus = request.KycStatus;
@@ -287,7 +281,7 @@ public sealed class CustomerService : ICustomerService
             foreach (var document in customer.Documents)
             {
                 document.VerifiedAt = reviewedAt;
-                document.VerifiedBy = request.ReviewedByUserId;
+                document.VerifiedBy = reviewerId;
             }
         }
 
