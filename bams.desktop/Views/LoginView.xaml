@@ -3,94 +3,56 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:brand="clr-namespace:bams.desktop.Components.AuthBrandPanel"
+             xmlns:pwd="clr-namespace:bams.desktop.Components.PasswordInput"
              mc:Ignorable="d"
-             d:DesignHeight="400"
-             d:DesignWidth="600">
-    <Grid Background="#F5F5F5">
-        <Border Background="White"
-                CornerRadius="8"
-                Padding="32"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Width="400"
-                Effect="{DynamicResource DropShadow}">
-            <StackPanel>
-                <TextBlock FontSize="24"
-                           FontWeight="Bold"
-                           Text="BAMS Login"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,24"
-                           Foreground="#2C3E50"/>
+             d:DesignHeight="720"
+             d:DesignWidth="1280">
+    <!-- Split layout: brand panel on the left, sign-in form on the right. -->
+    <Grid Background="{StaticResource CardBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="5*" MinWidth="360"/>
+            <ColumnDefinition Width="7*"/>
+        </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Username"
-                           Margin="0,0,0,4"
-                           FontWeight="SemiBold"
-                           Foreground="#34495E"/>
+        <brand:AuthBrandPanel/>
 
-                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
-                         Padding="8"
-                         Margin="0,0,0,16"
-                         BorderBrush="#BDC3C7"
-                         BorderThickness="1"/>
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Width="380" Margin="0,48" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        FocusManager.FocusedElement="{Binding ElementName=UsernameBox}">
 
-                <TextBlock Text="Password"
-                           Margin="0,0,0,4"
-                           FontWeight="SemiBold"
-                           Foreground="#34495E"/>
+                <TextBlock Text="STAFF SIGN IN" Style="{StaticResource Text.Label}" Foreground="{StaticResource AccentBrush}"/>
+                <TextBlock Text="Welcome back" Style="{StaticResource Text.Heading}" FontSize="28" Margin="0,8,0,8"/>
+                <TextBlock Text="Sign in with the username and password provided by your branch manager."
+                           Style="{StaticResource Text.BodyMuted}" Margin="0,0,0,28"/>
 
-                <Grid Margin="0,0,0,16">
-                    <PasswordBox x:Name="PasswordBox"
-                                 Padding="8,8,40,8"
-                                 BorderBrush="#BDC3C7"
-                                 BorderThickness="1"
-                                 PasswordChanged="OnPasswordChanged"/>
+                <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,0,0,20"
+                                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                    <TextBox x:Name="PasswordTextBox"
-                             Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="8,8,40,8"
-                             BorderBrush="#BDC3C7"
-                             BorderThickness="1"
-                             Visibility="Collapsed"/>
+                <TextBlock Text="USERNAME" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox x:Name="UsernameBox" Style="{StaticResource Input.Text}"
+                         Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.Placeholder="e.g. officer"
+                         IsEnabled="{Binding IsNotBusy}" Margin="0,0,0,18"/>
 
-                    <Button Click="OnTogglePasswordClick"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="8"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Width="40"
-                            ToolTip="Toggle password visibility">
-                        <TextBlock x:Name="EyeIcon"
-                                   Text="👁‍🗨"
-                                   FontSize="16"
-                                   Foreground="#7F8C8D"
-                                   VerticalAlignment="Center"
-                                   HorizontalAlignment="Center"/>
-                    </Button>
-                </Grid>
+                <TextBlock Text="PASSWORD" Style="{StaticResource Text.FieldLabel}"/>
+                <pwd:PasswordInput Password="{Binding Password}" IsEnabled="{Binding IsNotBusy}" Margin="0,0,0,28"/>
 
-                <Button Content="Login"
-                        Command="{Binding LoginCommand}"
-                        Background="#3498DB"
-                        Foreground="White"
-                        Padding="12"
-                        Margin="0,8,0,0"
-                        FontWeight="SemiBold"/>
+                <!-- IsDefault: pressing Enter anywhere in the form signs in. -->
+                <Button Content="Sign in" Style="{StaticResource Button.Primary}" t:ThemeAssist.Size="Large"
+                        HorizontalAlignment="Stretch" IsDefault="True"
+                        t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                        Command="{Binding LoginCommand}"/>
 
-                <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="#E74C3C"
-                           Margin="0,16,0,0"
-                           TextWrapping="Wrap"
-                           HorizontalAlignment="Center"
-                           Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <ContentControl Style="{StaticResource Alert.Info}" Content="{Binding StatusMessage}" Margin="0,20,0,0"
+                                Visibility="{Binding HasStatus, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                <TextBlock Text="{Binding StatusMessage}"
-                           Foreground="#27AE60"
-                           Margin="0,8,0,0"
-                           TextWrapping="Wrap"
-                           HorizontalAlignment="Center"
-                           Visibility="{Binding HasStatus, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,32,0,16"/>
+                <TextBlock Text="Trouble signing in? Contact your branch manager to reset your password."
+                           Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
             </StackPanel>
-        </Border>
+        </ScrollViewer>
     </Grid>
 </UserControl>

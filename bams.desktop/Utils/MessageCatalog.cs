@@ -11,6 +11,7 @@ public static class MessageCatalog
         {
             [MessageCode.Success] = "Operation completed successfully.",
             [MessageCode.ValidationFailed] = "One or more validation errors occurred.",
+            [MessageCode.RequiredFieldMissing] = "Please fill in all required fields.",
             [MessageCode.InvalidRequest] = "The request is invalid.",
             [MessageCode.InvalidCredentials] = "Invalid username or password.",
             [MessageCode.PasswordDoesNotMeetRequirements] = "The password does not meet the requirements.",

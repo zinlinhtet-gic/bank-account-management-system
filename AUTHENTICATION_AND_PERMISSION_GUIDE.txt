@@ -4,6 +4,9 @@ This guide is for everyone building a feature page (customers, KYC, accounts, tr
 It explains how to lock down your server endpoints and how to show or hide things in the desktop app
 based on the logged-in user's permissions.
 
+For the full step-by-step walkthrough of building a page (DTOs, service, ViewModel, View), see
+`PAGE_DEVELOPMENT_GUIDE.txt`. This guide covers only the permission parts.
+
 If something here does not work or is missing, ask the permission owner instead of working around it.
 
 ---
@@ -264,10 +267,8 @@ public sealed class CustomerManagementViewModel : ViewModelBase
         _authContext = authContext;
         _customerService = customerService;
 
-        // The command is disabled when the user cannot create customers.
-        CreateCustomerCommand = new RelayCommand(
-            async _ => await CreateCustomerAsync(CancellationToken.None),
-            _ => CanCreateCustomers && !IsBusy);
+        // The command is disabled when the user cannot create customers (and while it is running).
+        CreateCustomerCommand = new AsyncRelayCommand(CreateCustomerAsync, () => CanCreateCustomers);
     }
 
     public string PageTitle => "Customer Management";
@@ -280,7 +281,7 @@ public sealed class CustomerManagementViewModel : ViewModelBase
     public bool CanViewCustomers =>
         _authContext.HasAnyPermission(PermissionCodes.CustomerManagement, PermissionCodes.CustomerList);
 
-    public RelayCommand CreateCustomerCommand { get; }
+    public AsyncRelayCommand CreateCustomerCommand { get; }
     ...
 }
 ```

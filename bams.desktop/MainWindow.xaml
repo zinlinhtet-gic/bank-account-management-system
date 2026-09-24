@@ -11,7 +11,11 @@
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
         mc:Ignorable="d"
-        Title="DaLanBank" Height="720" Width="1280">
+        Title="DaLanBank" Height="720" Width="1280"
+        FontFamily="{StaticResource SansFont}"
+        FontSize="{StaticResource FontSizeBody}"
+        Foreground="{StaticResource ForegroundBrush}"
+        Background="{StaticResource BackgroundBrush}">
     <Grid>
         <!-- Login View -->
         <ContentControl x:Name="LoginContentControl" Content="{Binding LoginView}"/>

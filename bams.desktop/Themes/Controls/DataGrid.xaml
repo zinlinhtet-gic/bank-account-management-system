@@ -1,0 +1,180 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:Bams.Desktop.Converters">
+
+    <!-- Tokens this file uses. WPF cannot see sibling dictionaries, so each theme file merges its own. -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Colors.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Typography.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!--
+        Data table from the design (DataTable.tsx): uppercase muted header, zebra rows,
+        hover/selected rows in the secondary colour, sortable columns with an arrow.
+
+        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="160"/>
+                <DataGridTextColumn Header="Full name" Binding="{Binding FullName}" Width="*"/>
+                <DataGridTextColumn Header="Balance" Binding="{Binding Balance, StringFormat=N2}" Width="140"
+                                    ElementStyle="{StaticResource Table.Text.Mono}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        Headers are shown in CAPITALS automatically. Put the grid inside Style="{StaticResource Card.Flush}"
+        with a Card.Caption above it for the design's titled table.
+    -->
+
+    <conv:UpperCaseConverter x:Key="UpperCaseConverter"/>
+
+    <!-- Invisible column-resize handle on the right edge of each header -->
+    <Style x:Key="Table.HeaderGripper" TargetType="Thumb">
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Table.ColumnHeader" TargetType="DataGridColumnHeader">
+        <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeLabel}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedForegroundBrush}"/>
+        <Setter Property="Background" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="16,10"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}">
+                                <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UpperCaseConverter}}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="SortArrow" Text="↕" Margin="4,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{StaticResource BorderBrush}" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Border>
+                        <Thumb x:Name="PART_LeftHeaderGripper" HorizontalAlignment="Left" Style="{StaticResource Table.HeaderGripper}"/>
+                        <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right" Style="{StaticResource Table.HeaderGripper}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="CanUserSort" Value="True">
+                            <Setter TargetName="SortArrow" Property="Visibility" Value="Visible"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Ascending">
+                            <Setter TargetName="SortArrow" Property="Text" Value="↑"/>
+                            <Setter TargetName="SortArrow" Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Descending">
+                            <Setter TargetName="SortArrow" Property="Text" Value="↓"/>
+                            <Setter TargetName="SortArrow" Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Table.Cell" TargetType="DataGridCell">
+        <Setter Property="Padding" Value="16,10"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- The row shows the selection colour; cells keep normal text colours. -->
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Table.Row" TargetType="DataGridRow">
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Table" TargetType="DataGrid">
+        <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+        <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+        <Setter Property="RowBackground" Value="{StaticResource CardBrush}"/>
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="RowHeaderWidth" Value="0"/>
+        <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="CanUserDeleteRows" Value="False"/>
+        <Setter Property="CanUserResizeRows" Value="False"/>
+        <Setter Property="CanUserReorderColumns" Value="False"/>
+        <Setter Property="SelectionMode" Value="Single"/>
+        <Setter Property="SelectionUnit" Value="FullRow"/>
+        <Setter Property="EnableRowVirtualization" Value="True"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource Table.ColumnHeader}"/>
+        <Setter Property="CellStyle" Value="{StaticResource Table.Cell}"/>
+        <Setter Property="RowStyle" Value="{StaticResource Table.Row}"/>
+    </Style>
+
+    <!-- ===== Cell text styles: use as ElementStyle on DataGridTextColumn ===== -->
+    <Style x:Key="Table.Text" TargetType="TextBlock">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Numbers, amounts, account numbers: right-aligned JetBrains Mono (design: align="right") -->
+    <Style x:Key="Table.Text.Mono" TargetType="TextBlock" BasedOn="{StaticResource Table.Text}">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeMono}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+    </Style>
+
+    <!-- Reference numbers / codes: JetBrains Mono, left-aligned -->
+    <Style x:Key="Table.Text.Code" TargetType="TextBlock" BasedOn="{StaticResource Table.Text}">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeMono}"/>
+    </Style>
+
+    <Style x:Key="Table.Text.Muted" TargetType="TextBlock" BasedOn="{StaticResource Table.Text}">
+        <Setter Property="Foreground" Value="{StaticResource MutedForegroundBrush}"/>
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,1270 @@
+# BAMS Page Development Guide: Build a Feature Page Step by Step
+
+This guide walks you through building one complete feature page, from the database to the screen.
+The running example is **Customer Management** (list customers + create a customer). Replace the names
+with your own feature; the steps are the same for every page.
+
+Read together with:
+- `AUTHENTICATION_AND_PERMISSION_GUIDE.txt`: who can see and do what
+- `bams.server/AGENTS.md` and `bams.desktop/AGENTS.md`: the full coding rules
+
+---
+
+## Contents
+0. Before you start
+1. How a page works (the big picture)
+2. Server, steps S1-S7
+3. Desktop, steps D1-D8
+4. Bigger pages: split into sub-ViewModels
+5. Message code number blocks (read before adding codes)
+6. Database changes and migrations
+7. Git workflow
+8. Rules cheat sheet
+9. Pull request checklist
+10. Common mistakes
+11. UI styles (shared theme from the Figma design)
+
+---
+
+## 0. Before You Start
+
+1. `git checkout main && git pull`, then create your branch: `git checkout -b feature/customer-management`
+2. Apply migrations once: `cd bams.server && dotnet ef database update`
+3. Run the server: `cd bams.server && dotnet run` (listens on `http://localhost:5121`)
+4. Run the desktop app: `cd bams.desktop && dotnet run`
+5. Log in with a test user (see the permission guide, section 3). The first login forces a password change.
+
+Your page already has a nav tab, a permission and an empty ViewModel. Open the app and click your tab:
+you should see the "Page content coming soon..." placeholder. You are replacing that.
+
+---
+
+## 1. How a Page Works
+
+```
+DESKTOP                                                     SERVER
+───────                                                     ──────
+View (XAML)          buttons, grids, text boxes              Controller      HTTP only, [RequirePermission]
+   │ bindings                                                    │
+ViewModel            state, commands, error text                 │
+   │                                                             ▼
+Service (ICustomerService)   one method per endpoint          Service        business rules, EF Core queries
+   │                                                             │
+ApiClient            token, JSON, errors ── HTTP ──►          DTOs           request/response contracts
+                                                                 │
+                                                              Entity (Models/) ── MySQL
+```
+
+Golden rules:
+- **Server:** controllers stay thin; all logic lives in the service; never return an entity, always a DTO.
+- **Desktop:** the View only binds; the ViewModel never touches `HttpClient`; the service only uses `ApiClient`.
+- **Errors:** throw/catch exceptions that carry a `MessageCode`. Never compare message text.
+
+Files you will create (example names):
+
+| Side    | File                                                   | Step |
+| ------- | ------------------------------------------------------ | ---- |
+| Server  | `DTO/Customers/CustomerSummaryResponse.cs` (+ others)  | S1   |
+| Server  | `Constants/CustomerConstants.cs`                       | S2   |
+| Server  | `Mapping/CustomerMappings.cs`                          | S3   |
+| Server  | `Services/Interfaces/ICustomerService.cs`, `Services/CustomerService.cs` | S4 |
+| Server  | `Controllers/CustomersController.cs`                   | S6   |
+| Desktop | `DTOs/Customers/*.cs`                                  | D1   |
+| Desktop | `Services/ICustomerService.cs`, `Services/CustomerService.cs` | D4 |
+| Desktop | `Views/Pages/CustomerManagementView.xaml` (+ `.xaml.cs`) | D6 |
+
+Shared files where you add **only your own lines** (keep your diff small to avoid merge conflicts):
+`Program.cs`, `Messages/MessageCode.cs`, `Messages/MessageCatalog.cs`, `Documentation/MessageCodes.md`,
+`App.xaml.cs`, `MainWindow.xaml`, `Constants/ApiConstants.cs`, `Utils/MessageCode.cs`, `Utils/MessageCatalog.cs`,
+and your page's existing ViewModel in `ViewModels/Pages/`.
+
+---
+
+## 2. Server
+
+The EF Core entities already exist in `bams.server/Models/` (e.g. `Models/Customers/Customer.cs`).
+You normally do not need to change them; if you do, read section 6 first.
+
+### S1. DTOs: what goes in and out of the API
+
+`bams.server/DTO/Customers/`. Use `sealed record`s. Only include the fields the screen needs.
+
+```csharp
+// DTO/Customers/CustomerSummaryResponse.cs  (one row in the list)
+using bams.server.Models.Customers;
+
+namespace bams.server.DTO.Customers;
+
+public sealed record CustomerSummaryResponse(
+    long Id,
+    string CustomerNo,
+    string FullName,
+    string? Phone,
+    KycStatus KycStatus);
+```
+
+```csharp
+// DTO/Customers/CustomerResponse.cs  (full detail, returned after create / get by id)
+public sealed record CustomerResponse(
+    long Id,
+    string CustomerNo,
+    CustomerType CustomerType,
+    string FullName,
+    DateOnly DateOfBirth,
+    string? NrcNumber,
+    string? Phone,
+    KycStatus KycStatus,
+    DateTime CreatedAt);
+```
+
+```csharp
+// DTO/Customers/CreateCustomerRequest.cs  (input; never includes Id, CustomerNo, CreatedAt, or who is acting)
+public sealed record CreateCustomerRequest(
+    CustomerType CustomerType,
+    string FullName,
+    DateOnly DateOfBirth,
+    string? NrcNumber,
+    string? Phone);
+```
+
+Enums travel as their **names** in JSON (`"kycStatus": "Pending"`), not numbers.
+
+### S2. Constants and message codes
+
+No magic numbers or strings in logic. Put fixed values in `Constants/`:
+
+```csharp
+// Constants/CustomerConstants.cs
+namespace bams.server.Constants;
+
+/// <summary>
+/// Customer business invariants used by validation and customer-number generation.
+/// </summary>
+public static class CustomerConstants
+{
+    public const int FullNameMaximumLength = 150;
+    public const string CustomerNumberPrefix = "CUS";
+    public const string CustomerNumberTimestampFormat = "yyyyMMddHHmmssfff";
+    public const string ActiveStatus = "active";
+}
+```
+
+Add message codes for your feature **from your block in section 5**, in three places:
+
+```csharp
+// Messages/MessageCode.cs
+CustomerCreatedSuccessfully = 1300,   // Success block
+CustomerDocumentNotFound = 4230,      // Not Found block
+DuplicateNrcNumber = 4321,            // Conflict block
+
+// Messages/MessageCatalog.cs
+[MessageCode.CustomerCreatedSuccessfully] = "Customer created successfully.",
+[MessageCode.CustomerDocumentNotFound] = "Customer document was not found.",
+[MessageCode.DuplicateNrcNumber] = "A customer with this NRC number already exists.",
+```
+
+and a row for each in `Documentation/MessageCodes.md`. First check whether an existing code already
+means the same thing (e.g. `RequiredFieldMissing`); reuse it instead of adding a duplicate.
+
+### S3. Mapping: entity → response DTO
+
+```csharp
+// Mapping/CustomerMappings.cs
+using bams.server.DTO.Customers;
+using bams.server.Models.Customers;
+
+namespace bams.server.Mapping;
+
+public static class CustomerMappings
+{
+    // Converts a Customer entity into the detailed API response contract.
+    public static CustomerResponse ToResponse(this Customer customer)
+    {
+        return new CustomerResponse(
+            customer.Id,
+            customer.CustomerNo,
+            customer.CustomerType,
+            customer.FullName,
+            customer.DateOfBirth,
+            customer.NrcNumber,
+            customer.Phone,
+            customer.KycStatus,
+            customer.CreatedAt);
+    }
+}
+```
+
+### S4. Service: all the logic
+
+Interface first (`Services/Interfaces/ICustomerService.cs`), then the implementation.
+
+```csharp
+using bams.server.DTO.Customers;
+
+namespace bams.server.Services.Interfaces;
+
+public interface ICustomerService
+{
+    /// <summary>
+    /// Gets all customers as list rows, newest first.
+    /// </summary>
+    Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets one customer by id.
+    /// </summary>
+    Task<CustomerResponse> GetCustomerByIdAsync(long id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates a customer with KYC status Pending.
+    /// </summary>
+    Task<CustomerResponse> CreateCustomerAsync(CreateCustomerRequest request, CancellationToken cancellationToken);
+}
+```
+
+```csharp
+using bams.server.Constants;
+using bams.server.Data;
+using bams.server.DTO.Customers;
+using bams.server.Exceptions;
+using bams.server.Mapping;
+using bams.server.Messages;
+using bams.server.Models.Customers;
+using bams.server.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace bams.server.Services;
+
+public sealed class CustomerService : ICustomerService
+{
+    private readonly ApplicationDbContext _dbContext;
+
+    public CustomerService(ApplicationDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    /// <summary>
+    /// Gets all customers as list rows using a read-only query that selects only the needed columns.
+    /// </summary>
+    public async Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Customers
+            .AsNoTracking()
+            .OrderByDescending(customer => customer.CreatedAt)
+            .Select(customer => new CustomerSummaryResponse(
+                customer.Id,
+                customer.CustomerNo,
+                customer.FullName,
+                customer.Phone,
+                customer.KycStatus))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets one customer by id, or throws CustomerNotFound.
+    /// </summary>
+    public async Task<CustomerResponse> GetCustomerByIdAsync(long id, CancellationToken cancellationToken)
+    {
+        var customer = await _dbContext.Customers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.Id == id, cancellationToken);
+
+        if (customer is null)
+        {
+            throw new NotFoundException(MessageCode.CustomerNotFound);
+        }
+
+        return customer.ToResponse();
+    }
+
+    /// <summary>
+    /// Validates the request and creates a customer with KYC status Pending.
+    /// </summary>
+    public async Task<CustomerResponse> CreateCustomerAsync(
+        CreateCustomerRequest request,
+        CancellationToken cancellationToken)
+    {
+        // Request validation: required and length rules.
+        if (string.IsNullOrWhiteSpace(request.FullName))
+        {
+            throw new ValidationException(MessageCode.RequiredFieldMissing);
+        }
+
+        // Business rule: an NRC number identifies exactly one customer.
+        if (!string.IsNullOrWhiteSpace(request.NrcNumber)
+            && await _dbContext.Customers.AnyAsync(c => c.NrcNumber == request.NrcNumber, cancellationToken))
+        {
+            throw new ConflictException(MessageCode.DuplicateNrcNumber);
+        }
+
+        var now = DateTime.UtcNow;   // always UTC in the database
+        var customer = new Customer
+        {
+            CustomerNo = GenerateCustomerNumber(now),
+            CustomerType = request.CustomerType,
+            FullName = request.FullName.Trim(),
+            DateOfBirth = request.DateOfBirth,
+            NrcNumber = request.NrcNumber,
+            Phone = request.Phone,
+            KycStatus = KycStatus.Pending,
+            Status = CustomerConstants.ActiveStatus,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        await _dbContext.Customers.AddAsync(customer, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return customer.ToResponse();
+    }
+
+    // Generates a readable customer number on the server; clients never choose it.
+    private static string GenerateCustomerNumber(DateTime utcNow)
+    {
+        return string.Concat(
+            CustomerConstants.CustomerNumberPrefix,
+            utcNow.ToString(CustomerConstants.CustomerNumberTimestampFormat));
+    }
+}
+```
+
+Which exception to throw:
+
+| Situation                                  | Exception                 | HTTP |
+| ------------------------------------------ | ------------------------- | ---- |
+| Bad or missing input                       | `ValidationException`     | 400  |
+| Record does not exist                      | `NotFoundException`       | 404  |
+| Duplicate / already exists                 | `ConflictException`       | 409  |
+| Allowed page, but not this action          | `ForbiddenException`      | 403  |
+| Business rule broken (frozen, balance...)  | `BusinessRuleException`   | 422  |
+
+Never `try/catch` these in the controller; `GlobalExceptionHandler` turns them into the standard error JSON.
+
+### S5. Register the service
+
+`Program.cs`, under the `// Services define here` section:
+
+```csharp
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+```
+
+### S6. Controller: HTTP only
+
+```csharp
+using bams.server.Constants;
+using bams.server.DTO.Common;
+using bams.server.DTO.Customers;
+using bams.server.Messages;
+using bams.server.Middlewares;
+using bams.server.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+
+namespace bams.server.Controllers;
+
+[ApiController]
+[Route("api/customers")]
+public sealed class CustomersController : ControllerBase
+{
+    private const string GetCustomerByIdRouteName = "GetCustomerById";
+
+    private readonly ICustomerService _customerService;
+
+    public CustomersController(ICustomerService customerService)
+    {
+        _customerService = customerService;
+    }
+
+    /// <summary>
+    /// Lists customers. Auditors may view the list; officers and managers manage it.
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CustomerSummaryResponse>>>> GetCustomersAsync(
+        CancellationToken cancellationToken)
+    {
+        var customers = await _customerService.GetCustomersAsync(cancellationToken);
+
+        return Ok(ApiMessageResponse<IReadOnlyList<CustomerSummaryResponse>>.FromCode(MessageCode.Success, customers));
+    }
+
+    /// <summary>
+    /// Gets one customer.
+    /// </summary>
+    [HttpGet("{id:long}", Name = GetCustomerByIdRouteName)]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> GetCustomerByIdAsync(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _customerService.GetCustomerByIdAsync(id, cancellationToken);
+
+        return Ok(ApiMessageResponse<CustomerResponse>.FromCode(MessageCode.Success, customer));
+    }
+
+    /// <summary>
+    /// Creates a customer.
+    /// </summary>
+    [HttpPost]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> CreateCustomerAsync(
+        CreateCustomerRequest request,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _customerService.CreateCustomerAsync(request, cancellationToken);
+        var response = ApiMessageResponse<CustomerResponse>.FromCode(MessageCode.CustomerCreatedSuccessfully, customer);
+
+        return CreatedAtRoute(GetCustomerByIdRouteName, new { id = customer.Id }, response);
+    }
+}
+```
+
+Endpoint conventions:
+
+| Action            | Verb + route                        | Success result          |
+| ----------------- | ----------------------------------- | ----------------------- |
+| List              | `GET api/customers`                 | `200 Ok(...)`           |
+| Get one           | `GET api/customers/{id}`            | `200 Ok(...)`           |
+| Create            | `POST api/customers`                | `201 CreatedAtRoute(...)` |
+| Full update       | `PUT api/customers/{id}`            | `200 Ok(updated DTO)`   |
+| State change      | `POST api/customers/{id}/verify-kyc` | `200 Ok(updated DTO)`  |
+| Delete (rare)     | `DELETE api/customers/{id}`         | `204 NoContent()`       |
+
+Banking data is rarely deleted; prefer a status change (`close`, `disable`, `freeze`) that keeps history.
+Always wrap data in `ApiMessageResponse<T>.FromCode(...)`; the desktop `ApiClient` expects it.
+
+If you need the acting user's id (e.g. `VerifiedBy`, `InitiatedBy`), read it in the controller with
+`User.GetRequiredUserId()` and pass it to the service. Never take it from the request body.
+
+### S7. Test the API before touching the desktop
+
+Use a `.http` file in VS Code / Visual Studio (e.g. `bams.server/customers.http`):
+
+```http
+### Log in and copy data.token from the response
+POST http://localhost:5121/api/auth/login
+Content-Type: application/json
+
+{ "username": "officer", "password": "<your password>" }
+
+### List
+GET http://localhost:5121/api/customers
+Authorization: Bearer <token>
+
+### Create
+POST http://localhost:5121/api/customers
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "customerType": "Citizen", "fullName": "Aung Aung", "dateOfBirth": "1995-04-12", "nrcNumber": "12/ABC(N)123456", "phone": "09123456789" }
+```
+
+Check: success works, a user without the permission gets `403 / 4101`, bad input gets your `400` code,
+and a duplicate gets your `409` code.
+
+---
+
+## 3. Desktop
+
+### D1. DTOs: copy the server contracts
+
+`bams.desktop/DTOs/Customers/`. Same records, same property names. If the DTO uses an enum, copy the enum
+too with **identical member names** (JSON uses the names):
+
+```csharp
+namespace bams.desktop.DTOs.Customers;
+
+public enum KycStatus { Pending = 1, Verified = 2, Rejected = 3 }
+public enum CustomerType { Citizen = 1, Foreigner = 2 }
+
+public sealed record CustomerSummaryResponse(long Id, string CustomerNo, string FullName, string? Phone, KycStatus KycStatus);
+
+public sealed record CustomerResponse(long Id, string CustomerNo, CustomerType CustomerType, string FullName,
+    DateOnly DateOfBirth, string? NrcNumber, string? Phone, KycStatus KycStatus, DateTime CreatedAt);
+
+public sealed record CreateCustomerRequest(CustomerType CustomerType, string FullName, DateOnly DateOfBirth,
+    string? NrcNumber, string? Phone);
+```
+
+(One type per file in real code.)
+
+### D2. Endpoint constant
+
+`bams.desktop/Constants/ApiConstants.cs`:
+
+```csharp
+public const string CustomersEndpoint = "api/customers";
+```
+
+### D3. Mirror your message codes
+
+Add the same codes with the **same numbers** to `bams.desktop/Utils/MessageCode.cs`, plus catalog text in
+`Utils/MessageCatalog.cs`. The server usually sends the message itself; the client entry is the fallback
+and lets you `switch` on the code.
+
+### D4. Service: one method per endpoint
+
+```csharp
+// Services/ICustomerService.cs
+using bams.desktop.DTOs.Customers;
+
+namespace bams.desktop.Services;
+
+public interface ICustomerService
+{
+    /// <summary>
+    /// Loads all customers for the list.
+    /// </summary>
+    Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates a customer and returns the saved record.
+    /// </summary>
+    Task<CustomerResponse> CreateCustomerAsync(CreateCustomerRequest request, CancellationToken cancellationToken);
+}
+```
+
+```csharp
+// Services/CustomerService.cs
+using bams.desktop.Api;
+using bams.desktop.Constants;
+using bams.desktop.DTOs.Customers;
+
+namespace bams.desktop.Services;
+
+/// <summary>
+/// Customer API calls. Transport, token and error translation are handled by ApiClient.
+/// </summary>
+public sealed class CustomerService : ICustomerService
+{
+    private readonly ApiClient _apiClient;
+
+    public CustomerService(ApiClient apiClient)
+    {
+        _apiClient = apiClient;
+    }
+
+    public Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(CancellationToken cancellationToken)
+    {
+        return _apiClient.GetAsync<IReadOnlyList<CustomerSummaryResponse>>(
+            ApiConstants.CustomersEndpoint,
+            cancellationToken);
+    }
+
+    public Task<CustomerResponse> CreateCustomerAsync(CreateCustomerRequest request, CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<CreateCustomerRequest, CustomerResponse>(
+            ApiConstants.CustomersEndpoint,
+            request,
+            cancellationToken);
+    }
+}
+```
+
+`ApiClient` methods: `GetAsync<TResponse>`, `PostAsync<TRequest, TResponse>`, `PutAsync<TRequest, TResponse>`,
+`DeleteAsync`. Routes with an id: `$"{ApiConstants.CustomersEndpoint}/{customerId}"`.
+
+### D5. Register the service
+
+`App.xaml.cs`, next to the other services:
+
+```csharp
+services.AddSingleton<ICustomerService, CustomerService>();
+```
+
+Your page ViewModel is already registered.
+
+### D6. ViewModel: fill in your existing page ViewModel
+
+Open `ViewModels/Pages/CustomerManagementViewModel.cs` (it already exists) and grow it. The three building blocks:
+
+| Building block          | Why                                                                           |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `IAsyncInitializable`   | `InitializeAsync` is called **every time the page opens**; load data there, never in the constructor |
+| `AsyncRelayCommand`     | For anything that calls the server; the button disables itself while running (no double submit) |
+| `AuthContext`           | Permission flags for hiding or disabling actions                              |
+
+```csharp
+using System.Collections.ObjectModel;
+using bams.desktop.Commands;
+using bams.desktop.DTOs.Customers;
+using bams.desktop.Exceptions;
+using bams.desktop.Services;
+using bams.desktop.Utils;
+
+namespace bams.desktop.ViewModels.Pages;
+
+/// <summary>
+/// ViewModel for the Customer Management page: lists customers and creates new ones.
+/// </summary>
+public sealed class CustomerManagementViewModel : ViewModelBase, IAsyncInitializable
+{
+    private readonly ICustomerService _customerService;
+    private readonly AuthContext _authContext;
+
+    private bool _isBusy;
+    private string _errorMessage = string.Empty;
+    private string _statusMessage = string.Empty;
+    private string _newFullName = string.Empty;
+    private DateTime? _newDateOfBirth;
+
+    public CustomerManagementViewModel(ICustomerService customerService, AuthContext authContext)
+    {
+        // Constructors only store dependencies and create commands. No server calls here.
+        _customerService = customerService;
+        _authContext = authContext;
+
+        RefreshCustomersCommand = new AsyncRelayCommand(LoadCustomersAsync);
+        CreateCustomerCommand = new AsyncRelayCommand(CreateCustomerAsync, () => CanCreateCustomers);
+    }
+
+    // Kept for the placeholder view; the header already shows the page name.
+    public string PageTitle => "Customer Management";
+    public string PageDescription => "Manage customer profiles and information";
+
+    public ObservableCollection<CustomerSummaryResponse> Customers { get; } = [];
+
+    // Auditors can open the list but must not see the create form.
+    public bool CanCreateCustomers => _authContext.PermissionFlags.CanManageCustomers;
+
+    public AsyncRelayCommand RefreshCustomersCommand { get; }
+    public AsyncRelayCommand CreateCustomerCommand { get; }
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set => SetProperty(ref _isBusy, value);
+    }
+
+    public string ErrorMessage
+    {
+        get => _errorMessage;
+        private set
+        {
+            if (SetProperty(ref _errorMessage, value))
+            {
+                OnPropertyChanged(nameof(HasError));
+            }
+        }
+    }
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        private set => SetProperty(ref _statusMessage, value);
+    }
+
+    public string NewFullName
+    {
+        get => _newFullName;
+        set => SetProperty(ref _newFullName, value);
+    }
+
+    public DateTime? NewDateOfBirth
+    {
+        get => _newDateOfBirth;
+        set => SetProperty(ref _newDateOfBirth, value);
+    }
+
+    // Called by MainViewModel every time the user opens this page.
+    public Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        return LoadCustomersAsync(cancellationToken);
+    }
+
+    // Button version (no cancellation needed for a manual refresh).
+    private Task LoadCustomersAsync()
+    {
+        return LoadCustomersAsync(CancellationToken.None);
+    }
+
+    // Loads the customer list and replaces the grid rows only after the call succeeds.
+    private async Task LoadCustomersAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IsBusy = true;
+            ErrorMessage = string.Empty;
+
+            var customers = await _customerService.GetCustomersAsync(cancellationToken);
+
+            Customers.Clear();
+            foreach (var customer in customers)
+            {
+                Customers.Add(customer);
+            }
+        }
+        catch (AppException exception)
+        {
+            // Server and network errors already carry a user-friendly message.
+            ErrorMessage = exception.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // Validates the form locally, creates the customer, then refreshes the list.
+    private async Task CreateCustomerAsync()
+    {
+        ErrorMessage = string.Empty;
+        StatusMessage = string.Empty;
+
+        // Local validation only stops obviously incomplete requests; the server stays authoritative.
+        if (string.IsNullOrWhiteSpace(NewFullName) || NewDateOfBirth is null)
+        {
+            ErrorMessage = MessageCatalog.GetMessage(MessageCode.RequiredFieldMissing);
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+
+            var request = new CreateCustomerRequest(
+                CustomerType.Citizen,
+                NewFullName,
+                DateOnly.FromDateTime(NewDateOfBirth.Value),
+                NrcNumber: null,
+                Phone: null);
+
+            await _customerService.CreateCustomerAsync(request, CancellationToken.None);
+
+            StatusMessage = MessageCatalog.GetMessage(MessageCode.CustomerCreatedSuccessfully);
+            NewFullName = string.Empty;
+            NewDateOfBirth = null;
+
+            await LoadCustomersAsync(CancellationToken.None);
+        }
+        catch (AppException exception)
+        {
+            // Switch on the code only when this page needs special behaviour for it.
+            ErrorMessage = exception.Code switch
+            {
+                MessageCode.DuplicateNrcNumber => "This NRC number is already registered to another customer.",
+                _ => exception.Message
+            };
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}
+```
+
+Checklist for every server call in a ViewModel: `try` → `IsBusy = true` → call service →
+update state → `catch (AppException)` → set `ErrorMessage` → `finally IsBusy = false`.
+
+### D7. View: the XAML
+
+`Views/Pages/CustomerManagementView.xaml`. Build it **only from the shared styles** in section 11
+(buttons, inputs, table, cards, badges, text). Never set colours, fonts, font sizes or corner radius by hand;
+that is what keeps every page looking like the Figma design.
+
+```xml
+<UserControl x:Class="bams.desktop.Views.Pages.CustomerManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- create form -->
+            <RowDefinition Height="Auto"/>   <!-- messages -->
+            <RowDefinition Height="*"/>      <!-- list -->
+        </Grid.RowDefinitions>
+
+        <!-- Create form. Hidden for users who may only view (e.g. auditors). -->
+        <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,16"
+                Visibility="{Binding CanCreateCustomers, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Width="260">
+                    <TextBlock Text="FULL NAME" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Aung Aung"
+                             Text="{Binding NewFullName, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Width="180" Margin="16,0,0,0">
+                    <TextBlock Text="DATE OF BIRTH" Style="{StaticResource Text.FieldLabel}"/>
+                    <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding NewDateOfBirth}"/>
+                </StackPanel>
+                <Button Content="Create Customer" Margin="16,0,0,0" VerticalAlignment="Bottom"
+                        Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}"
+                        Command="{Binding CreateCustomerCommand}"/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource Text.Error}"
+                       Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Success}"/>
+        </StackPanel>
+
+        <!-- Titled table: Card.Flush > Card.Caption + DataGrid -->
+        <Border Grid.Row="2" Style="{StaticResource Card.Flush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Ghost}"
+                                t:ThemeAssist.Size="Small" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"
+                                Command="{Binding RefreshCustomersCommand}"/>
+                        <TextBlock Text="Customers" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
+                <DataGrid Style="{StaticResource Table}" BorderThickness="0" ItemsSource="{Binding Customers}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Customer No" Binding="{Binding CustomerNo}" Width="160"
+                                            ElementStyle="{StaticResource Table.Text.Code}"/>
+                        <DataGridTextColumn Header="Full name" Binding="{Binding FullName}" Width="*"/>
+                        <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="140"
+                                            ElementStyle="{StaticResource Table.Text.Muted}"/>
+                        <DataGridTemplateColumn Header="KYC" Width="120" CanUserSort="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ContentControl Style="{StaticResource Badge.Warning}" Content="{Binding KycStatus}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
+```
+
+(For a real KYC column, switch the badge by status: see the `DataTrigger` example in section 11.)
+
+Code-behind (`CustomerManagementView.xaml.cs`) stays empty except `InitializeComponent()`:
+
+```csharp
+using System.Windows.Controls;
+
+namespace bams.desktop.Views.Pages;
+
+public partial class CustomerManagementView : UserControl
+{
+    public CustomerManagementView()
+    {
+        InitializeComponent();
+    }
+}
+```
+
+### D8. Connect ViewModel → View
+
+In `MainWindow.xaml`, inside `<ContentControl.Resources>` of the page area, add your line next to the fallback:
+
+```xml
+<DataTemplate DataType="{x:Type pageviewmodels:CustomerManagementViewModel}">
+    <pages:CustomerManagementView/>
+</DataTemplate>
+```
+
+Run the app, click your tab: your page loads, and the data appears. Done.
+
+---
+
+## 4. Bigger Pages: Split Into Sub-ViewModels
+
+When one ViewModel grows past roughly 10-15 properties or handles several independent areas
+(filters + list + details + form), split it. The page ViewModel becomes a coordinator:
+
+```csharp
+public sealed class CustomerManagementViewModel : ViewModelBase, IAsyncInitializable
+{
+    public CustomerListViewModel List { get; }        // grid, refresh, selection
+    public CustomerFormViewModel Form { get; }        // create/edit form + validation
+
+    public CustomerManagementViewModel(CustomerListViewModel list, CustomerFormViewModel form)
+    {
+        List = list;
+        Form = form;
+
+        // The parent coordinates siblings; children never reference each other.
+        Form.CustomerSaved += async (_, _) => await List.RefreshAsync(CancellationToken.None);
+    }
+
+    public Task InitializeAsync(CancellationToken cancellationToken) => List.RefreshAsync(cancellationToken);
+}
+```
+
+Put sub-ViewModels in `ViewModels/Pages/Customers/` and sub-views in `Views/Pages/Customers/`, bind them with
+`DataContext="{Binding List}"`, and register each sub-ViewModel in `App.xaml.cs` as `AddTransient`.
+
+---
+
+## 5. Message Code Number Blocks
+
+Two branches that pick the same number compile fine (C# allows duplicate enum values), so the bug stays
+silent until the wrong message shows up. Take numbers **only from your feature's block**:
+
+| Feature                         | Success   | Validation | Not Found | Conflict  | Business rule |
+| ------------------------------- | --------- | ---------- | --------- | --------- | ------------- |
+| Common / Auth / Users           | 1000-1099 | 3000-3099  | 4200-4204 | 4300-4309 | 4400          |
+| Accounts (incl. fixed deposits) | 1100-1199 | 3100-3199  | 4205-4229 | 4310-4319 | 4401-4429     |
+| Transactions / history          | 1200-1299 | 3300-3399  | 4240-4249 | 4330-4339 | 4440-4459     |
+| Customers / KYC                 | 1300-1399 | 3200-3299  | 4230-4239 | 4320-4329 | 4430-4439     |
+| Accounting / Operations / Config / Audit | 1400-1499 | 3400-3499 | 4250-4259 | 4340-4349 | 4460-4479 |
+
+Already taken (do not reuse): see `bams.server/Documentation/MessageCodes.md`. The core "not found" codes
+4200-4204 are shared by everyone: `ResourceNotFound` 4200, `AccountNotFound` 4201, `CustomerNotFound` 4202,
+`AccountTypeNotFound` 4203, `UserNotFound` 4204. `OpeningBalanceInvalid` 3102 also stays where it is.
+Authentication is 4000-4099 and authorization 4100-4199; only the permission owner adds codes there.
+Once a code is merged to `main`, never change its number or meaning.
+
+---
+
+## 6. Database Changes and Migrations
+
+Most entities already exist, so many pages need **no** migration. If you must change a model:
+
+1. `git pull` main first (so your migration is based on the latest schema).
+2. Change the entity in `Models/` and its configuration in `Data/Configurations/`.
+3. `cd bams.server && dotnet ef migrations add <DescriptiveName>` (e.g. `AddRemarksToCustomer`).
+4. **Open the generated migration and read it.** Check new non-null columns get a sensible `defaultValue`
+   for existing rows, and that nothing is dropped unexpectedly.
+5. `dotnet ef database update`.
+6. Keep one migration per PR where possible.
+
+If two PRs both add migrations, `ApplicationDbContextModelSnapshot.cs` will conflict. Whoever merges second:
+remove their migration (`dotnet ef migrations remove`), merge `main`, and run `migrations add` again.
+Never hand-edit the snapshot to resolve a conflict.
+
+---
+
+## 7. Git Workflow
+
+1. One branch per page: `feature/customer-management`, `feature/transactions`, ...
+2. Pull `main` into your branch often (`git pull origin main`) so conflicts stay small.
+3. In shared files (section 1 list), add your lines in **one block** and do not reformat other people's code.
+4. Keep PRs focused on one page. Small PRs get reviewed and merged faster.
+5. Never commit `bin/`, `obj/`, passwords, or connection strings (use `dotnet user-secrets` for your DB password).
+
+### Resolving conflicts in shared files
+
+When `git merge main` (or `git pull origin main`) stops with conflicts, resolve each file like this:
+
+| File                                                        | How to resolve                                                        |
+| ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| `Middlewares/MiddlewareAttribute.cs`                        | **Take `main`'s version completely.** It also blocks disabled users; keeping your version silently removes that check. |
+| `Middlewares/GlobalExceptionHandler.cs`                     | Start from `main`'s version, then add only your own new exception mapping lines. |
+| `Exceptions/*`, `Utils/Extensions/ClaimsPrincipalExtensions.cs` | Use `main`'s auth helpers. If you made your own (e.g. `AuthenticationRequiredException`, a `CurrentUserService` that reads the user id claim), switch to `UnauthorizedException` and `User.GetRequiredUserId()` and delete yours. One helper per job. |
+| `Program.cs`                                                | Keep both sides' service registrations. Do **not** bring back `AddPolicy(...)` or `PermissionHandler`; they were removed on purpose. |
+| `Messages/MessageCode.cs`, `MessageCatalog.cs`, `Documentation/MessageCodes.md` | Keep both sides' lines, then run the duplicate check below. If the same name exists on both sides (e.g. `CustomerNotFound`), keep one copy. |
+| `Data/Migrations/ApplicationDbContextModelSnapshot.cs`      | Do not hand-edit. Follow section 6 (remove your migration, merge, re-add). |
+| `MainWindow.xaml`, `App.xaml.cs`, `ApiConstants.cs`         | Keep both sides' lines.                                               |
+| Anything else you are unsure about                          | Ask the owner of that file before choosing a side.                    |
+
+After resolving, **always** run these before you commit the merge:
+
+```
+# 1. Both projects must build
+dotnet build bams.server
+dotnet build bams.desktop
+
+# 2. Duplicate message-code numbers (prints nothing when OK)
+grep -oE '= [0-9]+' bams.server/Messages/MessageCode.cs | sort | uniq -d
+grep -oE '= [0-9]+' bams.desktop/Utils/MessageCode.cs | sort | uniq -d
+
+# 3. Controllers with endpoints but no [RequirePermission] (prints nothing when OK;
+#    AuthController is expected and can be ignored)
+grep -L "RequirePermission" bams.server/Controllers/*.cs
+```
+
+Git does not warn you about check 2 or check 3: duplicate enum numbers and unprotected endpoints both
+compile and run. If check 2 prints a number, move **your** code to a free number in your block (section 5).
+If check 3 prints your controller, add `[RequirePermission(...)]` to every action.
+
+---
+
+## 8. Rules Cheat Sheet
+
+| Do                                                        | Don't                                                   |
+| --------------------------------------------------------- | ------------------------------------------------------- |
+| Put logic in the server service                           | Query `DbContext` or write rules in a controller        |
+| Return DTOs                                               | Return EF entities from an endpoint                     |
+| `[RequirePermission(SecurityConstants.X)]` on every endpoint | Check `role == "manager"`                            |
+| Throw `ValidationException(MessageCode.X)` etc.           | `return BadRequest("some text")`                        |
+| Use constants (`CustomerConstants`, `ApiConstants`, `PermissionCodes`, `PageNames`) | Magic numbers / strings        |
+| `AsNoTracking()` for read-only queries, `Select` only needed columns | Load whole tables and filter in memory        |
+| `DateTime.UtcNow`, `decimal` for money                    | `DateTime.Now`, `double` / `float` for money            |
+| Pass `CancellationToken` all the way down                 | `.Result`, `.Wait()`                                    |
+| Load page data in `InitializeAsync`                       | Call the server in a ViewModel constructor              |
+| `AsyncRelayCommand` for server calls                      | `new RelayCommand(async _ => ...)`                      |
+| `catch (AppException ex)` and use `ex.Code`               | `ex.Message.Contains("...")`, `MessageBox.Show` in a ViewModel |
+| Services use `ApiClient`                                  | `new HttpClient()` or setting the token yourself        |
+| Bindings + commands in XAML                               | Button `Click` handlers with logic in code-behind       |
+| Shared styles from section 11 (`Button.Primary`, `Input.Text`, `Table`...) | Hex colours, `FontSize="13"`, custom button templates in a page |
+| Comment every public / significant method                 | Comments that only repeat the code                      |
+| Update docs (`MessageCodes.md`, `BusinessRules.md`) with the code | "Docs later"                                    |
+
+---
+
+## 9. Pull Request Checklist
+
+Server
+- [ ] Every endpoint has `[RequirePermission]` with a `SecurityConstants` value
+- [ ] Controller only calls the service; logic is in the service; responses are DTOs wrapped in `ApiMessageResponse`
+- [ ] Failures throw the right exception with a `MessageCode` from your block (section 5)
+- [ ] New codes are in `MessageCode.cs`, `MessageCatalog.cs` and `MessageCodes.md`
+- [ ] Service registered in `Program.cs`
+- [ ] Tested with a `.http` file: success, 400, 403 (wrong role), 404/409 where relevant
+- [ ] Migration (if any) reviewed and applied
+
+Desktop
+- [ ] DTOs and enums match the server exactly
+- [ ] Endpoint in `ApiConstants`, codes mirrored in `Utils/MessageCode.cs`
+- [ ] Service uses `ApiClient` and is registered in `App.xaml.cs`
+- [ ] Data loads in `InitializeAsync`; server calls use `AsyncRelayCommand` with `try/catch (AppException)/finally`
+- [ ] Buttons hidden/disabled by permission flags; tested with each role that can open the page
+- [ ] `DataTemplate` added in `MainWindow.xaml`
+- [ ] Error message shows (not a crash) when the server is stopped
+
+General
+- [ ] `dotnet build` passes for both projects with no new warnings
+- [ ] Branch is up to date with `main`; diff in shared files contains only your lines
+- [ ] The three checks in section 7 ("Resolving conflicts in shared files") print nothing
+
+---
+
+## 10. Common Mistakes
+
+| Symptom                                                   | Cause / fix                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------- |
+| Page still shows "Page content coming soon..."            | Missing `DataTemplate` in `MainWindow.xaml` (D8)                     |
+| Page opens but the list is empty and no error            | ViewModel does not implement `IAsyncInitializable`, or the service is not registered (D5) |
+| App crashes with "Unable to resolve service"              | Service missing from `App.xaml.cs` (desktop) or `Program.cs` (server) |
+| "The server returned an invalid response."                | Endpoint did not wrap data in `ApiMessageResponse<T>.FromCode(...)`, or desktop DTO names differ |
+| Enum field is empty / request rejected with 400           | Desktop enum member names differ from the server's                  |
+| `403` with code `4101`                                    | The logged-in role lacks the permission; see the permission guide    |
+| `401` with code `4000`                                    | Token expired (60 min). Log in again                                 |
+| Button can be clicked twice and creates two records       | Use `AsyncRelayCommand`, not `RelayCommand`                           |
+| App crashes when the server is down                       | Missing `catch (AppException)` around the service call               |
+| Dates are hours off                                       | Stored `DateTime.Now` instead of `DateTime.UtcNow`                    |
+| Merge conflict in `ApplicationDbContextModelSnapshot.cs`  | See section 6: remove your migration, merge main, re-add             |
+
+---
+
+## 11. UI Styles (Shared Theme from the Figma Design)
+
+All pages share one design system, built from the "Banking System Components" Figma Make file.
+It lives in `bams.desktop/Themes/` and is loaded once by `App.xaml`, so every style below is available
+in every view with `{StaticResource ...}`. A rendered preview of everything is in
+`bams.desktop/Themes/theme-preview.png`: open it to see what each style looks like.
+
+Add this namespace to a view that uses buttons with icons, sizes, placeholders or error states:
+
+```xml
+xmlns:t="clr-namespace:bams.desktop.Themes"
+```
+
+**Rule: if the style you need does not exist, ask the theme owner to add it to `Themes/`.
+Do not create a one-off style inside your page.**
+
+### Files
+
+| File                          | What it holds                                                        |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `Theme.xaml`                  | Entry point that merges everything below (App.xaml loads only this)  |
+| `Colors.xaml`                 | Colour tokens (`*Brush`), radius, spacing, shadow                    |
+| `Typography.xaml`             | Fonts and text styles (`Text.*`)                                     |
+| `Icons.xaml`                  | Icon geometries (`Icon.*`)                                           |
+| `Controls/Buttons.xaml`       | `Button.*`                                                           |
+| `Controls/Inputs.xaml`        | `Input.*` (TextBox, PasswordBox, ComboBox, CheckBox, RadioButton, DatePicker) |
+| `Controls/DataGrid.xaml`      | `Table`, `Table.Text.*`                                              |
+| `Controls/Surfaces.xaml`      | `Card*`, `Divider`, `Badge.*`, tooltips                              |
+| `Controls/ScrollBars.xaml`    | Thin scrollbars (applied automatically)                              |
+| `ThemeAssist.cs`              | Attached properties: `t:ThemeAssist.Size`, `.Icon`, `.IsLoading`, `.Placeholder`, `.Prefix`, `.HasError`, `.ShowDot` |
+| `Fonts/`                      | Bundled Inter, JetBrains Mono, DM Serif Display (open-source licences) |
+| `Components/StatCard/`        | The design's summary tile                                            |
+
+### Colours (use the Brush, never a hex value)
+
+| Brush                        | Use for                                               |
+| ---------------------------- | ----------------------------------------------------- |
+| `BackgroundBrush`            | Page background (already set on the main window)      |
+| `CardBrush`                  | Cards, inputs, tables                                 |
+| `ForegroundBrush`            | Main text                                             |
+| `MutedForegroundBrush`       | Labels, captions, secondary text                      |
+| `BorderBrush`                | All borders and dividers                              |
+| `PrimaryBrush`               | Main actions, selection, focus                        |
+| `SecondaryBrush`             | Secondary buttons, selected rows, active nav          |
+| `MutedBrush`                 | Table header, alternating rows, disabled inputs       |
+| `AccentBrush`                | Gold highlight: pending, active marker (use sparingly) |
+| `SuccessBrush` / `DangerBrush` | Positive / negative values and states               |
+| `SuccessSoftBrush`, `WarningSoftBrush`, `DangerSoftBrush` | Tinted backgrounds (badges)  |
+
+Spacing: `PagePadding` (24) around a page, `CardPadding` (20), `CardPaddingCompact` (16).
+
+### Text
+
+| Style              | Looks like                          | Use for                               |
+| ------------------ | ----------------------------------- | ------------------------------------- |
+| `Text.Display`     | 30 DM Serif                         | Big report titles                     |
+| `Text.Heading`     | 20 DM Serif                         | Section / dialog titles               |
+| `Text.CardTitle`   | 16 DM Serif                         | Card titles                           |
+| `Text.Subheading`  | 16 Inter SemiBold                   | Sub-headings inside a card            |
+| `Text.Title`       | 14 Inter SemiBold                   | Table captions                        |
+| `Text.Body` / `Text.BodyMuted` | 14 Inter (wraps)        | Paragraphs                            |
+| `Text.Caption`     | 12 muted                            | Timestamps, helper text               |
+| `Text.FieldLabel`  | 12 Medium muted, CAPITALS           | Label above an input                  |
+| `Text.Label`       | 11 SemiBold muted, CAPITALS         | Small section labels                  |
+| `Text.Hint` / `Text.Error` / `Text.Success` | 12 under an input | Helper / validation / success messages |
+| `Text.Mono`        | 13 JetBrains Mono                   | Account numbers, amounts, references  |
+| `Text.MonoLarge`   | 24 JetBrains Mono SemiBold          | Big numbers                           |
+
+WPF cannot upper-case text automatically, so write labels in CAPITALS (`Text="ACCOUNT NAME"`).
+Table headers are the exception: they are upper-cased for you.
+
+### Buttons
+
+```xml
+<Button Content="Save" Style="{StaticResource Button.Primary}" Command="{Binding SaveCommand}"/>
+<Button Content="New User" Style="{StaticResource Button.Primary}"
+        t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" t:ThemeAssist.Size="Small"/>
+<Button Content="Export" Style="{StaticResource Button.Accent}" t:ThemeAssist.IsLoading="{Binding IsExporting}"/>
+<Button Style="{StaticResource Button.Icon}" t:ThemeAssist.Icon="{StaticResource Icon.Edit}" ToolTip="Edit"
+        Command="{Binding DataContext.EditUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+        CommandParameter="{Binding}"/>
+```
+
+| Style              | When                                                  |
+| ------------------ | ----------------------------------------------------- |
+| `Button.Primary`   | The main action of an area (one per area)             |
+| `Button.Secondary` | Supporting actions: Search, Apply Filter, Cancel      |
+| `Button.Accent`    | Gold highlighted action: Export, Approve (rarely)     |
+| `Button.Ghost`     | Low-emphasis: Reset, Refresh, toolbar actions         |
+| `Button.Danger`    | Destructive: Disable, Delete, Logout (confirm first)  |
+| `Button.DangerSolid` | The final "yes" button of a destructive confirmation |
+| `Button.Icon`      | Icon-only row/toolbar button (always set `ToolTip`)   |
+
+Sizes: `t:ThemeAssist.Size="Small"` (28px, toolbars and filter bars), default Medium (36px, forms),
+`"Large"` (44px, rare). Disabled buttons fade automatically when the command cannot execute.
+
+### Form fields
+
+```xml
+<StackPanel>
+    <TextBlock Text="EMAIL" Style="{StaticResource Text.FieldLabel}"/>
+    <TextBox Style="{StaticResource Input.Text}" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
+             t:ThemeAssist.Placeholder="name@bams.local" t:ThemeAssist.HasError="{Binding HasEmailError}"/>
+    <TextBlock Text="{Binding EmailError}" Style="{StaticResource Text.Error}"/>
+</StackPanel>
+```
+
+| Style              | Control      | Extras                                                            |
+| ------------------ | ------------ | ----------------------------------------------------------------- |
+| `Input.Text`       | TextBox      | `t:ThemeAssist.Placeholder`, `.Prefix="MMK"`, `.HasError`; `AcceptsReturn="True"` for multi-line |
+| `Input.Password`   | PasswordBox  | `.HasError` (no placeholder: WPF limitation)                      |
+| `Input.Select`     | ComboBox     | `.Placeholder`, `.HasError`                                       |
+| `Input.Check`      | CheckBox     | Content is the label                                              |
+| `Input.Radio`      | RadioButton  | Content can be a StackPanel: `Text.Title` + `Text.Caption`        |
+| `Input.Date`       | DatePicker   | Light styling only                                                |
+
+### Tables
+
+Always use `Style="{StaticResource Table}"`; wrap it in `Card.Flush` with a `Card.Caption` for a title
+(see D7). Column text styles: `Table.Text.Mono` (amounts, right-aligned), `Table.Text.Code`
+(reference numbers), `Table.Text.Muted` (secondary columns). Sorting arrows appear automatically.
+
+### Cards, dividers, badges
+
+| Style           | Element          | Use for                                               |
+| --------------- | ---------------- | ----------------------------------------------------- |
+| `Card`          | Border           | Any white panel (20px padding)                        |
+| `Card.Compact`  | Border           | Filter bars (16px padding)                            |
+| `Card.Flush` + `Card.Caption` | Border | Titled table                                   |
+| `Divider`       | Separator        | Line between sections                                 |
+| `Badge.Success` / `.Warning` / `.Danger` / `.Neutral` | ContentControl | Status with a dot: Active, Pending, Disabled |
+| `Badge.Info`    | ContentControl   | Roles and categories (no dot)                         |
+| `Badge.Primary` | ContentControl   | Counters: "3 selected"                                |
+| `Alert.Danger` / `.Success` / `.Warning` / `.Info` | ContentControl | Message banner with icon, text wraps (errors, confirmations) |
+
+Show a page's error or success message as a banner:
+
+```xml
+<ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}"
+                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+```
+
+### Password fields
+
+Never use a raw `PasswordBox` (WPF cannot bind its value). Use the shared component, which also has the
+show/hide eye button:
+
+```xml
+xmlns:pwd="clr-namespace:bams.desktop.Components.PasswordInput"
+
+<TextBlock Text="PASSWORD" Style="{StaticResource Text.FieldLabel}"/>
+<pwd:PasswordInput Password="{Binding Password}" HasError="{Binding HasPasswordError}"/>
+```
+
+The login and change-password screens (`Views/LoginView.xaml`, `Views/ChangePasswordView.xaml`) are complete
+examples of a form built only from shared styles.
+
+### Confirmation dialogs
+
+Never call `MessageBox.Show`. Inject `IDialogService` into your ViewModel and ask before risky actions;
+the dialog dims the window and matches the theme (Esc / click outside = cancel, Enter = confirm):
+
+```csharp
+public UserManagementViewModel(IUserService userService, IDialogService dialogService) { ... }
+
+// Asks before disabling, because the user loses access immediately.
+private async Task DisableUserAsync(object? parameter)
+{
+    if (parameter is not UserSummaryResponse user) return;
+
+    var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
+        Title: $"Disable {user.FullName}?",
+        Message: "They will be signed out and cannot log in until an administrator enables the account again.",
+        ConfirmText: "Disable user",
+        IsDestructive: true));   // red icon + solid red button; false = blue, for normal confirmations
+
+    if (!confirmed) return;
+    ...
+}
+```
+
+`MainWindow`'s logout confirmation is the reference example.
+
+Switch a badge by value inside a table cell:
+
+```xml
+<DataTemplate>
+    <ContentControl x:Name="StatusBadge" Style="{StaticResource Badge.Success}" Content="{Binding StatusText}"/>
+    <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding IsActive}" Value="False">
+            <Setter TargetName="StatusBadge" Property="Style" Value="{StaticResource Badge.Danger}"/>
+        </DataTrigger>
+    </DataTemplate.Triggers>
+</DataTemplate>
+```
+
+### Stat cards
+
+```xml
+xmlns:stat="clr-namespace:bams.desktop.Components.StatCard"
+
+<stat:StatCard Label="ACTIVE USERS" Value="{Binding ActiveUserCount}" SubValue="of all staff"
+               Icon="{StaticResource Icon.UserCheck}" AccentBrush="{StaticResource SuccessBrush}"/>
+```
+
+`Trend="3.2"` adds a green ▲ 3.2%; a negative value shows a red ▼. Lay several out with `<UniformGrid Columns="4">`.
+
+### Icons
+
+Use with `t:ThemeAssist.Icon` on buttons or `<icon:Icon Geometry="{StaticResource Icon.X}"/>`
+(`xmlns:icon="clr-namespace:bams.desktop.Components.Icon"`). Available:
+`Dashboard, Accounts, Transactions, Transfers, Loans, Reports, Settings, Bank, Menu, MenuNarrow, Bell,
+Search, Logout, Plus, Users, UserCheck, UserPlus, UserX, Finance, Shield, Check, ChevronDown, Close, Eye, EyeOff,
+Edit, Lock, Unlock, Refresh, Download, AlertCircle, Key`. Need another one? Take it from the Feather icon
+set (the one the design uses) and add it to `Themes/Icons.xaml`.
+
+---
+
+*Last Updated: 2026-09-24*
+*Version: 1.1: added section 11 (shared UI styles)*

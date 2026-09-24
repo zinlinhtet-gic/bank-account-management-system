@@ -51,6 +51,13 @@ public sealed class ChangePasswordViewModel : ViewModelBase
         {
             if (SetProperty(ref _newPassword, value))
             {
+                // Refresh the live requirement checklist shown under the field.
+                OnPropertyChanged(nameof(MeetsMinimumLength));
+                OnPropertyChanged(nameof(HasUppercase));
+                OnPropertyChanged(nameof(HasLowercase));
+                OnPropertyChanged(nameof(HasDigit));
+                OnPropertyChanged(nameof(HasSpecialCharacter));
+                OnPropertyChanged(nameof(PasswordsMatch));
                 ChangePasswordCommand.RaiseCanExecuteChanged();
             }
         }
@@ -63,10 +70,35 @@ public sealed class ChangePasswordViewModel : ViewModelBase
         {
             if (SetProperty(ref _confirmPassword, value))
             {
+                OnPropertyChanged(nameof(PasswordsMatch));
                 ChangePasswordCommand.RaiseCanExecuteChanged();
             }
         }
     }
+
+    // ----- Password rules (mirror the server's IsPasswordValid; the server stays authoritative) -----
+
+    /// <summary>Minimum number of characters in a new password.</summary>
+    public const int MinimumPasswordLength = 8;
+
+    public bool MeetsMinimumLength => NewPassword.Length >= MinimumPasswordLength;
+
+    public bool HasUppercase => NewPassword.Any(char.IsUpper);
+
+    public bool HasLowercase => NewPassword.Any(char.IsLower);
+
+    public bool HasDigit => NewPassword.Any(char.IsDigit);
+
+    public bool HasSpecialCharacter => NewPassword.Any(character => !char.IsLetterOrDigit(character));
+
+    /// <summary>True once the confirmation is filled in and equals the new password.</summary>
+    public bool PasswordsMatch => ConfirmPassword.Length > 0 && ConfirmPassword == NewPassword;
+
+    private bool IsNewPasswordValid =>
+        MeetsMinimumLength && HasUppercase && HasLowercase && HasDigit && HasSpecialCharacter;
+
+    /// <summary>Name shown on the screen so the user knows which account is changing its password.</summary>
+    public string UserDisplayName => _authContext.FullName ?? _authContext.Username ?? string.Empty;
 
     public bool IsBusy
     {
@@ -111,29 +143,11 @@ public sealed class ChangePasswordViewModel : ViewModelBase
 
     public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
 
-    public string PasswordRequirements => "Password must be at least 8 characters long and include: 1 uppercase letter (A-Z), 1 lowercase letter (a-z), 1 number (0-9), and 1 special character (!@#$%^&*).";
-
     public RelayCommand ChangePasswordCommand { get; }
 
     private bool CanChangePassword()
     {
         return !IsBusy;
-    }
-
-    // Validates password complexity requirements.
-    private bool IsPasswordValid(string password)
-    {
-        if (password.Length < 8)
-        {
-            return false;
-        }
-
-        bool hasUpper = password.Any(char.IsUpper);
-        bool hasLower = password.Any(char.IsLower);
-        bool hasDigit = password.Any(char.IsDigit);
-        bool hasSpecial = password.Any(c => !char.IsLetterOrDigit(c));
-
-        return hasUpper && hasLower && hasDigit && hasSpecial;
     }
 
     // Gets validation error message for the current password.
@@ -144,25 +158,20 @@ public sealed class ChangePasswordViewModel : ViewModelBase
             return "Password is required.";
         }
 
-        if (NewPassword.Length < 8)
+        if (!MeetsMinimumLength)
         {
-            return "Password must be at least 8 characters long.";
+            return $"Password must be at least {MinimumPasswordLength} characters long.";
         }
-
-        bool hasUpper = NewPassword.Any(char.IsUpper);
-        bool hasLower = NewPassword.Any(char.IsLower);
-        bool hasDigit = NewPassword.Any(char.IsDigit);
-        bool hasSpecial = NewPassword.Any(c => !char.IsLetterOrDigit(c));
 
         var errors = new List<string>();
 
-        if (!hasUpper)
+        if (!HasUppercase)
             errors.Add("uppercase letter");
-        if (!hasLower)
+        if (!HasLowercase)
             errors.Add("lowercase letter");
-        if (!hasDigit)
+        if (!HasDigit)
             errors.Add("number");
-        if (!hasSpecial)
+        if (!HasSpecialCharacter)
             errors.Add("special character");
 
         if (errors.Count > 0)
@@ -216,7 +225,7 @@ public sealed class ChangePasswordViewModel : ViewModelBase
             }
 
             // Validate password complexity
-            if (!IsPasswordValid(NewPassword))
+            if (!IsNewPasswordValid)
             {
                 ErrorMessage = GetPasswordValidationError();
                 return;
