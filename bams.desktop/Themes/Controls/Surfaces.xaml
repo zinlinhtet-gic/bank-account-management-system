@@ -1,0 +1,203 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:t="clr-namespace:bams.desktop.Themes"
+                    xmlns:icon="clr-namespace:bams.desktop.Components.Icon">
+
+    <!-- Tokens this file uses. WPF cannot see sibling dictionaries, so each theme file merges its own. -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Colors.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Typography.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Icons.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ===================== Cards ===================== -->
+
+    <!-- White panel with border (design: StatCard, "Component Reference" panel). 20px padding. -->
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}"/>
+        <Setter Property="Padding" Value="{StaticResource CardPadding}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Tighter card, e.g. the filter bar above a table. 16px padding. -->
+    <Style x:Key="Card.Compact" TargetType="Border" BasedOn="{StaticResource Card}">
+        <Setter Property="Padding" Value="{StaticResource CardPaddingCompact}"/>
+    </Style>
+
+    <!-- Card without padding, for a titled table: Card.Flush > DockPanel > Card.Caption + DataGrid (BorderThickness="0"). -->
+    <Style x:Key="Card.Flush" TargetType="Border" BasedOn="{StaticResource Card}">
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+
+    <!-- Title strip at the top of a Card.Flush (design: DataTable caption). -->
+    <Style x:Key="Card.Caption" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="CornerRadius" Value="3,3,0,0"/>
+    </Style>
+
+    <!-- 1px horizontal line between sections. -->
+    <Style x:Key="Divider" TargetType="Separator">
+        <Setter Property="Margin" Value="0,24"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1" Background="{StaticResource BorderBrush}" SnapsToDevicePixels="True"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===================== Badges ===================== -->
+    <!--
+        Status pill with a coloured dot (design: Completed / Pending / Failed).
+        <ContentControl Style="{StaticResource Badge.Success}" Content="Active"/>
+        Hide the dot with t:ThemeAssist.ShowDot="False" (design: Credit / Debit tags).
+    -->
+    <Style x:Key="Badge" TargetType="ContentControl">
+        <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Background" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedForegroundBrush}"/>
+        <Setter Property="Padding" Value="8,2"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContentControl">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="{StaticResource Radius}"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="Dot" Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                     Fill="{TemplateBinding Foreground}"/>
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="t:ThemeAssist.ShowDot" Value="False">
+                            <Setter TargetName="Dot" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Active, Completed, Verified, Credit -->
+    <Style x:Key="Badge.Success" TargetType="ContentControl" BasedOn="{StaticResource Badge}">
+        <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+    </Style>
+
+    <!-- Pending, Awaiting review -->
+    <Style x:Key="Badge.Warning" TargetType="ContentControl" BasedOn="{StaticResource Badge}">
+        <Setter Property="Background" Value="{StaticResource WarningSoftBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+    </Style>
+
+    <!-- Disabled, Failed, Rejected, Debit -->
+    <Style x:Key="Badge.Danger" TargetType="ContentControl" BasedOn="{StaticResource Badge}">
+        <Setter Property="Background" Value="{StaticResource DangerSoftBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+    </Style>
+
+    <!-- Unknown / neutral states -->
+    <Style x:Key="Badge.Neutral" TargetType="ContentControl" BasedOn="{StaticResource Badge}"/>
+
+    <!-- Role names, categories. One shade darker than Secondary so it stays visible on selected table rows. -->
+    <Style x:Key="Badge.Info" TargetType="ContentControl" BasedOn="{StaticResource Badge}">
+        <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource SecondaryForegroundBrush}"/>
+        <Setter Property="t:ThemeAssist.ShowDot" Value="False"/>
+    </Style>
+
+    <!-- Solid counter, e.g. "3 selected" or a nav count -->
+    <Style x:Key="Badge.Primary" TargetType="ContentControl" BasedOn="{StaticResource Badge}">
+        <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource PrimaryForegroundBrush}"/>
+        <Setter Property="t:ThemeAssist.ShowDot" Value="False"/>
+    </Style>
+
+    <!-- ===================== Alerts ===================== -->
+    <!--
+        Message banner with an icon; the text wraps. Hide it when there is no message:
+        <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}"
+                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+    -->
+    <Style x:Key="Alert" TargetType="ContentControl">
+        <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Background" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource SecondaryForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="t:ThemeAssist.Icon" Value="{StaticResource Icon.AlertCircle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContentControl">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="3,0,0,0" CornerRadius="{StaticResource Radius}"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <icon:Icon Geometry="{TemplateBinding t:ThemeAssist.Icon}" Size="16" StrokeThickness="2"
+                                       Foreground="{TemplateBinding Foreground}" Margin="0,0,10,0" VerticalAlignment="Top"/>
+                            <TextBlock Grid.Column="1" TextWrapping="Wrap"
+                                       Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                                       Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Alert.Danger" TargetType="ContentControl" BasedOn="{StaticResource Alert}">
+        <Setter Property="Background" Value="{StaticResource DangerSoftBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}"/>
+    </Style>
+
+    <Style x:Key="Alert.Success" TargetType="ContentControl" BasedOn="{StaticResource Alert}">
+        <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+        <Setter Property="t:ThemeAssist.Icon" Value="{StaticResource Icon.Check}"/>
+    </Style>
+
+    <Style x:Key="Alert.Warning" TargetType="ContentControl" BasedOn="{StaticResource Alert}">
+        <Setter Property="Background" Value="{StaticResource WarningSoftBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+    </Style>
+
+    <Style x:Key="Alert.Info" TargetType="ContentControl" BasedOn="{StaticResource Alert}">
+        <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource SecondaryForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+    </Style>
+
+    <!-- ===================== ToolTip ===================== -->
+    <Style TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}"/>
+        <Setter Property="Foreground" Value="{StaticResource PrimaryForegroundBrush}"/>
+        <Setter Property="Background" Value="{StaticResource ForegroundBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8,4"/>
+    </Style>
+</ResourceDictionary>

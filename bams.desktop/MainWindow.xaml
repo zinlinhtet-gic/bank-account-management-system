@@ -1,6 +1,7 @@
 ﻿<Window x:Class="bams.desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:constants="clr-namespace:bams.desktop.Constants"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:nav="clr-namespace:Bams.Desktop.Components.NavBar"
@@ -11,7 +12,11 @@
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
         mc:Ignorable="d"
-        Title="DaLanBank" Height="720" Width="1280">
+        Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
+        FontFamily="{StaticResource SansFont}"
+        FontSize="{StaticResource FontSizeBody}"
+        Foreground="{StaticResource ForegroundBrush}"
+        Background="{StaticResource BackgroundBrush}">
     <Grid>
         <!-- Login View -->
         <ContentControl x:Name="LoginContentControl" Content="{Binding LoginView}"/>
@@ -20,7 +25,8 @@
         <ContentControl x:Name="ChangePasswordContentControl" Visibility="Collapsed"/>
         
         <!-- Main Application Shell -->
-        <Grid x:Name="MainAppGrid" Visibility="Collapsed">
+        <!-- Opaque so pages never need their own background and nothing underneath can show through. -->
+        <Grid x:Name="MainAppGrid" Visibility="Collapsed" Background="{StaticResource BackgroundBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -41,6 +47,10 @@
                     <!-- Fallback placeholder for pages that do not have their own view yet. -->
                     <DataTemplate DataType="{x:Type viewmodels:ViewModelBase}">
                         <pages:GenericPageView/>
+                    </DataTemplate>
+
+                    <DataTemplate DataType="{x:Type pageviewmodels:UserManagementViewModel}">
+                        <pages:UserManagementView/>
                     </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:

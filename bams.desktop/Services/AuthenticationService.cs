@@ -68,4 +68,20 @@ public sealed class AuthenticationService : IAuthenticationService
             request,
             cancellationToken);
     }
+
+    /// <summary>
+    /// Keeps the signed-in user shown as online.
+    /// </summary>
+    public Task SendHeartbeatAsync(CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<bool>(ApiConstants.HeartbeatEndpoint, cancellationToken);
+    }
+
+    /// <summary>
+    /// Marks the signed-in user offline on the server.
+    /// </summary>
+    public Task LogoutAsync(CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<bool>(ApiConstants.LogoutEndpoint, cancellationToken);
+    }
 }
