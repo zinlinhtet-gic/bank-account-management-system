@@ -71,7 +71,7 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Keeps the caller shown as online. The desktop app calls this every minute while signed in.
+    /// Keeps the caller shown as online. The desktop app calls this every 15 seconds while signed in.
     /// </summary>
     [HttpPost("heartbeat")]
     [Authorize]
