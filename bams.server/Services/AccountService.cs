@@ -196,66 +196,20 @@ public sealed class AccountService : IAccountService
         CreateAccountRequest request,
         CancellationToken cancellationToken)
     {
-        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
-        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
-            expectedVersion;
-        ValidateAccountStatusReason(reason);
-
-        var changedAt = DateTime.UtcNow;
-        var changedBy = _currentUserService.GetCurrentUserId();
-        var oldStatus = account.Status;
-
-        switch (newStatus)
-        {
-            case AccountStatus.Active:
-                await ChangeToActiveStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
-                break;
-            case AccountStatus.Closed:
-                await ChangeToClosedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
-                break;
-            case AccountStatus.Frozen:
-                await ChangeToFrozenStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
-                break;
-            case AccountStatus.Suspended:
-                await ChangeToSuspendedStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
-                break;
-            case AccountStatus.Dormant:
-                await ChangeToDormantStatusAsync(account, changedBy, reason, changedAt, cancellationToken);
-                break;
-            default:
-                throw new ValidationException(MessageCode.AccountStatusInvalid);
-        }
-
-        await _auditLogService.RecordAccountStatusUpdateLogAsync(
-            account.Id,
-            oldStatus,
-            account.Status,
-            reason,
-            changedAt,
+        var accountType = await _accountTypeService.GetAccountTypeByIdAsync(
+            request.AccountTypeId,
             cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return account.ToResponse();
-    }
-
-    // Applies the supplied adjustment to both balances and returns the updated account.
-    public async Task<AccountResponse> UpdateAccountBalanceAsync(
-        long accountId,
-        decimal balanceAdjustment,
-        long expectedVersion,
-        CancellationToken cancellationToken)
-    {
-        var account = await GetTrackedAccountByIdAsync(accountId, cancellationToken);
-        _dbContext.Entry(account).Property(existingAccount => existingAccount.Version).OriginalValue =
-            expectedVersion;
-        var oldBalance = account.AvailableBalance;
-        decimal newBalance = account.AvailableBalance + balanceAdjustment;
-
-        if (newBalance < 0)
-        {
-            throw new ValidationException(MessageCode.AccountBalanceCannotBeNegative);
-        }
-
+        var isFixedDeposit = _accountTypeService.IsFixedDeposit(accountType);
+        ValidateFixedDepositFields(request, isFixedDeposit);
+        var customers = await _accountHolderService.ResolveAndValidateHoldersAsync(request, cancellationToken);
+        await _accountHolderService.ValidateRequiredProductsAsync(accountType, customers, cancellationToken);
+        _accountTypeService.ValidateOpeningBalance(request.OpeningBalance, accountType);
+        var ownershipPercentages = _accountHolderService.ValidateOwnershipPercentages(request);
+        var documents = request.Documents ?? [];
+        await _accountDocumentService.ValidateRequiredDocumentsAsync(
+            accountType.Id,
+            documents,
+            cancellationToken);
         var now = DateTime.UtcNow;
         IReadOnlyList<string> storedFileReferences = [];
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -278,6 +232,7 @@ public sealed class AccountService : IAccountService
                 request,
                 now,
                 cancellationToken);
+
             // Persist the account first so its database identifier can organize private files.
             await _dbContext.SaveChangesAsync(cancellationToken);
             if (isFixedDeposit)

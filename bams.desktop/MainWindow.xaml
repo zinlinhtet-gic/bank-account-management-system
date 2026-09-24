@@ -47,6 +47,10 @@
                         <pages:GenericPageView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">
+                        <pages:AccountManagementView/>
+                    </DataTemplate>
+
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:
                     <DataTemplate DataType="{x:Type pageviewmodels:CustomerManagementViewModel}">
                         <pages:CustomerManagementView/>

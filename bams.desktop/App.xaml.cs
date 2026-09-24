@@ -40,6 +40,7 @@ public partial class App : Application
         services.AddSingleton<HttpClient>(sp => new HttpClient { BaseAddress = new Uri(ApiConstants.ServerBaseAddress) });
         services.AddSingleton<ApiClient>();
         services.AddSingleton<Services.IAuthenticationService, Services.AuthenticationService>();
+        services.AddSingleton<Services.IAccountManagementService, Services.AccountManagementService>();
 
         // Register Navigation Service
         services.AddSingleton<Services.INavigationService, Services.NavigationService>();
