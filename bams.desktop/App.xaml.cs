@@ -48,6 +48,14 @@ public partial class App : Application
         // Themed confirmation dialogs (use instead of MessageBox.Show)
         services.AddSingleton<Services.IDialogService, Services.DialogService>();
 
+        // Ends the session from anywhere (logout, self-delete); MainWindow returns to sign-in
+        services.AddSingleton<Services.ISessionService, Services.SessionService>();
+
+        // User Management
+        services.AddSingleton<Services.IUserService, Services.UserService>();
+        services.AddTransient<ViewModels.Pages.Users.UserFilterViewModel>();
+        services.AddTransient<ViewModels.Pages.Users.UserListViewModel>();
+
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<ChangePasswordViewModel>();

@@ -111,6 +111,7 @@ builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
 builder.Services.AddScoped<ProductSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 

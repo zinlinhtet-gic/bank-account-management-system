@@ -20,6 +20,24 @@ Controllers handle routing, binding, authorization attributes, and response enve
 - `AccountTypeService` owns product lookup, opening-balance validation, and fixed-deposit classification.
 - `FixedDepositService` owns fixed-deposit creation, payout validation, editable instructions, principal/status lifecycle operations, maturity, and renewal.
 - `AccountDocumentService` validates document requirements and coordinates private file storage.
+User Management follows the same layers:
+
+- `UsersController` (`api/users`, `[RequirePermission(user_management)]` on the class): list, roles, get, create,
+  update, `reset-password`, soft delete.
+- `IUserService` / `UserService`: validation, duplicate checks, last-manager rule, soft delete (rules in
+  `BusinessRules.md`).
+- DTOs under `DTO/Users`, mapping in `Mapping/UserMappings.cs`, limits and default passwords in
+  `Constants/UserConstants.cs`.
+- Shared helpers: `Utils/Security/PasswordHasher` (the only password hashing code) and
+  `Utils/Extensions/UserStatusExtensions.EnsureCanSignIn()` (used by login, the auth endpoints and `[RequirePermission]`).
+
+## WPF dialogs
+
+`IDialogService.Confirm` shows a yes/no confirmation; `IDialogService.ShowDialog(IDialogViewModel)` hosts any dialog
+ViewModel (forms, detail cards) in `Components/ModalDialog`, with the view picked from `Views/DialogTemplates.xaml`.
+Both dim and blur the main window. `ISessionService.EndSession()` signs out from anywhere (logout, self-delete).
+
+## Authentication and authorization errors
 
 ## Authentication and authorization
 

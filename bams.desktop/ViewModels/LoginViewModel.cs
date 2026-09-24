@@ -182,6 +182,7 @@ public sealed class LoginViewModel : ViewModelBase
                 permissionsResponse.Permissions.ToList(),
                 response.Token,
                 response.Expiration);
+            _authContext.UserId = permissionsResponse.UserId;
 
             StatusMessage = $"Welcome, {response.FullName}! Logged in as {response.Role}";
 

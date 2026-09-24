@@ -33,7 +33,9 @@ public partial class ConfirmDialog : Window
         Title = options.Title;
 
         var defaultIconKey = options.IsDestructive ? "Icon.AlertCircle" : "Icon.Check";
-        IconGlyph.Geometry = options.Icon ?? (Geometry)FindResource(defaultIconKey);
+        IconGlyph.Geometry = options.Icon
+            ?? (options.IconKey is null ? null : TryFindResource(options.IconKey) as Geometry)
+            ?? (Geometry)FindResource(defaultIconKey);
 
         if (options.IsDestructive)
         {

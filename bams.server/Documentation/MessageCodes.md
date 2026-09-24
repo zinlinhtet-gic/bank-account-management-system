@@ -21,6 +21,10 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | Code | Name | HTTP | Meaning |
 | --- | --- | --- | --- |
 | 1000 | Success | 200 | General successful operation. |
+| 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
+| 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
+| 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
+| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted (the endpoint returns 204; client-side text). |
 | 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
 | 1101 | AccountStatusUpdatedSuccessfully | 200 | Account status update succeeded. |
 | 1102 | AccountBalanceUpdatedSuccessfully | 200 | Account balance adjustment succeeded. |
@@ -128,3 +132,19 @@ The WPF client mirrors server codes below 6000 in `bams.desktop/Utils/MessageCod
 | 6002 | RequestTimeout | The server did not answer in time. |
 | 6003 | InvalidServerResponse | The server response could not be read. |
 | 6010 | CurrentPasswordIncorrect | Client text corresponding to server `InvalidCredentials`. |
+| 6010 | CurrentPasswordIncorrect | Change-password screen text for a server `InvalidCredentials`. |
+
+## Number blocks per feature
+
+Duplicate enum values compile without error, so each feature takes numbers only from its own block.
+
+| Feature                         | Success   | Validation | Not Found | Conflict  | Business rule |
+| ------------------------------- | --------- | ---------- | --------- | --------- | ------------- |
+| Common / Auth / Users           | 1000-1099 | 3000-3099  | 4200-4204 | 4300-4309 | 4400, 4480-4489 |
+| Accounts (incl. fixed deposits) | 1100-1199 | 3100-3199  | 4205-4229 | 4310-4319 | 4401-4429     |
+| Transactions / history          | 1200-1299 | 3300-3399  | 4240-4249 | 4330-4339 | 4440-4459     |
+| Customers / KYC                 | 1300-1399 | 3200-3299  | 4230-4239 | 4320-4329 | 4430-4439     |
+| Accounting / Operations / Config / Audit | 1400-1499 | 3400-3499 | 4250-4259 | 4340-4349 | 4460-4479 |
+
+Core "not found" codes 4200-4204 (Resource, Account, Customer, AccountType, User) are shared by all features. Authentication (4000-4099) and
+authorization (4100-4199) codes are added only by the permission owner.

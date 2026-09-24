@@ -220,4 +220,12 @@
         <Setter Property="t:ThemeAssist.IconSize" Value="14"/>
         <Setter Property="Content" Value="{x:Null}"/>
     </Style>
+
+    <!-- Icon-only destructive row action (Delete). Red glyph, soft red on hover; confirm before acting. -->
+    <Style x:Key="Button.IconDanger" TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+        <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+        <Setter Property="t:ThemeAssist.HoverBackground" Value="{StaticResource DangerSoftBrush}"/>
+        <Setter Property="t:ThemeAssist.HoverForeground" Value="{StaticResource DangerBrush}"/>
+        <Setter Property="t:ThemeAssist.PressedBackground" Value="{StaticResource DangerSoftBrush}"/>
+    </Style>
 </ResourceDictionary>
