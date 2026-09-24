@@ -7,6 +7,7 @@
         xmlns:header="clr-namespace:Bams.Desktop.Components.Header"
         xmlns:local="clr-namespace:bams.desktop"
         xmlns:viewmodels="clr-namespace:bams.desktop.ViewModels"
+        xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages"
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
         mc:Ignorable="d"
@@ -35,11 +36,19 @@
                        Grid.Column="1"
                        SelectedTitle="{Binding ActiveItem}"/>
             <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}">
-                <ContentControl.ContentTemplate>
+                <!-- WPF picks the template whose DataType is the most specific match for CurrentPage. -->
+                <ContentControl.Resources>
+                    <!-- Fallback placeholder for pages that do not have their own view yet. -->
                     <DataTemplate DataType="{x:Type viewmodels:ViewModelBase}">
                         <pages:GenericPageView/>
                     </DataTemplate>
-                </ContentControl.ContentTemplate>
+
+                    <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:
+                    <DataTemplate DataType="{x:Type pageviewmodels:CustomerManagementViewModel}">
+                        <pages:CustomerManagementView/>
+                    </DataTemplate>
+                    -->
+                </ContentControl.Resources>
             </ContentControl>
         </Grid>
     </Grid>

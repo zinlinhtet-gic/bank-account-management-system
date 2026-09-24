@@ -26,7 +26,7 @@ public sealed class AccountsController : ControllerBase
     /// Gets all account summaries.
     /// </summary>
     [HttpGet]
-    [RequirePermission("account_management")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
     public async Task<ActionResult<IReadOnlyList<AccountSummaryResponse>>> GetAccountsAsync(
         CancellationToken cancellationToken)
     {
@@ -39,7 +39,7 @@ public sealed class AccountsController : ControllerBase
     /// Gets a single account by its unique identifier.
     /// </summary>
     [HttpGet("{id:long}", Name = GetAccountByIdRouteName)]
-    [RequirePermission("account_management")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
     public async Task<ActionResult<AccountResponse>> GetAccountByIdAsync(
         long id,
         CancellationToken cancellationToken)
@@ -53,7 +53,7 @@ public sealed class AccountsController : ControllerBase
     /// Creates a new account from the supplied API request contract.
     /// </summary>
     [HttpPost]
-    [RequirePermission("account_management")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
     public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> CreateAccountAsync(
         CreateAccountRequest request,
         CancellationToken cancellationToken)

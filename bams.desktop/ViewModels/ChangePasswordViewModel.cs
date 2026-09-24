@@ -5,6 +5,7 @@ using bams.desktop.Commands;
 using bams.desktop.DTOs.Auth;
 using bams.desktop.Exceptions;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels;
 
@@ -244,46 +245,33 @@ public sealed class ChangePasswordViewModel : ViewModelBase
                 ErrorMessage = response.Message;
             }
         }
-        catch (NetworkException)
+        catch (AppException exception)
         {
-            ErrorMessage = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
-        }
-        catch (ApiException ex)
-        {
-            // Provide more specific error messages based on the exception message
-            if (ex.Message.Contains("Invalid credentials") || ex.Message.Contains("current password"))
-            {
-                ErrorMessage = "Current password is incorrect. Please verify your password and try again.";
-            }
-            else if (ex.Message.Contains("Password must be at least") || ex.Message.Contains("does not meet requirements"))
-            {
-                ErrorMessage = GetPasswordValidationError();
-            }
-            else if (ex.Message.Contains("Account not found") || ex.Message.Contains("User not found"))
-            {
-                ErrorMessage = "Account not found. Your session may have expired. Please log in again.";
-            }
-            else if (ex.Message.Contains("Authentication required") || ex.Message.Contains("Unauthorized"))
-            {
-                ErrorMessage = "Authentication session expired. Please log in again.";
-            }
-            else if (ex.Message.Contains("Access denied"))
-            {
-                ErrorMessage = "Access denied. You do not have permission to change your password.";
-            }
-            else
-            {
-                ErrorMessage = $"Password change error: {ex.Message}";
-            }
+            ErrorMessage = GetChangePasswordErrorMessage(exception);
         }
         catch (Exception)
         {
-            ErrorMessage = "An unexpected error occurred during password change. Please try again or contact support if the problem persists.";
+            ErrorMessage = MessageCatalog.GetMessage(MessageCode.ClientError);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    // Chooses the message for a failed password change based on the stable MessageCode.
+    private string GetChangePasswordErrorMessage(AppException exception)
+    {
+        return exception.Code switch
+        {
+            // On this screen the server's InvalidCredentials means the current password was wrong.
+            MessageCode.InvalidCredentials => MessageCatalog.GetMessage(MessageCode.CurrentPasswordIncorrect),
+
+            // Show which specific rules the new password is missing.
+            MessageCode.PasswordDoesNotMeetRequirements => GetPasswordValidationError(),
+
+            _ => exception.Message
+        };
     }
 
     // Event raised when password change is successful for navigation purposes
