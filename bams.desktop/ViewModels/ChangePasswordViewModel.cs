@@ -231,6 +231,14 @@ public sealed class ChangePasswordViewModel : ViewModelBase
                 return;
             }
 
+            // A password change must actually change the password. The server also rejects the role default
+            // passwords, which the client does not know.
+            if (NewPassword == CurrentPassword)
+            {
+                ErrorMessage = MessageCatalog.GetMessage(MessageCode.NewPasswordSameAsCurrent);
+                return;
+            }
+
             var request = new ChangePasswordRequest(CurrentPassword, NewPassword);
             var response = await _authenticationService.ChangePasswordAsync(request, cancellationToken);
 
@@ -245,6 +253,7 @@ public sealed class ChangePasswordViewModel : ViewModelBase
                     permissionsResponse.Permissions.ToList(),
                     _authContext.Token ?? string.Empty,
                     _authContext.TokenExpiry);
+                _authContext.UserId = permissionsResponse.UserId;
 
                 StatusMessage = response.Message;
                 OnPasswordChangeSuccess?.Invoke();

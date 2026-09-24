@@ -11,13 +11,18 @@ namespace bams.desktop.Services;
 /// <param name="CancelText">Label of the cancel button.</param>
 /// <param name="IsDestructive">True for irreversible or risky actions: red icon and solid red confirm button.</param>
 /// <param name="Icon">Optional icon geometry (an <c>Icon.*</c> resource); a default is used when null.</param>
+/// <param name="IconKey">
+/// Optional icon resource key such as "Icon.Key", for ViewModels that should not touch WPF resources.
+/// Used when <paramref name="Icon"/> is null.
+/// </param>
 public sealed record ConfirmDialogOptions(
     string Title,
     string Message,
     string ConfirmText,
     string CancelText = "Cancel",
     bool IsDestructive = false,
-    Geometry? Icon = null);
+    Geometry? Icon = null,
+    string? IconKey = null);
 
 /// <summary>
 /// Shows themed modal dialogs. Use this instead of <c>MessageBox.Show</c> so every prompt matches the design
@@ -30,4 +35,11 @@ public interface IDialogService
     /// </summary>
     /// <returns>True when the user confirmed; false when they cancelled, pressed Esc, or clicked outside.</returns>
     bool Confirm(ConfirmDialogOptions options);
+
+    /// <summary>
+    /// Shows a dialog ViewModel (a form, a detail card...) in a themed modal over the blurred main window.
+    /// Its view is the <c>DataTemplate</c> for the ViewModel type in <c>Views/DialogTemplates.xaml</c>.
+    /// </summary>
+    /// <returns>True when the ViewModel closed itself as completed (e.g. saved); false when cancelled.</returns>
+    bool ShowDialog(ViewModels.IDialogViewModel viewModel);
 }

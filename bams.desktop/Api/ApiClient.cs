@@ -76,6 +76,21 @@ public sealed class ApiClient
     }
 
     /// <summary>
+    /// Sends a POST request without a body (state-change actions such as reset-password) and returns the
+    /// <c>Data</c> payload of the server response.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public Task<TResponse> PostAsync<TResponse>(
+        string endpoint,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.PostAsync(endpoint, content: null, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Sends a JSON PUT request (full update) and returns the <c>Data</c> payload of the server response.
     /// </summary>
     /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>

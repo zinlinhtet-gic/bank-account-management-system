@@ -24,7 +24,8 @@
         <ContentControl x:Name="ChangePasswordContentControl" Visibility="Collapsed"/>
         
         <!-- Main Application Shell -->
-        <Grid x:Name="MainAppGrid" Visibility="Collapsed">
+        <!-- Opaque so pages never need their own background and nothing underneath can show through. -->
+        <Grid x:Name="MainAppGrid" Visibility="Collapsed" Background="{StaticResource BackgroundBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -45,6 +46,10 @@
                     <!-- Fallback placeholder for pages that do not have their own view yet. -->
                     <DataTemplate DataType="{x:Type viewmodels:ViewModelBase}">
                         <pages:GenericPageView/>
+                    </DataTemplate>
+
+                    <DataTemplate DataType="{x:Type pageviewmodels:UserManagementViewModel}">
+                        <pages:UserManagementView/>
                     </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:

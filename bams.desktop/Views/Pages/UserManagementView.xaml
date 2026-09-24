@@ -1,0 +1,165 @@
+<UserControl x:Class="bams.desktop.Views.Pages.UserManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:b="clr-namespace:bams.desktop.Behaviors"
+             xmlns:search="clr-namespace:bams.desktop.Components.SearchBox">
+    <!--
+        User Management page. DataContext: UserManagementViewModel.
+        Filter bar (Filter) → outcome banners → titled user table (List) with row actions.
+        Clicking a row opens the detail card; the row buttons edit, reset the password or delete.
+    -->
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== Filter bar ===== -->
+        <Border Style="{StaticResource Card.Compact}" DataContext="{Binding Filter}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="220" MaxWidth="360"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="SEARCH" Style="{StaticResource Text.FieldLabel}"/>
+                    <search:SearchBox Text="{Binding SearchText, Mode=TwoWay}" Placeholder="Search"
+                                      SearchCommand="{Binding SearchCommand}"
+                                      ToolTip="Username, full name or email. Press Enter or click the icon."/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="ROLE" Style="{StaticResource Text.FieldLabel}"/>
+                    <ComboBox Style="{StaticResource Input.Select}"
+                              ItemsSource="{Binding RoleOptions}" DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding SelectedRole, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="CREATED FROM" Style="{StaticResource Text.FieldLabel}"/>
+                    <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding CreatedFrom, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="CREATED TO" Style="{StaticResource Text.FieldLabel}"/>
+                    <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding CreatedTo, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <Button Grid.Column="8" Content="Reset" VerticalAlignment="Bottom"
+                        Style="{StaticResource Button.Ghost}" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"
+                        ToolTip="Clear all filters and show every user"
+                        Command="{Binding ResetFiltersCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- ===== Outcome banners ===== -->
+        <StackPanel Grid.Row="1">
+            <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
+                            Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <ContentControl Style="{StaticResource Alert.Success}" Content="{Binding SuccessMessage}" Margin="0,16,0,0"
+                            Visibility="{Binding HasSuccess, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </StackPanel>
+
+        <!-- ===== User table ===== -->
+        <Border Grid.Row="2" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0"
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"
+                                    t:ThemeAssist.IsLoading="{Binding List.IsLoading}"
+                                    Command="{Binding RefreshCommand}"/>
+                            <Button Content="New user" Style="{StaticResource Button.Primary}" t:ThemeAssist.Size="Small"
+                                    t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}"
+                                    Command="{Binding CreateUserCommand}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Staff users" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
+                            <ContentControl Style="{StaticResource Badge.Neutral}" t:ThemeAssist.ShowDot="False"
+                                            Content="{Binding List.CountText}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Grid>
+                    <!-- Row click (or Enter) opens the detail card; clicks on the row buttons do not. -->
+                    <DataGrid Style="{StaticResource Table}" BorderThickness="0" Cursor="Hand"
+                              ItemsSource="{Binding List.Users}"
+                              b:DataGridRowClick.Command="{Binding ShowUserDetailsCommand}">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Username" Width="190" SortMemberPath="Username">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Username}" Style="{StaticResource Table.Text.Code}"/>
+                                            <ContentControl Style="{StaticResource Badge.Primary}" Content="You" Margin="8,0,0,0"
+                                                            Visibility="{Binding IsCurrentUser, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Full name" Binding="{Binding FullName}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+
+                            <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTemplateColumn Header="Role" Width="120" SortMemberPath="RoleName">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl Style="{StaticResource Badge.Info}" Content="{Binding RoleName}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtText}" Width="120"
+                                                SortMemberPath="CreatedAt" ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTemplateColumn Header="Actions" Width="112" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Cursor="Arrow">
+                                            <Button Style="{StaticResource Button.Icon}" ToolTip="Edit user"
+                                                    t:ThemeAssist.Icon="{StaticResource Icon.Edit}"
+                                                    Command="{Binding DataContext.EditUserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <Button Style="{StaticResource Button.Icon}" ToolTip="Reset password" Margin="4,0"
+                                                    t:ThemeAssist.Icon="{StaticResource Icon.Key}"
+                                                    Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <Button Style="{StaticResource Button.IconDanger}" ToolTip="Delete user"
+                                                    t:ThemeAssist.Icon="{StaticResource Icon.Trash}"
+                                                    Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Empty state under the column headers -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,72,0,0" IsHitTestVisible="False"
+                                Visibility="{Binding List.IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="No users found" Style="{StaticResource Text.Subheading}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Try another search or clear the filters with Reset." Style="{StaticResource Text.BodyMuted}"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

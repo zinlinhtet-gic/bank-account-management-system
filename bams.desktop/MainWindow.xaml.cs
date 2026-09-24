@@ -13,18 +13,19 @@ namespace bams.desktop;
 public partial class MainWindow : Window
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly AuthContext _authContext;
-    private readonly IAuthenticationService _authenticationService;
     private readonly IDialogService _dialogService;
+    private readonly ISessionService _sessionService;
 
     public MainWindow(IServiceProvider serviceProvider)
     {
         InitializeComponent();
 
         _serviceProvider = serviceProvider;
-        _authContext = _serviceProvider.GetRequiredService<AuthContext>();
-        _authenticationService = _serviceProvider.GetRequiredService<IAuthenticationService>();
         _dialogService = _serviceProvider.GetRequiredService<IDialogService>();
+        _sessionService = _serviceProvider.GetRequiredService<ISessionService>();
+
+        // Whoever ends the session (logout button, self-delete...), the window returns to sign-in.
+        _sessionService.SessionEnded += ShowLoginView;
 
         // Show login view on startup
         ShowLoginView();
@@ -74,12 +75,15 @@ public partial class MainWindow : Window
         // Set the data context for the main window
         DataContext = mainViewModel;
         
-        // Hide login view, show main app
+        // Hide the login and change-password views (the latter stays behind after a first login otherwise
+        // and shows through any page area without its own background), then show the main app.
         LoginContentControl.Content = null;
+        ChangePasswordContentControl.Content = null;
+        ChangePasswordContentControl.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
     }
 
-    // Asks the user to confirm, then clears the session and returns to the sign-in screen.
+    // Asks the user to confirm, then ends the session (SessionEnded shows the sign-in screen).
     private void HandleLogoutRequested()
     {
         var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
@@ -95,8 +99,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        _authenticationService.ClearAuthToken();
-        _authContext.ClearSession();
-        ShowLoginView();
+        _sessionService.EndSession();
     }
 }
