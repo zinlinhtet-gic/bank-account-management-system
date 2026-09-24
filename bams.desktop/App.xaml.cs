@@ -44,6 +44,9 @@ public partial class App : Application
         // Register Navigation Service
         services.AddSingleton<Services.INavigationService, Services.NavigationService>();
 
+        // Themed confirmation dialogs (use instead of MessageBox.Show)
+        services.AddSingleton<Services.IDialogService, Services.DialogService>();
+
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<ChangePasswordViewModel>();

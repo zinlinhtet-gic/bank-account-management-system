@@ -22,6 +22,7 @@ Read together with:
 8. Rules cheat sheet
 9. Pull request checklist
 10. Common mistakes
+11. UI styles (shared theme from the Figma design)
 
 ---
 
@@ -760,56 +761,81 @@ update state → `catch (AppException)` → set `ErrorMessage` → `finally IsBu
 
 ### D7. View: the XAML
 
-`Views/Pages/CustomerManagementView.xaml`. Use the theme brushes (`Themes/Colors.xaml`), not hard-coded colours:
-`BackgroundBrush`, `CardBrush`, `BorderBrush`, `ForegroundBrush`, `MutedForegroundBrush`, `AccentBrush`,
-`PrimaryBrush`, `DangerBrush`, `SecondaryBrush`, `HoverBrush`. Fonts: `SansFont`, `SerifFont`, `MonoFont`.
+`Views/Pages/CustomerManagementView.xaml`. Build it **only from the shared styles** in section 11
+(buttons, inputs, table, cards, badges, text). Never set colours, fonts, font sizes or corner radius by hand;
+that is what keeps every page looking like the Figma design.
 
 ```xml
 <UserControl x:Class="bams.desktop.Views.Pages.CustomerManagementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Background="{StaticResource BackgroundBrush}" Margin="24">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+    <Grid Margin="{StaticResource PagePadding}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>   <!-- toolbar -->
+            <RowDefinition Height="Auto"/>   <!-- create form -->
             <RowDefinition Height="Auto"/>   <!-- messages -->
             <RowDefinition Height="*"/>      <!-- list -->
-            <RowDefinition Height="Auto"/>   <!-- create form -->
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal">
-            <Button Content="Refresh" Command="{Binding RefreshCustomersCommand}" Padding="12,6"/>
-        </StackPanel>
-
-        <StackPanel Grid.Row="1" Margin="0,12,0,0">
-            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap"
-                       Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap"/>
-        </StackPanel>
-
-        <Border Grid.Row="2" Margin="0,12,0,0" Background="{StaticResource CardBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6">
-            <DataGrid ItemsSource="{Binding Customers}" AutoGenerateColumns="False" IsReadOnly="True"
-                      HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Customer No" Binding="{Binding CustomerNo}" Width="160"/>
-                    <DataGridTextColumn Header="Full Name" Binding="{Binding FullName}" Width="*"/>
-                    <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="140"/>
-                    <DataGridTextColumn Header="KYC" Binding="{Binding KycStatus}" Width="100"/>
-                </DataGrid.Columns>
-            </DataGrid>
+        <!-- Create form. Hidden for users who may only view (e.g. auditors). -->
+        <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,16"
+                Visibility="{Binding CanCreateCustomers, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Width="260">
+                    <TextBlock Text="FULL NAME" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Aung Aung"
+                             Text="{Binding NewFullName, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Width="180" Margin="16,0,0,0">
+                    <TextBlock Text="DATE OF BIRTH" Style="{StaticResource Text.FieldLabel}"/>
+                    <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding NewDateOfBirth}"/>
+                </StackPanel>
+                <Button Content="Create Customer" Margin="16,0,0,0" VerticalAlignment="Bottom"
+                        Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}"
+                        Command="{Binding CreateCustomerCommand}"/>
+            </StackPanel>
         </Border>
 
-        <!-- Hidden for users who may only view (e.g. auditors). -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,16,0,0"
-                    Visibility="{Binding CanCreateCustomers, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <TextBox Text="{Binding NewFullName, UpdateSourceTrigger=PropertyChanged}" Width="240" Padding="6"/>
-            <DatePicker SelectedDate="{Binding NewDateOfBirth}" Margin="8,0,0,0"/>
-            <Button Content="Create Customer" Command="{Binding CreateCustomerCommand}" Margin="8,0,0,0" Padding="12,6"
-                    Background="{StaticResource PrimaryBrush}" Foreground="{StaticResource PrimaryForegroundBrush}"/>
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource Text.Error}"
+                       Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Success}"/>
         </StackPanel>
+
+        <!-- Titled table: Card.Flush > Card.Caption + DataGrid -->
+        <Border Grid.Row="2" Style="{StaticResource Card.Flush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Ghost}"
+                                t:ThemeAssist.Size="Small" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"
+                                Command="{Binding RefreshCustomersCommand}"/>
+                        <TextBlock Text="Customers" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
+                <DataGrid Style="{StaticResource Table}" BorderThickness="0" ItemsSource="{Binding Customers}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Customer No" Binding="{Binding CustomerNo}" Width="160"
+                                            ElementStyle="{StaticResource Table.Text.Code}"/>
+                        <DataGridTextColumn Header="Full name" Binding="{Binding FullName}" Width="*"/>
+                        <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="140"
+                                            ElementStyle="{StaticResource Table.Text.Muted}"/>
+                        <DataGridTemplateColumn Header="KYC" Width="120" CanUserSort="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ContentControl Style="{StaticResource Badge.Warning}" Content="{Binding KycStatus}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
     </Grid>
 </UserControl>
 ```
+
+(For a real KYC column, switch the badge by status: see the `DataTrigger` example in section 11.)
 
 Code-behind (`CustomerManagementView.xaml.cs`) stays empty except `InitializeComponent()`:
 
@@ -971,6 +997,7 @@ If check 3 prints your controller, add `[RequirePermission(...)]` to every actio
 | `catch (AppException ex)` and use `ex.Code`               | `ex.Message.Contains("...")`, `MessageBox.Show` in a ViewModel |
 | Services use `ApiClient`                                  | `new HttpClient()` or setting the token yourself        |
 | Bindings + commands in XAML                               | Button `Click` handlers with logic in code-behind       |
+| Shared styles from section 11 (`Button.Primary`, `Input.Text`, `Table`...) | Hex colours, `FontSize="13"`, custom button templates in a page |
 | Comment every public / significant method                 | Comments that only repeat the code                      |
 | Update docs (`MessageCodes.md`, `BusinessRules.md`) with the code | "Docs later"                                    |
 
@@ -1021,5 +1048,223 @@ General
 
 ---
 
+## 11. UI Styles (Shared Theme from the Figma Design)
+
+All pages share one design system, built from the "Banking System Components" Figma Make file.
+It lives in `bams.desktop/Themes/` and is loaded once by `App.xaml`, so every style below is available
+in every view with `{StaticResource ...}`. A rendered preview of everything is in
+`bams.desktop/Themes/theme-preview.png`: open it to see what each style looks like.
+
+Add this namespace to a view that uses buttons with icons, sizes, placeholders or error states:
+
+```xml
+xmlns:t="clr-namespace:bams.desktop.Themes"
+```
+
+**Rule: if the style you need does not exist, ask the theme owner to add it to `Themes/`.
+Do not create a one-off style inside your page.**
+
+### Files
+
+| File                          | What it holds                                                        |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `Theme.xaml`                  | Entry point that merges everything below (App.xaml loads only this)  |
+| `Colors.xaml`                 | Colour tokens (`*Brush`), radius, spacing, shadow                    |
+| `Typography.xaml`             | Fonts and text styles (`Text.*`)                                     |
+| `Icons.xaml`                  | Icon geometries (`Icon.*`)                                           |
+| `Controls/Buttons.xaml`       | `Button.*`                                                           |
+| `Controls/Inputs.xaml`        | `Input.*` (TextBox, PasswordBox, ComboBox, CheckBox, RadioButton, DatePicker) |
+| `Controls/DataGrid.xaml`      | `Table`, `Table.Text.*`                                              |
+| `Controls/Surfaces.xaml`      | `Card*`, `Divider`, `Badge.*`, tooltips                              |
+| `Controls/ScrollBars.xaml`    | Thin scrollbars (applied automatically)                              |
+| `ThemeAssist.cs`              | Attached properties: `t:ThemeAssist.Size`, `.Icon`, `.IsLoading`, `.Placeholder`, `.Prefix`, `.HasError`, `.ShowDot` |
+| `Fonts/`                      | Bundled Inter, JetBrains Mono, DM Serif Display (open-source licences) |
+| `Components/StatCard/`        | The design's summary tile                                            |
+
+### Colours (use the Brush, never a hex value)
+
+| Brush                        | Use for                                               |
+| ---------------------------- | ----------------------------------------------------- |
+| `BackgroundBrush`            | Page background (already set on the main window)      |
+| `CardBrush`                  | Cards, inputs, tables                                 |
+| `ForegroundBrush`            | Main text                                             |
+| `MutedForegroundBrush`       | Labels, captions, secondary text                      |
+| `BorderBrush`                | All borders and dividers                              |
+| `PrimaryBrush`               | Main actions, selection, focus                        |
+| `SecondaryBrush`             | Secondary buttons, selected rows, active nav          |
+| `MutedBrush`                 | Table header, alternating rows, disabled inputs       |
+| `AccentBrush`                | Gold highlight: pending, active marker (use sparingly) |
+| `SuccessBrush` / `DangerBrush` | Positive / negative values and states               |
+| `SuccessSoftBrush`, `WarningSoftBrush`, `DangerSoftBrush` | Tinted backgrounds (badges)  |
+
+Spacing: `PagePadding` (24) around a page, `CardPadding` (20), `CardPaddingCompact` (16).
+
+### Text
+
+| Style              | Looks like                          | Use for                               |
+| ------------------ | ----------------------------------- | ------------------------------------- |
+| `Text.Display`     | 30 DM Serif                         | Big report titles                     |
+| `Text.Heading`     | 20 DM Serif                         | Section / dialog titles               |
+| `Text.CardTitle`   | 16 DM Serif                         | Card titles                           |
+| `Text.Subheading`  | 16 Inter SemiBold                   | Sub-headings inside a card            |
+| `Text.Title`       | 14 Inter SemiBold                   | Table captions                        |
+| `Text.Body` / `Text.BodyMuted` | 14 Inter (wraps)        | Paragraphs                            |
+| `Text.Caption`     | 12 muted                            | Timestamps, helper text               |
+| `Text.FieldLabel`  | 12 Medium muted, CAPITALS           | Label above an input                  |
+| `Text.Label`       | 11 SemiBold muted, CAPITALS         | Small section labels                  |
+| `Text.Hint` / `Text.Error` / `Text.Success` | 12 under an input | Helper / validation / success messages |
+| `Text.Mono`        | 13 JetBrains Mono                   | Account numbers, amounts, references  |
+| `Text.MonoLarge`   | 24 JetBrains Mono SemiBold          | Big numbers                           |
+
+WPF cannot upper-case text automatically, so write labels in CAPITALS (`Text="ACCOUNT NAME"`).
+Table headers are the exception: they are upper-cased for you.
+
+### Buttons
+
+```xml
+<Button Content="Save" Style="{StaticResource Button.Primary}" Command="{Binding SaveCommand}"/>
+<Button Content="New User" Style="{StaticResource Button.Primary}"
+        t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" t:ThemeAssist.Size="Small"/>
+<Button Content="Export" Style="{StaticResource Button.Accent}" t:ThemeAssist.IsLoading="{Binding IsExporting}"/>
+<Button Style="{StaticResource Button.Icon}" t:ThemeAssist.Icon="{StaticResource Icon.Edit}" ToolTip="Edit"
+        Command="{Binding DataContext.EditUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+        CommandParameter="{Binding}"/>
+```
+
+| Style              | When                                                  |
+| ------------------ | ----------------------------------------------------- |
+| `Button.Primary`   | The main action of an area (one per area)             |
+| `Button.Secondary` | Supporting actions: Search, Apply Filter, Cancel      |
+| `Button.Accent`    | Gold highlighted action: Export, Approve (rarely)     |
+| `Button.Ghost`     | Low-emphasis: Reset, Refresh, toolbar actions         |
+| `Button.Danger`    | Destructive: Disable, Delete, Logout (confirm first)  |
+| `Button.DangerSolid` | The final "yes" button of a destructive confirmation |
+| `Button.Icon`      | Icon-only row/toolbar button (always set `ToolTip`)   |
+
+Sizes: `t:ThemeAssist.Size="Small"` (28px, toolbars and filter bars), default Medium (36px, forms),
+`"Large"` (44px, rare). Disabled buttons fade automatically when the command cannot execute.
+
+### Form fields
+
+```xml
+<StackPanel>
+    <TextBlock Text="EMAIL" Style="{StaticResource Text.FieldLabel}"/>
+    <TextBox Style="{StaticResource Input.Text}" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
+             t:ThemeAssist.Placeholder="name@bams.local" t:ThemeAssist.HasError="{Binding HasEmailError}"/>
+    <TextBlock Text="{Binding EmailError}" Style="{StaticResource Text.Error}"/>
+</StackPanel>
+```
+
+| Style              | Control      | Extras                                                            |
+| ------------------ | ------------ | ----------------------------------------------------------------- |
+| `Input.Text`       | TextBox      | `t:ThemeAssist.Placeholder`, `.Prefix="MMK"`, `.HasError`; `AcceptsReturn="True"` for multi-line |
+| `Input.Password`   | PasswordBox  | `.HasError` (no placeholder: WPF limitation)                      |
+| `Input.Select`     | ComboBox     | `.Placeholder`, `.HasError`                                       |
+| `Input.Check`      | CheckBox     | Content is the label                                              |
+| `Input.Radio`      | RadioButton  | Content can be a StackPanel: `Text.Title` + `Text.Caption`        |
+| `Input.Date`       | DatePicker   | Light styling only                                                |
+
+### Tables
+
+Always use `Style="{StaticResource Table}"`; wrap it in `Card.Flush` with a `Card.Caption` for a title
+(see D7). Column text styles: `Table.Text.Mono` (amounts, right-aligned), `Table.Text.Code`
+(reference numbers), `Table.Text.Muted` (secondary columns). Sorting arrows appear automatically.
+
+### Cards, dividers, badges
+
+| Style           | Element          | Use for                                               |
+| --------------- | ---------------- | ----------------------------------------------------- |
+| `Card`          | Border           | Any white panel (20px padding)                        |
+| `Card.Compact`  | Border           | Filter bars (16px padding)                            |
+| `Card.Flush` + `Card.Caption` | Border | Titled table                                   |
+| `Divider`       | Separator        | Line between sections                                 |
+| `Badge.Success` / `.Warning` / `.Danger` / `.Neutral` | ContentControl | Status with a dot: Active, Pending, Disabled |
+| `Badge.Info`    | ContentControl   | Roles and categories (no dot)                         |
+| `Badge.Primary` | ContentControl   | Counters: "3 selected"                                |
+| `Alert.Danger` / `.Success` / `.Warning` / `.Info` | ContentControl | Message banner with icon, text wraps (errors, confirmations) |
+
+Show a page's error or success message as a banner:
+
+```xml
+<ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}"
+                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+```
+
+### Password fields
+
+Never use a raw `PasswordBox` (WPF cannot bind its value). Use the shared component, which also has the
+show/hide eye button:
+
+```xml
+xmlns:pwd="clr-namespace:bams.desktop.Components.PasswordInput"
+
+<TextBlock Text="PASSWORD" Style="{StaticResource Text.FieldLabel}"/>
+<pwd:PasswordInput Password="{Binding Password}" HasError="{Binding HasPasswordError}"/>
+```
+
+The login and change-password screens (`Views/LoginView.xaml`, `Views/ChangePasswordView.xaml`) are complete
+examples of a form built only from shared styles.
+
+### Confirmation dialogs
+
+Never call `MessageBox.Show`. Inject `IDialogService` into your ViewModel and ask before risky actions;
+the dialog dims the window and matches the theme (Esc / click outside = cancel, Enter = confirm):
+
+```csharp
+public UserManagementViewModel(IUserService userService, IDialogService dialogService) { ... }
+
+// Asks before disabling, because the user loses access immediately.
+private async Task DisableUserAsync(object? parameter)
+{
+    if (parameter is not UserSummaryResponse user) return;
+
+    var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
+        Title: $"Disable {user.FullName}?",
+        Message: "They will be signed out and cannot log in until an administrator enables the account again.",
+        ConfirmText: "Disable user",
+        IsDestructive: true));   // red icon + solid red button; false = blue, for normal confirmations
+
+    if (!confirmed) return;
+    ...
+}
+```
+
+`MainWindow`'s logout confirmation is the reference example.
+
+Switch a badge by value inside a table cell:
+
+```xml
+<DataTemplate>
+    <ContentControl x:Name="StatusBadge" Style="{StaticResource Badge.Success}" Content="{Binding StatusText}"/>
+    <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding IsActive}" Value="False">
+            <Setter TargetName="StatusBadge" Property="Style" Value="{StaticResource Badge.Danger}"/>
+        </DataTrigger>
+    </DataTemplate.Triggers>
+</DataTemplate>
+```
+
+### Stat cards
+
+```xml
+xmlns:stat="clr-namespace:bams.desktop.Components.StatCard"
+
+<stat:StatCard Label="ACTIVE USERS" Value="{Binding ActiveUserCount}" SubValue="of all staff"
+               Icon="{StaticResource Icon.UserCheck}" AccentBrush="{StaticResource SuccessBrush}"/>
+```
+
+`Trend="3.2"` adds a green ▲ 3.2%; a negative value shows a red ▼. Lay several out with `<UniformGrid Columns="4">`.
+
+### Icons
+
+Use with `t:ThemeAssist.Icon` on buttons or `<icon:Icon Geometry="{StaticResource Icon.X}"/>`
+(`xmlns:icon="clr-namespace:bams.desktop.Components.Icon"`). Available:
+`Dashboard, Accounts, Transactions, Transfers, Loans, Reports, Settings, Bank, Menu, MenuNarrow, Bell,
+Search, Logout, Plus, Users, UserCheck, UserPlus, UserX, Finance, Shield, Check, ChevronDown, Close, Eye, EyeOff,
+Edit, Lock, Unlock, Refresh, Download, AlertCircle, Key`. Need another one? Take it from the Feather icon
+set (the one the design uses) and add it to `Themes/Icons.xaml`.
+
+---
+
 *Last Updated: 2026-09-24*
-*Version: 1.0*
+*Version: 1.1: added section 11 (shared UI styles)*

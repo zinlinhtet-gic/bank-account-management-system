@@ -6,8 +6,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Themes/Colors.xaml"/>
-                <ResourceDictionary Source="Themes/Icons.xaml"/>
+                <!-- Shared design system: colours, fonts, icons and control styles. -->
+                <ResourceDictionary Source="Themes/Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <conv:CollapsedWidthConverter x:Key="CollapsedWidthConverter"/>
             <conv:BoolToCollapsedVisibilityConverter x:Key="BoolToCollapsedVisibility"/>
