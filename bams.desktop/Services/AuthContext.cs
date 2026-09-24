@@ -27,6 +27,12 @@ public sealed class AuthContext : INotifyPropertyChanged
         _permissions = new List<string>();
     }
 
+    /// <summary>
+    /// The signed-in user's id, set once permissions are loaded. Use it to recognise the user's own record
+    /// (e.g. self-delete); never send it to the server as "who is acting", the server reads that from the token.
+    /// </summary>
+    public long? UserId { get; set; }
+
     public string? Username
     {
         get => _username;
@@ -178,6 +184,7 @@ public sealed class AuthContext : INotifyPropertyChanged
     /// </summary>
     public void ClearSession()
     {
+        UserId = null;
         Username = null;
         FullName = null;
         Role = null;

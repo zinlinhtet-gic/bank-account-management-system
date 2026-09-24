@@ -1,0 +1,121 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Users.UserFormDialogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
+             Width="520">
+    <!--
+        Create / edit user form, hosted by ModalDialog. DataContext: UserFormViewModel.
+        Enter saves (default button); Esc cancels unless a save is running.
+    -->
+    <StackPanel>
+        <!-- Header: tinted icon + title + subtitle (same pattern as the confirmation dialog) -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Width="44" Height="44" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource SecondaryBrush}"/>
+                <icon:Icon x:Name="HeaderIcon" Size="20" StrokeThickness="2" Foreground="{StaticResource PrimaryBrush}"
+                           Geometry="{StaticResource Icon.UserPlus}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}"/>
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.BodyMuted}" Margin="0,2,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Fields: locked while saving -->
+        <Grid Margin="0,24,0,0" IsEnabled="{Binding IsNotBusy}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Row 0: first + last name (merged into FullName) -->
+            <StackPanel Grid.Row="0" Grid.Column="0">
+                <TextBlock Text="FIRST NAME" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox x:Name="FirstNameBox" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Aung"
+                         Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasFirstNameError}"/>
+                <TextBlock Text="{Binding FirstNameError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasFirstNameError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+            <StackPanel Grid.Row="0" Grid.Column="2">
+                <TextBlock Text="LAST NAME (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Kyaw Moe"
+                         Text="{Binding LastName, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+
+            <!-- Row 1: username -->
+            <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,16,0,0">
+                <TextBlock Text="USERNAME" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. aung.kyawmoe"
+                         Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasUsernameError}"/>
+                <TextBlock Text="Used to sign in. Letters, numbers, dot, underscore or hyphen; no spaces."
+                           Style="{StaticResource Text.Hint}"
+                           Visibility="{Binding HasUsernameError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                <TextBlock Text="{Binding UsernameError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasUsernameError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+
+            <!-- Row 2: email -->
+            <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Margin="0,16,0,0">
+                <TextBlock Text="EMAIL" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="name@bams.local"
+                         Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasEmailError}"/>
+                <TextBlock Text="{Binding EmailError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasEmailError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+
+            <!-- Row 3: role + phone -->
+            <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,16,0,0">
+                <TextBlock Text="ROLE" Style="{StaticResource Text.FieldLabel}"/>
+                <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a role"
+                          ItemsSource="{Binding Roles}" DisplayMemberPath="DisplayName"
+                          SelectedItem="{Binding SelectedRole, Mode=TwoWay}"
+                          t:ThemeAssist.HasError="{Binding HasRoleError}"/>
+                <TextBlock Text="{Binding RoleError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasRoleError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+            <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,16,0,0">
+                <TextBlock Text="PHONE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 09 123 456 789"
+                         Text="{Binding Phone, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasPhoneError}"/>
+                <TextBlock Text="{Binding PhoneError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasPhoneError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Notices -->
+        <ContentControl Style="{StaticResource Alert.Info}" Margin="0,20,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Key}"
+                        Content="{Binding DefaultPasswordNotice}"
+                        Visibility="{Binding HasDefaultPasswordNotice, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        <ContentControl Style="{StaticResource Alert.Warning}" Margin="0,20,0,0"
+                        Content="This is your own account. Changing your role signs you out."
+                        Visibility="{Binding ShowsOwnRoleWarning, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,20,0,0" Content="{Binding FormError}"
+                        Visibility="{Binding HasFormError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- Actions -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button Content="Cancel" Style="{StaticResource Button.Secondary}" MinWidth="96" Margin="0,0,8,0"
+                    Command="{Binding CancelCommand}"/>
+            <Button Content="{Binding SaveText}" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
+                    t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                    Command="{Binding SaveCommand}"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

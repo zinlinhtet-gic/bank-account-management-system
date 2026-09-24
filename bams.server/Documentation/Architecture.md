@@ -37,6 +37,26 @@ Creating a customer with documents is a single transactional operation: `Custome
 
 - `RoleConstants` defines the three stable role codes (`Manager`, `Officer`, `Auditor`) used by code that needs to check a user's role (e.g. `CustomerService.ReviewCustomerKycAsync` requiring `Manager`).
 - `Data/Seeders/SecuritySeeder.cs` seeds those three `Role` rows and one example `User` per role (with their `UserRole` assignment) — only in `IsDevelopment()` (wired up in `Program.cs`), and only if `Roles`/`Users` are empty, so it never runs against, or overwrites, a real environment. Seeded users get a placeholder, non-functional `PasswordHash` since authentication isn't implemented yet.
+  User Management follows the same layers:
+
+- `UsersController` (`api/users`, `[RequirePermission(user_management)]` on the class): list, roles, get, create,
+  update, `reset-password`, soft delete.
+- `IUserService` / `UserService`: validation, duplicate checks, last-manager rule, soft delete (rules in
+  `BusinessRules.md`).
+- DTOs under `DTO/Users`, mapping in `Mapping/UserMappings.cs`, limits and default passwords in
+  `Constants/UserConstants.cs`.
+- Shared helpers: `Utils/Security/PasswordHasher` (the only password hashing code) and
+  `Utils/Extensions/UserStatusExtensions.EnsureCanSignIn()` (used by login, the auth endpoints and `[RequirePermission]`).
+
+## WPF dialogs
+
+`IDialogService.Confirm` shows a yes/no confirmation; `IDialogService.ShowDialog(IDialogViewModel)` hosts any dialog
+ViewModel (forms, detail cards) in `Components/ModalDialog`, with the view picked from `Views/DialogTemplates.xaml`.
+Both dim and blur the main window.
+
+`ISessionService` owns the signed-in session: `StartSession()` (called when the main app is shown) sends the presence
+heartbeat every minute; `EndSessionAsync()` stops it, calls `api/auth/logout` (best effort, 3 s timeout), clears the
+token and `AuthContext`, and returns to sign-in. Use it for logout and for self-delete / own-role change.
 
 ## Authentication and authorization errors
 

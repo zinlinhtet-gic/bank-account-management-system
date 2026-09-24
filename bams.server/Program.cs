@@ -89,6 +89,7 @@ builder.Services.AddScoped<CustomerNumberGenerator>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 

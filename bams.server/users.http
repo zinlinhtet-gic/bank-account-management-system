@@ -1,0 +1,51 @@
+### User Management API (needs a manager token; other roles get 403 / 4101)
+@baseUrl = http://localhost:5121/api
+@token = <paste data.token from the login response>
+
+### Log in as a manager and copy data.token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "manager", "password": "<your password>" }
+
+### Roles that can be assigned (with their default passwords)
+GET {{baseUrl}}/users/roles
+Authorization: Bearer {{token}}
+
+### List (sorted by username). All filters optional; dates are instants (createdBefore is exclusive)
+GET {{baseUrl}}/users?search=off&role=officer&createdFrom=2026-09-01T00:00:00%2B06:30&createdBefore=2026-10-01T00:00:00%2B06:30
+Authorization: Bearer {{token}}
+
+### Get one
+GET {{baseUrl}}/users/2
+Authorization: Bearer {{token}}
+
+### Create (password = role default, must be changed at first login) -> 201; duplicate -> 409 4305 / 4306
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "fullName": "Aung Kyaw Moe", "username": "aung.kyawmoe", "email": "aung.kyawmoe@bams.local", "phone": "09 123 456 789", "role": "officer" }
+
+### Update (full) -> 200; demoting the last active manager -> 422 4480
+PUT {{baseUrl}}/users/4
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "fullName": "Aung Kyaw Moe", "username": "aung.kyawmoe", "email": "aung.kyawmoe@bams.local", "phone": null, "role": "auditor" }
+
+### Reset password to the role default -> 200
+POST {{baseUrl}}/users/4/reset-password
+Authorization: Bearer {{token}}
+
+### Soft delete -> 204; the user's login then fails with 403 4004; last active manager -> 422 4480
+DELETE {{baseUrl}}/users/4
+Authorization: Bearer {{token}}
+
+### Presence: keep the caller online (the desktop sends this every minute) / mark the caller offline
+POST {{baseUrl}}/auth/heartbeat
+Authorization: Bearer {{token}}
+
+###
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}

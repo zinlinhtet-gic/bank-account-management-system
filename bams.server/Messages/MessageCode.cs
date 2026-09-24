@@ -4,6 +4,10 @@ public enum MessageCode
 {
     // Success: 1000 - 1999
     Success = 1000,
+    UserCreatedSuccessfully = 1001,
+    UserUpdatedSuccessfully = 1002,
+    UserPasswordResetSuccessfully = 1003,
+    UserDeletedSuccessfully = 1004,
     AccountCreatedSuccessfully = 1100,
     CustomerCreatedSuccessfully = 1300,
     CustomerUpdatedSuccessfully = 1301,
@@ -16,6 +20,14 @@ public enum MessageCode
     InvalidAmount = 3003,
     InvalidCredentials = 3004,
     PasswordDoesNotMeetRequirements = 3005,
+    InvalidEmailFormat = 3006,
+    InvalidUsernameFormat = 3007,
+    InvalidPhoneFormat = 3008,
+    InvalidRole = 3009,
+    FieldTooLong = 3010,
+    InvalidDateRange = 3011,
+    NewPasswordSameAsCurrent = 3012,
+    DefaultPasswordNotAllowed = 3013,
     OpeningBalanceInvalid = 3102,
     CustomerFullNameRequired = 3200,
     CustomerDateOfBirthInvalid = 3201,
@@ -33,6 +45,7 @@ public enum MessageCode
     PasswordChangeRequired = 4001,
     PasswordChangedSuccessfully = 4002,
     UserAccountDisabled = 4003,
+    UserAccountDeleted = 4004,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
@@ -56,6 +69,7 @@ public enum MessageCode
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
+    LastManagerCannotBeRemoved = 4480,
 
     // System / Infrastructure: 5000 - 5999
     InternalServerError = 5000

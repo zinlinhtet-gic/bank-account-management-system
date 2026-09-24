@@ -45,11 +45,8 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
             throw new UnauthorizedException(MessageCode.AuthenticationRequired);
         }
 
-        // Disabled users keep no access even if they still hold an unexpired token.
-        if (userStatus != UserStatus.Active)
-        {
-            throw new ForbiddenException(MessageCode.UserAccountDisabled);
-        }
+        // Disabled or deleted users keep no access even if they still hold an unexpired token.
+        userStatus.Value.EnsureCanSignIn();
 
         if (!await HasAnyPermissionAsync(dbContext, userId, cancellationToken))
         {

@@ -1,7 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using bams.server.Constants;
 using bams.server.Data;
@@ -10,6 +9,8 @@ using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Security;
 using bams.server.Services.Interfaces;
+using bams.server.Utils.Extensions;
+using bams.server.Utils.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -45,20 +46,22 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
-        if (!VerifyPassword(request.Password, user.PasswordHash))
+        if (!PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
         // Checked only after the password is verified so account state is not revealed to unauthenticated callers.
-        EnsureUserIsActive(user);
+        user.Status.EnsureCanSignIn();
 
         // Check if this is first-time login
         var isFirstTimeLogin = user.LastLoginAt == null;
         var requiresPasswordChange = user.MustChangePassword || isFirstTimeLogin;
 
-        // Update last login time
-        user.LastLoginAt = DateTime.UtcNow;
+        // Update last login time and mark the user online
+        var now = DateTime.UtcNow;
+        user.LastLoginAt = now;
+        user.LastSeenAt = now;
         user.OnlineStatus = OnlineStatus.Active;
         _dbContext.Users.Update(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -107,18 +110,6 @@ public sealed class AuthenticationService : IAuthenticationService
     }
 
     /// <summary>
-    /// Verifies the provided password against the stored hash.
-    /// </summary>
-    private bool VerifyPassword(string password, string storedHash)
-    {
-        using var sha256 = SHA256.Create();
-        var bytes = Encoding.UTF8.GetBytes(password);
-        var hash = sha256.ComputeHash(bytes);
-        var computedHash = Convert.ToBase64String(hash);
-        return computedHash == storedHash;
-    }
-
-    /// <summary>
     /// Gets the permissions for a user based on their roles.
     /// </summary>
     public async Task<PermissionsResponse> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken)
@@ -133,7 +124,7 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new NotFoundException(MessageCode.UserNotFound);
         }
 
-        EnsureUserIsActive(user);
+        user.Status.EnsureCanSignIn();
 
         var role = user.UserRoles.FirstOrDefault()?.Role?.Code ?? string.Empty;
 
@@ -171,10 +162,10 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new NotFoundException(MessageCode.UserNotFound);
         }
 
-        EnsureUserIsActive(user);
+        user.Status.EnsureCanSignIn();
 
         // Verify current password
-        if (!VerifyPassword(request.CurrentPassword, user.PasswordHash))
+        if (!PasswordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash))
         {
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
@@ -185,8 +176,22 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new ValidationException(MessageCode.PasswordDoesNotMeetRequirements);
         }
 
+        // Default passwords are known to every manager (they are shown when creating or resetting a user),
+        // so a user may never keep one as their own. Checked first so a user changing away from the default
+        // who retypes it gets the clearer message.
+        if (UserConstants.DefaultPasswordsByRole.Values.Contains(request.NewPassword, StringComparer.Ordinal))
+        {
+            throw new ValidationException(MessageCode.DefaultPasswordNotAllowed);
+        }
+
+        // A password change must actually change the password.
+        if (PasswordHasher.VerifyPassword(request.NewPassword, user.PasswordHash))
+        {
+            throw new ValidationException(MessageCode.NewPasswordSameAsCurrent);
+        }
+
         // Hash new password
-        var newPasswordHash = HashPassword(request.NewPassword);
+        var newPasswordHash = PasswordHasher.HashPassword(request.NewPassword);
 
         // Update password and clear the must-change flag
         user.PasswordHash = newPasswordHash;
@@ -201,24 +206,47 @@ public sealed class AuthenticationService : IAuthenticationService
             MessageCatalog.GetMessage(MessageCode.PasswordChangedSuccessfully));
     }
 
-    // Rejects any authentication operation for a user whose account has been disabled.
-    private static void EnsureUserIsActive(User user)
+
+    /// <summary>
+    /// Records that the signed-in user is still using the app, keeping them shown as online.
+    /// </summary>
+    public async Task RecordHeartbeatAsync(long userId, CancellationToken cancellationToken)
     {
-        if (user.Status != UserStatus.Active)
-        {
-            throw new ForbiddenException(MessageCode.UserAccountDisabled);
-        }
+        var user = await GetSignedInUserAsync(userId, cancellationToken);
+
+        user.LastSeenAt = DateTime.UtcNow;
+        user.OnlineStatus = OnlineStatus.Active;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
-    /// Hashes a password using SHA256.
+    /// Marks the user offline at once. The token itself stays valid until it expires; the client discards it.
     /// </summary>
-    private string HashPassword(string password)
+    public async Task LogoutAsync(long userId, CancellationToken cancellationToken)
     {
-        using var sha256 = SHA256.Create();
-        var bytes = Encoding.UTF8.GetBytes(password);
-        var hash = sha256.ComputeHash(bytes);
-        return Convert.ToBase64String(hash);
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        // Logging out a user who no longer exists has nothing to record.
+        if (user is null)
+        {
+            return;
+        }
+
+        user.OnlineStatus = OnlineStatus.Inactive;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    // Loads a tracked user who may still use the app, or throws UserNotFound / UserAccountDisabled / UserAccountDeleted.
+    private async Task<User> GetSignedInUserAsync(long userId, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw new NotFoundException(MessageCode.UserNotFound);
+
+        user.Status.EnsureCanSignIn();
+
+        return user;
     }
 
     /// <summary>
