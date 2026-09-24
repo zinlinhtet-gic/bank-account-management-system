@@ -903,7 +903,7 @@ silent until the wrong message shows up. Take numbers **only from your feature's
 
 | Feature                         | Success   | Validation | Not Found | Conflict  | Business rule |
 | ------------------------------- | --------- | ---------- | --------- | --------- | ------------- |
-| Common / Auth / Users           | 1000-1099 | 3000-3099  | 4200-4204 | 4300-4309 | 4400          |
+| Common / Auth / Users           | 1000-1099 | 3000-3099  | 4200-4204 | 4300-4309 | 4400, 4480-4489 |
 | Accounts (incl. fixed deposits) | 1100-1199 | 3100-3199  | 4205-4229 | 4310-4319 | 4401-4429     |
 | Transactions / history          | 1200-1299 | 3300-3399  | 4240-4249 | 4330-4339 | 4440-4459     |
 | Customers / KYC                 | 1300-1399 | 3200-3299  | 4230-4239 | 4320-4329 | 4430-4439     |
@@ -1229,7 +1229,37 @@ private async Task DisableUserAsync(object? parameter)
 }
 ```
 
-`MainWindow`'s logout confirmation is the reference example.
+`MainWindow`'s logout confirmation is the reference example. From a ViewModel, pass `IconKey: "Icon.Trash"` instead
+of `Icon` so the ViewModel does not touch WPF resources.
+
+### Form and detail dialogs
+
+For a pop-up with its own fields or content (create/edit form, detail card), make a dialog ViewModel that implements
+`IDialogViewModel` and show it with `_dialogService.ShowDialog(viewModel)`. The main window dims and blurs; Esc
+cancels; the ViewModel closes itself by raising `CloseRequested(true)` after a successful save.
+
+1. ViewModel: implement `IDialogViewModel` (`CloseRequested`, `CanCloseOnBackdropClick` = false for forms,
+   `CanCancel` = false while saving).
+2. View: a `UserControl` with a fixed `Width`, built from the shared styles.
+3. Add one `DataTemplate` for the ViewModel type to `Views/DialogTemplates.xaml`.
+
+Reference: `ViewModels/Pages/Users/UserFormViewModel.cs` + `Views/Pages/Users/UserFormDialogView.xaml`.
+
+### Search box and clickable rows
+
+```xml
+xmlns:search="clr-namespace:bams.desktop.Components.SearchBox"
+xmlns:b="clr-namespace:bams.desktop.Behaviors"
+
+<!-- Placeholder while idle; on focus a search icon appears on the left. Enter or the icon runs the command. -->
+<search:SearchBox Text="{Binding SearchText, Mode=TwoWay}" SearchCommand="{Binding SearchCommand}" Placeholder="Search"/>
+
+<!-- Row click (or Enter) runs the command with the row item; clicks on buttons inside the row are ignored. -->
+<DataGrid Style="{StaticResource Table}" b:DataGridRowClick.Command="{Binding ShowDetailsCommand}" .../>
+```
+
+Row action buttons: `Button.Icon` (Edit, Reset password) and `Button.IconDanger` (Delete).
+`Views/Pages/UserManagementView.xaml` is the complete reference page (filter bar, banners, titled table, row actions).
 
 Switch a badge by value inside a table cell:
 
@@ -1261,10 +1291,10 @@ Use with `t:ThemeAssist.Icon` on buttons or `<icon:Icon Geometry="{StaticResourc
 (`xmlns:icon="clr-namespace:bams.desktop.Components.Icon"`). Available:
 `Dashboard, Accounts, Transactions, Transfers, Loans, Reports, Settings, Bank, Menu, MenuNarrow, Bell,
 Search, Logout, Plus, Users, UserCheck, UserPlus, UserX, Finance, Shield, Check, ChevronDown, Close, Eye, EyeOff,
-Edit, Lock, Unlock, Refresh, Download, AlertCircle, Key`. Need another one? Take it from the Feather icon
+Edit, Lock, Unlock, Refresh, Download, AlertCircle, Key, Trash, Mail, Phone`. Need another one? Take it from the Feather icon
 set (the one the design uses) and add it to `Themes/Icons.xaml`.
 
 ---
 
 *Last Updated: 2026-09-24*
-*Version: 1.1: added section 11 (shared UI styles)*
+*Version: 1.2: dialogs (ShowDialog), SearchBox, row click, Button.IconDanger; Users business-rule block 4480-4489*

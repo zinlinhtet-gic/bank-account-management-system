@@ -152,7 +152,7 @@ How `[RequirePermission]` behaves:
 
 On every request it also checks, directly in the database:
 - the token belongs to a user that still exists, and
-- that user's `Status` is `Active` (a disabled user is blocked immediately, even with a valid token).
+- that user's `Status` is `Active` (a disabled or deleted user is blocked immediately, even with a valid token).
 
 You do **not** need `[Authorize]` on endpoints that already have `[RequirePermission]`.
 
@@ -198,6 +198,7 @@ You never need to write these yourself. All come back in the standard error body
 | ---- | ---- | ---------------------- | ------------------------------------------------------------- |
 | 401  | 4000 | AuthenticationRequired | No token, invalid or expired token, or the user was deleted   |
 | 403  | 4003 | UserAccountDisabled    | The user's `Status` is `Disabled`                             |
+| 403  | 4004 | UserAccountDeleted     | The user was deleted in User Management (soft delete)         |
 | 403  | 4101 | InsufficientPermission | None of the user's roles has a required permission            |
 
 All message codes: `bams.server/Documentation/MessageCodes.md`.
@@ -494,7 +495,8 @@ Authorization: Bearer <token>
   or the ViewModel is not registered in `App.xaml.cs`.
 
 **The server returns 403**
-- Read `code` in the response: `4101` means the role lacks the permission; `4003` means the user is disabled.
+- Read `code` in the response: `4101` means the role lacks the permission; `4003` means the user is disabled;
+  `4004` means the user was deleted in User Management.
 - Check the permission code on the attribute matches the database (use the constant).
 
 **The server returns 401**
@@ -521,13 +523,17 @@ Authorization: Bearer <token>
 | `Utils/Extensions/ClaimsPrincipalExtensions.cs` | `User.GetRequiredUserId()`                            |
 | `Models/Security/*.cs`                       | `User`, `Role`, `Permission`, `UserRole`, `RolePermission`, `UserStatus` |
 | `Controllers/AuthController.cs`              | `login`, `permissions`, `change-password` endpoints      |
+| `Controllers/UsersController.cs`             | User Management endpoints (`user_management`)            |
+| `Utils/Extensions/UserStatusExtensions.cs`   | `EnsureCanSignIn()`: disabled / deleted users are refused |
+| `Utils/Security/PasswordHasher.cs`           | The only place passwords are hashed and verified         |
 | `Messages/MessageCode.cs`, `MessageCatalog.cs` | Stable codes and their messages                        |
 | `Documentation/MessageCodes.md`              | Table of all codes                                       |
 
 ### Desktop (`bams.desktop/`)
 | File                                         | What it is                                               |
 | -------------------------------------------- | -------------------------------------------------------- |
-| `Services/AuthContext.cs`                    | Logged-in user, permissions, `PermissionFlags`           |
+| `Services/AuthContext.cs`                    | Logged-in user (incl. `UserId`), permissions, `PermissionFlags` |
+| `Services/ISessionService.cs`                | `EndSession()`: sign out from anywhere (logout, self-delete) |
 | `Api/ApiClient.cs`                           | The only HTTP client; adds token, converts errors        |
 | `Constants/ApiConstants.cs`                  | Server address and endpoint paths                        |
 | `Constants/PermissionCodes.cs`               | Permission codes (must match the server constants)       |
@@ -541,4 +547,4 @@ Authorization: Bearer <token>
 ---
 
 *Last Updated: 2026-09-24*
-*Version: 3.0: rewritten as a how-to for page developers; policy-based authorization removed*
+*Version: 3.1: soft-deleted users (4004), shared password hasher, session service*
