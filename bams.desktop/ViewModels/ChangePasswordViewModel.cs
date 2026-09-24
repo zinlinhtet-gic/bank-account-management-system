@@ -5,6 +5,7 @@ using bams.desktop.Commands;
 using bams.desktop.DTOs.Auth;
 using bams.desktop.Exceptions;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels;
 
@@ -14,6 +15,7 @@ namespace bams.desktop.ViewModels;
 public sealed class ChangePasswordViewModel : ViewModelBase
 {
     private readonly IAuthenticationService _authenticationService;
+    private readonly AuthContext _authContext;
     private string _currentPassword = string.Empty;
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
@@ -21,9 +23,10 @@ public sealed class ChangePasswordViewModel : ViewModelBase
     private string _errorMessage = string.Empty;
     private string _statusMessage = string.Empty;
 
-    public ChangePasswordViewModel(IAuthenticationService authenticationService)
+    public ChangePasswordViewModel(IAuthenticationService authenticationService, AuthContext authContext)
     {
         _authenticationService = authenticationService;
+        _authContext = authContext;
         ChangePasswordCommand = new RelayCommand(
             async _ => await ChangePasswordAsync(CancellationToken.None),
             _ => CanChangePassword());
@@ -48,6 +51,13 @@ public sealed class ChangePasswordViewModel : ViewModelBase
         {
             if (SetProperty(ref _newPassword, value))
             {
+                // Refresh the live requirement checklist shown under the field.
+                OnPropertyChanged(nameof(MeetsMinimumLength));
+                OnPropertyChanged(nameof(HasUppercase));
+                OnPropertyChanged(nameof(HasLowercase));
+                OnPropertyChanged(nameof(HasDigit));
+                OnPropertyChanged(nameof(HasSpecialCharacter));
+                OnPropertyChanged(nameof(PasswordsMatch));
                 ChangePasswordCommand.RaiseCanExecuteChanged();
             }
         }
@@ -60,10 +70,35 @@ public sealed class ChangePasswordViewModel : ViewModelBase
         {
             if (SetProperty(ref _confirmPassword, value))
             {
+                OnPropertyChanged(nameof(PasswordsMatch));
                 ChangePasswordCommand.RaiseCanExecuteChanged();
             }
         }
     }
+
+    // ----- Password rules (mirror the server's IsPasswordValid; the server stays authoritative) -----
+
+    /// <summary>Minimum number of characters in a new password.</summary>
+    public const int MinimumPasswordLength = 8;
+
+    public bool MeetsMinimumLength => NewPassword.Length >= MinimumPasswordLength;
+
+    public bool HasUppercase => NewPassword.Any(char.IsUpper);
+
+    public bool HasLowercase => NewPassword.Any(char.IsLower);
+
+    public bool HasDigit => NewPassword.Any(char.IsDigit);
+
+    public bool HasSpecialCharacter => NewPassword.Any(character => !char.IsLetterOrDigit(character));
+
+    /// <summary>True once the confirmation is filled in and equals the new password.</summary>
+    public bool PasswordsMatch => ConfirmPassword.Length > 0 && ConfirmPassword == NewPassword;
+
+    private bool IsNewPasswordValid =>
+        MeetsMinimumLength && HasUppercase && HasLowercase && HasDigit && HasSpecialCharacter;
+
+    /// <summary>Name shown on the screen so the user knows which account is changing its password.</summary>
+    public string UserDisplayName => _authContext.FullName ?? _authContext.Username ?? string.Empty;
 
     public bool IsBusy
     {
@@ -108,29 +143,11 @@ public sealed class ChangePasswordViewModel : ViewModelBase
 
     public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
 
-    public string PasswordRequirements => "Password must be at least 8 characters long and include: 1 uppercase letter (A-Z), 1 lowercase letter (a-z), 1 number (0-9), and 1 special character (!@#$%^&*).";
-
     public RelayCommand ChangePasswordCommand { get; }
 
     private bool CanChangePassword()
     {
         return !IsBusy;
-    }
-
-    // Validates password complexity requirements.
-    private bool IsPasswordValid(string password)
-    {
-        if (password.Length < 8)
-        {
-            return false;
-        }
-
-        bool hasUpper = password.Any(char.IsUpper);
-        bool hasLower = password.Any(char.IsLower);
-        bool hasDigit = password.Any(char.IsDigit);
-        bool hasSpecial = password.Any(c => !char.IsLetterOrDigit(c));
-
-        return hasUpper && hasLower && hasDigit && hasSpecial;
     }
 
     // Gets validation error message for the current password.
@@ -141,25 +158,20 @@ public sealed class ChangePasswordViewModel : ViewModelBase
             return "Password is required.";
         }
 
-        if (NewPassword.Length < 8)
+        if (!MeetsMinimumLength)
         {
-            return "Password must be at least 8 characters long.";
+            return $"Password must be at least {MinimumPasswordLength} characters long.";
         }
-
-        bool hasUpper = NewPassword.Any(char.IsUpper);
-        bool hasLower = NewPassword.Any(char.IsLower);
-        bool hasDigit = NewPassword.Any(char.IsDigit);
-        bool hasSpecial = NewPassword.Any(c => !char.IsLetterOrDigit(c));
 
         var errors = new List<string>();
 
-        if (!hasUpper)
+        if (!HasUppercase)
             errors.Add("uppercase letter");
-        if (!hasLower)
+        if (!HasLowercase)
             errors.Add("lowercase letter");
-        if (!hasDigit)
+        if (!HasDigit)
             errors.Add("number");
-        if (!hasSpecial)
+        if (!HasSpecialCharacter)
             errors.Add("special character");
 
         if (errors.Count > 0)
@@ -213,9 +225,17 @@ public sealed class ChangePasswordViewModel : ViewModelBase
             }
 
             // Validate password complexity
-            if (!IsPasswordValid(NewPassword))
+            if (!IsNewPasswordValid)
             {
                 ErrorMessage = GetPasswordValidationError();
+                return;
+            }
+
+            // A password change must actually change the password. The server also rejects the role default
+            // passwords, which the client does not know.
+            if (NewPassword == CurrentPassword)
+            {
+                ErrorMessage = MessageCatalog.GetMessage(MessageCode.NewPasswordSameAsCurrent);
                 return;
             }
 
@@ -224,6 +244,17 @@ public sealed class ChangePasswordViewModel : ViewModelBase
 
             if (response.Success)
             {
+                var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
+
+                _authContext.SetSession(
+                    _authContext.Username ?? string.Empty,
+                    _authContext.FullName ?? string.Empty,
+                    _authContext.Role ?? string.Empty,
+                    permissionsResponse.Permissions.ToList(),
+                    _authContext.Token ?? string.Empty,
+                    _authContext.TokenExpiry);
+                _authContext.UserId = permissionsResponse.UserId;
+
                 StatusMessage = response.Message;
                 OnPasswordChangeSuccess?.Invoke();
             }
@@ -232,46 +263,33 @@ public sealed class ChangePasswordViewModel : ViewModelBase
                 ErrorMessage = response.Message;
             }
         }
-        catch (NetworkException)
+        catch (AppException exception)
         {
-            ErrorMessage = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
-        }
-        catch (ApiException ex)
-        {
-            // Provide more specific error messages based on the exception message
-            if (ex.Message.Contains("Invalid credentials") || ex.Message.Contains("current password"))
-            {
-                ErrorMessage = "Current password is incorrect. Please verify your password and try again.";
-            }
-            else if (ex.Message.Contains("Password must be at least") || ex.Message.Contains("does not meet requirements"))
-            {
-                ErrorMessage = GetPasswordValidationError();
-            }
-            else if (ex.Message.Contains("Account not found") || ex.Message.Contains("User not found"))
-            {
-                ErrorMessage = "Account not found. Your session may have expired. Please log in again.";
-            }
-            else if (ex.Message.Contains("Authentication required") || ex.Message.Contains("Unauthorized"))
-            {
-                ErrorMessage = "Authentication session expired. Please log in again.";
-            }
-            else if (ex.Message.Contains("Access denied"))
-            {
-                ErrorMessage = "Access denied. You do not have permission to change your password.";
-            }
-            else
-            {
-                ErrorMessage = $"Password change error: {ex.Message}";
-            }
+            ErrorMessage = GetChangePasswordErrorMessage(exception);
         }
         catch (Exception)
         {
-            ErrorMessage = "An unexpected error occurred during password change. Please try again or contact support if the problem persists.";
+            ErrorMessage = MessageCatalog.GetMessage(MessageCode.ClientError);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    // Chooses the message for a failed password change based on the stable MessageCode.
+    private string GetChangePasswordErrorMessage(AppException exception)
+    {
+        return exception.Code switch
+        {
+            // On this screen the server's InvalidCredentials means the current password was wrong.
+            MessageCode.InvalidCredentials => MessageCatalog.GetMessage(MessageCode.CurrentPasswordIncorrect),
+
+            // Show which specific rules the new password is missing.
+            MessageCode.PasswordDoesNotMeetRequirements => GetPasswordValidationError(),
+
+            _ => exception.Message
+        };
     }
 
     // Event raised when password change is successful for navigation purposes

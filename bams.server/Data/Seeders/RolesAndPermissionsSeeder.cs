@@ -1,8 +1,7 @@
 using bams.server.Constants;
 using bams.server.Models.Security;
+using bams.server.Utils.Security;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace bams.server.Data.Seeders;
 
@@ -198,7 +197,7 @@ public static class RolesAndPermissionsSeeder
             {
                 Username = "manager",
                 Email = "manager@bams.local",
-                PasswordHash = HashPassword("Manager123!"),
+                PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[SecurityConstants.ManagerRole]),
                 FullName = "system manager",
                 Phone = "555-0100",
                 OnlineStatus = OnlineStatus.Inactive,
@@ -211,7 +210,7 @@ public static class RolesAndPermissionsSeeder
             {
                 Username = "officer",
                 Email = "officer@bams.local",
-                PasswordHash = HashPassword("Officer123!"),
+                PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[SecurityConstants.OfficerRole]),
                 FullName = "bank officer",
                 Phone = "555-0101",
                 OnlineStatus = OnlineStatus.Inactive,
@@ -224,7 +223,7 @@ public static class RolesAndPermissionsSeeder
             {
                 Username = "auditor",
                 Email = "auditor@bams.local",
-                PasswordHash = HashPassword("Auditor123!"),
+                PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[SecurityConstants.AuditorRole]),
                 FullName = "system auditor",
                 Phone = "555-0102",
                 OnlineStatus = OnlineStatus.Inactive,
@@ -247,18 +246,5 @@ public static class RolesAndPermissionsSeeder
 
         await dbContext.UserRoles.AddRangeAsync(userRoles);
         await dbContext.SaveChangesAsync();
-    }
-
-    /// <summary>
-    /// Simple password hashing for initial seed data.
-    /// Uses SHA256 for development/testing purposes.
-    /// Note: In production, use ASP.NET Core Identity's password hasher with proper salting.
-    /// </summary>
-    private static string HashPassword(string password)
-    {
-        using var sha256 = SHA256.Create();
-        var bytes = Encoding.UTF8.GetBytes(password);
-        var hash = sha256.ComputeHash(bytes);
-        return Convert.ToBase64String(hash);
     }
 }

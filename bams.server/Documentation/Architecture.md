@@ -13,3 +13,41 @@ The initial account template includes:
 - `Account` as the EF Core entity.
 - Account request and response DTOs under `DTO/Accounts`.
 - Central message, exception, and middleware infrastructure.
+
+User Management follows the same layers:
+
+- `UsersController` (`api/users`, `[RequirePermission(user_management)]` on the class): list, roles, get, create,
+  update, `reset-password`, soft delete.
+- `IUserService` / `UserService`: validation, duplicate checks, last-manager rule, soft delete (rules in
+  `BusinessRules.md`).
+- DTOs under `DTO/Users`, mapping in `Mapping/UserMappings.cs`, limits and default passwords in
+  `Constants/UserConstants.cs`.
+- Shared helpers: `Utils/Security/PasswordHasher` (the only password hashing code) and
+  `Utils/Extensions/UserStatusExtensions.EnsureCanSignIn()` (used by login, the auth endpoints and `[RequirePermission]`).
+
+## WPF dialogs
+
+`IDialogService.Confirm` shows a yes/no confirmation; `IDialogService.ShowDialog(IDialogViewModel)` hosts any dialog
+ViewModel (forms, detail cards) in `Components/ModalDialog`, with the view picked from `Views/DialogTemplates.xaml`.
+Both dim and blur the main window.
+
+`ISessionService` owns the signed-in session: `StartSession()` (called when the main app is shown) sends the presence
+heartbeat every 15 seconds; `EndSessionAsync()` stops it, calls `api/auth/logout` (best effort, 3 s timeout), clears the
+token and `AuthContext`, and returns to sign-in. Use it for logout and for self-delete / own-role change.
+
+## Authentication and authorization errors
+
+All auth failures use the standard `ApiErrorResponse` body:
+
+- `[RequirePermission]` (`Middlewares/MiddlewareAttribute.cs`) throws `UnauthorizedException` (401) for a missing
+  or unknown user, and `ForbiddenException` (403) for a disabled user or missing permission. `GlobalExceptionHandler`
+  turns these into responses.
+- `[Authorize]` challenges are written by the `JwtBearerEvents.OnChallenge` handler in `Program.cs`.
+- Controllers read the caller's id with `User.GetRequiredUserId()` (`Utils/Extensions/ClaimsPrincipalExtensions.cs`).
+
+## WPF client error flow
+
+`bams.desktop/Api/ApiClient.cs` is the single place that sends HTTP requests. It unwraps `ApiMessageResponse<T>.Data`,
+turns `ApiErrorResponse` into `ApiException` (keeping the server `Code`, `Message` and `TraceId`), and turns transport
+failures into `NetworkException`. Both derive from `AppException`, so ViewModels catch `AppException` and decide by
+`exception.Code`, never by message text.

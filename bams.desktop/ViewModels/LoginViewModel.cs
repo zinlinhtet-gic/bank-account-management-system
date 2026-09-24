@@ -156,6 +156,16 @@ public sealed class LoginViewModel : ViewModelBase
 
             if (RequiresPasswordChange)
             {
+                // Preserve the authenticated identity while the password change screen is shown.
+                // Permissions are loaded after the password is changed.
+                _authContext.SetSession(
+                    response.Username,
+                    response.FullName,
+                    response.Role,
+                    new List<string>(),
+                    response.Token,
+                    response.Expiration);
+
                 StatusMessage = "You must change your password before continuing.";
                 OnPasswordChangeRequired?.Invoke();
                 return;
@@ -172,47 +182,22 @@ public sealed class LoginViewModel : ViewModelBase
                 permissionsResponse.Permissions.ToList(),
                 response.Token,
                 response.Expiration);
+            _authContext.UserId = permissionsResponse.UserId;
 
             StatusMessage = $"Welcome, {response.FullName}! Logged in as {response.Role}";
 
             // Navigate to main application
             OnLoginSuccess?.Invoke();
         }
-        catch (NetworkException)
+        catch (AppException exception)
         {
-            ErrorMessage = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
-        }
-        catch (ApiException ex)
-        {
-            // Provide more specific error messages based on the exception message
-            if (ex.Message.Contains("Invalid credentials") || ex.Message.Contains("Invalid username or password"))
-            {
-                ErrorMessage = "Invalid username or password. Please check your credentials and try again.";
-            }
-            else if (ex.Message.Contains("Account not found") || ex.Message.Contains("User not found"))
-            {
-                ErrorMessage = "Account not found. Please check your username or contact your administrator.";
-            }
-            else if (ex.Message.Contains("Account locked") || ex.Message.Contains("Account disabled"))
-            {
-                ErrorMessage = "Your account has been locked or disabled. Please contact your administrator.";
-            }
-            else if (ex.Message.Contains("Authentication required"))
-            {
-                ErrorMessage = "Authentication session expired. Please log in again.";
-            }
-            else if (ex.Message.Contains("Access denied") || ex.Message.Contains("Unauthorized"))
-            {
-                ErrorMessage = "Access denied. You do not have permission to access this system.";
-            }
-            else
-            {
-                ErrorMessage = $"Authentication error: {ex.Message}";
-            }
+            // Server and network failures already carry a user-facing message for their MessageCode
+            // (e.g. InvalidCredentials, UserAccountDisabled, NetworkUnavailable).
+            ErrorMessage = exception.Message;
         }
         catch (Exception)
         {
-            ErrorMessage = "An unexpected error occurred during login. Please try again or contact support if the problem persists.";
+            ErrorMessage = MessageCatalog.GetMessage(MessageCode.ClientError);
         }
         finally
         {

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using bams.desktop.Constants;
 
 namespace bams.desktop.Services;
 
@@ -25,6 +26,12 @@ public sealed class AuthContext : INotifyPropertyChanged
         _isAuthenticated = false;
         _permissions = new List<string>();
     }
+
+    /// <summary>
+    /// The signed-in user's id, set once permissions are loaded. Use it to recognise the user's own record
+    /// (e.g. self-delete); never send it to the server as "who is acting", the server reads that from the token.
+    /// </summary>
+    public long? UserId { get; set; }
 
     public string? Username
     {
@@ -128,17 +135,17 @@ public sealed class AuthContext : INotifyPropertyChanged
     {
         return new PermissionFlags
         {
-            CanManageAccounts = HasPermission("account_management"),
-            CanManageCustomers = HasPermission("customer_management"),
-            CanPerformKYC = HasPermission("customer_kyc"),
-            CanManageUsers = HasPermission("user_management"),
-            CanViewTransactions = HasPermission("transactions"),
-            CanViewTransactionHistory = HasPermission("transaction_history"),
-            CanAccessAccounting = HasPermission("accounting"),
-            CanConfigureSystem = HasPermission("configuration"),
-            CanPerformOperations = HasPermission("operation"),
-            CanViewAudit = HasPermission("audit"),
-            CanViewCustomerList = HasPermission("customer_list")
+            CanManageAccounts = HasPermission(PermissionCodes.AccountManagement),
+            CanManageCustomers = HasPermission(PermissionCodes.CustomerManagement),
+            CanPerformKYC = HasPermission(PermissionCodes.CustomerKyc),
+            CanManageUsers = HasPermission(PermissionCodes.UserManagement),
+            CanViewTransactions = HasPermission(PermissionCodes.Transactions),
+            CanViewTransactionHistory = HasPermission(PermissionCodes.TransactionHistory),
+            CanAccessAccounting = HasPermission(PermissionCodes.Accounting),
+            CanConfigureSystem = HasPermission(PermissionCodes.Configuration),
+            CanPerformOperations = HasPermission(PermissionCodes.Operation),
+            CanViewAudit = HasPermission(PermissionCodes.Audit),
+            CanViewCustomerList = HasPermission(PermissionCodes.CustomerList)
         };
     }
 
@@ -177,6 +184,7 @@ public sealed class AuthContext : INotifyPropertyChanged
     /// </summary>
     public void ClearSession()
     {
+        UserId = null;
         Username = null;
         FullName = null;
         Role = null;

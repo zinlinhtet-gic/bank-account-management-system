@@ -14,9 +14,14 @@ public sealed class User
 
     public string? Phone { get; set; }
 
+    public UserStatus Status { get; set; } = UserStatus.Active;
+
     public OnlineStatus OnlineStatus { get; set; } = OnlineStatus.Inactive;
 
     public DateTime? LastLoginAt { get; set; }
+
+    // Last login or desktop heartbeat (UTC). With OnlineStatus it decides whether the user is shown as online.
+    public DateTime? LastSeenAt { get; set; }
 
     public bool MustChangePassword { get; set; }
 

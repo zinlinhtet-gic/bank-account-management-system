@@ -1,7 +1,8 @@
-using System.Security.Claims;
 using bams.server.Data;
+using bams.server.Exceptions;
+using bams.server.Messages;
 using bams.server.Models.Security;
-using Microsoft.AspNetCore.Mvc;
+using bams.server.Utils.Extensions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,8 @@ namespace bams.server.Middlewares;
 /// <summary>
 /// Attribute to apply permission checking to endpoints.
 /// Usage: [RequirePermission("account_management")] or [RequirePermission("user_list", "user_create")]
+/// Failures are thrown as application exceptions so the global exception handler
+/// returns the standard <c>ApiErrorResponse</c> contract.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
@@ -18,65 +21,60 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
 
     public RequirePermissionAttribute(params string[] permissions)
     {
-        _permissions = permissions;
+        // Permission codes are stored in lowercase, so normalize once at construction.
+        _permissions = permissions.Select(permission => permission.ToLowerInvariant()).ToArray();
     }
 
+    // Rejects the request unless the caller is an active user holding at least one required permission.
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var userIdClaim = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
+        var httpContext = context.HttpContext;
+        var userId = httpContext.User.GetRequiredUserId();
+        var dbContext = httpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+        var cancellationToken = httpContext.RequestAborted;
+
+        var userStatus = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => (UserStatus?)user.Status)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // A valid token for a user that no longer exists is treated as unauthenticated.
+        if (userStatus is null)
         {
-            context.Result = new UnauthorizedObjectResult(new
-            {
-                success = false,
-                code = "AUTHENTICATION_REQUIRED",
-                message = "Authentication required"
-            });
-            return;
+            throw new UnauthorizedException(MessageCode.AuthenticationRequired);
         }
 
-        var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
-        var hasAnyPermission = await HasAnyPermissionAsync(dbContext, userId, _permissions);
-        
-        if (!hasAnyPermission)
+        // Disabled or deleted users keep no access even if they still hold an unexpired token.
+        userStatus.Value.EnsureCanSignIn();
+
+        if (!await HasAnyPermissionAsync(dbContext, userId, cancellationToken))
         {
-            context.Result = new ObjectResult(new
-            {
-                success = false,
-                code = "PERMISSION_DENIED",
-                message = "Insufficient permissions"
-            })
-            {
-                StatusCode = 403
-            };
-            return;
+            throw new ForbiddenException(MessageCode.InsufficientPermission);
         }
 
         await next();
     }
 
-    private async Task<bool> HasAnyPermissionAsync(ApplicationDbContext dbContext, long userId, string[] permissions)
+    // Checks, in a single query, whether any of the user's roles grants one of the required permissions.
+    private async Task<bool> HasAnyPermissionAsync(
+        ApplicationDbContext dbContext,
+        long userId,
+        CancellationToken cancellationToken)
     {
-        var userRoleIds = await dbContext.UserRoles
-            .Where(ur => ur.UserId == userId)
-            .Select(ur => ur.RoleId)
-            .ToListAsync();
-
-        if (!userRoleIds.Any())
-        {
-            return false;
-        }
-
-        var permissionIds = await dbContext.RolePermissions
-            .Where(rp => userRoleIds.Contains(rp.RoleId))
-            .Select(rp => rp.PermissionId)
-            .ToListAsync();
-
-        var availablePermissions = await dbContext.Permissions
-            .Where(p => permissionIds.Contains(p.Id))
-            .Select(p => p.Code)
-            .ToListAsync();
-
-        return permissions.Any(p => availablePermissions.Contains(p.ToLower()));
+        return await dbContext.UserRoles
+            .AsNoTracking()
+            .Where(userRole => userRole.UserId == userId)
+            .Join(
+                dbContext.RolePermissions,
+                userRole => userRole.RoleId,
+                rolePermission => rolePermission.RoleId,
+                (userRole, rolePermission) => rolePermission.PermissionId)
+            .Join(
+                dbContext.Permissions,
+                permissionId => permissionId,
+                permission => permission.Id,
+                (permissionId, permission) => permission.Code)
+            .AnyAsync(code => _permissions.Contains(code), cancellationToken);
     }
 }

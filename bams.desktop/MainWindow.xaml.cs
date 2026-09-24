@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.Views;
@@ -13,14 +14,19 @@ namespace bams.desktop;
 public partial class MainWindow : Window
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly AuthContext _authContext;
+    private readonly IDialogService _dialogService;
+    private readonly ISessionService _sessionService;
 
     public MainWindow(IServiceProvider serviceProvider)
     {
         InitializeComponent();
-        
+
         _serviceProvider = serviceProvider;
-        _authContext = _serviceProvider.GetRequiredService<AuthContext>();
+        _dialogService = _serviceProvider.GetRequiredService<IDialogService>();
+        _sessionService = _serviceProvider.GetRequiredService<ISessionService>();
+
+        // Whoever ends the session (logout button, self-delete...), the window returns to sign-in.
+        _sessionService.SessionEnded += ShowLoginView;
 
         // Show login view on startup
         ShowLoginView();
@@ -64,12 +70,40 @@ public partial class MainWindow : Window
         // Create the main application view model with navigation
         var navBarViewModel = _serviceProvider.GetRequiredService<NavBarViewModel>();
         var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+
+        mainViewModel.OnLogoutRequested += HandleLogoutRequested;
         
         // Set the data context for the main window
         DataContext = mainViewModel;
         
-        // Hide login view, show main app
+        // Hide the login and change-password views (the latter stays behind after a first login otherwise
+        // and shows through any page area without its own background), then show the main app.
         LoginContentControl.Content = null;
+        ChangePasswordContentControl.Content = null;
+        ChangePasswordContentControl.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
+
+        // Keep this user shown as online in User Management while the app is open.
+        _sessionService.StartSession();
+    }
+
+    // Asks the user to confirm, then ends the session (SessionEnded shows the sign-in screen).
+    // async void is intentional: an event handler; EndSessionAsync handles its own failures.
+    private async void HandleLogoutRequested()
+    {
+        var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
+            Title: $"Log out of {BrandConstants.BankShortName}?",
+            Message: "You will need to sign in again to continue. Anything you have not saved on this page will be lost.",
+            ConfirmText: "Log out",
+            CancelText: "Stay signed in",
+            IsDestructive: true,
+            Icon: (System.Windows.Media.Geometry)FindResource("Icon.Logout")));
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await _sessionService.EndSessionAsync();
     }
 }

@@ -22,5 +22,14 @@ public abstract class AppException : Exception
         Code = code;
     }
 
+    // Preserves the underlying transport failure for diagnostics while showing the catalog message.
+    protected AppException(
+        MessageCode code,
+        Exception innerException)
+        : base(MessageCatalog.GetMessage(code), innerException)
+    {
+        Code = code;
+    }
+
     public MessageCode Code { get; }
 }

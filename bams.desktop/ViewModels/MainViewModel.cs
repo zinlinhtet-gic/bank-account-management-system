@@ -1,3 +1,4 @@
+using bams.desktop.Constants;
 using System.Windows.Input;
 using bams.desktop.Commands;
 using bams.desktop.Services;
@@ -15,6 +16,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly INavigationService _navigationService;
     private object? _currentPage;
     private string _activeItem = string.Empty;
+    private CancellationTokenSource? _pageInitializationCancellation;
 
     public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel)
     {
@@ -24,6 +26,7 @@ public sealed class MainViewModel : ViewModelBase
         
         // Wire up navigation from NavBar
         NavBar.NavigateCommand = new RelayCommand(NavigateToPage);
+        LogoutCommand = new RelayCommand(_ => OnLogoutRequested?.Invoke());
         
         // Initialize with user info from AuthContext
         UpdateUserInfo();
@@ -33,6 +36,10 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public NavBarViewModel NavBar { get; }
+
+    public RelayCommand LogoutCommand { get; }
+
+    public event Action? OnLogoutRequested;
 
     public object? CurrentPage
     {
@@ -77,6 +84,43 @@ public sealed class MainViewModel : ViewModelBase
         {
             CurrentPage = viewModel;
             ActiveItem = pageLabel;
+            StartPageInitialization(viewModel);
+        }
+    }
+
+    /// <summary>
+    /// Runs <see cref="IAsyncInitializable.InitializeAsync"/> for the page just opened, and cancels
+    /// any loading still running for the page the user navigated away from.
+    /// </summary>
+    // async void is intentional: this is fired from a navigation command, and an unexpected
+    // exception must surface instead of being silently lost in an unobserved Task.
+    private async void StartPageInitialization(object page)
+    {
+        _pageInitializationCancellation?.Cancel();
+        _pageInitializationCancellation = null;
+
+        if (page is not IAsyncInitializable initializablePage)
+        {
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        _pageInitializationCancellation = cancellation;
+
+        try
+        {
+            await initializablePage.InitializeAsync(cancellation.Token);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // The user left the page before it finished loading; nothing to report.
+        }
+        finally
+        {
+            if (ReferenceEquals(_pageInitializationCancellation, cancellation))
+            {
+                _pageInitializationCancellation = null;
+            }
         }
     }
 
@@ -105,18 +149,18 @@ public sealed class MainViewModel : ViewModelBase
         
         // Prioritize pages based on role and permissions
         if (flags.CanManageUsers)
-            return "User Management";
+            return PageNames.UserManagement;
         if (flags.CanManageCustomers)
-            return "Customer Management";
+            return PageNames.CustomerManagement;
         if (flags.CanManageAccounts)
-            return "Account Management";
+            return PageNames.AccountManagement;
         if (flags.CanViewTransactions)
-            return "Transactions";
+            return PageNames.Transactions;
         if (flags.CanViewAudit)
-            return "Audit";
+            return PageNames.Audit;
         
-        // Fallback to first available page
-        return "Customer Management";
+        // Fall back to the first tab the user is allowed to see, never a page they lack permission for.
+        return NavBar.Items.FirstOrDefault()?.Label ?? string.Empty;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using bams.server.Constants;
 using bams.server.Models.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -10,11 +11,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.HasKey(u => u.Id);
 
-        builder.Property(u => u.Username).IsRequired().HasMaxLength(64);
-        builder.Property(u => u.Email).IsRequired().HasMaxLength(256);
+        builder.Property(u => u.Username).IsRequired().HasMaxLength(UserConstants.UsernameMaximumLength);
+        builder.Property(u => u.Email).IsRequired().HasMaxLength(UserConstants.EmailMaximumLength);
         builder.Property(u => u.PasswordHash).IsRequired();
-        builder.Property(u => u.FullName).IsRequired().HasMaxLength(150);
-        builder.Property(u => u.Phone).HasMaxLength(32);
+        builder.Property(u => u.FullName).IsRequired().HasMaxLength(UserConstants.FullNameMaximumLength);
+        builder.Property(u => u.Phone).HasMaxLength(UserConstants.PhoneMaximumLength);
 
         builder.HasIndex(u => u.Username).IsUnique();
         builder.HasIndex(u => u.Email).IsUnique();

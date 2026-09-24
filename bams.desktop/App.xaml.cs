@@ -1,5 +1,7 @@
 ﻿using System.Net.Http;
 using System.Windows;
+using bams.desktop.Api;
+using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
@@ -35,11 +37,23 @@ public partial class App : Application
         services.AddSingleton(sp => AuthContext.Instance);
 
         // Register HTTP client with base URL (singleton to share auth token across app)
-        services.AddSingleton<HttpClient>(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5121") });
+        services.AddSingleton<HttpClient>(sp => new HttpClient { BaseAddress = new Uri(ApiConstants.ServerBaseAddress) });
+        services.AddSingleton<ApiClient>();
         services.AddSingleton<Services.IAuthenticationService, Services.AuthenticationService>();
 
         // Register Navigation Service
         services.AddSingleton<Services.INavigationService, Services.NavigationService>();
+
+        // Themed confirmation dialogs (use instead of MessageBox.Show)
+        services.AddSingleton<Services.IDialogService, Services.DialogService>();
+
+        // Ends the session from anywhere (logout, self-delete); MainWindow returns to sign-in
+        services.AddSingleton<Services.ISessionService, Services.SessionService>();
+
+        // User Management
+        services.AddSingleton<Services.IUserService, Services.UserService>();
+        services.AddTransient<ViewModels.Pages.Users.UserFilterViewModel>();
+        services.AddTransient<ViewModels.Pages.Users.UserListViewModel>();
 
         // Register ViewModels
         services.AddTransient<LoginViewModel>();

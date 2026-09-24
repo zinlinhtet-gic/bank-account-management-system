@@ -1,114 +1,38 @@
 <UserControl x:Class="Bams.Desktop.Components.Header.Header"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
              x:Name="Root"
              Height="{StaticResource NavBarHeaderHeight}">
+    <!-- Design: top bar in App.tsx. Page title (DM Serif 18) + date, then Ghost / Secondary / Danger actions. -->
     <Border Background="{StaticResource CardBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,0,0,1">
-        <Grid Margin="30,0,28,0">
+        <Grid Margin="24,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                 <TextBlock Text="{Binding SelectedTitle, ElementName=Root}"
-                           FontFamily="{StaticResource SerifFont}"
-                           FontSize="22"
-                           Foreground="{StaticResource ForegroundBrush}"/>
+                           Style="{StaticResource Text.Heading}" FontSize="18"/>
                 <TextBlock Text="{Binding CurrentDate, ElementName=Root}"
-                           Margin="0,1,0,0"
-                           FontSize="14"
-                           Foreground="{StaticResource PrimaryBrush}"/>
+                           Style="{StaticResource Text.Caption}"/>
             </StackPanel>
 
-            <Button Grid.Column="1"
-                    Margin="0,0,20,0"
-                    Padding="0"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    ToolTip="Alerts">
-                <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="Transparent"
-                                Padding="{TemplateBinding Padding}">
-                            <StackPanel x:Name="AlertContent" Orientation="Horizontal">
-                                <icon:Icon x:Name="AlertIcon"
-                                           Size="16"
-                                           StrokeThickness="1.7"
-                                           Foreground="#A8BBD5"
-                                           Geometry="{StaticResource Icon.Bell}"/>
-                                <TextBlock x:Name="AlertText"
-                                           Text="Alerts"
-                                           Margin="9,0,0,0"
-                                           VerticalAlignment="Center"
-                                           FontSize="14"
-                                           FontWeight="SemiBold"
-                                           Foreground="#A8BBD5"/>
-                            </StackPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="AlertIcon"
-                                        Property="Foreground"
-                                        Value="{StaticResource AccentBrush}"/>
-                                <Setter TargetName="AlertText"
-                                        Property="Foreground"
-                                        Value="{StaticResource AccentBrush}"/>
-                                <Setter TargetName="AlertText"
-                                        Property="FontSize"
-                                        Value="15"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Button.Template>
-            </Button>
-
-                <Button Grid.Column="2"
-                    Height="35"
-                    Margin="0,0,0,0"
-                    Padding="16,0"
-                    Background="{StaticResource PrimaryBrush}"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    ToolTip="Search">
-                <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="SearchBorder"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <StackPanel Orientation="Horizontal">
-                                <icon:Icon x:Name="SearchIcon"
-                                           Size="16"
-                                           StrokeThickness="1.7"
-                                           Foreground="White"
-                                           Geometry="{StaticResource Icon.Search}"/>
-                                <TextBlock x:Name="SearchText"
-                                           Text="Search"
-                                           Margin="9,0,0,0"
-                                           VerticalAlignment="Center"
-                                           FontSize="14"
-                                           Foreground="White"/>
-                            </StackPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="SearchBorder"
-                                        Property="Background"
-                                        Value="{StaticResource AccentBrush}"/>
-                                <Setter TargetName="SearchText"
-                                        Property="FontWeight"
-                                        Value="SemiBold"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Button.Template>
-            </Button>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Alerts" ToolTip="Alerts" Margin="0,0,12,0"
+                        Style="{StaticResource Button.Ghost}" t:ThemeAssist.Size="Small"
+                        t:ThemeAssist.Icon="{StaticResource Icon.Bell}"/>
+                <Button Content="Search" ToolTip="Search" Margin="0,0,12,0"
+                        Style="{StaticResource Button.Secondary}" t:ThemeAssist.Size="Small"
+                        t:ThemeAssist.Icon="{StaticResource Icon.Search}"/>
+                <Button Content="Logout" ToolTip="Logout"
+                        Style="{StaticResource Button.Danger}" t:ThemeAssist.Size="Small"
+                        t:ThemeAssist.Icon="{StaticResource Icon.Logout}"
+                        Command="{Binding LogoutCommand}"/>
+            </StackPanel>
         </Grid>
     </Border>
 </UserControl>

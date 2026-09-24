@@ -1006,6 +1006,9 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("tinyint(1)");
 
@@ -1019,6 +1022,9 @@ namespace bams.server.Data.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");

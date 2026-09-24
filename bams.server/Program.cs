@@ -2,10 +2,10 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using bams.server.Constants;
 using bams.server.Data;
 using bams.server.Data.Seeders;
+using bams.server.DTO.Common;
+using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
@@ -49,35 +49,28 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero
     };
+
+    // Return the standard ApiErrorResponse instead of an empty 401 when [Authorize] rejects a request.
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+
+            const MessageCode messageCode = MessageCode.AuthenticationRequired;
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(
+                (int)messageCode,
+                messageCode.ToString(),
+                MessageCatalog.GetMessage(messageCode),
+                context.HttpContext.TraceIdentifier));
+        }
+    };
 });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("user_management", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.UserManagement)));
-    options.AddPolicy("customer_management", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.CustomerManagement)));
-    options.AddPolicy("customer_kyc", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.CustomerKyc)));
-    options.AddPolicy("accounting", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.Accounting)));
-    options.AddPolicy("configuration", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.Configuration)));
-    options.AddPolicy("operation", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.Operation)));
-    options.AddPolicy("account_management", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.AccountManagement)));
-    options.AddPolicy("transactions", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.Transactions)));
-    options.AddPolicy("transaction_history", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.TransactionHistory)));
-    options.AddPolicy("audit", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.Audit)));
-    options.AddPolicy("customer_list", policy =>
-        policy.Requirements.Add(new PermissionRequirement(SecurityConstants.CustomerList)));
-});
-
-builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+// Permissions are enforced per endpoint by [RequirePermission] (Middlewares/MiddlewareAttribute.cs).
+// AddAuthorization is still required for [Authorize].
+builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
@@ -95,6 +88,7 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IEndOfDayAuditService, EndOfDayAuditService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 

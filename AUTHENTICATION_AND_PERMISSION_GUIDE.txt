@@ -1,1069 +1,550 @@
-# BAMS Authentication and Permission Implementation Guide
+# BAMS Permissions Guide: How to Protect Your Pages
 
-This comprehensive guide explains how to use the authentication and authorization system in the BAMS (Bank Account Management System) project. It covers both backend and frontend implementation, navigation integration, and permission-based access control.
+This guide is for everyone building a feature page (customers, KYC, accounts, transactions, etc.).
+It explains how to lock down your server endpoints and how to show or hide things in the desktop app
+based on the logged-in user's permissions.
 
----
+For the full step-by-step walkthrough of building a page (DTOs, service, ViewModel, View), see
+`PAGE_DEVELOPMENT_GUIDE.txt`. This guide covers only the permission parts.
 
-## Table of Contents
-1. [System Overview](#system-overview)
-2. [Current Permissions and Roles](#current-permissions-and-roles)
-3. [Backend Implementation](#backend-implementation)
-4. [Frontend Implementation](#frontend-implementation)
-5. [Navigation Implementation](#navigation-implementation)
-6. [Adding New Pages with Authentication](#adding-new-pages-with-authentication)
-7. [Adding New Navigation Tabs](#adding-new-navigation-tabs)
-8. [Code Examples](#code-examples)
-9. [Common Permission Patterns](#common-permission-patterns)
-10. [Testing Permissions](#testing-permissions)
-11. [Troubleshooting](#troubleshooting)
-12. [File Locations Reference](#file-locations-reference)
-13. [Quick Reference](#quick-reference)
+If something here does not work or is missing, ask the permission owner instead of working around it.
 
 ---
 
-## System Overview
+## Contents
+1. The 5 rules
+2. Roles, permissions and pages
+3. Test logins
+4. Server: protect your endpoints
+5. Server: errors you get for free
+6. Desktop: make your page show up
+7. Desktop: hide or disable actions by permission
+8. Desktop: call your API and handle permission errors
+9. Adding a brand-new permission
+10. Test checklist
+11. Troubleshooting
+12. File reference
 
-The BAMS authentication system uses:
-- **JWT-based authentication** for user sessions
-- **Permission-based authorization** for access control
-- **Role-based permissions** (manager, officer, auditor)
-- **Centralized AuthContext** for frontend state management
-- **Middleware-style authorization** for clean separation of concerns
-- **Navigation-based UI** with permission-controlled tabs
+---
 
-### Architecture Flow
+## 1. The 5 Rules
+
+1. **The server is the real lock.** Every endpoint that reads or changes data must have `[RequirePermission]`.
+   Hiding a button in the desktop app is only for convenience; it is not security.
+2. **Check permissions, not roles.** Write `[RequirePermission(SecurityConstants.CustomerManagement)]`, never
+   `if (role == "manager")`. Roles can be given different permissions later without touching your code.
+3. **Use the constants.** Server: `SecurityConstants.*`. Desktop: `PermissionCodes.*`. Never type a permission
+   code as a string.
+4. **Decide by `MessageCode`, never by message text.** Messages can change; codes cannot.
+5. **Call the server only through `ApiClient`** (desktop). It adds the login token and converts errors for you.
+
+---
+
+## 2. Roles, Permissions and Pages
+
+Every page already has a permission, a navigation tab, a `PermissionFlags` property and an (empty) ViewModel.
+You do **not** need to create these for the pages below; just build the page.
+
+| Permission code       | Server constant                        | Desktop flag                               | Nav tab / ViewModel                                   | Roles              |
+| --------------------- | -------------------------------------- | ------------------------------------------ | ----------------------------------------------------- | ------------------ |
+| `user_management`     | `SecurityConstants.UserManagement`     | `PermissionFlags.CanManageUsers`           | User Management / `UserManagementViewModel`           | manager            |
+| `customer_management` | `SecurityConstants.CustomerManagement` | `PermissionFlags.CanManageCustomers`       | Customer Management / `CustomerManagementViewModel`   | manager, officer   |
+| `customer_kyc`        | `SecurityConstants.CustomerKyc`        | `PermissionFlags.CanPerformKYC`            | Customer KYC / `CustomerKYCViewModel`                 | manager            |
+| `account_management`  | `SecurityConstants.AccountManagement`  | `PermissionFlags.CanManageAccounts`        | Account Management / `AccountManagementViewModel`     | officer            |
+| `transactions`        | `SecurityConstants.Transactions`       | `PermissionFlags.CanViewTransactions`      | Transactions / `TransactionsViewModel`                | officer            |
+| `transaction_history` | `SecurityConstants.TransactionHistory` | `PermissionFlags.CanViewTransactionHistory`| Transaction History / `TransactionHistoryViewModel`   | auditor            |
+| `accounting`          | `SecurityConstants.Accounting`         | `PermissionFlags.CanAccessAccounting`      | Accounting / `AccountingViewModel`                    | manager, auditor   |
+| `operation`           | `SecurityConstants.Operation`          | `PermissionFlags.CanPerformOperations`     | Operations / `OperationsViewModel`                    | manager            |
+| `audit`               | `SecurityConstants.Audit`              | `PermissionFlags.CanViewAudit`             | Audit / `AuditViewModel`                              | auditor            |
+| `configuration`       | `SecurityConstants.Configuration`      | `PermissionFlags.CanConfigureSystem`       | Configurations / `ConfigurationsViewModel`            | manager            |
+| `customer_list`       | `SecurityConstants.CustomerList`       | `PermissionFlags.CanViewCustomerList`      | Customer List / `CustomerListViewModel`               | auditor            |
+
+Where these live:
+- Permission codes: `bams.server/Constants/SecurityConstants.cs`
+- Which role has which permission: `bams.server/Data/Seeders/RolesAndPermissionsSeeder.cs`
+- Desktop flags: `bams.desktop/Services/AuthContext.cs` (`PermissionFlags` and `ComputePermissionFlags()`)
+- Nav tabs: `bams.desktop/Components/NavBar/NavBarViewModel.cs` (`BuildNavigationItems`)
+- Tab label → ViewModel: `bams.desktop/Services/NavigationService.cs`
+
+A tab only appears when the user has its permission, so a user never sees a page they cannot use.
+
+---
+
+## 3. Test Logins
+
+| Username  | First password | Role    |
+| --------- | -------------- | ------- |
+| `manager` | `Manager123!`  | manager |
+| `officer` | `Officer123!`  | officer |
+| `auditor` | `Auditor123!`  | auditor |
+
+The **first login forces a password change**. After that, use the new password you chose.
+New passwords need at least 8 characters with an uppercase letter, a lowercase letter, a number and a special character.
+
+Before the first run on your machine, apply the database migrations from `bams.server`:
 
 ```
-User Login → JWT Token → AuthContext → Permission Flags → UI Control → Navigation
-```
-
-### Test Credentials
-- **manager** / `Manager123!`
-- **officer** / `Officer123!`
-- **auditor** / `Auditor123!`
-
----
-
-## Current Permissions and Roles
-
-### Available Permissions
-- `user_management` - User management operations
-- `customer_management` - Customer management operations  
-- `customer_kyc` - Customer KYC operations
-- `account_management` - Account management operations
-- `transactions` - Transaction operations
-- `transaction_history` - Transaction history access
-- `accounting` - Accounting operations
-- `configuration` - System configuration
-- `operation` - Operational tasks
-- `audit` - Audit log access
-- `customer_list` - Customer list viewing
-
-### Role Permissions
-
-**Manager Role:**
-- user_management
-- customer_management
-- customer_kyc
-- accounting
-- configuration
-- operation
-
-**Officer Role:**
-- customer_management
-- account_management
-- transactions
-
-**Auditor Role:**
-- customer_list
-- accounting
-- transaction_history
-- audit
-
-### Permission Flags (Frontend)
-
-```csharp
-public sealed class PermissionFlags
-{
-    public bool CanManageAccounts { get; set; }
-    public bool CanManageCustomers { get; set; }
-    public bool CanPerformKYC { get; set; }
-    public bool CanManageUsers { get; set; }
-    public bool CanViewTransactions { get; set; }
-    public bool CanViewTransactionHistory { get; set; }
-    public bool CanAccessAccounting { get; set; }
-    public bool CanConfigureSystem { get; set; }
-    public bool CanPerformOperations { get; set; }
-    public bool CanViewAudit { get; set; }
-    public bool CanViewCustomerList { get; set; }
-}
+dotnet ef database update
 ```
 
 ---
 
-## Backend Implementation
+## 4. Server: Protect Your Endpoints
 
-### 1. Permission Constants (`bams.server/Constants/SecurityConstants.cs`)
-
-Define new permissions as constants:
+Put `[RequirePermission]` on every action (or on the whole controller). Use the constant for your page.
 
 ```csharp
-public static class SecurityConstants
-{
-    // Existing permissions
-    public const string UserManagement = "user_management";
-    public const string CustomerManagement = "customer_management";
-    // ... more permissions
-    
-    // Add new permission
-    public const string NewFeature = "new_feature";
-}
-```
-
-### 2. Permission Seeder (`bams.server/Data/Seeders/RolesAndPermissionsSeeder.cs`)
-
-The seeder automatically creates permissions, roles, and assigns permissions to roles.
-
-To add a new permission to a role:
-
-```csharp
-// In SeedRolePermissionsAsync method
-var officerPermissionCodes = new[]
-{
-    SecurityConstants.CustomerManagement,
-    SecurityConstants.AccountManagement,
-    SecurityConstants.Transactions,
-    SecurityConstants.NewFeature  // Add new permission here
-};
-```
-
-### 3. Controller Authorization (`bams.server/Controllers/`)
-
-Use the `[RequirePermission]` attribute to protect endpoints:
-
-```csharp
+using bams.server.Constants;
+using bams.server.DTO.Common;
+using bams.server.Messages;
 using bams.server.Middlewares;
+using bams.server.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+
+namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/customers")]
 public sealed class CustomersController : ControllerBase
 {
-    [HttpGet]
-    [RequirePermission("customer_management")]
-    public async Task<IActionResult> GetCustomers()
+    private readonly ICustomerService _customerService;
+
+    public CustomersController(ICustomerService customerService)
     {
-        // Controller logic
+        _customerService = customerService;
     }
 
+    /// <summary>
+    /// Lists customers. Officers/managers manage customers; auditors may only view the list.
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CustomerSummaryResponse>>>> GetCustomersAsync(
+        CancellationToken cancellationToken)
+    {
+        var customers = await _customerService.GetCustomersAsync(cancellationToken);
+
+        return Ok(ApiMessageResponse<IReadOnlyList<CustomerSummaryResponse>>.FromCode(MessageCode.Success, customers));
+    }
+
+    /// <summary>
+    /// Creates a customer. Only users who manage customers may do this.
+    /// </summary>
     [HttpPost]
-    [RequirePermission("customer_management")]
-    public async Task<IActionResult> CreateCustomer(CreateCustomerRequest request)
+    [RequirePermission(SecurityConstants.CustomerManagement)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> CreateCustomerAsync(
+        CreateCustomerRequest request,
+        CancellationToken cancellationToken)
     {
-        // Controller logic
+        ...
     }
 }
 ```
 
-### 4. Multiple Permissions
+How `[RequirePermission]` behaves:
 
-You can require any of multiple permissions:
+| You write                                                  | Meaning                                                     |
+| ---------------------------------------------------------- | ----------------------------------------------------------- |
+| `[RequirePermission(A)]`                                   | User needs permission A                                     |
+| `[RequirePermission(A, B)]`                                | User needs A **or** B                                       |
+| `[RequirePermission(A)]` on the class                      | Every action in the controller needs A                      |
+| `[RequirePermission(A)]` on class + `[RequirePermission(B)]` on an action | That action needs A **and** B                |
+
+On every request it also checks, directly in the database:
+- the token belongs to a user that still exists, and
+- that user's `Status` is `Active` (a disabled or deleted user is blocked immediately, even with a valid token).
+
+You do **not** need `[Authorize]` on endpoints that already have `[RequirePermission]`.
+
+### Knowing who is calling
+
+If your service needs the current user's id (for example to record who created a record or for audit logs),
+read it in the controller and pass it to the service:
 
 ```csharp
-[HttpGet]
-[RequirePermission("customer_management", "customer_list")]
-public async Task<IActionResult> GetCustomers()
+using bams.server.Utils.Extensions;
+
+var userId = User.GetRequiredUserId();   // throws 401 automatically if missing
+var customer = await _customerService.CreateCustomerAsync(request, userId, cancellationToken);
+```
+
+Never accept the acting user's id from the request body; clients can send anything.
+
+### Rules inside a page (beyond "can open the page")
+
+If a rule depends on data (for example "an officer may not approve a transaction they created"), check it in
+your **service** and throw a `ForbiddenException` or `BusinessRuleException` with a `MessageCode`:
+
+```csharp
+if (transaction.InitiatedBy == currentUserId)
 {
-    // User needs either customer_management OR customer_list
+    throw new ForbiddenException(MessageCode.OperationNotPermitted);   // add the code to MessageCode.cs first
 }
 ```
 
-### 5. Authentication Controller (`bams.server/Controllers/AuthController.cs`)
-
-The authentication controller provides:
-- `POST /api/auth/login` - User login
-- `GET /api/auth/permissions` - Get current user permissions
+Do not write error JSON by hand in controllers.
 
 ---
 
-## Frontend Implementation
+## 5. Server: Errors You Get For Free
 
-### 1. AuthContext (`bams.desktop/Services/AuthContext.cs`)
+You never need to write these yourself. All come back in the standard error body:
 
-The AuthContext is a singleton service that manages:
-- User session information
-- Permission list
-- Computed permission flags for UI control
-
-**Key Methods:**
-
-```csharp
-// Check if user has a specific permission
-bool hasPermission = AuthContext.Instance.HasPermission("account_management");
-
-// Check if user has any of the specified permissions
-bool hasAnyPermission = AuthContext.Instance.HasAnyPermission("permission1", "permission2");
-
-// Access permission flags
-bool canManageAccounts = AuthContext.Instance.PermissionFlags.CanManageAccounts;
+```json
+{ "code": 4101, "name": "InsufficientPermission", "message": "You do not have permission to perform this operation.", "traceId": "0HN..." }
 ```
 
-### 2. Authentication Service (`bams.desktop/Services/AuthenticationService.cs`)
+| HTTP | Code | Name                   | When                                                          |
+| ---- | ---- | ---------------------- | ------------------------------------------------------------- |
+| 401  | 4000 | AuthenticationRequired | No token, invalid or expired token, or the user was deleted   |
+| 403  | 4003 | UserAccountDisabled    | The user's `Status` is `Disabled`                             |
+| 403  | 4004 | UserAccountDeleted     | The user was deleted in User Management (soft delete)         |
+| 403  | 4101 | InsufficientPermission | None of the user's roles has a required permission            |
 
-Handles API communication for authentication:
-
-```csharp
-public interface IAuthenticationService
-{
-    Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
-    Task<PermissionsResponse> GetPermissionsAsync(CancellationToken cancellationToken);
-    void SetAuthToken(string token);
-}
-```
-
-### 3. Login Flow (`bams.desktop/ViewModels/LoginViewModel.cs`)
-
-The login process:
-1. User enters credentials
-2. Call `LoginAsync` to authenticate
-3. Set JWT token for subsequent requests
-4. Call `GetPermissionsAsync` to fetch permissions
-5. Set session in AuthContext
-6. Navigate to main application
+All message codes: `bams.server/Documentation/MessageCodes.md`.
 
 ---
 
-## Navigation Implementation
+## 6. Desktop: Make Your Page Show Up
 
-### Navigation Architecture
+The nav tab, the flag and the ViewModel already exist for every page (see section 2). To replace the
+"Page content coming soon..." placeholder with your real page:
 
-The navigation system uses:
-- **MainViewModel** - Coordinates the main application shell
-- **NavBarViewModel** - Manages navigation items with permission filtering
-- **NavigationService** - Maps navigation labels to ViewModels
-- **AuthContext** - Provides permission flags for navigation control
+### Step 1: Create your View
 
-### 1. MainViewModel (`bams.desktop/ViewModels/MainViewModel.cs`)
+`bams.desktop/Views/Pages/CustomerManagementView.xaml` (a `UserControl`). Its `DataContext` will be your
+ViewModel automatically.
 
-Coordinates the main application with navigation:
+### Step 2: Map your ViewModel to your View in `MainWindow.xaml`
 
-```csharp
-public sealed class MainViewModel : ViewModelBase
-{
-    private readonly AuthContext _authContext;
-    private readonly INavigationService _navigationService;
-    private object? _currentPage;
-    private string _activeItem = string.Empty;
-
-    public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel)
-    {
-        _authContext = authContext;
-        _navigationService = navigationService;
-        NavBar = navBarViewModel;
-        
-        // Wire up navigation from NavBar
-        NavBar.NavigateCommand = new RelayCommand(NavigateToPage);
-        
-        // Initialize with user info from AuthContext
-        UpdateUserInfo();
-        
-        // Load initial page
-        NavigateToPage(GetDefaultPageForRole());
-    }
-
-    public NavBarViewModel NavBar { get; }
-    public object? CurrentPage { get; private set; }
-    public string ActiveItem { get; private set; }
-}
-```
-
-### 2. NavBarViewModel (`bams.desktop/Components/NavBar/NavBarViewModel.cs`)
-
-Manages navigation items with permission-based filtering:
-
-```csharp
-public void BuildNavigationItems(PermissionFlags flags)
-{
-    Items.Clear();
-
-    // Add items based on permissions
-    if (flags.CanManageUsers)
-        AddNavItem("User Management", "Icon.Users", true);
-
-    if (flags.CanManageCustomers)
-        AddNavItem("Customer Management", "Icon.Accounts", Items.Count == 0);
-
-    if (flags.CanPerformKYC)
-        AddNavItem("Customer KYC", "Icon.UserCheck");
-
-    if (flags.CanManageAccounts)
-        AddNavItem("Account Management", "Icon.Accounts", Items.Count == 0);
-
-    if (flags.CanViewTransactions)
-        AddNavItem("Transactions", "Icon.Transactions", Items.Count == 0);
-
-    if (flags.CanViewTransactionHistory)
-        AddNavItem("Transaction History", "Icon.Reports");
-
-    if (flags.CanAccessAccounting)
-        AddNavItem("Accounting", "Icon.Finance");
-
-    if (flags.CanPerformOperations)
-        AddNavItem("Operations", "Icon.Settings");
-
-    if (flags.CanViewAudit)
-        AddNavItem("Audit", "Icon.Shield");
-
-    if (flags.CanConfigureSystem)
-        AddNavItem("Configurations", "Icon.Settings");
-
-    if (flags.CanViewCustomerList)
-        AddNavItem("Customer List", "Icon.Users");
-}
-```
-
-### 3. NavigationService (`bams.desktop/Services/NavigationService.cs`)
-
-Maps navigation labels to ViewModels:
-
-```csharp
-public sealed class NavigationService : INavigationService
-{
-    private readonly IServiceProvider _serviceProvider;
-
-    public NavigationService(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-    }
-
-    public object? GetPageViewModel(string pageLabel)
-    {
-        return pageLabel switch
-        {
-            "User Management" => _serviceProvider.GetService<UserManagementViewModel>(),
-            "Customer Management" => _serviceProvider.GetService<CustomerManagementViewModel>(),
-            "Customer KYC" => _serviceProvider.GetService<CustomerKYCViewModel>(),
-            "Account Management" => _serviceProvider.GetService<AccountManagementViewModel>(),
-            "Transactions" => _serviceProvider.GetService<TransactionsViewModel>(),
-            "Transaction History" => _serviceProvider.GetService<TransactionHistoryViewModel>(),
-            "Accounting" => _serviceProvider.GetService<AccountingViewModel>(),
-            "Operations" => _serviceProvider.GetService<OperationsViewModel>(),
-            "Audit" => _serviceProvider.GetService<AuditViewModel>(),
-            "Configurations" => _serviceProvider.GetService<ConfigurationsViewModel>(),
-            "Customer List" => _serviceProvider.GetService<CustomerListViewModel>(),
-            _ => null
-        };
-    }
-}
-```
-
-### 4. User Information in NavBar
-
-The NavBar automatically displays user information from AuthContext:
-
-```csharp
-private void UpdateUserInfo()
-{
-    if (!_authContext.IsAuthenticated)
-        return;
-
-    NavBar.UserName = _authContext.FullName ?? _authContext.Username ?? "Unknown User";
-    NavBar.UserRole = FormatRole(_authContext.Role ?? "Unknown Role");
-    NavBar.UserInitials = GetInitials(_authContext.FullName ?? _authContext.Username ?? "Unknown");
-    
-    // Rebuild navigation items based on permissions
-    NavBar.BuildNavigationItems(_authContext.PermissionFlags);
-}
-```
-
----
-
-## Adding New Pages with Authentication
-
-### Step 1: Define Permission in Backend
-
-Add permission constant in `bams.server/Constants/SecurityConstants.cs`:
-
-```csharp
-public const string ReportGeneration = "report_generation";
-```
-
-### Step 2: Add Permission to Seeder
-
-Add the permission to appropriate roles in `bams.server/Data/Seeders/RolesAndPermissionsSeeder.cs`:
-
-```csharp
-// For manager role
-var managerPermissionCodes = new[]
-{
-    SecurityConstants.UserManagement,
-    SecurityConstants.CustomerManagement,
-    SecurityConstants.ReportGeneration  // Add here
-};
-
-// For auditor role (if they should also have it)
-var auditorPermissionCodes = new[]
-{
-    SecurityConstants.CustomerList,
-    SecurityConstants.ReportGeneration  // Add here
-};
-```
-
-### Step 3: Protect Controller Endpoint
-
-Add the `[RequirePermission]` attribute to your controller:
-
-```csharp
-[ApiController]
-[Route("api/reports")]
-public sealed class ReportsController : ControllerBase
-{
-    [HttpGet]
-    [RequirePermission("report_generation")]
-    public async Task<IActionResult> GenerateReport(ReportRequest request)
-    {
-        // Report generation logic
-    }
-}
-```
-
-### Step 4: Add Permission to AuthContext
-
-Add the permission flag to `bams.desktop/Services/AuthContext.cs`:
-
-```csharp
-private PermissionFlags ComputePermissionFlags()
-{
-    return new PermissionFlags
-    {
-        // Existing flags
-        CanManageAccounts = HasPermission("account_management"),
-        // Add new flag
-        CanGenerateReports = HasPermission("report_generation")
-    };
-}
-```
-
-Update the `PermissionFlags` class:
-
-```csharp
-public sealed class PermissionFlags
-{
-    // Existing properties
-    public bool CanManageAccounts { get; set; }
-    // Add new property
-    public bool CanGenerateReports { get; set; }
-}
-```
-
-### Step 5: Use in ViewModel
-
-Inject AuthContext into your ViewModel and use the permission flag:
-
-```csharp
-public sealed class ReportsViewModel : ViewModelBase
-{
-    private readonly AuthContext _authContext;
-
-    public ReportsViewModel(AuthContext authContext)
-    {
-        _authContext = authContext;
-    }
-
-    public bool CanGenerateReports => _authContext.PermissionFlags.CanGenerateReports;
-
-    public RelayCommand GenerateReportCommand => new RelayCommand(
-        _ => GenerateReportAsync(),
-        _ => CanGenerateReports); // Command only executable if user has permission
-}
-```
-
-### Step 6: Bind in View
-
-Bind the permission to UI elements:
+Inside `<ContentControl.Resources>` of the page area in `MainWindow.xaml`, add **one** `DataTemplate` for your page
+next to the existing fallback:
 
 ```xml
-<!-- Button only enabled if user has permission -->
-<Button Content="Generate Report" 
-        Command="{Binding GenerateReportCommand}" />
+<ContentControl.Resources>
+    <!-- Fallback placeholder (already there) -->
+    <DataTemplate DataType="{x:Type viewmodels:ViewModelBase}">
+        <pages:GenericPageView/>
+    </DataTemplate>
 
-<!-- Menu item only visible if user has permission -->
-<MenuItem Header="Reports" 
-          Visibility="{Binding CanGenerateReports, Converter={StaticResource BooleanToVisibilityConverter}}" />
+    <!-- Add yours -->
+    <DataTemplate DataType="{x:Type pageviewmodels:CustomerManagementViewModel}">
+        <pages:CustomerManagementView/>
+    </DataTemplate>
+</ContentControl.Resources>
 ```
+
+WPF picks the most specific template, so your page wins over the fallback, and pages nobody has built yet
+keep showing the placeholder. Add only your own line to keep merge conflicts small.
+
+### Step 3: Register your services in `App.xaml.cs`
+
+```csharp
+services.AddSingleton<ICustomerService, CustomerService>();
+```
+
+The page ViewModels are already registered as transient.
 
 ---
 
-## Adding New Navigation Tabs
+## 7. Desktop: Hide or Disable Actions by Permission
 
-### Step 1: Add Permission Flag (if needed)
-
-If you need a new permission flag, add it to `AuthContext.cs`:
-
-**File:** `bams.desktop/Services/AuthContext.cs`
+Inject `AuthContext` into your ViewModel and expose simple bool properties for the View.
 
 ```csharp
-public sealed class PermissionFlags
-{
-    // Existing flags...
-    public bool CanManageAccounts { get; set; }
-    public bool CanManageCustomers { get; set; }
-    
-    // Add your new flag
-    public bool CanAccessReports { get; set; }
-}
-```
+using bams.desktop.Commands;
+using bams.desktop.Constants;
+using bams.desktop.Services;
 
-### Step 2: Compute the Flag
-
-Update the `ComputePermissionFlags()` method:
-
-```csharp
-private PermissionFlags ComputePermissionFlags()
-{
-    return new PermissionFlags
-    {
-        // Existing flags...
-        CanManageAccounts = HasPermission("account_management"),
-        CanManageCustomers = HasPermission("customer_management"),
-        
-        // Add your new flag computation
-        CanAccessReports = HasPermission("report_generation")
-    };
-}
-```
-
-### Step 3: Add Navigation Item
-
-Update `NavBarViewModel.cs` to include your new navigation item:
-
-**File:** `bams.desktop/Components/NavBar/NavBarViewModel.cs`
-
-```csharp
-public void BuildNavigationItems(PermissionFlags flags)
-{
-    Items.Clear();
-
-    // Existing items...
-    if (flags.CanManageUsers)
-        AddNavItem("User Management", "Icon.Users", true);
-
-    // Add your new navigation item
-    if (flags.CanAccessReports)
-        AddNavItem("Reports", "Icon.Reports");
-}
-```
-
-### Step 4: Create Page ViewModel
-
-Create a new ViewModel for your page:
-
-**File:** `bams.desktop/ViewModels/Pages/ReportsViewModel.cs`
-
-```csharp
 namespace bams.desktop.ViewModels.Pages;
 
-public sealed class ReportsViewModel : ViewModelBase
+public sealed class CustomerManagementViewModel : ViewModelBase
 {
     private readonly AuthContext _authContext;
+    private readonly ICustomerService _customerService;
 
-    public ReportsViewModel(AuthContext authContext)
+    public CustomerManagementViewModel(AuthContext authContext, ICustomerService customerService)
     {
         _authContext = authContext;
+        _customerService = customerService;
+
+        // The command is disabled when the user cannot create customers (and while it is running).
+        CreateCustomerCommand = new AsyncRelayCommand(CreateCustomerAsync, () => CanCreateCustomers);
     }
 
-    public string PageTitle => "Reports";
-    public string PageDescription => "Generate and view reports";
-    
-    public bool CanGenerateReports => _authContext.PermissionFlags.CanAccessReports;
+    public string PageTitle => "Customer Management";
+    public string PageDescription => "Manage customer profiles and information";
+
+    // Used by the View to show or hide the "New Customer" button.
+    public bool CanCreateCustomers => _authContext.PermissionFlags.CanManageCustomers;
+
+    // Use HasAnyPermission when an action is allowed by more than one permission.
+    public bool CanViewCustomers =>
+        _authContext.HasAnyPermission(PermissionCodes.CustomerManagement, PermissionCodes.CustomerList);
+
+    public AsyncRelayCommand CreateCustomerCommand { get; }
+    ...
 }
 ```
-
-### Step 5: Register in Navigation Service
-
-Add your page to the navigation service:
-
-**File:** `bams.desktop/Services/NavigationService.cs`
-
-```csharp
-public object? GetPageViewModel(string pageLabel)
-{
-    return pageLabel switch
-    {
-        // Existing pages...
-        "User Management" => _serviceProvider.GetService<UserManagementViewModel>(),
-        
-        // Add your new page
-        "Reports" => _serviceProvider.GetService<ReportsViewModel>(),
-        
-        _ => null
-    };
-}
-```
-
-### Step 6: Register in DI Container
-
-Register your new ViewModel in `App.xaml.cs`:
-
-```csharp
-private void ConfigureServices(IServiceCollection services)
-{
-    // Existing registrations...
-    services.AddTransient<UserManagementViewModel>();
-    
-    // Add your new ViewModel
-    services.AddTransient<ReportsViewModel>();
-}
-```
-
----
-
-## Code Examples
-
-### Example 1: Simple Page with Single Permission
-
-**Backend Controller:**
-```csharp
-[ApiController]
-[Route("api/settings")]
-public sealed class SettingsController : ControllerBase
-{
-    [HttpGet]
-    [RequirePermission("configuration")]
-    public async Task<IActionResult> GetSettings()
-    {
-        return Ok(new { message = "Settings retrieved" });
-    }
-}
-```
-
-**Frontend ViewModel:**
-```csharp
-public sealed class SettingsViewModel : ViewModelBase
-{
-    private readonly AuthContext _authContext;
-
-    public SettingsViewModel(AuthContext authContext)
-    {
-        _authContext = authContext;
-    }
-
-    public bool CanAccessSettings => _authContext.PermissionFlags.CanConfigureSystem;
-}
-```
-
-### Example 2: Page with Multiple Permissions
-
-**Backend Controller:**
-```csharp
-[ApiController]
-[Route("api/advanced")]
-public sealed class AdvancedController : ControllerBase
-{
-    [HttpPost]
-    [RequirePermission("account_management", "user_management")]
-    public async Task<IActionResult> AdvancedOperation()
-    {
-        // User needs either account_management OR user_management
-        return Ok(new { message = "Operation completed" });
-    }
-}
-```
-
-**Frontend ViewModel:**
-```csharp
-public sealed class AdvancedViewModel : ViewModelBase
-{
-    private readonly AuthContext _authContext;
-
-    public AdvancedViewModel(AuthContext authContext)
-    {
-        _authContext = authContext;
-    }
-
-    public bool CanPerformAdvanced => _authContext.HasAnyPermission("account_management", "user_management");
-}
-```
-
-### Example 3: Conditional UI Based on Role
-
-**Frontend ViewModel:**
-```csharp
-public sealed class DashboardViewModel : ViewModelBase
-{
-    private readonly AuthContext _authContext;
-
-    public DashboardViewModel(AuthContext authContext)
-    {
-        _authContext = authContext;
-    }
-
-    public string UserGreeting => $"Welcome, {_authContext.FullName}!";
-    public string UserRole => $"Role: {_authContext.Role}";
-    
-    // Show different content based on role
-    public bool IsManager => _authContext.Role == "manager";
-    public bool IsOfficer => _authContext.Role == "officer";
-    public bool IsAuditor => _authContext.Role == "auditor";
-}
-```
-
-**XAML View:**
-```xml
-<StackPanel>
-    <TextBlock Text="{Binding UserGreeting}" FontSize="24" FontWeight="Bold" />
-    <TextBlock Text="{Binding UserRole}" Margin="0,10,0,20" />
-    
-    <!-- Manager-only content -->
-    <StackPanel Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-        <Button Content="Manage Users" />
-        <Button Content="System Configuration" />
-    </StackPanel>
-    
-    <!-- Officer-only content -->
-    <StackPanel Visibility="{Binding IsOfficer, Converter={StaticResource BooleanToVisibilityConverter}}">
-        <Button Content="Manage Accounts" />
-        <Button Content="Process Transactions" />
-    </StackPanel>
-    
-    <!-- Auditor-only content -->
-    <StackPanel Visibility="{Binding IsAuditor, Converter={StaticResource BooleanToVisibilityConverter}}">
-        <Button Content="View Audit Logs" />
-        <Button Content="Transaction History" />
-    </StackPanel>
-</StackPanel>
-```
-
----
-
-## Common Permission Patterns
-
-### Pattern 1: Permission-Based Command Enablement
-
-```csharp
-public RelayCommand SaveCommand => new RelayCommand(
-    _ => SaveAsync(),
-    _ => _authContext.HasPermission("account_management"));
-```
-
-### Pattern 2: Conditional Content Loading
-
-```csharp
-public async Task LoadDataAsync()
-{
-    if (!_authContext.HasPermission("account_management"))
-    {
-        ErrorMessage = "You don't have permission to view accounts";
-        return;
-    }
-    
-    // Load account data
-}
-```
-
-### Pattern 3: Dynamic Menu Building
-
-```csharp
-public List<MenuItem> BuildMenuItems()
-{
-    var items = new List<MenuItem>();
-    
-    if (_authContext.HasPermission("account_management"))
-    {
-        items.Add(new MenuItem { Title = "Accounts", Command = NavigateToAccounts });
-    }
-    
-    if (_authContext.HasPermission("user_management"))
-    {
-        items.Add(new MenuItem { Title = "Users", Command = NavigateToUsers });
-    }
-    
-    return items;
-}
-```
-
-### Pattern 4: Button Visibility
 
 ```xml
-<!-- Button only visible if user has permission -->
-<Button Content="Delete User" 
-        Command="{Binding DeleteUserCommand}"
-        Visibility="{Binding CanDeleteUser, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+<!-- Hidden when the user lacks permission -->
+<Button Content="New Customer"
+        Command="{Binding CreateCustomerCommand}"
+        Visibility="{Binding CanCreateCustomers, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 ```
 
-### Pattern 5: Data Loading Control
+Choose one:
+- **Hide** (`Visibility`) when the user should not know the action exists.
+- **Disable** (command `canExecute`) when the user should see it but cannot use it right now.
+
+`AuthContext` API:
+
+| Member                                    | Use                                                 |
+| ----------------------------------------- | --------------------------------------------------- |
+| `PermissionFlags.CanManageCustomers` etc. | Preferred: named flag for one permission            |
+| `HasPermission(PermissionCodes.X)`        | One permission, when there is no flag               |
+| `HasAnyPermission(PermissionCodes.X, PermissionCodes.Y)` | Any of several permissions           |
+
+Always pass `PermissionCodes.*` (`bams.desktop/Constants/PermissionCodes.cs`), never a typed string:
+a typo does not throw an error, it just silently hides the button for everyone.
+| `FullName`, `Username`, `Role`            | Display only; never use `Role` for access decisions |
+
+Permissions are loaded **once at login**. If a manager changes someone's role, that person must log out and
+back in to see the new tabs and buttons (the server enforces the change immediately regardless).
+
+---
+
+## 8. Desktop: Call Your API and Handle Permission Errors
+
+### Service
+
+Add your endpoint paths to `bams.desktop/Constants/ApiConstants.cs`, then use `ApiClient`:
 
 ```csharp
-public async Task LoadSensitiveDataAsync()
+using bams.desktop.Api;
+using bams.desktop.Constants;
+
+namespace bams.desktop.Services;
+
+public sealed class CustomerService : ICustomerService
 {
-    if (!_authContext.HasPermission("audit"))
+    private readonly ApiClient _apiClient;
+
+    public CustomerService(ApiClient apiClient)
     {
-        SensitiveData = null;
-        ShowWarning("You don't have permission to view audit logs");
-        return;
+        _apiClient = apiClient;
     }
-    
-    SensitiveData = await _auditService.GetAuditLogsAsync();
-}
-```
 
-### Pattern 6: Multiple Permission Check
-
-```csharp
-// User needs either permission
-public bool CanAccessAdvancedFeatures => 
-    _authContext.HasAnyPermission("account_management", "user_management");
-```
-
----
-
-## Testing Permissions
-
-### 1. Test Different Roles
-
-Login with each test credential and verify:
-- Navigation tabs show/hide correctly
-- Buttons are enabled/disabled appropriately
-- Data loads correctly based on permissions
-- Error messages display for unauthorized access
-
-### 2. Test Permission Changes
-
-1. Modify role permissions in the seeder
-2. Restart the server to reseed the database
-3. Login again and verify the changes
-
-### 3. Test API Authorization
-
-1. Try accessing protected endpoints without proper permissions
-2. Verify 403 Forbidden responses
-3. Check server logs for authorization attempts
-
-### 4. Test Frontend Security
-
-1. Verify UI elements respect permission flags
-2. Check that disabled commands can't be executed
-3. Ensure sensitive data isn't loaded without permissions
-
-### Test Authentication
-
-1. Start server: `cd bams.server && dotnet run`
-2. Start desktop: `cd bams.desktop && dotnet run`
-3. Login with test credentials
-4. Verify permissions work correctly
-5. Test with different roles
-
----
-
-## Troubleshooting
-
-### Issue: Permission Not Working
-
-**Solution:**
-1. Check if permission is defined in `SecurityConstants.cs`
-2. Verify permission is added to the role in `RolesAndPermissionsSeeder.cs`
-3. Ensure the database has been reseeded (restart server)
-4. Check if the user has the correct role assigned
-
-### Issue: Frontend Shows Wrong Permissions
-
-**Solution:**
-1. Verify the login process calls `GetPermissionsAsync`
-2. Check if AuthContext session is properly set
-3. Ensure the permission flag is computed correctly in `ComputePermissionFlags()`
-4. Check if the ViewModel is properly bound to the permission property
-
-### Issue: Server Returns 403
-
-**Solution:**
-1. Verify the `[RequirePermission]` attribute is applied
-2. Check if the permission code matches exactly (case-sensitive)
-3. Ensure the user is authenticated and has a valid JWT token
-4. Check server logs for authorization failures
-
-### Issue: Navigation Item Not Showing
-
-**Solution:**
-1. Check if the permission flag is set correctly in `BuildNavigationItems()`
-2. Verify the permission is assigned to the user's role
-3. Ensure the `AddNavItem` method is called with the correct condition
-4. Check if the permission computation includes your new permission
-
-### Issue: Command Always Disabled
-
-**Solution:**
-1. Verify the permission check in the command's canExecute delegate
-2. Check if AuthContext is properly injected
-3. Ensure the permission flag is computed before the command is created
-4. Add logging to debug the permission check
-
-### Debug Permissions
-
-- Check server logs for authorization attempts
-- Verify AuthContext contains expected permissions
-- Test with known permission values
-- Check database for role-permission assignments
-
----
-
-## File Locations Reference
-
-### Backend Files
-- `bams.server/Constants/SecurityConstants.cs` - Permission definitions
-- `bams.server/Data/Seeders/RolesAndPermissionsSeeder.cs` - Role and permission seeding
-- `bams.server/Controllers/AuthController.cs` - Authentication endpoints
-- `bams.server/Controllers/[Feature]Controller.cs` - Feature controllers
-- `bams.server/Middlewares/MiddlewareAttribute.cs` - Authorization attribute
-- `bams.server/DTO/Auth/PermissionsResponse.cs` - Permissions DTO
-
-### Frontend Files
-- `bams.desktop/Services/AuthContext.cs` - Authentication context
-- `bams.desktop/Services/AuthenticationService.cs` - API communication
-- `bams.desktop/Services/INavigationService.cs` - Navigation service interface
-- `bams.desktop/Services/NavigationService.cs` - Navigation service implementation
-- `bams.desktop/DTOs/Auth/PermissionsResponse.cs` - Permissions DTO
-- `bams.desktop/ViewModels/LoginViewModel.cs` - Login logic
-- `bams.desktop/ViewModels/MainViewModel.cs` - Main application coordinator
-- `bams.desktop/ViewModels/[Feature]ViewModel.cs` - Feature ViewModels
-- `bams.desktop/Components/NavBar/NavBarViewModel.cs` - Navigation bar logic
-- `bams.desktop/App.xaml.cs` - Dependency injection configuration
-
----
-
-## Quick Reference
-
-### Add New Permission Summary
-
-**Backend:**
-1. Add constant to `SecurityConstants.cs`
-2. Add to role in `RolesAndPermissionsSeeder.cs`
-3. Apply `[RequirePermission]` to controller
-4. Restart server to reseed database
-
-**Frontend:**
-1. Add flag to `PermissionFlags` class
-2. Compute flag in `ComputePermissionFlags()`
-3. Add navigation item in `NavBarViewModel`
-4. Create page ViewModel
-5. Register in `NavigationService`
-6. Register in DI container
-
-### Common Permission Checks
-
-```csharp
-// Single permission
-_authContext.HasPermission("account_management")
-
-// Multiple permissions (any)
-_authContext.HasAnyPermission("account_management", "user_management")
-
-// Permission flags
-_authContext.PermissionFlags.CanManageAccounts
-_authContext.PermissionFlags.CanManageUsers
-```
-
-### Test Credentials
-
-- **manager** / `Manager123!`
-- **officer** / `Officer123!`
-- **auditor** / `Auditor123!`
-
----
-
-## Best Practices
-
-### 1. Permission Naming
-- Use lowercase snake_case: `customer_management`, `report_generation`
-- Use descriptive names that reflect the business function
-- Group related permissions with common prefixes
-
-### 2. Role Assignment
-- Give roles the minimum permissions they need (principle of least privilege)
-- Consider adding new roles if permission combinations become complex
-- Regularly review and update role permissions as business needs change
-
-### 3. Frontend Security
-- Always validate permissions on the server side (backend controller attributes)
-- Use frontend permission checks only for UI optimization and user experience
-- Never rely solely on frontend checks for security
-
-### 4. Error Handling
-- Handle 403 Forbidden responses gracefully in the frontend
-- Show user-friendly messages when permissions are denied
-- Log authorization failures for security monitoring
-
-### 5. Testing
-- Test each role with different permissions
-- Verify that unauthorized access is properly blocked
-- Test the UI to ensure elements are correctly shown/hidden
-
-### 6. Performance
-- The AuthContext is a singleton, so permission checks are fast
-- Permissions are fetched once during login and cached
-- Avoid making frequent permission API calls
-
----
-
-## Architecture Patterns for Agents
-
-### Agent Development Pattern
-
-When developing new pages with authentication, follow this pattern:
-
-1. **Identify Required Permissions**: Determine which permissions the page needs
-2. **Backend Implementation**: Add permission constants, update seeder, protect controller
-3. **Frontend Implementation**: Add permission flags, create ViewModel, bind permissions
-4. **Navigation Integration**: Add to NavBarViewModel, register in NavigationService
-5. **Testing**: Test with different roles, verify permission behavior
-
-### Page Creation Template
-
-```csharp
-// 1. Backend: Controller with permission protection
-[ApiController]
-[Route("api/[feature]")]
-public sealed class [Feature]Controller : ControllerBase
-{
-    [HttpGet]
-    [RequirePermission("[permission]")]
-    public async Task<IActionResult> Get[Feature]()
+    // Loads the customer list; returns only the "data" part of the server response.
+    public Task<IReadOnlyList<CustomerSummaryResponse>> GetCustomersAsync(CancellationToken cancellationToken)
     {
-        // Implementation
+        return _apiClient.GetAsync<IReadOnlyList<CustomerSummaryResponse>>(
+            ApiConstants.CustomersEndpoint,
+            cancellationToken);
+    }
+
+    // Creates a customer and returns the created record.
+    public Task<CustomerResponse> CreateCustomerAsync(CreateCustomerRequest request, CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<CreateCustomerRequest, CustomerResponse>(
+            ApiConstants.CustomersEndpoint,
+            request,
+            cancellationToken);
     }
 }
+```
 
-// 2. Frontend: ViewModel with permission checks
-public sealed class [Feature]ViewModel : ViewModelBase
+Do not create your own `HttpClient`, and do not set the token yourself. Login already did that.
+
+### ViewModel
+
+Every failure arrives as an `AppException` with a `Code`:
+- `ApiException`: the server answered with an error (keeps the server's code, message and trace id)
+- `NetworkException`: the server could not be reached (`NetworkUnavailable`) or timed out (`RequestTimeout`)
+
+```csharp
+using bams.desktop.Exceptions;
+using bams.desktop.Utils;
+
+private async Task LoadCustomersAsync(CancellationToken cancellationToken)
 {
-    private readonly AuthContext _authContext;
-    
-    public [Feature]ViewModel(AuthContext authContext)
+    try
     {
-        _authContext = authContext;
-    }
-    
-    public bool CanAccess[Feature] => _authContext.PermissionFlags.Can[Permission];
-}
+        IsBusy = true;
+        ErrorMessage = string.Empty;
 
-// 3. Navigation: Add to NavigationService
-"[Feature]" => _serviceProvider.GetService<[Feature]ViewModel>()
+        var customers = await _customerService.GetCustomersAsync(cancellationToken);
+        ...
+    }
+    catch (AppException exception)
+    {
+        // The message is already user-friendly (e.g. "You do not have permission to perform this operation.").
+        // Switch on exception.Code only when your page needs different behaviour for a specific case.
+        ErrorMessage = exception.Code switch
+        {
+            MessageCode.InsufficientPermission => "You can view customers but cannot change them.",
+            _ => exception.Message
+        };
+    }
+    finally
+    {
+        IsBusy = false;
+    }
+}
+```
+
+Never write `if (ex.Message.Contains("..."))`.
+
+---
+
+## 9. Adding a Brand-New Permission
+
+Only needed if your feature needs a permission that is **not** in section 2. Tell the permission owner
+first so names stay consistent. Codes are lowercase `snake_case` describing the business action, e.g. `transaction_approval`.
+
+### Server
+1. Add the constant to `SecurityConstants.cs`:
+   ```csharp
+   public const string TransactionApproval = "transaction_approval";
+   ```
+2. In `RolesAndPermissionsSeeder.cs`, add it to `SeedPermissionsAsync` and to the right role list(s)
+   in `SeedRolePermissionsAsync`.
+3. Use it: `[RequirePermission(SecurityConstants.TransactionApproval)]`.
+4. **Reseed the database.** The seeder does nothing if any permission already exists, so restarting is not enough.
+   Either recreate your local database:
+   ```
+   dotnet ef database drop
+   dotnet ef database update
+   ```
+   then start the server (it seeds on startup), or insert the rows by hand in MySQL:
+   ```sql
+   INSERT INTO Permissions (Code, Name) VALUES ('transaction_approval', 'transaction approval');
+   INSERT INTO RolePermissions (RoleId, PermissionId)
+   SELECT r.Id, p.Id FROM Roles r, Permissions p
+   WHERE r.Code = 'manager' AND p.Code = 'transaction_approval';
+   ```
+   Dropping the database deletes all local data and resets the test logins' passwords.
+
+### Desktop
+5. Add the same code to `bams.desktop/Constants/PermissionCodes.cs`:
+   ```csharp
+   public const string TransactionApproval = "transaction_approval";
+   ```
+6. In `AuthContext.cs`, add a property to `PermissionFlags` and set it in `ComputePermissionFlags()`:
+   ```csharp
+   public bool CanApproveTransactions { get; set; }
+   ...
+   CanApproveTransactions = HasPermission(PermissionCodes.TransactionApproval),
+   ```
+7. Use the flag in your ViewModel (section 7).
+
+### Only if the permission needs its own new page
+8. `NavBarViewModel.BuildNavigationItems`: `if (flags.CanApproveTransactions) AddNavItem("Approvals", "Icon.Shield");`
+9. Create `ViewModels/Pages/ApprovalsViewModel.cs` (with `PageTitle` / `PageDescription`).
+10. `NavigationService.GetPageViewModel`: `"Approvals" => _serviceProvider.GetService<ApprovalsViewModel>(),`
+    The label must match step 8 **exactly**.
+11. `App.xaml.cs`: `services.AddTransient<ApprovalsViewModel>();`
+12. Add the View and `DataTemplate` (section 6).
+13. Optional: `MainViewModel.GetDefaultPageForRole` decides which page opens right after login.
+
+Available nav icons are the `Icon.*` keys in `bams.desktop/Themes/Icons.xaml`.
+
+---
+
+## 10. Test Checklist
+
+Run through this before you open a pull request:
+
+- [ ] Every new endpoint has `[RequirePermission]` with a `SecurityConstants` value
+- [ ] Log in as each of manager, officer and auditor: tabs and buttons appear only for the right users
+- [ ] Call your endpoint as a user **without** the permission (e.g. with the `.http` file or Postman)
+      → `403` with code `4101 InsufficientPermission`
+- [ ] Call it with no token → `401` with code `4000 AuthenticationRequired`
+- [ ] Set a test user's `Status` to `2` in the `Users` table → login and your endpoints return `403`, code `4003`
+      (set it back to `1` afterwards)
+- [ ] The page shows a readable error message instead of crashing when the server refuses a request
+- [ ] No `if (role == ...)` and no `ex.Message.Contains(...)` in your code
+
+Getting a token for manual API tests:
+
+```http
+POST http://localhost:5121/api/auth/login
+Content-Type: application/json
+
+{ "username": "officer", "password": "<your password>" }
+
+### Then pass data.token on each request:
+GET http://localhost:5121/api/customers
+Authorization: Bearer <token>
 ```
 
 ---
 
-## Conclusion
+## 11. Troubleshooting
 
-This authentication and permission system provides a secure, flexible foundation for your banking application. Following these patterns will ensure consistent, maintainable authorization across all pages and features.
+**My tab does not appear**
+- Does the user's role have the permission? Check `RolePermissions` in the database, not only the seeder
+  (the seeder runs only on an empty database; see section 9 step 4).
+- Is the flag set in `ComputePermissionFlags()` and used in `BuildNavigationItems()`?
+- Log out and back in; permissions are loaded at login.
 
-The system is designed to be:
-- **Secure**: Server-side validation with JWT tokens
-- **Flexible**: Permission-based access control
-- **Maintainable**: Clear separation of concerns
-- **User-Friendly**: Permission-based UI that adapts to user roles
-- **Developer-Friendly**: Clear patterns and comprehensive documentation
+**My tab appears but shows "Page content coming soon..."**
+- Your `DataTemplate` is missing from `MainWindow.xaml`, or its `DataType` names a different ViewModel (section 6, step 2).
+- Clicking does nothing at all: the label in `NavigationService` does not exactly match the nav item label,
+  or the ViewModel is not registered in `App.xaml.cs`.
 
-For questions or issues, refer to the implementation in the existing codebase or check the server logs for detailed authorization information.
+**The server returns 403**
+- Read `code` in the response: `4101` means the role lacks the permission; `4003` means the user is disabled;
+  `4004` means the user was deleted in User Management.
+- Check the permission code on the attribute matches the database (use the constant).
+
+**The server returns 401**
+- The request had no token, the token expired (`Jwt:ExpiryMinutes`, default 60), or the user was deleted.
+  Log in again. In the desktop app, only call the server through services that use `ApiClient`.
+
+**Nobody can log in after pulling**
+- Run `dotnet ef database update` in `bams.server` (the `Users.Status` column must exist).
+
+**The UI still shows a button after I removed the permission from the role**
+- Expected until that user logs in again. The server already refuses the request.
 
 ---
 
-*Last Updated: 2025-09-22*
-*Version: 2.0*
+## 12. File Reference
+
+### Server (`bams.server/`)
+| File                                         | What it is                                               |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `Constants/SecurityConstants.cs`             | Role and permission codes                                |
+| `Data/Seeders/RolesAndPermissionsSeeder.cs`  | Default permissions, role mappings and test users        |
+| `Middlewares/MiddlewareAttribute.cs`         | `[RequirePermission]`: user exists, is active, has permission |
+| `Middlewares/GlobalExceptionHandler.cs`      | Turns exceptions into the standard error JSON            |
+| `Utils/Extensions/ClaimsPrincipalExtensions.cs` | `User.GetRequiredUserId()`                            |
+| `Models/Security/*.cs`                       | `User`, `Role`, `Permission`, `UserRole`, `RolePermission`, `UserStatus` |
+| `Controllers/AuthController.cs`              | `login`, `permissions`, `change-password`, `heartbeat`, `logout` endpoints |
+| `Controllers/UsersController.cs`             | User Management endpoints (`user_management`)            |
+| `Utils/Extensions/UserStatusExtensions.cs`   | `EnsureCanSignIn()`: disabled / deleted users are refused |
+| `Utils/Security/PasswordHasher.cs`           | The only place passwords are hashed and verified         |
+| `Messages/MessageCode.cs`, `MessageCatalog.cs` | Stable codes and their messages                        |
+| `Documentation/MessageCodes.md`              | Table of all codes                                       |
+
+### Desktop (`bams.desktop/`)
+| File                                         | What it is                                               |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `Services/AuthContext.cs`                    | Logged-in user (incl. `UserId`), permissions, `PermissionFlags` |
+| `Services/ISessionService.cs`                | Presence heartbeat; `EndSessionAsync()`: sign out from anywhere (logout, self-delete) |
+| `Api/ApiClient.cs`                           | The only HTTP client; adds token, converts errors        |
+| `Constants/ApiConstants.cs`                  | Server address and endpoint paths                        |
+| `Constants/PermissionCodes.cs`               | Permission codes (must match the server constants)       |
+| `Exceptions/AppException.cs`, `ApiException.cs`, `NetworkException.cs` | Errors with a `MessageCode`    |
+| `Utils/MessageCode.cs`, `MessageCatalog.cs`  | Client codes (same numbers as the server) and messages   |
+| `Components/NavBar/NavBarViewModel.cs`       | Which tabs appear for which flags                        |
+| `Services/NavigationService.cs`              | Tab label → page ViewModel                               |
+| `MainWindow.xaml`                            | Page ViewModel → page View (`DataTemplate`)              |
+| `App.xaml.cs`                                | Dependency injection registrations                       |
+
+---
+
+*Last Updated: 2026-09-24*
+*Version: 3.1: soft-deleted users (4004), shared password hasher, session service*

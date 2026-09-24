@@ -1,0 +1,18 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:users="clr-namespace:bams.desktop.ViewModels.Pages.Users"
+                    xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users">
+
+    <!--
+        Dialog ViewModel → dialog View, used by IDialogService.ShowDialog (Components/ModalDialog).
+        Loaded once by App.xaml. Add one DataTemplate per dialog ViewModel, grouped by feature.
+    -->
+
+    <!-- User Management -->
+    <DataTemplate DataType="{x:Type users:UserFormViewModel}">
+        <userviews:UserFormDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type users:UserDetailsViewModel}">
+        <userviews:UserDetailsDialogView/>
+    </DataTemplate>
+</ResourceDictionary>

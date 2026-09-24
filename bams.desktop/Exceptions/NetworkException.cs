@@ -1,15 +1,17 @@
+using bams.desktop.Utils;
+
 namespace bams.desktop.Exceptions;
 
 /// <summary>
-/// Exception thrown when network connectivity issues occur.
+/// Raised when the server cannot be reached or does not answer in time.
 /// </summary>
-public sealed class NetworkException : Exception
+public sealed class NetworkException : AppException
 {
-    public NetworkException(string message) : base(message)
-    {
-    }
-
-    public NetworkException(string message, Exception innerException) : base(message, innerException)
+    // Wraps a transport failure so ViewModels never display raw framework exception text.
+    public NetworkException(
+        MessageCode code,
+        Exception innerException)
+        : base(code, innerException)
     {
     }
 }

@@ -1,0 +1,19 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Single entry point for the BAMS design system (loaded once in App.xaml).
+        Order matters: tokens first, then styles that use them.
+        Style catalogue for page developers: PAGE_DEVELOPMENT_GUIDE.txt, section "UI styles".
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Colors.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Typography.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Icons.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/Buttons.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/Inputs.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/DataGrid.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/Surfaces.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/ScrollBars.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+</ResourceDictionary>
