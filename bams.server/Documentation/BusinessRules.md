@@ -30,3 +30,11 @@
 - Three roles exist: `RoleConstants.Manager` ("Branch Manager"), `RoleConstants.Officer`, `RoleConstants.Auditor`.
 - In Development only, `SecuritySeeder` seeds these three roles and one example user per role (`manager1`, `officer1`, `auditor1`) with a placeholder (non-real) password hash, if the `Roles`/`Users` tables are empty. It never runs, and never overwrites existing data, outside `IsDevelopment()`.
 - No authentication is implemented yet, so role-restricted endpoints (like KYC review) take the acting user's Id directly in the request body rather than reading it from an authenticated session.
+
+## Users
+
+- Every user has a `Status` (`UserStatus.Active` or `UserStatus.Disabled`); new users default to `Active`.
+- A disabled user cannot log in, fetch permissions, change their password, or call any `[RequirePermission]` endpoint,
+  even with an unexpired token. These requests fail with `UserAccountDisabled` (403).
+- On login, the disabled check runs only after the password is verified, so account state is not revealed to callers
+  who do not know the password.

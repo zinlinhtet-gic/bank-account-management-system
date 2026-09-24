@@ -37,3 +37,20 @@ Creating a customer with documents is a single transactional operation: `Custome
 
 - `RoleConstants` defines the three stable role codes (`Manager`, `Officer`, `Auditor`) used by code that needs to check a user's role (e.g. `CustomerService.ReviewCustomerKycAsync` requiring `Manager`).
 - `Data/Seeders/SecuritySeeder.cs` seeds those three `Role` rows and one example `User` per role (with their `UserRole` assignment) — only in `IsDevelopment()` (wired up in `Program.cs`), and only if `Roles`/`Users` are empty, so it never runs against, or overwrites, a real environment. Seeded users get a placeholder, non-functional `PasswordHash` since authentication isn't implemented yet.
+
+## Authentication and authorization errors
+
+All auth failures use the standard `ApiErrorResponse` body:
+
+- `[RequirePermission]` (`Middlewares/MiddlewareAttribute.cs`) throws `UnauthorizedException` (401) for a missing
+  or unknown user, and `ForbiddenException` (403) for a disabled user or missing permission. `GlobalExceptionHandler`
+  turns these into responses.
+- `[Authorize]` challenges are written by the `JwtBearerEvents.OnChallenge` handler in `Program.cs`.
+- Controllers read the caller's id with `User.GetRequiredUserId()` (`Utils/Extensions/ClaimsPrincipalExtensions.cs`).
+
+## WPF client error flow
+
+`bams.desktop/Api/ApiClient.cs` is the single place that sends HTTP requests. It unwraps `ApiMessageResponse<T>.Data`,
+turns `ApiErrorResponse` into `ApiException` (keeping the server `Code`, `Message` and `TraceId`), and turns transport
+failures into `NetworkException`. Both derive from `AppException`, so ViewModels catch `AppException` and decide by
+`exception.Code`, never by message text.

@@ -14,11 +14,18 @@ public sealed class User
 
     public string? Phone { get; set; }
 
+    public UserStatus Status { get; set; } = UserStatus.Active;
+
     public OnlineStatus OnlineStatus { get; set; } = OnlineStatus.Inactive;
 
     public DateTime? LastLoginAt { get; set; }
 
+    public bool MustChangePassword { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    // Navigation properties
+    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }

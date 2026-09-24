@@ -9,6 +9,8 @@
     <Color x:Key="ForegroundColor">#111827</Color>
     <Color x:Key="MutedForegroundColor">#6B7280</Color>
     <Color x:Key="SecondaryColor">#F3F4F6</Color>
+    <Color x:Key="DangerColor">#DC2626</Color>
+    <Color x:Key="DangerAccentColor">#EF4444</Color>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="AccentBrush"           Color="{StaticResource AccentColor}"/>
@@ -18,9 +20,12 @@
     <SolidColorBrush x:Key="ForegroundBrush"       Color="{StaticResource ForegroundColor}"/>
     <SolidColorBrush x:Key="MutedForegroundBrush"  Color="{StaticResource MutedForegroundColor}"/>
     <SolidColorBrush x:Key="SecondaryBrush"        Color="{StaticResource SecondaryColor}"/>
+    <SolidColorBrush x:Key="BackgroundBrush"       Color="#F9FAFB"/>
     <SolidColorBrush x:Key="HoverBrush"            Color="#F3F4F6"/>
     <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="White"/>
     <SolidColorBrush x:Key="AccentForegroundBrush"  Color="White"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
+    <SolidColorBrush x:Key="DangerAccentBrush" Color="{StaticResource DangerAccentColor}"/>
 
     <!-- Typography -->
     <FontFamily x:Key="SerifFont">DM Serif Display</FontFamily>

@@ -1001,6 +1001,9 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("OnlineStatus")
                         .HasColumnType("int");
 
@@ -1011,6 +1014,9 @@ namespace bams.server.Data.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -1632,7 +1638,7 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.HasOne("bams.server.Models.Security.User", "User")
-                        .WithMany()
+                        .WithMany("UserRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1766,6 +1772,10 @@ namespace bams.server.Data.Migrations
             modelBuilder.Entity("bams.server.Models.Customers.Customer", b =>
                 {
                     b.Navigation("Documents");
+                });
+            modelBuilder.Entity("bams.server.Models.Security.User", b =>
+                {
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }
