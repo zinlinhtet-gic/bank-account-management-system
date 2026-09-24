@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.Views;
@@ -87,7 +88,7 @@ public partial class MainWindow : Window
     private void HandleLogoutRequested()
     {
         var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
-            Title: "Log out of DaLanBank?",
+            Title: $"Log out of {BrandConstants.BankShortName}?",
             Message: "You will need to sign in again to continue. Anything you have not saved on this page will be lost.",
             ConfirmText: "Log out",
             CancelText: "Stay signed in",
