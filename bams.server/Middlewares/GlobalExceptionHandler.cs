@@ -70,6 +70,7 @@ public sealed class GlobalExceptionHandler
         {
             NotFoundException => HttpStatusCode.NotFound,
             ValidationException => HttpStatusCode.BadRequest,
+            UnauthorizedException => HttpStatusCode.Unauthorized,
             ConflictException => HttpStatusCode.Conflict,
             ForbiddenException => HttpStatusCode.Forbidden,
             BusinessRuleException => HttpStatusCode.UnprocessableEntity,

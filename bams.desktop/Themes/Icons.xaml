@@ -37,7 +37,22 @@
     <Geometry x:Key="Icon.Search">
         M10.5,4 A6.5,6.5 0 1 0 10.5,17 A6.5,6.5 0 1 0 10.5,4 Z M15.5,15.5 L21,21
     </Geometry>
+    <Geometry x:Key="Icon.Logout">
+        M10,5 H5 A2,2 0 0 0 3,7 V17 A2,2 0 0 0 5,19 H10 M14,8 L19,12 L14,16 M19,12 H8
+    </Geometry>
     <Geometry x:Key="Icon.Plus">
         M12,4 V20 M4,12 H20
+    </Geometry>
+    <Geometry x:Key="Icon.Users">
+        M12,12 A4,4 0 1 0 12,4 A4,4 0 1 0 12,12 Z M4,20 A4,4 0 0 1 8,16 A4,4 0 0 1 4,20 Z M20,20 A4,4 0 0 1 16,16 A4,4 0 0 1 20,20 Z
+    </Geometry>
+    <Geometry x:Key="Icon.UserCheck">
+        M12,12 A4,4 0 1 0 12,4 A4,4 0 1 0 12,12 Z M6,22 L10,18 L18,10
+    </Geometry>
+    <Geometry x:Key="Icon.Finance">
+        M3,8 H21 V18 H3 Z M3,8 L12,2 L21,8 M12,8 V18 M8,11 H16 M8,14 H12
+    </Geometry>
+    <Geometry x:Key="Icon.Shield">
+        M12,2 L3,6 V12 C3,17 12,22 12,22 C12,22 21,17 21,12 V6 Z M12,6 V18 M8,10 L12,14 L16,10
     </Geometry>
 </ResourceDictionary>
