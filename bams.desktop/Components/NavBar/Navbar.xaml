@@ -157,20 +157,14 @@
                                                            Text="{Binding Label}"
                                                            Margin="12,0,0,0"
                                                            VerticalAlignment="Center"
-                                                           FontSize="13"
-                                                           Foreground="{StaticResource ForegroundBrush}"
+                                                           FontSize="{StaticResource FontSizeBody}"
+                                                           FontWeight="Medium"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{StaticResource MutedForegroundBrush}"
                                                            Visibility="{Binding DataContext.IsCollapsed,
                                         RelativeSource={RelativeSource AncestorType=UserControl},
                                         Converter={StaticResource BoolToCollapsedVisibility}}"/>
                                             </StackPanel>
-
-                                            <Border x:Name="ActiveBackground"
-                                                    Background="{StaticResource AccentBrush}"
-                                                    Opacity="0.08"
-                                                    CornerRadius="4"
-                                                    Margin="4,2"
-                                                    Visibility="Collapsed"
-                                                    Panel.ZIndex="-1"/>
                                         </Grid>
 
                                         <ControlTemplate.Triggers>
@@ -178,18 +172,13 @@
                                                 <Setter TargetName="RootGrid"
                                                         Property="Background"
                                                         Value="{StaticResource SecondaryBrush}"/>
-                                                <Setter TargetName="ActiveBackground"
-                                                        Property="Visibility"
-                                                        Value="Visible"/>
+                                                <!-- Design: active tab = secondary background + gold bar and icon; text stays dark. -->
                                                 <Setter TargetName="TabIcon"
                                                         Property="Foreground"
                                                         Value="{StaticResource AccentBrush}"/>
                                                 <Setter TargetName="TabText"
                                                         Property="Foreground"
-                                                        Value="{StaticResource AccentBrush}"/>
-                                                <Setter TargetName="TabText"
-                                                        Property="FontWeight"
-                                                        Value="SemiBold"/>
+                                                        Value="{StaticResource ForegroundBrush}"/>
                                             </DataTrigger>
 
                                             <Trigger Property="IsMouseOver" Value="True">
