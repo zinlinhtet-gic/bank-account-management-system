@@ -5,6 +5,7 @@ using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.ViewModels.Pages.Configuration;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -73,6 +74,12 @@ public partial class App : Application
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();
         services.AddTransient<CustomerListViewModel>();
+
+        // Register Configuration sub-pages
+        services.AddTransient<InterestRateViewModel>();
+        services.AddTransient<FeeRateViewModel>();
+        services.AddTransient<BankPoliciesViewModel>();
+        services.AddTransient<OtherBanksViewModel>();
 
         // Register Views
         services.AddTransient<Views.LoginView>();

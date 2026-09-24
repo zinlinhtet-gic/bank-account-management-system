@@ -9,8 +9,10 @@
         xmlns:local="clr-namespace:bams.desktop"
         xmlns:viewmodels="clr-namespace:bams.desktop.ViewModels"
         xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages"
+        xmlns:configviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Configuration"
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
+        xmlns:configpages="clr-namespace:bams.desktop.Views.Pages.Configuration"
         mc:Ignorable="d"
         Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
         FontFamily="{StaticResource SansFont}"
@@ -58,6 +60,20 @@
                         <pages:CustomerManagementView/>
                     </DataTemplate>
                     -->
+
+                    <!-- Configuration sub-pages -->
+                    <DataTemplate DataType="{x:Type configviewmodels:InterestRateViewModel}">
+                        <configpages:InterestRateView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:FeeRateViewModel}">
+                        <configpages:FeeRateView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:BankPoliciesViewModel}">
+                        <configpages:BankPoliciesView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:OtherBanksViewModel}">
+                        <configpages:OtherBanksView/>
+                    </DataTemplate>
                 </ContentControl.Resources>
             </ContentControl>
         </Grid>

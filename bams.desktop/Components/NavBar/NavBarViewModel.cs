@@ -65,7 +65,7 @@ public partial class NavBarViewModel : ObservableObject
             AddNavItem(PageNames.Audit, "Icon.Shield");
 
         if (flags.CanConfigureSystem)
-            AddNavItem(PageNames.Configurations, "Icon.Settings");
+            AddNavGroup(PageNames.Configurations, "Icon.Settings", PageNames.InterestRate, PageNames.FeeRate, PageNames.BankPolicies, PageNames.OtherBanks);
 
         if (flags.CanViewCustomerList)
             AddNavItem(PageNames.CustomerList, "Icon.Users");
@@ -93,6 +93,29 @@ public partial class NavBarViewModel : ObservableObject
         Items.Add(item);
     }
 
+
+    /// Adds a toggleable group
+    private void AddNavGroup(string label, string iconKey, params string[] childLabels)
+    {
+        var group = new NavItem
+        {
+            Label = label,
+            IconKey = iconKey,
+            IsExpanded = false,
+            Children = new ObservableCollection<NavItem>()
+        };
+
+        foreach (var childLabel in childLabels)
+        {
+            var child = new NavItem { Label = childLabel };
+            child.Command = new RelayCommand(_ => Select(child));
+            group.Children.Add(child);
+        }
+
+        group.Command = new RelayCommand(_ => group.IsExpanded = !group.IsExpanded);
+        Items.Add(group);
+    }
+
     /// <summary>
     /// Builds default navigation items (used when not authenticated).
     /// </summary>
@@ -107,10 +130,11 @@ public partial class NavBarViewModel : ObservableObject
         Items.Add(new() { Label = PageNames.Accounting, IconKey = "Icon.Finance" });
         Items.Add(new() { Label = PageNames.Operations, IconKey = "Icon.Settings" });
         Items.Add(new() { Label = PageNames.Audit, IconKey = "Icon.Shield" });
-        Items.Add(new() { Label = PageNames.Configurations, IconKey = "Icon.Settings" });
 
         foreach (var item in Items)
             item.Command = new RelayCommand(_ => Select(item));
+
+        AddNavGroup(PageNames.Configurations, "Icon.Settings", PageNames.InterestRate, PageNames.FeeRate, PageNames.BankPolicies, PageNames.OtherBanks);
     }
 
     [RelayCommand]
@@ -119,7 +143,15 @@ public partial class NavBarViewModel : ObservableObject
     private void Select(NavItem item)
     {
         foreach (var navItem in Items)
+        {
             navItem.IsActive = navItem == item;
+
+            if (navItem.Children is null)
+                continue;
+
+            foreach (var child in navItem.Children)
+                child.IsActive = child == item;
+        }
 
         ActiveItem = item.Label;
         NavigateCommand?.Execute(item.Label);

@@ -1,6 +1,7 @@
 using bams.desktop.Constants;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.ViewModels.Pages.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace bams.desktop.Services;
@@ -36,6 +37,10 @@ public sealed class NavigationService : INavigationService
             PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
             PageNames.Configurations => _serviceProvider.GetService<ConfigurationsViewModel>(),
             PageNames.CustomerList => _serviceProvider.GetService<CustomerListViewModel>(),
+            PageNames.InterestRate => _serviceProvider.GetService<InterestRateViewModel>(),
+            PageNames.FeeRate => _serviceProvider.GetService<FeeRateViewModel>(),
+            PageNames.BankPolicies => _serviceProvider.GetService<BankPoliciesViewModel>(),
+            PageNames.OtherBanks => _serviceProvider.GetService<OtherBanksViewModel>(),
             _ => null
         };
     }

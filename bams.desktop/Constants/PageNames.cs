@@ -17,4 +17,10 @@ public static class PageNames
     public const string Audit = "Audit";
     public const string Configurations = "Configurations";
     public const string CustomerList = "Customer List";
+
+    // Configuration sub-pages
+    public const string InterestRate = "Interest Rate";
+    public const string FeeRate = "Fee Rate";
+    public const string BankPolicies = "Bank Policies";
+    public const string OtherBanks = "Other Banks";
 }

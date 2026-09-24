@@ -10,6 +10,9 @@
                 <ResourceDictionary Source="Themes/Theme.xaml"/>
                 <!-- Dialog ViewModel → View templates for IDialogService.ShowDialog (after the theme they use). -->
                 <ResourceDictionary Source="Views/DialogTemplates.xaml"/>
+                <ResourceDictionary Source="Themes/Colors.xaml"/>
+                <ResourceDictionary Source="Themes/Icons.xaml"/>
+                <ResourceDictionary Source="Themes/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <conv:CollapsedWidthConverter x:Key="CollapsedWidthConverter"/>
             <conv:BoolToCollapsedVisibilityConverter x:Key="BoolToCollapsedVisibility"/>
@@ -17,6 +20,7 @@
             <conv:MenuIconConverter x:Key="MenuIconConverter"/>
             <conv:ActiveToVisibilityConverter x:Key="ActiveToVisibility"/>
             <conv:IconKeyToGeometryConverter x:Key="IconKeyToGeometry"/>
+            <conv:CountToVisibilityConverter x:Key="CountToVisibility"/>
         </ResourceDictionary> 
     </Application.Resources>
 </Application>
