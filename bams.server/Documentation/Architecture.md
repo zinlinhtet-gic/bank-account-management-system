@@ -36,7 +36,11 @@ User Management follows the same layers:
 
 `IDialogService.Confirm` shows a yes/no confirmation; `IDialogService.ShowDialog(IDialogViewModel)` hosts any dialog
 ViewModel (forms, detail cards) in `Components/ModalDialog`, with the view picked from `Views/DialogTemplates.xaml`.
-Both dim and blur the main window. `ISessionService.EndSession()` signs out from anywhere (logout, self-delete).
+Both dim and blur the main window.
+
+`ISessionService` owns the signed-in session: `StartSession()` (called when the main app is shown) sends the presence
+heartbeat every 15 seconds; `EndSessionAsync()` stops it, calls `api/auth/logout` (best effort, 3 s timeout), clears the
+token and `AuthContext`, and returns to sign-in. Use it for logout and for self-delete / own-role change.
 
 ## Authentication and authorization errors
 

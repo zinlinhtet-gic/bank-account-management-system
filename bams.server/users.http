@@ -41,3 +41,11 @@ Authorization: Bearer {{token}}
 ### Soft delete -> 204; the user's login then fails with 403 4004; last active manager -> 422 4480
 DELETE {{baseUrl}}/users/4
 Authorization: Bearer {{token}}
+
+### Presence: keep the caller online (the desktop sends this every 15 seconds) / mark the caller offline
+POST {{baseUrl}}/auth/heartbeat
+Authorization: Bearer {{token}}
+
+###
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}

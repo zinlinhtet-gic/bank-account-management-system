@@ -82,10 +82,14 @@ public partial class MainWindow : Window
         ChangePasswordContentControl.Content = null;
         ChangePasswordContentControl.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
+
+        // Keep this user shown as online in User Management while the app is open.
+        _sessionService.StartSession();
     }
 
     // Asks the user to confirm, then ends the session (SessionEnded shows the sign-in screen).
-    private void HandleLogoutRequested()
+    // async void is intentional: an event handler; EndSessionAsync handles its own failures.
+    private async void HandleLogoutRequested()
     {
         var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
             Title: $"Log out of {BrandConstants.BankShortName}?",
@@ -100,6 +104,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        _sessionService.EndSession();
+        await _sessionService.EndSessionAsync();
     }
 }

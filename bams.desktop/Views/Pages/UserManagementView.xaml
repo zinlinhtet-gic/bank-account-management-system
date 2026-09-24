@@ -125,6 +125,27 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
+                            <!-- Presence: green "Online" while the user's app is open, grey "Offline" otherwise.
+                                 Hover shows when they were last seen. Refreshed every 10 s while this page is open (PresenceConstants). -->
+                            <DataGridTemplateColumn Header="Status" Width="110" SortMemberPath="IsOnline">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl Content="{Binding PresenceText}" ToolTip="{Binding LastSeenText}">
+                                            <ContentControl.Style>
+                                                <Style TargetType="ContentControl" BasedOn="{StaticResource Badge.Neutral}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+                                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ContentControl.Style>
+                                        </ContentControl>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtText}" Width="120"
                                                 SortMemberPath="CreatedAt" ElementStyle="{StaticResource Table.Text.Muted}"/>
 

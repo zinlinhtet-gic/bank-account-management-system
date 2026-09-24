@@ -69,4 +69,30 @@ public sealed class AuthController : ControllerBase
 
         return Ok(apiResponse);
     }
+
+    /// <summary>
+    /// Keeps the caller shown as online. The desktop app calls this every 15 seconds while signed in.
+    /// </summary>
+    [HttpPost("heartbeat")]
+    [Authorize]
+    public async Task<ActionResult<ApiMessageResponse<bool>>> RecordHeartbeatAsync(
+        CancellationToken cancellationToken)
+    {
+        await _authenticationService.RecordHeartbeatAsync(User.GetRequiredUserId(), cancellationToken);
+
+        return Ok(ApiMessageResponse<bool>.FromCode(MessageCode.Success, true));
+    }
+
+    /// <summary>
+    /// Marks the caller offline.
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<ActionResult<ApiMessageResponse<bool>>> LogoutAsync(
+        CancellationToken cancellationToken)
+    {
+        await _authenticationService.LogoutAsync(User.GetRequiredUserId(), cancellationToken);
+
+        return Ok(ApiMessageResponse<bool>.FromCode(MessageCode.Success, true));
+    }
 }

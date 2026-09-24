@@ -11,6 +11,8 @@ public static class ApiConstants
     public const string LoginEndpoint = AuthEndpoint + "/login";
     public const string PermissionsEndpoint = AuthEndpoint + "/permissions";
     public const string ChangePasswordEndpoint = AuthEndpoint + "/change-password";
+    public const string HeartbeatEndpoint = AuthEndpoint + "/heartbeat";
+    public const string LogoutEndpoint = AuthEndpoint + "/logout";
 
     public const string AccountsEndpoint = "api/accounts";
     public const string AccountTypesEndpoint = "api/account-types";

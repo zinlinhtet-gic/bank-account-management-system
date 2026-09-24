@@ -77,16 +77,34 @@ public sealed class UserService : IUserService
             users = users.Where(user => user.CreatedAt < createdBeforeUtc);
         }
 
-        return await users
+        var rows = await users
             .OrderBy(user => user.Username)
-            .Select(user => new UserSummaryResponse(
+            .Select(user => new
+            {
                 user.Id,
                 user.Username,
                 user.FullName,
                 user.Email,
-                user.UserRoles.Select(userRole => userRole.Role!.Code).FirstOrDefault() ?? string.Empty,
-                user.CreatedAt))
+                Role = user.UserRoles.Select(userRole => userRole.Role!.Code).FirstOrDefault() ?? string.Empty,
+                user.CreatedAt,
+                user.OnlineStatus,
+                user.LastSeenAt
+            })
             .ToListAsync(cancellationToken);
+
+        // Presence is computed after loading so the online rule lives only in UserMappings.IsOnline.
+        var now = DateTime.UtcNow;
+        return rows
+            .Select(row => new UserSummaryResponse(
+                row.Id,
+                row.Username,
+                row.FullName,
+                row.Email,
+                row.Role,
+                row.CreatedAt,
+                UserMappings.IsOnline(row.OnlineStatus, row.LastSeenAt, now),
+                row.LastSeenAt))
+            .ToList();
     }
 
     /// <summary>

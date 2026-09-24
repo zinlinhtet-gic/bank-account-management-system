@@ -45,7 +45,11 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="7" Text="ACTIVITY" Style="{StaticResource Text.Label}" Margin="0,14,0,0"/>
+            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding PresenceText}" Style="{StaticResource Text.Body}" Margin="0,12,0,0"/>
 
             <TextBlock Grid.Row="0" Text="USERNAME" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding User.Username}" Style="{StaticResource Text.Mono}" Margin="0,0,0,12"/>

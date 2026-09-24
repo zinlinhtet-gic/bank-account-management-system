@@ -66,4 +66,42 @@ public sealed class UserListViewModel : ViewModelBase
             IsLoading = false;
         }
     }
+
+    /// <summary>
+    /// Quietly re-reads the list and updates who is online in place, without the loading state, so the table
+    /// does not flicker or lose its selection. If users were added or removed meanwhile, the rows are replaced.
+    /// </summary>
+    /// <exception cref="Exceptions.AppException">Server or network failure; the page ignores it for background refreshes.</exception>
+    public async Task RefreshPresenceAsync(UserListFilter filter, CancellationToken cancellationToken)
+    {
+        // A full load is running; it will bring fresh presence itself.
+        if (IsLoading)
+        {
+            return;
+        }
+
+        var users = await _userService.GetUsersAsync(filter, cancellationToken);
+
+        var isSameRowSet = users.Count == Users.Count
+            && users.Select(user => user.Id).SequenceEqual(Users.Select(row => row.Id));
+
+        if (isSameRowSet)
+        {
+            for (var index = 0; index < users.Count; index++)
+            {
+                Users[index].UpdatePresence(users[index].IsOnline, users[index].LastSeenAt);
+            }
+
+            return;
+        }
+
+        Users.Clear();
+        foreach (var user in users)
+        {
+            Users.Add(UserDisplayModel.FromResponse(user, _authContext.UserId));
+        }
+
+        OnPropertyChanged(nameof(CountText));
+        OnPropertyChanged(nameof(IsEmpty));
+    }
 }
