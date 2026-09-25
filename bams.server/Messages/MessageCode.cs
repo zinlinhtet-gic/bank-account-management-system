@@ -48,6 +48,7 @@ public enum MessageCode
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    Conflict = 4307,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
