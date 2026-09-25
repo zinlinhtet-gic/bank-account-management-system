@@ -76,6 +76,36 @@ public sealed class ApiClient
     }
 
     /// <summary>
+    /// Sends a JSON POST request with extra headers for this request only (e.g. <c>Idempotency-Key</c>) and returns
+    /// the <c>Data</c> payload of the server response.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public Task<TResponse> PostAsync<TRequest, TResponse>(
+        string endpoint,
+        TRequest request,
+        IReadOnlyDictionary<string, string> headers,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () =>
+            {
+                // A request message can be sent only once, so it is built inside the send delegate.
+                var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = JsonContent.Create(request, options: SerializerOptions)
+                };
+                foreach (var (name, value) in headers)
+                {
+                    message.Headers.Add(name, value);
+                }
+
+                return _httpClient.SendAsync(message, cancellationToken);
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Sends a POST request without a body (state-change actions such as reset-password) and returns the
     /// <c>Data</c> payload of the server response.
     /// </summary>

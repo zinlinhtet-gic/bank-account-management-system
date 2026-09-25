@@ -1,7 +1,9 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:users="clr-namespace:bams.desktop.ViewModels.Pages.Users"
-                    xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users">
+                    xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users"
+                    xmlns:transactions="clr-namespace:bams.desktop.ViewModels.Pages.Transactions"
+                    xmlns:transactionviews="clr-namespace:bams.desktop.Views.Pages.Transactions">
 
     <!--
         Dialog ViewModel → dialog View, used by IDialogService.ShowDialog (Components/ModalDialog).
@@ -14,5 +16,25 @@
     </DataTemplate>
     <DataTemplate DataType="{x:Type users:UserDetailsViewModel}">
         <userviews:UserDetailsDialogView/>
+    </DataTemplate>
+
+    <!-- Transactions -->
+    <DataTemplate DataType="{x:Type transactions:TransactionFormViewModel}">
+        <transactionviews:TransactionFormDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
+        <transactionviews:TransactionDetailsDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:NrcPickupFormViewModel}">
+        <transactionviews:NrcPickupDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:NrcPickupCodeViewModel}">
+        <transactionviews:NrcPickupCodeDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:PendingTransferActionViewModel}">
+        <transactionviews:PendingTransferActionDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:AccountStatementViewModel}">
+        <transactionviews:AccountStatementDialogView/>
     </DataTemplate>
 </ResourceDictionary>

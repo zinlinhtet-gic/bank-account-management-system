@@ -85,6 +85,11 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<LedgerPostingService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
+builder.Services.AddScoped<INrcTransferService, NrcTransferService>();
+builder.Services.AddScoped<ITransactionQueryService, TransactionQueryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
@@ -115,6 +120,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
+    await BranchSeeder.SeedBranchesAsync(dbContext);
 }
 
 app.Run();

@@ -55,6 +55,13 @@ public partial class App : Application
         services.AddTransient<ViewModels.Pages.Users.UserFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Users.UserListViewModel>();
 
+        // Transactions (Transactions and Transaction History pages share the filter and list components)
+        services.AddSingleton<Services.ITransactionService, Services.TransactionService>();
+        services.AddSingleton<Services.IAccountService, Services.AccountService>();
+        services.AddTransient<ViewModels.Pages.Transactions.TransactionFilterViewModel>();
+        services.AddTransient<ViewModels.Pages.Transactions.TransactionListViewModel>();
+        services.AddTransient<ViewModels.Pages.Transactions.TransactionDetailsLauncher>();
+
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<ChangePasswordViewModel>();

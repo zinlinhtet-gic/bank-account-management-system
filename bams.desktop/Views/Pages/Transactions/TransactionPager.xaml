@@ -1,0 +1,15 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Transactions.TransactionPager"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+    <!-- "Page 2 of 3" with previous / next buttons. DataContext: TransactionListViewModel. -->
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="{Binding PageText}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <Button Style="{StaticResource Button.Icon}" ToolTip="Previous page"
+                t:ThemeAssist.Icon="{StaticResource Icon.ChevronLeft}"
+                Command="{Binding PreviousPageCommand}"/>
+        <Button Style="{StaticResource Button.Icon}" ToolTip="Next page" Margin="4,0,0,0"
+                t:ThemeAssist.Icon="{StaticResource Icon.ChevronRight}"
+                Command="{Binding NextPageCommand}"/>
+    </StackPanel>
+</UserControl>

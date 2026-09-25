@@ -1,0 +1,288 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Transactions.TransactionFormDialogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
+             xmlns:constants="clr-namespace:bams.desktop.Constants"
+             Width="560">
+    <!--
+        New deposit / withdrawal / transfer form, hosted by ModalDialog. DataContext: TransactionFormViewModel.
+        Only the sections for the form's kind are visible. Enter posts (default button); Esc cancels unless posting.
+    -->
+    <StackPanel>
+        <!-- Header: tinted icon + title + subtitle (same pattern as the user form) -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Width="44" Height="44" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource SecondaryBrush}"/>
+                <icon:Icon Size="20" StrokeThickness="2" Foreground="{StaticResource PrimaryBrush}"
+                           Geometry="{Binding IconKey, Converter={StaticResource IconKeyToGeometry}}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}"/>
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.BodyMuted}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Fields: scroll when the NRC form is taller than the window; locked while posting -->
+        <ScrollViewer MaxHeight="380" Margin="0,24,0,0" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+            <StackPanel IsEnabled="{Binding IsNotBusy}">
+
+                <!-- Source account (NRC shows its own inside the sender section) -->
+                <StackPanel Margin="0,0,0,16"
+                            Visibility="{Binding ShowsSourceAccountAtTop, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
+                    <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
+                              ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
+                              t:ThemeAssist.HasError="{Binding SourceAccountError.HasError}"/>
+                    <TextBlock Text="{Binding SourceBalanceText}" Style="{StaticResource Text.Hint}"
+                               Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                    <TextBlock Text="{Binding SourceAccountError.Message}" Style="{StaticResource Text.Error}"
+                               Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </StackPanel>
+
+                <!-- Destination account in this bank -->
+                <StackPanel Margin="0,0,0,16"
+                            Visibility="{Binding ShowsDestinationAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="{Binding DestinationAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
+                    <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
+                              ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding DestinationAccount, Mode=TwoWay}"
+                              t:ThemeAssist.HasError="{Binding DestinationAccountError.HasError}"/>
+                    <TextBlock Text="{Binding DestinationBalanceText}" Style="{StaticResource Text.Hint}"
+                               Visibility="{Binding DestinationAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                    <TextBlock Text="{Binding DestinationAccountError.Message}" Style="{StaticResource Text.Error}"
+                               Visibility="{Binding DestinationAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </StackPanel>
+
+                <!-- Interbank: bank, account there, beneficiary -->
+                <Grid Margin="0,0,0,16"
+                      Visibility="{Binding ShowsBankFields, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.ColumnSpan="3">
+                        <TextBlock Text="DESTINATION BANK" Style="{StaticResource Text.FieldLabel}"/>
+                        <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a bank"
+                                  ItemsSource="{Binding Banks}" DisplayMemberPath="BankName"
+                                  SelectedItem="{Binding SelectedBank, Mode=TwoWay}"
+                                  t:ThemeAssist.HasError="{Binding BankError.HasError}"/>
+                        <TextBlock Text="{Binding BankError.Message}" Style="{StaticResource Text.Error}"
+                                   Visibility="{Binding BankError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0">
+                        <TextBlock Text="ACCOUNT NUMBER THERE" Style="{StaticResource Text.FieldLabel}"/>
+                        <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 0012345678"
+                                 Text="{Binding DestinationAccountNo, UpdateSourceTrigger=PropertyChanged}"
+                                 t:ThemeAssist.HasError="{Binding DestinationAccountNoError.HasError}"/>
+                        <TextBlock Text="{Binding DestinationAccountNoError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                   Visibility="{Binding DestinationAccountNoError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0">
+                        <TextBlock Text="BENEFICIARY NAME" Style="{StaticResource Text.FieldLabel}"/>
+                        <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="As on the other bank's account"
+                                 Text="{Binding BeneficiaryName, UpdateSourceTrigger=PropertyChanged}"
+                                 t:ThemeAssist.HasError="{Binding BeneficiaryNameError.HasError}"/>
+                        <TextBlock Text="{Binding BeneficiaryNameError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                   Visibility="{Binding BeneficiaryNameError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- NRC: sender and how they pay, receiver and where they collect. Neither needs an account. -->
+                <StackPanel Margin="0,0,0,16"
+                            Visibility="{Binding ShowsNrcFields, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Sender" Style="{StaticResource Text.Title}" Margin="0,0,0,8"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="FULL NAME" Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Aung Kyaw Moe"
+                                     Text="{Binding SenderName, UpdateSourceTrigger=PropertyChanged}"
+                                     t:ThemeAssist.HasError="{Binding SenderNameError.HasError}"/>
+                            <TextBlock Text="{Binding SenderNameError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                       Visibility="{Binding SenderNameError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="NRC" Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 12/ABC(N)123456"
+                                     Text="{Binding SenderNrc, UpdateSourceTrigger=PropertyChanged}"
+                                     t:ThemeAssist.HasError="{Binding SenderNrcError.HasError}"/>
+                            <TextBlock Text="{Binding SenderNrcError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                       Visibility="{Binding SenderNrcError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="PHONE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+                    <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 09 123 456 789"
+                             Text="{Binding SenderPhone, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Text="PAYS WITH" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <RadioButton Style="{StaticResource Input.Radio}" GroupName="NrcFunding"
+                                     IsChecked="{Binding IsPaidInCash, Mode=TwoWay}">
+                            <StackPanel>
+                                <TextBlock Text="Cash at the counter" Style="{StaticResource Text.Body}" FontWeight="Medium"/>
+                                <TextBlock Text="No account needed" Style="{StaticResource Text.Caption}"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Grid.Column="2" Style="{StaticResource Input.Radio}" GroupName="NrcFunding"
+                                     IsChecked="{Binding IsPaidFromAccount, Mode=TwoWay}">
+                            <StackPanel>
+                                <TextBlock Text="Their account" Style="{StaticResource Text.Body}" FontWeight="Medium"/>
+                                <TextBlock Text="Debited now" Style="{StaticResource Text.Caption}"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </Grid>
+                    <StackPanel Margin="0,12,0,0"
+                                Visibility="{Binding IsPaidFromAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
+                        <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
+                                  ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
+                                  SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
+                                  t:ThemeAssist.HasError="{Binding SourceAccountError.HasError}"/>
+                        <TextBlock Text="{Binding SourceBalanceText}" Style="{StaticResource Text.Hint}"
+                                   Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                        <TextBlock Text="{Binding SourceAccountError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                   Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+
+                    <Separator Style="{StaticResource Divider}" Margin="0,20,0,16"/>
+                    <TextBlock Text="Receiver" Style="{StaticResource Text.Title}" Margin="0,0,0,8"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="FULL NAME" Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="As on their NRC"
+                                     Text="{Binding ReceiverName, UpdateSourceTrigger=PropertyChanged}"
+                                     t:ThemeAssist.HasError="{Binding ReceiverNameError.HasError}"/>
+                            <TextBlock Text="{Binding ReceiverNameError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                       Visibility="{Binding ReceiverNameError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="NRC" Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Checked at pickup"
+                                     Text="{Binding ReceiverNrc, UpdateSourceTrigger=PropertyChanged}"
+                                     t:ThemeAssist.HasError="{Binding ReceiverNrcError.HasError}"/>
+                            <TextBlock Text="{Binding ReceiverNrcError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                       Visibility="{Binding ReceiverNrcError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="PHONE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+                    <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 09 987 654 321"
+                             Text="{Binding ReceiverPhone, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Text="COLLECTS AT" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <RadioButton Style="{StaticResource Input.Radio}" GroupName="NrcPickup"
+                                     IsChecked="{Binding IsCollectedAtBranch, Mode=TwoWay}">
+                            <StackPanel>
+                                <TextBlock Text="One of our branches" Style="{StaticResource Text.Body}" FontWeight="Medium"/>
+                                <TextBlock Text="Pickup code checked there" Style="{StaticResource Text.Caption}"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Grid.Column="2" Style="{StaticResource Input.Radio}" GroupName="NrcPickup"
+                                     IsEnabled="{Binding HasOtherBanks}"
+                                     IsChecked="{Binding IsCollectedAtOtherBank, Mode=TwoWay}">
+                            <StackPanel>
+                                <TextBlock Text="Another bank" Style="{StaticResource Text.Body}" FontWeight="Medium"/>
+                                <TextBlock Text="They pay out; you record it" Style="{StaticResource Text.Caption}"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </Grid>
+                    <StackPanel Margin="0,12,0,0"
+                                Visibility="{Binding IsCollectedAtBranch, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="PICKUP BRANCH" Style="{StaticResource Text.FieldLabel}"/>
+                        <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a branch"
+                                  ItemsSource="{Binding Branches}" DisplayMemberPath="Name"
+                                  SelectedItem="{Binding PickupBranch, Mode=TwoWay}"
+                                  t:ThemeAssist.HasError="{Binding PickupLocationError.HasError}"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,12,0,0"
+                                Visibility="{Binding IsCollectedAtOtherBank, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="PICKUP BANK" Style="{StaticResource Text.FieldLabel}"/>
+                        <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a bank"
+                                  ItemsSource="{Binding Banks}" DisplayMemberPath="BankName"
+                                  SelectedItem="{Binding PickupBank, Mode=TwoWay}"
+                                  t:ThemeAssist.HasError="{Binding PickupLocationError.HasError}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding PickupLocationError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                               Visibility="{Binding PickupLocationError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Separator Style="{StaticResource Divider}" Margin="0,20,0,0"/>
+                </StackPanel>
+
+                <!-- Amount + reference -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="AMOUNT" Style="{StaticResource Text.FieldLabel}"/>
+                        <TextBox x:Name="AmountBox" Style="{StaticResource Input.Text}" t:ThemeAssist.Prefix="{x:Static constants:DisplayFormats.CurrencyCode}"
+                                 t:ThemeAssist.Placeholder="0.00" FontFamily="{StaticResource MonoFont}"
+                                 Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
+                                 t:ThemeAssist.HasError="{Binding AmountError.HasError}"/>
+                        <TextBlock Text="{Binding AmountError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                                   Visibility="{Binding AmountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="REFERENCE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                        <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. slip or cheque number"
+                                 Text="{Binding ReferenceNo, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Description -->
+                <TextBlock Text="DESCRIPTION (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Shown on the account statement"
+                         Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Notices -->
+        <ContentControl Style="{StaticResource Alert.Info}" Margin="0,20,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Key}"
+                        Content="A six-digit pickup code is shown once after you create the transfer. The sender passes it to the receiver."
+                        Visibility="{Binding ShowsNrcFields, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,20,0,0" Content="{Binding FormError}"
+                        Visibility="{Binding HasFormError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- Actions -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button Content="Cancel" Style="{StaticResource Button.Secondary}" MinWidth="96" Margin="0,0,8,0"
+                    Command="{Binding CancelCommand}"/>
+            <Button Content="{Binding SaveText}" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
+                    t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                    Command="{Binding SaveCommand}"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

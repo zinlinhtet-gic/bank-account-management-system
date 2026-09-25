@@ -1,0 +1,41 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        Styles shared by the transaction screens. Loaded once by App.xaml, after the theme.
+    -->
+
+    <!--
+        Status badge for a transaction. The DataContext must have a Status (TransactionStatus) property and the
+        badge content is its text. Completed = green, Pending = amber, Failed / Cancelled = red, others grey.
+    -->
+    <Style x:Key="Badge.TransactionStatus" TargetType="ContentControl" BasedOn="{StaticResource Badge.Neutral}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Status}" Value="Completed">
+                <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Pending">
+                <Setter Property="Background" Value="{StaticResource WarningSoftBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Failed">
+                <Setter Property="Background" Value="{StaticResource DangerSoftBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                <Setter Property="Background" Value="{StaticResource DangerSoftBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Debit / Credit badge for an account entry; the DataContext must have an IsCredit property. -->
+    <Style x:Key="Badge.EntryType" TargetType="ContentControl" BasedOn="{StaticResource Badge.Danger}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsCredit}" Value="True">
+                <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

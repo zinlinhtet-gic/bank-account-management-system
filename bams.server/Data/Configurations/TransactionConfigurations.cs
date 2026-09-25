@@ -14,7 +14,10 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.Property(t => t.Description).HasMaxLength(300);
         builder.Property(t => t.ReferenceNo).HasMaxLength(100);
 
+        builder.Property(t => t.IdempotencyKey).HasMaxLength(64);
+
         builder.HasIndex(t => t.TransactionNo).IsUnique();
+        builder.HasIndex(t => t.IdempotencyKey).IsUnique();
 
         builder.HasOne(t => t.InitiatedByUser)
             .WithMany()
@@ -99,6 +102,7 @@ public sealed class NrcCashTransferDetailConfiguration : IEntityTypeConfiguratio
         builder.Property(d => d.ReceiverPhone).HasMaxLength(32);
         builder.Property(d => d.DeliveryType).IsRequired().HasMaxLength(30);
         builder.Property(d => d.PickupCodeHash).HasMaxLength(256);
+        builder.Property(d => d.FailedPickupAttempts).HasDefaultValue(0);
         builder.Property(d => d.Status).IsRequired().HasMaxLength(20);
 
         builder.HasIndex(d => d.TransactionId).IsUnique();
@@ -111,6 +115,16 @@ public sealed class NrcCashTransferDetailConfiguration : IEntityTypeConfiguratio
         builder.HasOne(d => d.DestinationAccount)
             .WithMany()
             .HasForeignKey(d => d.DestinationAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(d => d.PickupBranch)
+            .WithMany()
+            .HasForeignKey(d => d.PickupBranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(d => d.PickupOtherBank)
+            .WithMany()
+            .HasForeignKey(d => d.PickupOtherBankId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(d => d.PickupVerifiedByUser)

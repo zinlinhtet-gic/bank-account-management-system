@@ -25,6 +25,58 @@ User Management follows the same layers:
 - Shared helpers: `Utils/Security/PasswordHasher` (the only password hashing code) and
   `Utils/Extensions/UserStatusExtensions.EnsureCanSignIn()` (used by login, the auth endpoints and `[RequirePermission]`).
 
+Transactions follow the same layers:
+
+- `TransactionsController` (`api/transactions`, `[RequirePermission]` per action): postings, NRC pickup/cancel,
+  interbank complete/fail, list, detail and account statement. It builds a `RequestActor` (user, IP, User-Agent) with
+  `HttpContext.GetRequestActor()` and reads the optional `Idempotency-Key` header.
+- Services (rules in `BusinessRules.md`):
+  - `ITransactionService` / `TransactionService`: deposit, withdrawal, internal transfer.
+  - `IInterbankTransferService` / `InterbankTransferService`: interbank transfer and its settled / failed result.
+  - `INrcTransferService` / `NrcTransferService`: NRC transfer, pickup, cancel.
+  - `ITransactionQueryService` / `TransactionQueryService`: read-only list, detail, statement.
+  - `LedgerPostingService` (concrete, internal to these services): database transactions with idempotency, account
+    row locks, account-type debit rules, customer and GL entries, refunds, audit rows. All balance changes go through
+    `PostCustomerEntryAsync`.
+  - `TransactionRequestValidator`: request checks shared by the services.
+- DTOs under `DTO/Transactions` (plus `DTO/Common/PagedResponse` and `RequestActor`); limits in
+  `Constants/TransactionConstants.cs`, GL codes in `AccountingConstants.cs`, audit actions in `AuditConstants.cs`.
+  GL accounts are seeded by `Data/Seeders/ChartOfAccountsSeeder.cs`. Example requests in `transactions.http`.
+- `ApplicationDbContext` converts `DateOnly` to `DateTime` for every entity, because MySql.EntityFrameworkCore cannot
+  read `DateOnly` columns back.
+
+Branches (`Models/Organization/Branch`, seeded by `Data/Seeders/BranchSeeder` on an empty table) are the pickup
+locations of NRC transfers at this bank; `GET api/transactions/branches` lists the active ones.
+
+`AccountsController` `GET api/accounts` and `GET api/accounts/{id}` return the standard `ApiMessageResponse<T>`
+envelope like every other endpoint, so the WPF `ApiClient` can read them.
+
+## WPF transaction screens
+
+- Pages: `TransactionsViewModel` / `Views/Pages/TransactionsView` (officers: post, finish pending transfers) and
+  `TransactionHistoryViewModel` / `TransactionHistoryView` (auditors: read-only). Both compose the same components
+  from `ViewModels/Pages/Transactions`: `TransactionFilterViewModel` (filter bar, `Views/.../TransactionFilterBar`)
+  and `TransactionListViewModel` (one page of rows + pager, `TransactionPager`; a newer load cancels an older one).
+- Dialogs (templates in `Views/DialogTemplates.xaml`):
+  - `TransactionFormViewModel`: one form for deposit, withdrawal, internal, interbank and NRC transfer
+    (`TransactionFormKind` picks the visible fields). Each form instance has its own idempotency key, so a retry
+    of the same form never posts twice.
+  - `NrcPickupCodeViewModel`: shows a new NRC transfer's pickup code once.
+  - `NrcPickupFormViewModel`: pickup at our branch: shows the receiver's name and NRC to check, takes the code,
+    pays out in cash or into the receiver's account.
+  - `PendingTransferActionViewModel`: cancel an NRC transfer, record another bank's NRC payout, or mark an interbank
+    transfer settled / failed. The pending-NRC row action opens the pickup form or the payout form depending on where
+    the transfer is collected.
+  - `TransactionDetailsViewModel`: read-only detail card (entries, NRC or interbank detail). Each entry has a
+    Statement button; `TransactionDetailsLauncher` (used by both pages) then opens `AccountStatementViewModel`:
+    the account's entries with balance after each, a date range and the shared pager.
+- Services: `ITransactionService` / `TransactionService` (`api/transactions`, sends `Idempotency-Key` through
+  `ApiClient.PostAsync(..., headers, ...)`) and `IAccountService` / `AccountService` (account pickers).
+- Shared helpers: `Api/QueryString` (list filters, also used by `UserService`), `Utils/TransactionDisplay` (type /
+  status names and MMK amounts), `ViewModels/FieldError` (per-field error for forms with many fields),
+  `Constants/TransactionFieldRules` (client copy of the server limits), and the `Badge.TransactionStatus` /
+  `Badge.EntryType` styles in `Views/Pages/Transactions/TransactionStyles.xaml`.
+
 ## WPF dialogs
 
 `IDialogService.Confirm` shows a yes/no confirmation; `IDialogService.ShowDialog(IDialogViewModel)` hosts any dialog

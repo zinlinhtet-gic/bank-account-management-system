@@ -12,5 +12,6 @@ public enum TransactionType
     MaintenanceFee = 8,
     Penalty = 9,
     FdMaturity = 10,
-    FdEarlyWithdrawal = 11
+    FdEarlyWithdrawal = 11,
+    Reversal = 12
 }

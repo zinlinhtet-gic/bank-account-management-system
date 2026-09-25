@@ -4,10 +4,12 @@ using bams.server.Models.Audit;
 using bams.server.Models.Customers;
 using bams.server.Models.External;
 using bams.server.Models.InterestFees;
+using bams.server.Models.Organization;
 using bams.server.Models.Products;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace bams.server.Data;
 
@@ -19,6 +21,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    // Organization
+    public DbSet<Branch> Branches => Set<Branch>();
 
     // Customer / KYC
     public DbSet<Customer> Customers => Set<Customer>();
@@ -62,7 +67,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
+
+        // MySql.EntityFrameworkCore writes DateOnly but cannot read it back (InvalidCastException from DateTime),
+        // so DateOnly values travel as DateTime while the column stays a plain SQL date.
+        configurationBuilder.Properties<DateOnly>()
+            .HaveConversion<DateOnlyToDateTimeConverter>()
+            .HaveColumnType(DateColumnType);
     }
+
+    private const string DateColumnType = "date";
+
+    // Converts DateOnly to midnight DateTime for the database and back.
+    private sealed class DateOnlyToDateTimeConverter()
+        : ValueConverter<DateOnly, DateTime>(
+            date => date.ToDateTime(TimeOnly.MinValue),
+            dateTime => DateOnly.FromDateTime(dateTime));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

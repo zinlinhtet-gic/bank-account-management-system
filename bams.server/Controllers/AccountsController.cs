@@ -27,12 +27,12 @@ public sealed class AccountsController : ControllerBase
     /// </summary>
     [HttpGet]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<IReadOnlyList<AccountSummaryResponse>>> GetAccountsAsync(
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<AccountSummaryResponse>>>> GetAccountsAsync(
         CancellationToken cancellationToken)
     {
         var accounts = await _accountService.GetAccountsAsync(cancellationToken);
 
-        return Ok(accounts);
+        return Ok(ApiMessageResponse<IReadOnlyList<AccountSummaryResponse>>.FromCode(MessageCode.Success, accounts));
     }
 
     /// <summary>
@@ -40,13 +40,13 @@ public sealed class AccountsController : ControllerBase
     /// </summary>
     [HttpGet("{id:long}", Name = GetAccountByIdRouteName)]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<AccountResponse>> GetAccountByIdAsync(
+    public async Task<ActionResult<ApiMessageResponse<AccountResponse>>> GetAccountByIdAsync(
         long id,
         CancellationToken cancellationToken)
     {
         var account = await _accountService.GetAccountByIdAsync(id, cancellationToken);
 
-        return Ok(account);
+        return Ok(ApiMessageResponse<AccountResponse>.FromCode(MessageCode.Success, account));
     }
 
     /// <summary>

@@ -1,0 +1,148 @@
+### Transactions API. Postings need an officer token; reads also work for auditors; other roles get 403 / 4101.
+@baseUrl = http://localhost:5121
+@token = <paste data.token from the login response>
+@sourceAccountId = 1
+@destinationAccountId = 2
+@transactionId = 1
+
+### Log in as an officer and copy data.token
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "officer", "password": "<your password>" }
+
+### Deposit. Idempotency-Key is optional: sending the same key again returns the first result and posts nothing
+POST {{baseUrl}}/api/transactions/deposit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Idempotency-Key: DEP-001
+
+{
+  "accountId": {{destinationAccountId}},
+  "amount": 10000,
+  "description": "Cash deposit",
+  "referenceNo": "DEP-001"
+}
+
+### Withdrawal (account-type rules: AllowWithdrawal, minimum balance, daily/monthly limits)
+POST {{baseUrl}}/api/transactions/withdrawal
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "accountId": {{sourceAccountId}},
+  "amount": 1000,
+  "description": "Cash withdrawal",
+  "referenceNo": "WD-001"
+}
+
+### Internal transfer
+POST {{baseUrl}}/api/transactions/transfer/internal
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sourceAccountId": {{sourceAccountId}},
+  "destinationAccountId": {{destinationAccountId}},
+  "amount": 2500,
+  "description": "Internal transfer",
+  "referenceNo": "TRF-001"
+}
+
+### Interbank transfer (stays Pending until complete or fail)
+POST {{baseUrl}}/api/transactions/transfer/interbank
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sourceAccountId": {{sourceAccountId}},
+  "otherBankId": 1,
+  "destinationAccountNo": "OTHER-001",
+  "beneficiaryName": "Beneficiary Name",
+  "amount": 3000,
+  "description": "Interbank transfer",
+  "referenceNo": "IB-001"
+}
+
+### Interbank: gateway settled it (officer or manager)
+POST {{baseUrl}}/api/transactions/transfer/interbank/{{transactionId}}/complete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "gatewayReference": "GW-001", "settlementReference": "ST-001" }
+
+### Interbank: gateway rejected it -> sender refunded; returns the Reversal transaction
+POST {{baseUrl}}/api/transactions/transfer/interbank/{{transactionId}}/fail
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "gatewayReference": "GW-001", "reason": "Beneficiary account closed" }
+
+### NRC transfer: sender pays cash (sourceAccountId null) or from an account; receiver collects at a branch
+### (deliveryType "Branch" + pickupBranchId, see GET branches) or another bank ("OtherBank" + pickupOtherBankId).
+### Save the returned data.id and data.pickupCode (shown only once).
+POST {{baseUrl}}/api/transactions/transfer/nrc
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sourceAccountId": null,
+  "senderName": "Sender Name",
+  "senderNrc": "12/ABC(N)123456",
+  "senderPhone": "09123456789",
+  "receiverName": "Receiver Name",
+  "receiverNrc": "13/DEF(N)654321",
+  "receiverPhone": "09987654321",
+  "deliveryType": "Branch",
+  "pickupBranchId": 1,
+  "pickupOtherBankId": null,
+  "amount": 4000,
+  "description": "NRC transfer",
+  "referenceNo": "NRC-001"
+}
+
+### NRC pickup at our branch: cash (destinationAccountId null) or into the receiver's account.
+### 5 wrong codes block the transfer -> 4449; it can then only be cancelled
+POST {{baseUrl}}/api/transactions/nrc-pickup
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "transactionId": {{transactionId}},
+  "pickupCode": "123456",
+  "destinationAccountId": null
+}
+
+### NRC collected at another bank: record that bank's payout
+POST {{baseUrl}}/api/transactions/transfer/nrc/{{transactionId}}/paid-out
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "payoutReference": "KBZ-778" }
+
+### Branches where NRC transfers can be collected
+GET {{baseUrl}}/api/transactions/branches
+Authorization: Bearer {{token}}
+
+### NRC cancel -> sender refunded the way they paid (cash or account); returns the Reversal transaction
+POST {{baseUrl}}/api/transactions/transfer/nrc/{{transactionId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "reason": "Receiver did not collect" }
+
+### List (newest first). All filters optional: accountId or accountNo, type, status, from, before (exclusive), page, pageSize
+GET {{baseUrl}}/api/transactions?type=NrcTransfer&status=Pending&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### Destination banks for the interbank form
+GET {{baseUrl}}/api/transactions/other-banks
+Authorization: Bearer {{token}}
+
+### Detail: header, account entries, NRC / interbank detail
+GET {{baseUrl}}/api/transactions/{{transactionId}}
+Authorization: Bearer {{token}}
+
+### Account statement (newest first, balance after each entry)
+GET {{baseUrl}}/api/transactions/accounts/{{sourceAccountId}}/statement?page=1&pageSize=20
+Authorization: Bearer {{token}}
