@@ -1,8 +1,9 @@
+using bams.server.Constants;
 using bams.server.DTO.Common;
 using bams.server.DTO.Customers;
 using bams.server.Messages;
+using bams.server.Middlewares;
 using bams.server.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bams.server.Controllers;
@@ -25,19 +26,21 @@ public sealed class CustomersController : ControllerBase
     /// number, name, KYC status, status, or risk level.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<PagedResponse<CustomerSummaryResponse>>> GetCustomersAsync(
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<CustomerSummaryResponse>>>> GetCustomersAsync(
         [FromQuery] GetCustomersRequest request,
         CancellationToken cancellationToken)
     {
         var customers = await _customerService.GetCustomersAsync(request, cancellationToken);
 
-        return Ok(customers);
+        return Ok(ApiMessageResponse<PagedResponse<CustomerSummaryResponse>>.FromCode(MessageCode.Success, customers));
     }
 
     /// <summary>
     /// Gets a single customer, including its documents, by its unique identifier.
     /// </summary>
     [HttpGet("{id:long}", Name = GetCustomerByIdRouteName)]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
     public async Task<ActionResult<CustomerResponse>> GetCustomerByIdAsync(
         long id,
         CancellationToken cancellationToken)
@@ -51,7 +54,7 @@ public sealed class CustomersController : ControllerBase
     /// Creates a new customer from the supplied API request contract.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "manager, officer")]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> CreateCustomerAsync(
         [FromForm] CreateCustomerRequest request,
         CancellationToken cancellationToken)
@@ -73,7 +76,7 @@ public sealed class CustomersController : ControllerBase
     /// entries without one add a new document. Multipart form data, so new files can be attached.
     /// </summary>
     [HttpPatch("{id:long}")]
-    [Authorize(Roles = "manager,officer")]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> UpdateCustomerAsync(
         long id,
         [FromForm] UpdateCustomerRequest request,
@@ -92,7 +95,7 @@ public sealed class CustomersController : ControllerBase
     /// of the customer's documents as verified; rejecting only changes the customer's KycStatus.
     /// </summary>
     [HttpPost("{id:long}/kyc-review")]
-    [Authorize(Roles = "manager")]
+    [RequirePermission(SecurityConstants.CustomerKyc)]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> ReviewCustomerKycAsync(
         long id,
         [FromBody] ReviewCustomerKycRequest request,
