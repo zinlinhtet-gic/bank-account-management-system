@@ -1,0 +1,1270 @@
+openapi: 3.0.3
+info:
+  title: Bank Account Management API
+  version: 1.0.0
+  description: |
+    OpenAPI contract for account, customer creation, account type, and interest-rate endpoints.
+    Account operations require account_management; customer creation requires customer_management.
+    Version fields provide optimistic locking.
+servers:
+  - url: https://localhost:7018
+    description: Local HTTPS profile
+  - url: http://localhost:5121
+    description: Local HTTP profile
+tags:
+  - name: Accounts
+    description: Account queries, creation, status actions, and related updates.
+  - name: Account Types
+    description: Account products available for opening.
+  - name: Interest Rate Rules
+    description: Active rate rules available for account products.
+  - name: Customers
+    description: Customer registration used during account opening.
+
+paths:
+  /api/accounts:
+    get:
+      tags: [Accounts]
+      operationId: getAccounts
+      summary: List accounts
+      description: Returns a forward-only cursor page ordered by account ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/AccountTypeIdQuery'
+        - $ref: '#/components/parameters/AccountStatusQuery'
+      responses:
+        '200':
+          description: Matching account summaries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountCursorPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      summary: Create an account
+      description: |
+        Creates an individual or shared account. Documents use indexed multipart
+        fields such as Documents[0].DocumentType and Documents[0].File.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created successfully.
+          headers:
+            Location:
+              description: URL of the created account.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/{id}:
+    get:
+      tags: [Accounts]
+      operationId: getAccountById
+      summary: Get an account
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/{id}/freeze:
+    patch:
+      tags: [Accounts]
+      operationId: freezeAccount
+      summary: Freeze an account
+      description: Changes an Active or Dormant account to Frozen.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        $ref: '#/components/requestBodies/AccountStatusAction'
+      responses:
+        '200':
+          $ref: '#/components/responses/AccountStatusUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/{id}/suspend:
+    patch:
+      tags: [Accounts]
+      operationId: suspendAccount
+      summary: Suspend an account
+      description: Changes an Active or Dormant account to Suspended.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        $ref: '#/components/requestBodies/AccountStatusAction'
+      responses:
+        '200':
+          $ref: '#/components/responses/AccountStatusUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/{id}/reactivate:
+    patch:
+      tags: [Accounts]
+      operationId: reactivateAccount
+      summary: Reactivate an account
+      description: Changes a Dormant, Suspended, or Frozen account to Active.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        $ref: '#/components/requestBodies/AccountStatusAction'
+      responses:
+        '200':
+          $ref: '#/components/responses/AccountStatusUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/{id}/holders:
+    put:
+      tags: [Accounts]
+      operationId: updateAccountHolders
+      summary: Update joint-account holders
+      description: Replaces the editable details of both existing joint holders.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountHoldersRequest'
+      responses:
+        '200':
+          description: Account holders updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHoldersMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/fixed-deposits/{fixedDepositId}:
+    patch:
+      tags: [Accounts]
+      operationId: updateFixedDeposit
+      summary: Update fixed-deposit instructions
+      description: Updates the renewal instruction, payout account, or both.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FixedDepositId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFixedDepositRequest'
+      responses:
+        '200':
+          description: Fixed deposit updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FixedDepositMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/account-types:
+    get:
+      tags: [Account Types]
+      operationId: getAvailableAccountTypes
+      summary: List available account types
+      description: Returns all active account products available for account opening.
+      security: []
+      responses:
+        '200':
+          description: Available account products.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountTypeResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/customer-lookup:
+    get:
+      tags: [Accounts]
+      operationId: getCustomerByNrc
+      summary: Find a customer by NRC
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: nrc
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching customer profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerLookupResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/customers:
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: Create a customer
+      description: Persists a customer profile and returns the saved profile for account opening.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: A customer already exists with the supplied NRC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/opening-options:
+    get:
+      tags: [Accounts]
+      operationId: getAccountOpeningOptions
+      summary: Get eligible products and owned payout accounts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: holderNrc
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: secondHolderNrc
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eligible products, document requirements, and owned accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOpeningOptionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/accounts/{id}/transactions:
+    get:
+      tags: [Accounts]
+      operationId: getAccountTransactions
+      summary: Get account transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account transaction entries, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountTransactionDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/accounts/{id}/status-history:
+    get:
+      tags: [Accounts]
+      operationId: getAccountStatusHistory
+      summary: Get account status history
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account status changes, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountStatusHistoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/accounts/{id}/interest-accruals:
+    get:
+      tags: [Accounts]
+      operationId: getAccountInterestAccruals
+      summary: Get account interest accruals
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Interest accrual periods, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InterestAccrualResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/interest-rate-rules:
+    get:
+      tags: [Interest Rate Rules]
+      operationId: getAvailableInterestRateRules
+      summary: List effective interest rules for an account type
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountTypeId
+          in: query
+          required: true
+          description: Product identifier used to filter available interest rules.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Active rules effective on the current UTC date.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InterestRateRuleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AccountId:
+      name: id
+      in: path
+      required: true
+      description: Account identifier.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    FixedDepositId:
+      name: fixedDepositId
+      in: path
+      required: true
+      description: Fixed-deposit row identifier, not the account identifier.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor returned as nextCursor by the previous page.
+      schema:
+        type: string
+    PageSize:
+      name: pageSize
+      in: query
+      description: Maximum number of accounts to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Search:
+      name: search
+      in: query
+      description: Partial account-number match.
+      schema:
+        type: string
+    AccountTypeIdQuery:
+      name: accountTypeId
+      in: query
+      description: Account-type identifier filter.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    AccountStatusQuery:
+      name: status
+      in: query
+      description: Account status filter.
+      schema:
+        $ref: '#/components/schemas/AccountStatus'
+
+  requestBodies:
+    AccountStatusAction:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UpdateAccountStatusRequest'
+
+  responses:
+    AccountStatusUpdated:
+      description: Account status updated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AccountMessageResponse'
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Unauthorized:
+      description: Authentication is required or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Forbidden:
+      description: The authenticated user lacks the required permission.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    NotFound:
+      description: The requested account, customer, product, or fixed deposit was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Conflict:
+      description: The resource conflicts with existing data or its version is stale.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    BusinessRuleViolation:
+      description: The requested operation violates a business rule.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    InternalServerError:
+      description: An unexpected server or storage error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+  schemas:
+    AccountStatus:
+      type: string
+      enum: [Active, Dormant, Suspended, Closed, Frozen]
+    OwnershipType:
+      type: string
+      enum: [Individual, Joint]
+    RenewalInstruction:
+      type: string
+      enum: [NoRenewal, PrincipalOnly, PrincipalAndInterest]
+    FixedDepositStatus:
+      type: string
+      enum: [Active, Matured, Closed, Cancelled]
+    DocumentType:
+      type: string
+      enum:
+        - Nrc
+        - Passport
+        - Visa
+        - HouseholdRegistration
+        - ProofOfAddress
+        - TaxDocument
+        - SourceOfFunds
+        - Photo
+
+    GetAccountsRequest:
+      type: object
+      properties:
+        cursor:
+          type: string
+          nullable: true
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        search:
+          type: string
+          nullable: true
+        accountTypeId:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        status:
+          allOf:
+            - $ref: '#/components/schemas/AccountStatus'
+          nullable: true
+
+    CreateAccountRequest:
+      type: object
+      required:
+        - accountTypeId
+        - openingBalance
+        - isSharedAccount
+      properties:
+        accountTypeId:
+          type: integer
+          format: int64
+          minimum: 1
+        openingBalance:
+          type: number
+          format: decimal
+        isSharedAccount:
+          type: boolean
+        holderNRC1:
+          type: string
+          nullable: true
+        holderNRC2:
+          type: string
+          nullable: true
+        ownershipPercentage1:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          nullable: true
+        ownershipPercentage2:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          nullable: true
+        signingRule:
+          type: string
+          maxLength: 100
+          nullable: true
+        documents:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AccountDocumentUploadRequest'
+        payoutAccountId:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        interestRateRuleId:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        renewalInstruction:
+          allOf:
+            - $ref: '#/components/schemas/RenewalInstruction'
+          nullable: true
+        calculateFromCurrent:
+          type: boolean
+          nullable: true
+        refererNrcs:
+          type: array
+          description: NRC numbers of existing account-holding customers who referred the account owners.
+          items:
+            type: string
+
+    AccountDocumentUploadRequest:
+      type: object
+      required: [documentType, file]
+      properties:
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
+          type: string
+          maxLength: 64
+          nullable: true
+        file:
+          type: string
+          format: binary
+          description: PDF, JPEG, or PNG file, maximum 10 MB.
+
+    UpdateAccountStatusRequest:
+      type: object
+      required: [version]
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+          nullable: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Account version returned by the most recent read.
+
+    UpdateAccountHoldersRequest:
+      type: object
+      required: [holders, accountVersion]
+      properties:
+        holders:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/UpdateAccountHolderItem'
+        signingRule:
+          type: string
+          maxLength: 100
+          nullable: true
+        accountVersion:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Parent account version returned by the most recent read.
+
+    UpdateAccountHolderItem:
+      type: object
+      required: [accountHolderId, ownershipPercentage, isPrimary, version]
+      properties:
+        accountHolderId:
+          type: integer
+          format: int64
+          minimum: 1
+        ownershipPercentage:
+          type: number
+          format: decimal
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 100
+        isPrimary:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+
+    UpdateFixedDepositRequest:
+      type: object
+      required: [version]
+      properties:
+        renewalInstruction:
+          allOf:
+            - $ref: '#/components/schemas/RenewalInstruction'
+          nullable: true
+        payoutAccountId:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Fixed-deposit version returned by the most recent read.
+
+    AccountSummaryResponse:
+      type: object
+      required: [id, accountNo, accountTypeCode, status, availableBalance]
+      properties:
+        id:
+          type: integer
+          format: int64
+        accountNo:
+          type: string
+        accountTypeCode:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        availableBalance:
+          type: number
+          format: decimal
+
+    AccountCursorPage:
+      type: object
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountSummaryResponse'
+        hasMore:
+          type: boolean
+        nextCursor:
+          type: string
+          nullable: true
+
+    CreateCustomerRequest:
+      type: object
+      required: [fullName, dateOfBirth, nrcNumber]
+      properties:
+        fullName: { type: string, maxLength: 150 }
+        dateOfBirth: { type: string, format: date }
+        nrcNumber: { type: string, maxLength: 32 }
+        phone: { type: string, nullable: true, maxLength: 32 }
+        email: { type: string, nullable: true, maxLength: 256, format: email }
+
+    CustomerMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/CustomerLookupResponse'
+
+    CustomerLookupResponse:
+      type: object
+      required: [id, customerNo, fullName, dateOfBirth, status, customerType]
+      properties:
+        id: { type: integer, format: int64 }
+        customerNo: { type: string }
+        fullName: { type: string }
+        dateOfBirth: { type: string, format: date }
+        nrcNumber: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string }
+        customerType:
+          type: string
+          enum: [Citizen, Foreigner]
+
+    AccountOpeningOptionsResponse:
+      type: object
+      required: [accountTypes, requiredDocuments, ownedAccounts]
+      properties:
+        accountTypes:
+          type: array
+          items: { $ref: '#/components/schemas/AccountTypeResponse' }
+        requiredDocuments:
+          type: array
+          items:
+            type: object
+            required: [accountTypeId, documentType]
+            properties:
+              accountTypeId: { type: integer, format: int64 }
+              documentType: { $ref: '#/components/schemas/DocumentType' }
+        ownedAccounts:
+          type: array
+          items:
+            type: object
+            required: [id, accountNo, accountTypeCode, status, accountTypeName]
+            properties:
+              id: { type: integer, format: int64 }
+              accountNo: { type: string }
+              accountTypeCode: { type: string }
+              status: { $ref: '#/components/schemas/AccountStatus' }
+              accountTypeName: { type: string }
+
+    AccountTransactionDetailResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        transactionNo: { type: string }
+        transactionType: { type: string }
+        transactionStatus: { type: string }
+        entryType: { type: string }
+        amount: { type: number, format: decimal }
+        ledgerBalanceAfter: { type: number, format: decimal }
+        availableBalanceAfter: { type: number, format: decimal }
+        valueDate: { type: string, format: date }
+        postingDate: { type: string, format: date }
+        description: { type: string, nullable: true }
+        referenceNo: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    AccountStatusHistoryResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        oldStatus: { $ref: '#/components/schemas/AccountStatus' }
+        newStatus: { $ref: '#/components/schemas/AccountStatus' }
+        reason: { type: string, nullable: true }
+        changedBy: { type: string }
+        changedAt: { type: string, format: date-time }
+
+    InterestAccrualResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        calculationBalance: { type: number, format: decimal }
+        annualRate: { type: number, format: decimal }
+        calculatedAmount: { type: number, format: decimal }
+        status: { type: string }
+        calculatedAt: { type: string, format: date-time }
+        postedAt: { type: string, format: date-time, nullable: true }
+
+    AccountResponse:
+      type: object
+      required:
+        - id
+        - accountNo
+        - accountTypeId
+        - accountTypeCode
+        - status
+        - availableBalance
+        - ledgerBalance
+        - openedAt
+        - createdAt
+        - version
+      properties:
+        id:
+          type: integer
+          format: int64
+        accountNo:
+          type: string
+        accountTypeId:
+          type: integer
+          format: int64
+        accountTypeCode:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        availableBalance:
+          type: number
+          format: decimal
+        ledgerBalance:
+          type: number
+          format: decimal
+        openedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    AccountHolderResponse:
+      type: object
+      required:
+        - id
+        - accountId
+        - customerId
+        - customerNrc
+        - ownershipType
+        - isPrimary
+        - status
+        - createdAt
+        - version
+      properties:
+        id:
+          type: integer
+          format: int64
+        accountId:
+          type: integer
+          format: int64
+        customerId:
+          type: integer
+          format: int64
+        customerNrc:
+          type: string
+        ownershipType:
+          $ref: '#/components/schemas/OwnershipType'
+        ownershipPercentage:
+          type: number
+          format: decimal
+          nullable: true
+        isPrimary:
+          type: boolean
+        signingRule:
+          type: string
+          nullable: true
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    FixedDepositResponse:
+      type: object
+      required:
+        - id
+        - accountId
+        - principalAmount
+        - interestRateRuleId
+        - appliedAnnualRate
+        - startDate
+        - maturityDate
+        - renewalInstruction
+        - payoutAccountId
+        - status
+        - originalPrincipal
+        - currentPrincipal
+        - calculateFromCurrent
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id:
+          type: integer
+          format: int64
+        accountId:
+          type: integer
+          format: int64
+        principalAmount:
+          type: number
+          format: decimal
+        interestRateRuleId:
+          type: integer
+          format: int64
+        appliedAnnualRate:
+          type: number
+          format: decimal
+        startDate:
+          type: string
+          format: date
+        maturityDate:
+          type: string
+          format: date
+        termDays:
+          type: integer
+          nullable: true
+        termMonths:
+          type: integer
+          nullable: true
+        renewalInstruction:
+          $ref: '#/components/schemas/RenewalInstruction'
+        payoutAccountId:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/FixedDepositStatus'
+        originalPrincipal:
+          type: number
+          format: decimal
+        currentPrincipal:
+          type: number
+          format: decimal
+        calculateFromCurrent:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    AccountTypeResponse:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - minimumOpeningBalance
+        - minimumMaintainedBalance
+        - allowWithdrawal
+        - allowTransfer
+        - allowPartialWithdrawal
+        - isFixedDeposit
+        - allowForeigner
+        - allowCitizen
+        - citizenRequiredRefer
+        - foreignRequiredRefer
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          nullable: true
+        minimumOpeningBalance:
+          type: number
+          format: decimal
+        minimumMaintainedBalance:
+          type: number
+          format: decimal
+        dailyTransactionLimit:
+          type: number
+          format: decimal
+          nullable: true
+        monthlyTransactionLimit:
+          type: number
+          format: decimal
+          nullable: true
+        allowWithdrawal:
+          type: boolean
+        allowTransfer:
+          type: boolean
+        allowPartialWithdrawal:
+          type: boolean
+        requiredProductId:
+          type: integer
+          format: int64
+          nullable: true
+        isFixedDeposit:
+          type: boolean
+        allowForeigner:
+          type: boolean
+        allowCitizen:
+          type: boolean
+        citizenRequiredRefer:
+          type: integer
+          minimum: 0
+        foreignRequiredRefer:
+          type: integer
+          minimum: 0
+
+    InterestRateRuleResponse:
+      type: object
+      required: [id, accountTypeId, annualRate, effectiveFrom]
+      properties:
+        id:
+          type: integer
+          format: int64
+        accountTypeId:
+          type: integer
+          format: int64
+        termDays:
+          type: integer
+          nullable: true
+        termMonths:
+          type: integer
+          nullable: true
+        balanceMin:
+          type: number
+          format: decimal
+          nullable: true
+        balanceMax:
+          type: number
+          format: decimal
+          nullable: true
+        annualRate:
+          type: number
+          format: decimal
+        earlyWithdrawalRate:
+          type: number
+          format: decimal
+          nullable: true
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: string
+          format: date
+          nullable: true
+
+    AccountMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/AccountResponse'
+
+    AccountHoldersMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountHolderResponse'
+
+    FixedDepositMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/FixedDepositResponse'
+
+    ApiMessageResponseBase:
+      type: object
+      required: [code, name, message]
+      properties:
+        code:
+          type: integer
+          format: int32
+        name:
+          type: string
+        message:
+          type: string
+
+    ApiErrorResponse:
+      type: object
+      required: [code, name, message]
+      properties:
+        code:
+          type: integer
+          format: int32
+        name:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+          nullable: true

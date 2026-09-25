@@ -1,4 +1,4 @@
-namespace bams.server.Models.Accounts;
+namespace bams.server.Models.Accounts.Enums;
 
 public enum RenewalInstruction
 {
@@ -6,3 +6,4 @@ public enum RenewalInstruction
     PrincipalOnly = 2,
     PrincipalAndInterest = 3
 }
+

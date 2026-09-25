@@ -1,0 +1,182 @@
+@baseUrl = http://localhost:5121
+@accountTypeId = 1
+@primaryHolderNrc = 12/ABC(N)123456
+@accountId = 1
+@jointAccountId = 2
+@firstAccountHolderId = 1
+@secondAccountHolderId = 2
+@fixedDepositId = 1
+@payoutAccountId = 1
+@accountPageSize = 2
+@accountCursor = replace-with-nextCursor
+@authToken = replace-with-login-token
+
+# Start the server with the HTTP launch profile before running these requests.
+# Replace the IDs above with records from the local database. Holder IDs are
+# AccountHolder row IDs, and fixedDepositId is the FixedDeposit row ID.
+# Supply a valid bearer token for account mutations. Audit attribution comes from
+# the token's name-identifier claim and cannot be supplied in request data.
+# Until authentication is enabled, update requests are audited as user ID 1.
+
+### List available account types
+GET {{baseUrl}}/api/account-types
+Accept: application/json
+
+### List accounts
+GET {{baseUrl}}/api/accounts?pageSize={{accountPageSize}}
+Accept: application/json
+
+### Continue listing accounts with the previous response's nextCursor
+GET {{baseUrl}}/api/accounts?pageSize={{accountPageSize}}&cursor={{accountCursor}}
+Accept: application/json
+
+### Search and filter accounts (preserve these parameters when following nextCursor)
+GET {{baseUrl}}/api/accounts?pageSize={{accountPageSize}}&search=1234&accountTypeId={{accountTypeId}}&status=Active
+Accept: application/json
+
+### Get an account
+GET {{baseUrl}}/api/accounts/{{accountId}}
+Accept: application/json
+
+### Freeze an active or dormant account
+PATCH {{baseUrl}}/api/accounts/{{accountId}}/freeze
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Compliance review",
+  "version": 1
+}
+
+### Suspend an active or dormant account
+PATCH {{baseUrl}}/api/accounts/{{accountId}}/suspend
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Temporary operational restriction",
+  "version": 1
+}
+
+### Reactivate a dormant, suspended, or frozen account
+PATCH {{baseUrl}}/api/accounts/{{accountId}}/reactivate
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reason": "Restriction cleared",
+  "version": 2
+}
+
+### Create an individual account with all seeded required documents
+POST {{baseUrl}}/api/accounts
+Authorization: Bearer {{authToken}}
+Accept: application/json
+Content-Type: multipart/form-data; boundary=AccountBoundary
+
+--AccountBoundary
+Content-Disposition: form-data; name="AccountTypeId"
+
+{{accountTypeId}}
+--AccountBoundary
+Content-Disposition: form-data; name="OpeningBalance"
+
+100000.00
+--AccountBoundary
+Content-Disposition: form-data; name="IsSharedAccount"
+
+false
+--AccountBoundary
+Content-Disposition: form-data; name="HolderNRC1"
+
+{{primaryHolderNrc}}
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[0].DocumentType"
+
+Nrc
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[0].DocumentNumber"
+
+{{primaryHolderNrc}}
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[0].File"; filename="nrc.pdf"
+Content-Type: application/pdf
+
+< ./TestData/sample-account-document.pdf
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[1].DocumentType"
+
+Photo
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[1].File"; filename="photo.pdf"
+Content-Type: application/pdf
+
+< ./TestData/sample-account-document.pdf
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[2].DocumentType"
+
+ProofOfAddress
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[2].File"; filename="proof-of-address.pdf"
+Content-Type: application/pdf
+
+< ./TestData/sample-account-document.pdf
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[3].DocumentType"
+
+HouseholdRegistration
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[3].File"; filename="household-registration.pdf"
+Content-Type: application/pdf
+
+< ./TestData/sample-account-document.pdf
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[4].DocumentType"
+
+SourceOfFunds
+--AccountBoundary
+Content-Disposition: form-data; name="Documents[4].File"; filename="source-of-funds.pdf"
+Content-Type: application/pdf
+
+< ./TestData/sample-account-document.pdf
+--AccountBoundary--
+
+### Update the primary holder, ownership percentages, and signing rule
+PUT {{baseUrl}}/api/accounts/{{jointAccountId}}/holders
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "holders": [
+    {
+      "accountHolderId": {{firstAccountHolderId}},
+      "ownershipPercentage": 40.00,
+      "isPrimary": false,
+      "version": 1
+    },
+    {
+      "accountHolderId": {{secondAccountHolderId}},
+      "ownershipPercentage": 60.00,
+      "isPrimary": true,
+      "version": 1
+    }
+  ],
+  "signingRule": "Either holder may sign",
+  "accountVersion": 1
+}
+
+### Update fixed-deposit payout and renewal instructions
+PATCH {{baseUrl}}/api/accounts/fixed-deposits/{{fixedDepositId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "renewalInstruction": "PrincipalAndInterest",
+  "payoutAccountId": {{payoutAccountId}},
+  "version": 1
+}

@@ -5,8 +5,10 @@ using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
+using System.Windows.Threading;
 
 namespace bams.desktop;
 
@@ -21,6 +23,11 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        AppLog.WriteInformation($"Application starting. Log file: {AppLog.LogFilePath}");
+
         // Setup dependency injection
         var services = new ServiceCollection();
         ConfigureServices(services);
@@ -29,6 +36,45 @@ public partial class App : Application
         // Create and show main window
         var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
+    }
+
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        AppLog.WriteError("Unhandled UI dispatcher exception; the application may close.", e.Exception);
+        try
+        {
+            var message = "An unexpected error occurred. The application will try to return to the previous screen.\n\n" + e.Exception.Message;
+            if (MainWindow is null)
+            {
+                MessageBox.Show(message, "Application Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            else
+            {
+                MessageBox.Show(MainWindow, message, "Application Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            if (MainWindow?.DataContext is MainViewModel mainViewModel &&
+                mainViewModel.TryRecoverFromUnhandledException())
+            {
+                e.Handled = true;
+            }
+        }
+        catch (Exception recoveryException)
+        {
+            AppLog.WriteError("Could not display or recover from the unhandled UI exception.", recoveryException);
+            // Leave the original exception unhandled if recovery itself fails.
+        }
+    }
+
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        var exception = e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString());
+        AppLog.WriteError($"Unhandled application exception. IsTerminating={e.IsTerminating}.", exception);
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        AppLog.WriteError("Unobserved task exception.", e.Exception);
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -40,6 +86,7 @@ public partial class App : Application
         services.AddSingleton<HttpClient>(sp => new HttpClient { BaseAddress = new Uri(ApiConstants.ServerBaseAddress) });
         services.AddSingleton<ApiClient>();
         services.AddSingleton<Services.IAuthenticationService, Services.AuthenticationService>();
+        services.AddSingleton<Services.IAccountManagementService, Services.AccountManagementService>();
 
         // Register Navigation Service
         services.AddSingleton<Services.INavigationService, Services.NavigationService>();
@@ -65,6 +112,7 @@ public partial class App : Application
         services.AddTransient<UserManagementViewModel>();
         services.AddTransient<CustomerManagementViewModel>();
         services.AddTransient<CustomerKYCViewModel>();
+        // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();
         services.AddTransient<TransactionHistoryViewModel>();

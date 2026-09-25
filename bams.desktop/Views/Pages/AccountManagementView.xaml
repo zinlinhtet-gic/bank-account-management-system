@@ -1,0 +1,31 @@
+<UserControl x:Class="bams.desktop.Views.Pages.AccountManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages"
+             xmlns:pages="clr-namespace:bams.desktop.Views.Pages">
+    <Grid Background="{StaticResource BackgroundBrush}">
+        <ContentControl Content="{Binding CurrentAccountPage}">
+            <ContentControl.Resources>
+                <DataTemplate DataType="{x:Type pageviewmodels:AccountListPageViewModel}"><pages:AccountListView/></DataTemplate>
+                <DataTemplate DataType="{x:Type pageviewmodels:AccountCreatePageViewModel}"><pages:AccountCreateView/></DataTemplate>
+                <DataTemplate DataType="{x:Type pageviewmodels:AccountDetailPageViewModel}"><pages:AccountDetailView/></DataTemplate>
+            </ContentControl.Resources>
+        </ContentControl>
+        <Border Background="#99000000" Visibility="{Binding ShowStatusDialog, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="22" Width="420" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Change account status" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="Choose a supported status and enter a reason." Foreground="{StaticResource MutedForegroundBrush}" Margin="0,6,0,12" />
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding StatusChangeOptions}" SelectedItem="{Binding StatusToApply}" />
+                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding StatusReason}" t:ThemeAssist.Placeholder="Reason (optional)" Margin="0,10,0,0" />
+                    <DockPanel Margin="0,16,0,0">
+                        <Button Content="Cancel" Style="{StaticResource Button.Ghost}" Command="{Binding CancelStatusDialogCommand}" />
+                        <Button Content="Apply status" DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Command="{Binding ApplyStatusCommand}" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>

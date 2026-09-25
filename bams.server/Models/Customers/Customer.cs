@@ -8,6 +8,7 @@ public sealed class Customer
 
     public CustomerType CustomerType { get; set; }
 
+
     public string FullName { get; set; } = string.Empty;
 
     public DateOnly DateOfBirth { get; set; }

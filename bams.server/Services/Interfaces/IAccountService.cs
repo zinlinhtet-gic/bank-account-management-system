@@ -1,13 +1,16 @@
 using bams.server.DTO.Accounts;
+using bams.server.DTO.Common;
+using bams.server.Models.Accounts.Enums;
 
 namespace bams.server.Services.Interfaces;
 
 public interface IAccountService
 {
     /// <summary>
-    /// Gets all account summaries.
+    /// Gets a forward-only cursor page of account summaries matching the supplied criteria.
     /// </summary>
-    Task<IReadOnlyList<AccountSummaryResponse>> GetAccountsAsync(
+    Task<CursorPagedResponse<AccountSummaryResponse>> GetAccountsAsync(
+        GetAccountsRequest request,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -17,10 +20,41 @@ public interface IAccountService
         long id,
         CancellationToken cancellationToken);
 
+    Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken);
+    Task<IReadOnlyList<InterestAccrualResponse>> GetAccountInterestAccrualsAsync(long accountId, CancellationToken cancellationToken);
+
     /// <summary>
     /// Creates a new account from the API request contract.
     /// </summary>
     Task<AccountResponse> CreateAccountAsync(
         CreateAccountRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the status of an existing account and records the responsible user.
+    /// </summary>
+    Task<AccountResponse> UpdateAccountStatusAsync(
+        long id,
+        AccountStatus status,
+        string? reason,
+        long expectedVersion,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Applies an adjustment to an existing account's balance.
+    /// </summary>
+    Task<AccountResponse> UpdateAccountBalanceAsync(
+        long id,
+        decimal balanceAdjustment,
+        long expectedVersion,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the editable details of an account's existing joint holders.
+    /// </summary>
+    Task<IReadOnlyList<AccountHolderResponse>> UpdateHoldersOfAccountAsync(
+        long accountId,
+        UpdateAccountHoldersRequest updateRequest,
+        CancellationToken cancellationToken);
+
 }

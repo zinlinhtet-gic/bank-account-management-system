@@ -1,19 +1,33 @@
 # Architecture
 
-This project follows a layered ASP.NET Core structure:
+## Application flow
 
-HTTP request -> Controller -> DTO -> Service -> Model/Entity -> Database.
+The server follows a layered ASP.NET Core design:
 
-Controllers only handle HTTP routing and response concerns. Services contain business logic, validation, persistence coordination, and DTO mapping.
+```text
+HTTP request → Controller → Request DTO → Service → Entity Framework model → MySQL
+MySQL → Entity Framework model → Service mapping → Response DTO → HTTP response
+```
 
-The initial account template includes:
+Controllers handle routing, binding, authorization attributes, and response envelopes. Services own validation, business rules, persistence coordination, auditing, and entity-to-DTO mapping. Database entities are never returned directly by controllers.
 
-- `AccountsController` for thin account API endpoints.
-- `IAccountService` and `AccountService` for application behavior.
-- `Account` as the EF Core entity.
-- Account request and response DTOs under `DTO/Accounts`.
-- Central message, exception, and middleware infrastructure.
+## Account subsystem
 
+- `AccountsController` exposes account queries, creation, freeze/suspend/reactivate actions, joint-holder updates, and fixed-deposit configuration updates.
+- `AccountTypesController` exposes the read-only catalog of active account products.
+- `InterestRateRulesController` exposes active, currently effective rates filtered by account type.
+- `AccountService` coordinates account operations and delegates holder, account-type, fixed-deposit, document, audit, transaction, and accounting responsibilities.
+- `CustomerLookUpService` centralizes NRC-based customer resolution for account APIs and account-holder workflows.
+- `CustomersController` (`api/customers`) and `CustomerCreationService` create persisted customer records; account opening uses the returned profile through the existing NRC lookup and opening-options APIs.
+- `AccountHolderService` owns holder resolution, ownership validation, creation, joint-holder updates, and owned individual-account options.
+- `AccountRefererService` resolves referrers by NRC, verifies that each already owns an account, and associates them with a newly created account in its database transaction.
+- `AccountTypeService` owns product lookup, holder eligibility, opening-balance validation, and fixed-deposit classification.
+- `AccountDocumentService` validates uploads, returns product document requirements, and coordinates private file storage.
+- `AccountTransactionService` owns account transaction reads and account-opening transaction recording.
+- `AccountStatusHistoryService` owns account status-history reads.
+- `FixedDepositService` owns fixed-deposit creation, payout validation, editable instructions, principal/status lifecycle operations, maturity, and renewal.
+
+`GetAccountOpeningOptionsAsync` stays in `AccountService` as the account-opening response composer. It delegates customer resolution, product eligibility, document requirements, and payout-account queries to their focused services; its HTTP response shape is unchanged.
 User Management follows the same layers:
 
 - `UsersController` (`api/users`, `[RequirePermission(user_management)]` on the class): list, roles, get, create,
@@ -37,17 +51,32 @@ token and `AuthContext`, and returns to sign-in. Use it for logout and for self-
 
 ## Authentication and authorization errors
 
-All auth failures use the standard `ApiErrorResponse` body:
+## Authentication and authorization
 
-- `[RequirePermission]` (`Middlewares/MiddlewareAttribute.cs`) throws `UnauthorizedException` (401) for a missing
-  or unknown user, and `ForbiddenException` (403) for a disabled user or missing permission. `GlobalExceptionHandler`
-  turns these into responses.
-- `[Authorize]` challenges are written by the `JwtBearerEvents.OnChallenge` handler in `Program.cs`.
-- Controllers read the caller's id with `User.GetRequiredUserId()` (`Utils/Extensions/ClaimsPrincipalExtensions.cs`).
+Protected account endpoints require `SecurityConstants.AccountManagement` through `[RequirePermission]`.
 
-## WPF client error flow
+- Missing or unknown users produce HTTP 401.
+- Disabled users or users without the required permission produce HTTP 403.
+- `CurrentUserService` obtains the authenticated user ID from the JWT name-identifier claim.
+- Clients cannot supply audit attribution.
 
-`bams.desktop/Api/ApiClient.cs` is the single place that sends HTTP requests. It unwraps `ApiMessageResponse<T>.Data`,
-turns `ApiErrorResponse` into `ApiException` (keeping the server `Code`, `Message` and `TraceId`), and turns transport
-failures into `NetworkException`. Both derive from `AppException`, so ViewModels catch `AppException` and decide by
-`exception.Code`, never by message text.
+Authentication and authorization failures use `ApiErrorResponse`. `GlobalExceptionHandler` converts expected application exceptions into stable message codes and HTTP statuses.
+
+## Persistence and consistency
+
+- EF Core uses MySQL and applies schema migrations during startup.
+- `DateOnly` converters keep nullable and non-nullable dates stored as MySQL `date` columns.
+- `Account`, `AccountHolder`, and `FixedDeposit` use application-managed optimistic concurrency versions.
+- Stale writes raise `DbUpdateConcurrencyException`, returned as HTTP 409 with `ConcurrentModification`.
+- Audit entities are tracked without committing independently so the owning operation controls the transaction boundary.
+- Joint-holder and fixed-deposit lifecycle writes keep business data and audit records atomic.
+
+## Files and reference data
+
+Account documents are validated against `AccountTypeRequiredDocument`. Files are stored below the configured private upload root, outside `wwwroot`, using generated filenames; the database stores only relative references and metadata.
+
+After migrations, the idempotent `ProductSeeder` populates reference products, required documents, and demo interest rules. In Development only, `TestDataSeeder` adds deterministic sample customers and accounts.
+
+## Desktop client integration
+
+`bams.desktop/Api/ApiClient.cs` sends requests, unwraps `ApiMessageResponse<T>.Data`, and converts `ApiErrorResponse` into `ApiException`. Transport failures become `NetworkException`. ViewModels handle stable message codes rather than comparing message text.

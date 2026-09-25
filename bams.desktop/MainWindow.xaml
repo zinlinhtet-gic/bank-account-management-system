@@ -49,6 +49,9 @@
                         <pages:GenericPageView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">
+                        <pages:AccountManagementView/>
+                    </DataTemplate>
                     <DataTemplate DataType="{x:Type pageviewmodels:UserManagementViewModel}">
                         <pages:UserManagementView/>
                     </DataTemplate>

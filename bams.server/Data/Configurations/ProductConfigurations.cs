@@ -14,10 +14,39 @@ public sealed class AccountTypeConfiguration : IEntityTypeConfiguration<AccountT
         builder.Property(t => t.Name).IsRequired().HasMaxLength(150);
         builder.Property(t => t.Category).HasMaxLength(40);
         builder.Property(t => t.Status).IsRequired().HasMaxLength(20);
+        builder.Property(t => t.AllowCitizen).HasDefaultValue(true);
+        builder.Property(t => t.AllowForeigner).HasDefaultValue(true);
+        builder.Property(t => t.CitizenRequiredRefer).HasDefaultValue(0);
+        builder.Property(t => t.ForeignRequiredRefer).HasDefaultValue(0);
 
         builder.HasIndex(t => t.Code).IsUnique();
+
+        builder.HasOne(t => t.RequiredProduct)
+            .WithMany()
+            .HasForeignKey(t => t.RequiredProductId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public sealed class AccountTypeRequiredDocumentConfiguration
+    : IEntityTypeConfiguration<AccountTypeRequiredDocument>
+{
+    public void Configure(EntityTypeBuilder<AccountTypeRequiredDocument> builder)
+    {
+        builder.HasKey(requirement => new
+            {
+                requirement.AccountTypeId,
+                requirement.DocumentType
+            });
+
+        builder.HasOne(requirement => requirement.AccountType)
+            .WithMany()
+            .HasForeignKey(requirement => requirement.AccountTypeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+    }
+}
+
 
 public sealed class InterestRateRuleConfiguration : IEntityTypeConfiguration<InterestRateRule>
 {
