@@ -1122,6 +1122,76 @@ ShouldRefreshAccounts
 
 ---
 
+# 29. Function Responsibility and Separation Rules
+
+Every function must have one clear responsibility.
+
+A function must not perform multiple distinct jobs merely because those jobs belong to the same workflow.
+
+When a function contains multiple meaningful responsibilities, separate those responsibilities into focused, well-named functions.
+
+For example, responsibilities that should normally be separated include:
+
+- Input validation.
+- Business or presentation validation.
+- Request construction.
+- Data loading.
+- API communication.
+- Mapping DTOs or models.
+- Calculations.
+- State mutation.
+- Error-state translation.
+- Navigation decisions.
+- Collection updates.
+- Complex UI-state updates.
+
+The parent function may coordinate multiple operations, but it should primarily describe the workflow and delegate distinct implementation responsibilities to focused functions.
+
+Prefer:
+
+```csharp
+private async Task SaveAccountAsync(
+    CancellationToken cancellationToken)
+{
+    ValidateAccountForm();
+
+    var request = CreateAccountRequest();
+
+    var account = await _accountService.CreateAccountAsync(
+        request,
+        cancellationToken);
+
+    ApplyCreatedAccount(account);
+}
+```
+
+instead of placing validation, request construction, API communication, response mapping, and state updates directly inside one large function.
+
+## When to extract a function
+
+Extract code into a separate function when:
+
+1. The code performs a responsibility different from the surrounding code.
+2. The code represents a distinct validation rule.
+3. The code performs a distinct calculation or transformation.
+4. The code constructs a request, response, DTO, or display model.
+5. The code performs a distinct state transition.
+6. The code performs a reusable operation.
+7. The code can be given a clear responsibility-based name.
+8. Extraction makes the parent function read more clearly as a workflow.
+
+Do not decide whether to separate a function based only on line count.
+
+A short function performing multiple unrelated jobs should be separated.
+
+A longer function performing one cohesive responsibility may remain together.
+
+Do not create trivial wrapper functions solely to reduce function length.
+
+Every extracted function must have a meaningful name that describes its responsibility.
+
+When modifying existing code, if a touched function contains multiple clearly separable responsibilities, refactor those responsibilities into focused functions when doing so does not unnecessarily change unrelated behavior.
+
 # 29. Reuse Existing Functions Before Creating New Ones
 
 Before creating a new function:

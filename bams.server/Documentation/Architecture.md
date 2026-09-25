@@ -17,10 +17,17 @@ Controllers handle routing, binding, authorization attributes, and response enve
 - `AccountTypesController` exposes the read-only catalog of active account products.
 - `InterestRateRulesController` exposes active, currently effective rates filtered by account type.
 - `AccountService` coordinates account operations and delegates holder, account-type, fixed-deposit, document, audit, transaction, and accounting responsibilities.
-- `AccountHolderService` owns holder resolution, ownership validation, creation, and joint-holder updates.
-- `AccountTypeService` owns product lookup, opening-balance validation, and fixed-deposit classification.
+- `CustomerLookUpService` centralizes NRC-based customer resolution for account APIs and account-holder workflows.
+- `CustomersController` (`api/customers`) and `CustomerCreationService` create persisted customer records; account opening uses the returned profile through the existing NRC lookup and opening-options APIs.
+- `AccountHolderService` owns holder resolution, ownership validation, creation, joint-holder updates, and owned individual-account options.
+- `AccountRefererService` resolves referrers by NRC, verifies that each already owns an account, and associates them with a newly created account in its database transaction.
+- `AccountTypeService` owns product lookup, holder eligibility, opening-balance validation, and fixed-deposit classification.
+- `AccountDocumentService` validates uploads, returns product document requirements, and coordinates private file storage.
+- `AccountTransactionService` owns account transaction reads and account-opening transaction recording.
+- `AccountStatusHistoryService` owns account status-history reads.
 - `FixedDepositService` owns fixed-deposit creation, payout validation, editable instructions, principal/status lifecycle operations, maturity, and renewal.
-- `AccountDocumentService` validates document requirements and coordinates private file storage.
+
+`GetAccountOpeningOptionsAsync` stays in `AccountService` as the account-opening response composer. It delegates customer resolution, product eligibility, document requirements, and payout-account queries to their focused services; its HTTP response shape is unchanged.
 User Management follows the same layers:
 
 - `UsersController` (`api/users`, `[RequirePermission(user_management)]` on the class): list, roles, get, create,

@@ -16,13 +16,16 @@ public sealed class AccountHolderService : IAccountHolderService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IAuditLogService _auditLogService;
+    private readonly ICustomerLookUpService _customerLookUpService;
 
     public AccountHolderService(
         ApplicationDbContext dbContext,
-        IAuditLogService auditLogService)
+        IAuditLogService auditLogService,
+        ICustomerLookUpService customerLookUpService)
     {
         _dbContext = dbContext;
         _auditLogService = auditLogService;
+        _customerLookUpService = customerLookUpService;
     }
 
     /// <inheritdoc />
@@ -45,8 +48,42 @@ public sealed class AccountHolderService : IAccountHolderService
             throw new ValidationException(MessageCode.SharedAccountRequiresTwoHolders);
         }
 
-        var firstCustomer = await GetCustomerByNrcAsync(request.HolderNRC1, cancellationToken);
-        var secondCustomer = await GetCustomerByNrcAsync(request.HolderNRC2, cancellationToken);
+        return await ResolveDistinctHoldersAsync(request.HolderNRC1, request.HolderNRC2, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Customer>> ResolveOpeningOptionHoldersAsync(
+        string holderNrc,
+        string? secondHolderNrc,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(holderNrc) ||
+            (!string.IsNullOrWhiteSpace(secondHolderNrc) &&
+             string.Equals(holderNrc.Trim(), secondHolderNrc.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ValidationException(MessageCode.InvalidRequest);
+        }
+
+        return await ResolveDistinctHoldersAsync(holderNrc, secondHolderNrc, cancellationToken);
+    }
+
+    // Resolves a validated pair and rejects aliases that map to the same customer.
+    private async Task<IReadOnlyList<Customer>> ResolveDistinctHoldersAsync(
+        string firstNrc,
+        string? secondNrc,
+        CancellationToken cancellationToken)
+    {
+        var firstCustomer = await _customerLookUpService.FindRegisteredCustomerByNrcAsync(
+            firstNrc,
+            cancellationToken);
+        if (string.IsNullOrWhiteSpace(secondNrc))
+        {
+            return [firstCustomer];
+        }
+
+        var secondCustomer = await _customerLookUpService.FindRegisteredCustomerByNrcAsync(
+            secondNrc,
+            cancellationToken);
 
         if (firstCustomer.Id == secondCustomer.Id)
         {
@@ -227,6 +264,35 @@ public sealed class AccountHolderService : IAccountHolderService
         return requiredAccount;
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OwnedAccountOptionResponse>> GetOwnedIndividualAccountsAsync(
+        long customerId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.AccountHolders.AsNoTracking()
+            .Where(holder => holder.CustomerId == customerId &&
+                holder.OwnershipType == OwnershipType.Individual &&
+                holder.Account != null && holder.Account.Status == AccountStatus.Active)
+            // Keep DISTINCT over scalar SQL columns; provider translation cannot reliably order a DTO record.
+            .Select(holder => new
+            {
+                Id = holder.Account!.Id,
+                AccountNo = holder.Account.AccountNo,
+                AccountTypeCode = holder.Account.AccountType!.Code,
+                Status = holder.Account.Status,
+                AccountTypeName = holder.Account.AccountType.Name
+            })
+            .Distinct()
+            .OrderBy(account => account.AccountNo)
+            .Select(account => new OwnedAccountOptionResponse(
+                account.Id,
+                account.AccountNo,
+                account.AccountTypeCode,
+                account.Status,
+                account.AccountTypeName))
+            .ToListAsync(cancellationToken);
+    }
+
     // Ensures a holder update describes exactly the two relationships owned by the account.
     private static void ValidateHolderUpdateSelection(
         ICollection<AccountHolder> existingHolders,
@@ -291,7 +357,7 @@ public sealed class AccountHolderService : IAccountHolderService
         long requestedAccountTypeId,
         CancellationToken cancellationToken)
     {
-        var customer = await GetCustomerByNrcAsync(holderNrc, cancellationToken);
+        var customer = await _customerLookUpService.FindRegisteredCustomerByNrcAsync(holderNrc, cancellationToken);
         var hasMatchingAccount = await _dbContext.AccountHolders
             .AsNoTracking()
             .AnyAsync(holder =>
@@ -305,23 +371,6 @@ public sealed class AccountHolderService : IAccountHolderService
         if (hasMatchingAccount)
         {
             throw new ValidationException(MessageCode.HolderAlreadyHasActiveAccount);
-        }
-
-        return customer;
-    }
-
-    // Gets a registered customer by NRC.
-    private async Task<Customer> GetCustomerByNrcAsync(
-        string? nrcNumber,
-        CancellationToken cancellationToken)
-    {
-        var customer = await _dbContext.Customers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(existingCustomer => existingCustomer.NrcNumber == nrcNumber, cancellationToken);
-
-        if (customer is null)
-        {
-            throw new NotFoundException(MessageCode.CustomerNotFound);
         }
 
         return customer;

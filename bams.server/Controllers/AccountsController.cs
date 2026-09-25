@@ -16,13 +16,22 @@ public sealed class AccountsController : ControllerBase
     private const string GetAccountByIdRouteName = "GetAccountById";
     private readonly IAccountService _accountService;
     private readonly IFixedDepositService _fixedDepositService;
+    private readonly ICustomerLookUpService _customerLookUpService;
+    private readonly IAccountTransactionService _accountTransactionService;
+    private readonly IAccountStatusHistoryService _accountStatusHistoryService;
 
     public AccountsController(
         IAccountService accountService,
-        IFixedDepositService fixedDepositService)
+        IFixedDepositService fixedDepositService,
+        ICustomerLookUpService customerLookUpService,
+        IAccountTransactionService accountTransactionService,
+        IAccountStatusHistoryService accountStatusHistoryService)
     {
         _accountService = accountService;
         _fixedDepositService = fixedDepositService;
+        _customerLookUpService = customerLookUpService;
+        _accountTransactionService = accountTransactionService;
+        _accountStatusHistoryService = accountStatusHistoryService;
     }
 
     /// <summary>
@@ -52,6 +61,37 @@ public sealed class AccountsController : ControllerBase
 
         return Ok(account);
     }
+
+    /// <summary>Looks up an existing customer using their NRC number.</summary>
+    [HttpGet("customer-lookup")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
+    public async Task<ActionResult<CustomerLookupResponse>> GetCustomerByNrcAsync([FromQuery] string nrc, CancellationToken cancellationToken)
+        => Ok(await _customerLookUpService.GetCustomerByNrcAsync(nrc, cancellationToken));
+
+    /// <summary>Gets eligible account types, required documents, and accounts owned by the primary holder.</summary>
+    [HttpGet("opening-options")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
+    public async Task<ActionResult<AccountOpeningOptionsResponse>> GetAccountOpeningOptionsAsync(
+        [FromQuery] string holderNrc, [FromQuery] string? secondHolderNrc, CancellationToken cancellationToken)
+        => Ok(await _accountService.GetAccountOpeningOptionsAsync(holderNrc, secondHolderNrc, cancellationToken));
+
+    /// <summary>Gets transaction entries recorded for one account.</summary>
+    [HttpGet("{id:long}/transactions")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
+    public async Task<ActionResult<IReadOnlyList<AccountTransactionDetailResponse>>> GetAccountTransactionsAsync(long id, CancellationToken cancellationToken)
+        => Ok(await _accountTransactionService.GetAccountTransactionsAsync(id, cancellationToken));
+
+    /// <summary>Gets status changes recorded for one account.</summary>
+    [HttpGet("{id:long}/status-history")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
+    public async Task<ActionResult<IReadOnlyList<AccountStatusHistoryResponse>>> GetAccountStatusHistoryAsync(long id, CancellationToken cancellationToken)
+        => Ok(await _accountStatusHistoryService.GetAccountStatusHistoryAsync(id, cancellationToken));
+
+    /// <summary>Gets calculated interest accruals recorded for one account.</summary>
+    [HttpGet("{id:long}/interest-accruals")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
+    public async Task<ActionResult<IReadOnlyList<InterestAccrualResponse>>> GetAccountInterestAccrualsAsync(long id, CancellationToken cancellationToken)
+        => Ok(await _accountService.GetAccountInterestAccrualsAsync(id, cancellationToken));
 
     /// <summary>
     /// Creates a new account from the supplied API request contract.

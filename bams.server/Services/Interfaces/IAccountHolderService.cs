@@ -15,6 +15,14 @@ public interface IAccountHolderService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Resolves the holders requested while loading account-opening options.
+    /// </summary>
+    Task<IReadOnlyList<Customer>> ResolveOpeningOptionHoldersAsync(
+        string holderNrc,
+        string? secondHolderNrc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Validates and returns the ownership percentages for a new account.
     /// </summary>
     IReadOnlyList<decimal> ValidateOwnershipPercentages(CreateAccountRequest request);
@@ -52,5 +60,10 @@ public interface IAccountHolderService
     Task<Account> FindRequiredIndividualAccountAsync(
         AccountType requestedAccountType,
         Customer primaryHolder,
+        CancellationToken cancellationToken);
+
+    /// <summary>Gets the primary holder's active individual accounts for payout selection.</summary>
+    Task<IReadOnlyList<OwnedAccountOptionResponse>> GetOwnedIndividualAccountsAsync(
+        long customerId,
         CancellationToken cancellationToken);
 }

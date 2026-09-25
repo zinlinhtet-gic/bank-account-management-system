@@ -30,4 +30,12 @@ public sealed class AccountType
     public AccountType? RequiredProduct { get; set; }
 
     public bool IsFixedDeposit { get; set; } = false;
+
+    public bool AllowForeigner { get; set; } = true;
+
+    public bool AllowCitizen { get; set; } = true;
+
+    public int CitizenRequiredRefer { get; set; }
+
+    public int ForeignRequiredRefer { get; set; }
 }

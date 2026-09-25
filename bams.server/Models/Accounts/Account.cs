@@ -14,6 +14,7 @@ public sealed class Account : IConcurrencyTracked
 
     public ICollection<AccountHolder> AccountHolders { get; set; } = [];
 
+
     public AccountStatus Status { get; set; } = AccountStatus.Active;
 
     public DateTime OpenedAt { get; set; }

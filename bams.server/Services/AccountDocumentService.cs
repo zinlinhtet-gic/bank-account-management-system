@@ -77,6 +77,26 @@ public sealed class AccountDocumentService : IAccountDocumentService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<AccountTypeRequiredDocumentResponse>> GetRequiredDocumentsAsync(
+        IReadOnlyCollection<long> accountTypeIds,
+        CancellationToken cancellationToken)
+    {
+        if (accountTypeIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await _dbContext.AccountTypeRequiredDocuments.AsNoTracking()
+            .Where(requirement => accountTypeIds.Contains(requirement.AccountTypeId))
+            .OrderBy(requirement => requirement.AccountTypeId)
+            .ThenBy(requirement => requirement.DocumentType)
+            .Select(requirement => new AccountTypeRequiredDocumentResponse(
+                requirement.AccountTypeId,
+                requirement.DocumentType))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<string>> StoreAccountDocumentsAsync(
         Account account,
         IReadOnlyList<AccountDocumentUploadRequest> documents,

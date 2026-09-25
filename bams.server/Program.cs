@@ -98,11 +98,15 @@ builder.Services.AddRazorPages();
 // -------------------------
 
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
+builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
+builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
 builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
+builder.Services.AddScoped<IAccountRefererService, AccountRefererService>();
 builder.Services.AddScoped<IInterestRateRuleService, InterestRateRuleService>();
 builder.Services.AddScoped<IFixedDepositService, FixedDepositService>();
 builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();

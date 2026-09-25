@@ -67,6 +67,10 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3125 | FixedDepositCurrentPrincipalInvalid | 400 | Current principal is negative. |
 | 3126 | FixedDepositUpdateRequiresChanges | 400 | No editable fixed-deposit field was supplied. |
 | 3127 | AccountCursorInvalid | 400 | The pagination cursor is malformed or unsupported. |
+| 3128 | AccountTypeCustomerTypeNotAllowed | 400 | The selected account type does not allow one of its account holders' customer types. |
+| 3129 | AccountRefererCountInsufficient | 400 | The request supplies fewer referrers than required for the selected account holders. |
+| 3130 | AccountRefererSelectionInvalid | 400 | The referrer list contains a blank or duplicate NRC. |
+| 3131 | AccountRefererMustOwnAccount | 400 | At least one selected referrer does not already own an account. |
 
 ## Authentication and authorization
 
@@ -93,6 +97,12 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4207 | PayoutAccountNotFound | 404 | The supplied payout account is ineligible or absent. |
 | 4208 | RequiredPayoutAccountNotFound | 404 | The primary holder lacks the required payout product. |
 
+## Success
+
+| Code | Name | HTTP | Meaning |
+| --- | --- | --- | --- |
+| 1200 | CustomerCreatedSuccessfully | 201 | A customer record was created. |
+
 ## Conflict
 
 | Code | Name | HTTP | Meaning |
@@ -100,6 +110,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4304 | ConcurrentModification | 409 | A versioned record changed after the caller read it. |
 | 4305 | UsernameAlreadyExists | 409 | Another user has the username. |
 | 4306 | EmailAlreadyExists | 409 | Another user has the email address. |
+| 4307 | CustomerNrcAlreadyExists | 409 | A customer already exists with the supplied NRC number. |
 
 ## Business rules
 

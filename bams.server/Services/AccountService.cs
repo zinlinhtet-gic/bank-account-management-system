@@ -21,6 +21,7 @@ public sealed class AccountService : IAccountService
     private readonly IAccountDocumentService _accountDocumentService;
     private readonly IAccountHolderService _accountHolderService;
     private readonly IAccountTypeService _accountTypeService;
+    private readonly IAccountRefererService _accountRefererService;
     private readonly IFixedDepositService _fixedDepositService;
     private readonly IAuditLogService _auditLogService;
     private readonly IAccountTransactionService _accountTransactionService;
@@ -32,6 +33,7 @@ public sealed class AccountService : IAccountService
         IAccountDocumentService accountDocumentService,
         IAccountHolderService accountHolderService,
         IAccountTypeService accountTypeService,
+        IAccountRefererService accountRefererService,
         IFixedDepositService fixedDepositService,
         IAuditLogService auditLogService,
         IAccountTransactionService accountTransactionService,
@@ -42,6 +44,7 @@ public sealed class AccountService : IAccountService
         _accountDocumentService = accountDocumentService;
         _accountHolderService = accountHolderService;
         _accountTypeService = accountTypeService;
+        _accountRefererService = accountRefererService;
         _fixedDepositService = fixedDepositService;
         _auditLogService = auditLogService;
         _accountTransactionService = accountTransactionService;
@@ -189,6 +192,41 @@ public sealed class AccountService : IAccountService
         return account.ToResponse();
     }
 
+    /// <summary>Returns eligible active products, their document requirements, and the primary holder's accounts.</summary>
+    public async Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(
+        string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken)
+    {
+        var holders = await _accountHolderService.ResolveOpeningOptionHoldersAsync(
+            holderNrc,
+            secondHolderNrc,
+            cancellationToken);
+        var holderIds = holders.Select(holder => holder.Id).ToArray();
+
+        var eligibleTypes = await _accountTypeService.GetAvailableAccountTypesForHoldersAsync(holderIds, cancellationToken);
+        var requiredDocuments = await _accountDocumentService.GetRequiredDocumentsAsync(
+            eligibleTypes.Select(type => type.Id).ToArray(), cancellationToken);
+        var ownedAccounts = await _accountHolderService.GetOwnedIndividualAccountsAsync(holders[0].Id, cancellationToken);
+        return new AccountOpeningOptionsResponse(eligibleTypes, requiredDocuments, ownedAccounts);
+    }
+
+    /// <summary>Gets calculated interest accrual periods for an account.</summary>
+    public async Task<IReadOnlyList<InterestAccrualResponse>> GetAccountInterestAccrualsAsync(long accountId, CancellationToken cancellationToken)
+    {
+        await EnsureAccountExistsAsync(accountId, cancellationToken);
+        return await _dbContext.InterestAccruals.AsNoTracking().Where(entry => entry.AccountId == accountId)
+            .OrderByDescending(entry => entry.PeriodEnd)
+            .Select(entry => new InterestAccrualResponse(entry.Id, entry.PeriodStart, entry.PeriodEnd,
+                entry.CalculationBalance, entry.AnnualRate, entry.CalculatedAmount, entry.Status,
+                entry.CalculatedAt, entry.PostedAt)).ToListAsync(cancellationToken);
+    }
+
+    // Keeps account-specific read endpoints consistent when their account does not exist.
+    private async Task EnsureAccountExistsAsync(long accountId, CancellationToken cancellationToken)
+    {
+        if (!await _dbContext.Accounts.AsNoTracking().AnyAsync(account => account.Id == accountId, cancellationToken))
+            throw new NotFoundException(MessageCode.AccountNotFound);
+    }
+
     /// <summary>
     /// Creates an active account after validating request and business rules.
     /// </summary>
@@ -202,6 +240,7 @@ public sealed class AccountService : IAccountService
         var isFixedDeposit = _accountTypeService.IsFixedDeposit(accountType);
         ValidateFixedDepositFields(request, isFixedDeposit);
         var customers = await _accountHolderService.ResolveAndValidateHoldersAsync(request, cancellationToken);
+        _accountTypeService.ValidateCustomerTypeEligibility(accountType, customers);
         await _accountHolderService.ValidateRequiredProductsAsync(accountType, customers, cancellationToken);
         _accountTypeService.ValidateOpeningBalance(request.OpeningBalance, accountType);
         var ownershipPercentages = _accountHolderService.ValidateOwnershipPercentages(request);
@@ -209,6 +248,11 @@ public sealed class AccountService : IAccountService
         await _accountDocumentService.ValidateRequiredDocumentsAsync(
             accountType.Id,
             documents,
+            cancellationToken);
+        var requiredRefererCount = _accountTypeService.GetRequiredRefererCount(accountType, customers);
+        var referers = await _accountRefererService.ResolveAndValidateReferersAsync(
+            request.RefererNrcs,
+            requiredRefererCount,
             cancellationToken);
         var now = DateTime.UtcNow;
         IReadOnlyList<string> storedFileReferences = [];
@@ -235,6 +279,7 @@ public sealed class AccountService : IAccountService
 
             // Persist the account first so its database identifier can organize private files.
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _accountRefererService.CreateAccountReferersAsync(account, referers, cancellationToken);
             if (isFixedDeposit)
             {
                 await _fixedDepositService.CreateFixedDepositAsync(

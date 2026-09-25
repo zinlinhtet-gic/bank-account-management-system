@@ -35,6 +35,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Customer accounts
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<AccountHolder> AccountHolders => Set<AccountHolder>();
+    public DbSet<AccountReferer> AccountReferers => Set<AccountReferer>();
     public DbSet<FixedDeposit> FixedDeposits => Set<FixedDeposit>();
     public DbSet<AccountStatusHistory> AccountStatusHistories => Set<AccountStatusHistory>();
     public DbSet<AccountNumberGeneration> AccountNumberGenerations => Set<AccountNumberGeneration>();

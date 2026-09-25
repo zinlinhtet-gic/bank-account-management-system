@@ -6,3 +6,4 @@ public enum RenewalInstruction
     PrincipalOnly = 2,
     PrincipalAndInterest = 3
 }
+

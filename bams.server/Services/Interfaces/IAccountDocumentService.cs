@@ -13,6 +13,11 @@ public interface IAccountDocumentService
         IReadOnlyList<AccountDocumentUploadRequest> documents,
         CancellationToken cancellationToken);
 
+    /// <summary>Gets document requirements for the selected account products.</summary>
+    Task<IReadOnlyList<AccountTypeRequiredDocumentResponse>> GetRequiredDocumentsAsync(
+        IReadOnlyCollection<long> accountTypeIds,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Stores uploaded files and tracks their account-document metadata.
     /// </summary>

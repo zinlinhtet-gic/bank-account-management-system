@@ -106,6 +106,24 @@ public sealed class AccountHolderConfiguration : IEntityTypeConfiguration<Accoun
     }
 }
 
+public sealed class AccountRefererConfiguration : IEntityTypeConfiguration<AccountReferer>
+{
+    public void Configure(EntityTypeBuilder<AccountReferer> builder)
+    {
+        builder.HasKey(referer => new { referer.AccountId, referer.CustomerId });
+
+        builder.HasOne(referer => referer.Account)
+            .WithMany()
+            .HasForeignKey(referer => referer.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(referer => referer.Customer)
+            .WithMany()
+            .HasForeignKey(referer => referer.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public sealed class FixedDepositConfiguration : IEntityTypeConfiguration<FixedDeposit>
 {
     public void Configure(EntityTypeBuilder<FixedDeposit> builder)

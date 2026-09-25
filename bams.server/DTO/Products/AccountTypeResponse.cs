@@ -16,4 +16,8 @@ public sealed record AccountTypeResponse(
     bool AllowTransfer,
     bool AllowPartialWithdrawal,
     long? RequiredProductId,
-    bool IsFixedDeposit);
+    bool IsFixedDeposit,
+    bool AllowForeigner,
+    bool AllowCitizen,
+    int CitizenRequiredRefer,
+    int ForeignRequiredRefer);

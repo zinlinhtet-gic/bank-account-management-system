@@ -1,6 +1,6 @@
 # API Contracts
 
-The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by `AccountsController`, `AccountTypesController`, and `InterestRateRulesController`.
+The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by account, customer, account-type, and interest-rate controllers.
 
 ## Endpoint overview
 
@@ -10,6 +10,12 @@ The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.
 | GET | `/api/interest-rate-rules?accountTypeId={id}` | `account_management` | List active interest rules currently effective for one account type. |
 | GET | `/api/accounts` | `account_management` | List accounts with cursor pagination. |
 | GET | `/api/accounts/{id}` | `account_management` | Get one account. |
+| GET | `/api/accounts/customer-lookup?nrc={nrc}` | `account_management` | Find an existing customer by NRC for account opening. |
+| POST | `/api/customers` | `customer_management` | Persist a customer profile and return the saved profile. |
+| GET | `/api/accounts/opening-options?holderNrc={nrc}` | `account_management` | Get eligible products, required documents, and payout accounts for an account holder. |
+| GET | `/api/accounts/{id}/transactions` | `account_management` | Get account transaction entries. |
+| GET | `/api/accounts/{id}/status-history` | `account_management` | Get account status changes. |
+| GET | `/api/accounts/{id}/interest-accruals` | `account_management` | Get calculated interest accrual periods. |
 | POST | `/api/accounts` | `account_management` | Create an account. |
 | PATCH | `/api/accounts/{id}/freeze` | `account_management` | Freeze an Active or Dormant account. |
 | PATCH | `/api/accounts/{id}/suspend` | `account_management` | Suspend an Active or Dormant account. |
@@ -19,7 +25,11 @@ The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.
 
 ## Available account types
 
-`GET /api/account-types` returns active products ordered by ID. Each `AccountTypeResponse` includes opening and maintained balances, transaction limits and capabilities, required-product information, and fixed-deposit classification.
+`GET /api/account-types` returns active products ordered by ID. Each `AccountTypeResponse` includes opening and maintained balances, transaction limits and capabilities, required-product information, fixed-deposit classification, allowed customer types, and customer-type-specific referrer minimums.
+
+`GET /api/accounts/opening-options` filters products by all selected holders' customer types and account-type eligibility, applies the required-product rule (an eligible active required product held by either customer qualifies a shared application), excludes account types already actively held by the selected customer or by both selected customers in a shared application, includes product document requirements, and returns the primary holder's owned accounts with account type names for fixed-deposit payout selection. `POST /api/customers` creates a persisted customer; the returned profile can be used immediately by customer lookup and account-opening options.
+
+Account transaction, status-history, and interest-accrual routes return the records for one existing account ordered newest first.
 
 ## Available interest rules
 
@@ -48,6 +58,7 @@ The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.
 Documents[0].DocumentType=Nrc
 Documents[0].DocumentNumber=optional-number
 Documents[0].File=<binary file>
+RefererNrcs[0]=<existing customer NRC who owns an account>
 ```
 
 - The complete multipart request is limited to 60 MB by default.
@@ -55,6 +66,7 @@ Documents[0].File=<binary file>
 - Seeded products require NRC, Photo, ProofOfAddress, HouseholdRegistration, and SourceOfFunds.
 - Files are stored under `FileUploads:RootPath`; no public download endpoint is exposed.
 - The authenticated user's JWT identity supplies audit attribution.
+- Referrer NRC rows must resolve to distinct existing customers who each own an account; the minimum is computed from the selected account type for each account holder. Referrer rows are saved with the account in the creation transaction.
 
 Fixed-deposit creation additionally requires `interestRateRuleId`, `renewalInstruction`, and `calculateFromCurrent`. `payoutAccountId` is optional; if omitted, the primary holder's eligible individual payout account is selected. Fixed-deposit-only fields must be omitted for other products.
 

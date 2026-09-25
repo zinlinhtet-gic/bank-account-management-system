@@ -15,5 +15,6 @@ public sealed record CreateAccountRequest(
     long? PayoutAccountId,
     long? InterestRateRuleId,
     RenewalInstruction? RenewalInstruction,
-    bool? CalculateFromCurrent
+    bool? CalculateFromCurrent,
+    List<string>? RefererNrcs
     );

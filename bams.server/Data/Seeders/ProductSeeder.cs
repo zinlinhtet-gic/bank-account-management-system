@@ -189,6 +189,10 @@ public sealed class ProductSeeder
             AllowTransfer = allowsTransactions,
             AllowPartialWithdrawal = allowsTransactions,
             IsFixedDeposit = isFixedDeposit,
+            AllowCitizen = true,
+            AllowForeigner = true,
+            CitizenRequiredRefer = 0,
+            ForeignRequiredRefer = 0,
             RequiredProductId = requiredProductId,
             Status = ActiveStatus
         };

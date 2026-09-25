@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='utf-8'?>
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:t="clr-namespace:bams.desktop.Themes" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase" xmlns:toast="clr-namespace:bams.desktop.Components.ToastMessage" x:Class="bams.desktop.Views.Pages.AccountDetailView" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d" Loaded="AccountDetailView_Loaded" Unloaded="AccountDetailView_Unloaded" DataContextChanged="AccountDetailView_DataContextChanged">
+  <UserControl.Resources>
+    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Base}" />
+  </UserControl.Resources>
+  <Grid Margin="28">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <DockPanel Margin="0,0,0,18">
+      <Button Content="Back to accounts" Style="{StaticResource Button.Ghost}" Command="{Binding Workflow.BackToListCommand, diag:PresentationTraceSources.TraceLevel=High}" DockPanel.Dock="Right" />
+      <StackPanel>
+        <TextBlock Text="Account details" Style="{StaticResource Text.Heading}" FontSize="28" />
+        <TextBlock Text="Account profile, transactions, status history, and interest accruals" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,0" />
+      </StackPanel>
+    </DockPanel>
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+      <StackPanel MaxWidth="1100">
+        <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,14">
+          <StackPanel>
+            <TextBlock Text="{Binding Workflow.SelectedAccount.AccountNo, diag:PresentationTraceSources.TraceLevel=High}" Style="{StaticResource Text.MonoLarge}" />
+            <TextBlock Text="{Binding Workflow.SelectedAccount.AccountTypeCode, diag:PresentationTraceSources.TraceLevel=High}" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,14" />
+            <UniformGrid Columns="3">
+              <StackPanel Margin="0,8">
+                <TextBlock Text="STATUS" Style="{StaticResource Text.FieldLabel}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.Status, diag:PresentationTraceSources.TraceLevel=High}" />
+              </StackPanel>
+              <StackPanel Margin="0,8">
+                <TextBlock Text="AVAILABLE BALANCE" Style="{StaticResource Text.FieldLabel}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.AvailableBalance, StringFormat={}{0:N2}, diag:PresentationTraceSources.TraceLevel=High}" />
+              </StackPanel>
+              <StackPanel Margin="0,8">
+                <TextBlock Text="LEDGER BALANCE" Style="{StaticResource Text.FieldLabel}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.LedgerBalance, StringFormat={}{0:N2}, diag:PresentationTraceSources.TraceLevel=High}" />
+              </StackPanel>
+              <StackPanel Margin="0,8">
+                <TextBlock Text="OPENED" Style="{StaticResource Text.FieldLabel}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.OpenedAt, StringFormat={}{0:dd MMM yyyy HH:mm}, diag:PresentationTraceSources.TraceLevel=High}" />
+              </StackPanel>
+              <StackPanel Margin="0,8">
+                <TextBlock Text="CREATED" Style="{StaticResource Text.FieldLabel}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.CreatedAt, StringFormat={}{0:dd MMM yyyy HH:mm}, diag:PresentationTraceSources.TraceLevel=High}" />
+              </StackPanel>
+              <StackPanel Margin="0,8">
+                <TextBlock Text="VERSION" Style="{StaticResource Text.FieldLabel}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.Version, diag:PresentationTraceSources.TraceLevel=High}" />
+              </StackPanel>
+            </UniformGrid>
+          </StackPanel>
+        </Border>
+        <TextBlock Text="Transactions" Style="{StaticResource Text.Subheading}" Margin="0,8" />
+        <ItemsControl ItemsSource="{Binding Workflow.AccountTransactions, diag:PresentationTraceSources.TraceLevel=High}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="10" Margin="0,3">
+                <DockPanel>
+                  <TextBlock Text="{Binding TransactionNo}" Style="{StaticResource Text.Mono}" />
+                  <TextBlock Text="{Binding Amount, StringFormat={}{0:N2}}" Style="{StaticResource Text.Mono}" DockPanel.Dock="Right" />
+                  <TextBlock Text="{Binding TransactionType}" Style="{StaticResource Text.Body}" Margin="14,0,0,0" />
+                </DockPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Visibility="{Binding Workflow.ShowTransactionsSectionMessage, Converter={StaticResource BooleanToVisibilityConverter}}" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,3">
+          <TextBlock Text="{Binding Workflow.TransactionsSectionMessage}" Style="{StaticResource Text.BodyMuted}" />
+        </Border>
+        <TextBlock Text="Status history" Style="{StaticResource Text.Subheading}" Margin="0,14,0,8" />
+        <ItemsControl ItemsSource="{Binding Workflow.AccountStatusHistory, diag:PresentationTraceSources.TraceLevel=High}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="10" Margin="0,3">
+                <DockPanel>
+                  <TextBlock Text="{Binding OldStatus}" />
+                  <TextBlock Text=" → " />
+                  <TextBlock Text="{Binding NewStatus}" Style="{StaticResource Text.Title}" />
+                  <TextBlock Text="{Binding ChangedAt, StringFormat={}{0:dd MMM yyyy HH:mm}}" Style="{StaticResource Text.Caption}" DockPanel.Dock="Right" />
+                </DockPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Visibility="{Binding Workflow.ShowStatusHistorySectionMessage, Converter={StaticResource BooleanToVisibilityConverter}}" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,3">
+          <TextBlock Text="{Binding Workflow.StatusHistorySectionMessage}" Style="{StaticResource Text.BodyMuted}" />
+        </Border>
+        <TextBlock Text="Interest accruals" Style="{StaticResource Text.Subheading}" Margin="0,14,0,8" />
+        <ItemsControl ItemsSource="{Binding Workflow.InterestAccruals, diag:PresentationTraceSources.TraceLevel=High}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="10" Margin="0,3">
+                <DockPanel>
+                  <TextBlock Text="{Binding PeriodStart}" />
+                  <TextBlock Text=" – " />
+                  <TextBlock Text="{Binding PeriodEnd}" />
+                  <TextBlock Text="{Binding CalculatedAmount, StringFormat={}{0:N2}}" DockPanel.Dock="Right" />
+                </DockPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Visibility="{Binding Workflow.ShowInterestAccrualsSectionMessage, Converter={StaticResource BooleanToVisibilityConverter}}" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,3">
+          <TextBlock Text="{Binding Workflow.InterestAccrualsSectionMessage}" Style="{StaticResource Text.BodyMuted}" />
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <toast:ToastMessage Grid.Row="1"
+                        Panel.ZIndex="10"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,10,12,0"
+                        Message="{Binding Workflow.ToastMessage}"
+                        IsError="{Binding Workflow.HasErrorNotification}" />
+  </Grid>
+</UserControl>

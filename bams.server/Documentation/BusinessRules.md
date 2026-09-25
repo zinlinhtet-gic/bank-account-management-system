@@ -5,6 +5,9 @@
 - Opening balances must satisfy the selected product's minimum.
 - New accounts start in `AccountStatus.Active`.
 - A customer cannot hold more than one active individual account of the same product.
+- Account types may allow citizens, foreigners, or both; account creation rejects any holder whose `CustomerType` is disallowed.
+- `CitizenRequiredRefer` and `ForeignRequiredRefer` are nonnegative minimum counts. Joint accounts require the sum of each holder's applicable minimum.
+- Each supplied referrer NRC must resolve to a distinct existing customer with at least one account-holder relationship. Referrer links are stored against the new account in the account-creation transaction.
 - Account numbers are generated server-side as 16 digits in `TTyyyyMMddHHSSSS` format.
 - `TT` is the two-digit account-type ID, `yyyyMMddHH` is the UTC generation hour, and `SSSS` is a per-product, per-hour sequence from `0001` through `9999`.
 

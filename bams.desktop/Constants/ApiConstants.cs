@@ -15,6 +15,9 @@ public static class ApiConstants
     public const string LogoutEndpoint = AuthEndpoint + "/logout";
 
     public const string AccountsEndpoint = "api/accounts";
+    public const string AccountCustomerLookupEndpoint = AccountsEndpoint + "/customer-lookup";
+    public const string AccountOpeningOptionsEndpoint = AccountsEndpoint + "/opening-options";
+    public const string CustomersEndpoint = "api/customers";
     public const string AccountTypesEndpoint = "api/account-types";
     public const string InterestRateRulesEndpoint = "api/interest-rate-rules";
     // User Management. Routes with an id: $"{UsersEndpoint}/{id}" and $"{UsersEndpoint}/{id}/{ResetPasswordSegment}".

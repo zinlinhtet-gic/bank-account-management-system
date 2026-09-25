@@ -1,14 +1,8 @@
-using System.Globalization;
-using bams.server.Constants;
 using bams.server.Data;
 using bams.server.DTO.Accounts;
 using bams.server.Exceptions;
-using bams.server.Mapping;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
-using bams.server.Models.Accounts.Enums;
-using bams.server.Models.Customers;
-using bams.server.Models.Products;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +16,36 @@ public sealed class AccountTransactionService : IAccountTransactionService
         ApplicationDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AccountTransactionDetailResponse>> GetAccountTransactionsAsync(
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        if (!await _dbContext.Accounts.AsNoTracking().AnyAsync(account => account.Id == accountId, cancellationToken))
+        {
+            throw new NotFoundException(MessageCode.AccountNotFound);
+        }
+
+        return await _dbContext.AccountTransactions.AsNoTracking()
+            .Where(entry => entry.AccountId == accountId)
+            .OrderByDescending(entry => entry.CreatedAt)
+            .Select(entry => new AccountTransactionDetailResponse(
+                entry.Id,
+                entry.Transaction!.TransactionNo,
+                entry.Transaction.TransactionType,
+                entry.Transaction.TransactionStatus,
+                entry.EntryType,
+                entry.Amount,
+                entry.LedgerBalanceAfter,
+                entry.AvailableBalanceAfter,
+                entry.ValueDate,
+                entry.PostingDate,
+                entry.Description,
+                entry.ReferenceNo,
+                entry.CreatedAt))
+            .ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc />

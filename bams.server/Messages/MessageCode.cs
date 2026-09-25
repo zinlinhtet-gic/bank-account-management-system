@@ -13,6 +13,7 @@ public enum MessageCode
     AccountBalanceUpdatedSuccessfully = 1102,
     AccountHoldersUpdatedSuccessfully = 1103,
     FixedDepositUpdatedSuccessfully = 1104,
+    CustomerCreatedSuccessfully = 1200,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -55,6 +56,10 @@ public enum MessageCode
     FixedDepositCurrentPrincipalInvalid = 3125,
     FixedDepositUpdateRequiresChanges = 3126,
     AccountCursorInvalid = 3127,
+    AccountTypeCustomerTypeNotAllowed = 3128,
+    AccountRefererCountInsufficient = 3129,
+    AccountRefererSelectionInvalid = 3130,
+    AccountRefererMustOwnAccount = 3131,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -81,6 +86,7 @@ public enum MessageCode
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    CustomerNrcAlreadyExists = 4307,
 
     // Conflict: 4300 - 4399
     ConcurrentModification = 4304,

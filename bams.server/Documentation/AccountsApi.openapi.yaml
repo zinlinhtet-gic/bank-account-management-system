@@ -3,9 +3,9 @@ info:
   title: Bank Account Management API
   version: 1.0.0
   description: |
-    OpenAPI contract for the endpoints currently exposed by AccountsController,
-    AccountTypesController, and InterestRateRulesController. Account operations require a bearer token with
-    the account_management permission. Version fields provide optimistic locking.
+    OpenAPI contract for account, customer creation, account type, and interest-rate endpoints.
+    Account operations require account_management; customer creation requires customer_management.
+    Version fields provide optimistic locking.
 servers:
   - url: https://localhost:7018
     description: Local HTTPS profile
@@ -18,6 +18,8 @@ tags:
     description: Account products available for opening.
   - name: Interest Rate Rules
     description: Active rate rules available for account products.
+  - name: Customers
+    description: Customer registration used during account opening.
 
 paths:
   /api/accounts:
@@ -302,6 +304,161 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /api/accounts/customer-lookup:
+    get:
+      tags: [Accounts]
+      operationId: getCustomerByNrc
+      summary: Find a customer by NRC
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: nrc
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching customer profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerLookupResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/customers:
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: Create a customer
+      description: Persists a customer profile and returns the saved profile for account opening.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: A customer already exists with the supplied NRC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/accounts/opening-options:
+    get:
+      tags: [Accounts]
+      operationId: getAccountOpeningOptions
+      summary: Get eligible products and owned payout accounts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: holderNrc
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: secondHolderNrc
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eligible products, document requirements, and owned accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOpeningOptionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/accounts/{id}/transactions:
+    get:
+      tags: [Accounts]
+      operationId: getAccountTransactions
+      summary: Get account transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account transaction entries, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountTransactionDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/accounts/{id}/status-history:
+    get:
+      tags: [Accounts]
+      operationId: getAccountStatusHistory
+      summary: Get account status history
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account status changes, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountStatusHistoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/accounts/{id}/interest-accruals:
+    get:
+      tags: [Accounts]
+      operationId: getAccountInterestAccruals
+      summary: Get account interest accruals
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Interest accrual periods, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InterestAccrualResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/interest-rate-rules:
     get:
       tags: [Interest Rate Rules]
@@ -567,6 +724,11 @@ components:
         calculateFromCurrent:
           type: boolean
           nullable: true
+        refererNrcs:
+          type: array
+          description: NRC numbers of existing account-holding customers who referred the account owners.
+          items:
+            type: string
 
     AccountDocumentUploadRequest:
       type: object
@@ -687,6 +849,108 @@ components:
         nextCursor:
           type: string
           nullable: true
+
+    CreateCustomerRequest:
+      type: object
+      required: [fullName, dateOfBirth, nrcNumber]
+      properties:
+        fullName: { type: string, maxLength: 150 }
+        dateOfBirth: { type: string, format: date }
+        nrcNumber: { type: string, maxLength: 32 }
+        phone: { type: string, nullable: true, maxLength: 32 }
+        email: { type: string, nullable: true, maxLength: 256, format: email }
+
+    CustomerMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/CustomerLookupResponse'
+
+    CustomerLookupResponse:
+      type: object
+      required: [id, customerNo, fullName, dateOfBirth, status, customerType]
+      properties:
+        id: { type: integer, format: int64 }
+        customerNo: { type: string }
+        fullName: { type: string }
+        dateOfBirth: { type: string, format: date }
+        nrcNumber: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string }
+        customerType:
+          type: string
+          enum: [Citizen, Foreigner]
+
+    AccountOpeningOptionsResponse:
+      type: object
+      required: [accountTypes, requiredDocuments, ownedAccounts]
+      properties:
+        accountTypes:
+          type: array
+          items: { $ref: '#/components/schemas/AccountTypeResponse' }
+        requiredDocuments:
+          type: array
+          items:
+            type: object
+            required: [accountTypeId, documentType]
+            properties:
+              accountTypeId: { type: integer, format: int64 }
+              documentType: { $ref: '#/components/schemas/DocumentType' }
+        ownedAccounts:
+          type: array
+          items:
+            type: object
+            required: [id, accountNo, accountTypeCode, status, accountTypeName]
+            properties:
+              id: { type: integer, format: int64 }
+              accountNo: { type: string }
+              accountTypeCode: { type: string }
+              status: { $ref: '#/components/schemas/AccountStatus' }
+              accountTypeName: { type: string }
+
+    AccountTransactionDetailResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        transactionNo: { type: string }
+        transactionType: { type: string }
+        transactionStatus: { type: string }
+        entryType: { type: string }
+        amount: { type: number, format: decimal }
+        ledgerBalanceAfter: { type: number, format: decimal }
+        availableBalanceAfter: { type: number, format: decimal }
+        valueDate: { type: string, format: date }
+        postingDate: { type: string, format: date }
+        description: { type: string, nullable: true }
+        referenceNo: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    AccountStatusHistoryResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        oldStatus: { $ref: '#/components/schemas/AccountStatus' }
+        newStatus: { $ref: '#/components/schemas/AccountStatus' }
+        reason: { type: string, nullable: true }
+        changedBy: { type: string }
+        changedAt: { type: string, format: date-time }
+
+    InterestAccrualResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        calculationBalance: { type: number, format: decimal }
+        annualRate: { type: number, format: decimal }
+        calculatedAmount: { type: number, format: decimal }
+        status: { type: string }
+        calculatedAt: { type: string, format: date-time }
+        postedAt: { type: string, format: date-time, nullable: true }
 
     AccountResponse:
       type: object
@@ -858,6 +1122,10 @@ components:
         - allowTransfer
         - allowPartialWithdrawal
         - isFixedDeposit
+        - allowForeigner
+        - allowCitizen
+        - citizenRequiredRefer
+        - foreignRequiredRefer
       properties:
         id:
           type: integer
@@ -895,6 +1163,16 @@ components:
           nullable: true
         isFixedDeposit:
           type: boolean
+        allowForeigner:
+          type: boolean
+        allowCitizen:
+          type: boolean
+        citizenRequiredRefer:
+          type: integer
+          minimum: 0
+        foreignRequiredRefer:
+          type: integer
+          minimum: 0
 
     InterestRateRuleResponse:
       type: object

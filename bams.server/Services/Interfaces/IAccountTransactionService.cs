@@ -5,11 +5,10 @@ namespace bams.server.Services.Interfaces;
 
 public interface IAccountTransactionService
 {
-    
+    /// <summary>Gets transaction entries for an account, newest first.</summary>
+    Task<IReadOnlyList<AccountTransactionDetailResponse>> GetAccountTransactionsAsync(long accountId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Creates a new account from the API request contract.
-    /// </summary>
+    /// <summary>Records the opening transaction for a newly created account.</summary>
     Task RecordAccountOpeningTransactionAsync(
         Account account,
         decimal openingBalance,

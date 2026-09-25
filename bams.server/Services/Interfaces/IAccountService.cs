@@ -20,6 +20,9 @@ public interface IAccountService
         long id,
         CancellationToken cancellationToken);
 
+    Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken);
+    Task<IReadOnlyList<InterestAccrualResponse>> GetAccountInterestAccrualsAsync(long accountId, CancellationToken cancellationToken);
+
     /// <summary>
     /// Creates a new account from the API request contract.
     /// </summary>

@@ -7,6 +7,7 @@ using bams.desktop.Api;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounts;
 using bams.desktop.DTOs.Common;
+using bams.desktop.DTOs.Customers;
 
 namespace bams.desktop.Services;
 
@@ -76,6 +77,52 @@ public sealed class AccountManagementService : IAccountManagementService
             cancellationToken);
     }
 
+    public Task<CustomerLookupResponse> GetCustomerByNrcAsync(string nrc, CancellationToken cancellationToken)
+    {
+        return _apiClient.GetRawAsync<CustomerLookupResponse>(
+            $"{ApiConstants.AccountCustomerLookupEndpoint}?nrc={Uri.EscapeDataString(nrc.Trim())}", cancellationToken);
+    }
+
+    /// <summary>Creates a persisted customer and returns the server's saved profile.</summary>
+    public Task<CustomerLookupResponse> CreateCustomerAsync(
+        CreateCustomerRequest request,
+        CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<CreateCustomerRequest, CustomerLookupResponse>(
+            ApiConstants.CustomersEndpoint,
+            request,
+            cancellationToken);
+    }
+
+    public Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken)
+    {
+        var query = $"holderNrc={Uri.EscapeDataString(holderNrc.Trim())}";
+        if (!string.IsNullOrWhiteSpace(secondHolderNrc)) query += $"&secondHolderNrc={Uri.EscapeDataString(secondHolderNrc.Trim())}";
+        return _apiClient.GetRawAsync<AccountOpeningOptionsResponse>($"{ApiConstants.AccountOpeningOptionsEndpoint}?{query}", cancellationToken);
+    }
+
+    public Task<IReadOnlyList<AccountTransactionDetailResponse>> GetAccountTransactionsAsync(long id, CancellationToken cancellationToken) =>
+        _apiClient.GetRawAsync<IReadOnlyList<AccountTransactionDetailResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/transactions", cancellationToken);
+
+    public Task<IReadOnlyList<AccountStatusHistoryResponse>> GetAccountStatusHistoryAsync(long id, CancellationToken cancellationToken) =>
+        _apiClient.GetRawAsync<IReadOnlyList<AccountStatusHistoryResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/status-history", cancellationToken);
+
+    public Task<IReadOnlyList<InterestAccrualResponse>> GetAccountInterestAccrualsAsync(long id, CancellationToken cancellationToken) =>
+        _apiClient.GetRawAsync<IReadOnlyList<InterestAccrualResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/interest-accruals", cancellationToken);
+
+    public async Task<AccountResponse> UpdateAccountStatusAsync(long id, string status, string? reason, long version, CancellationToken cancellationToken)
+    {
+        var action = status switch
+        {
+            "Active" => "reactivate",
+            "Suspended" => "suspend",
+            "Frozen" => "freeze",
+            _ => throw new InvalidOperationException("This account status cannot be set through the available actions.")
+        };
+        return await _apiClient.PatchAsync<UpdateAccountStatusCommand, AccountResponse>(
+            $"{ApiConstants.AccountsEndpoint}/{id}/{action}", new UpdateAccountStatusCommand(reason, version), cancellationToken);
+    }
+
     public async Task<AccountResponse> CreateAccountAsync(
         CreateAccountCommand command,
         CancellationToken cancellationToken)
@@ -93,6 +140,10 @@ public sealed class AccountManagementService : IAccountManagementService
         AddOptionalField(content, "InterestRateRuleId", command.InterestRateRuleId);
         AddOptionalField(content, "RenewalInstruction", command.RenewalInstruction);
         AddOptionalField(content, "CalculateFromCurrent", command.CalculateFromCurrent);
+        for (var index = 0; index < command.RefererNrcs.Count; index++)
+        {
+            AddField(content, $"RefererNrcs[{index}]", command.RefererNrcs[index]);
+        }
 
         var openedFiles = new List<FileStream>();
         try
@@ -106,16 +157,14 @@ public sealed class AccountManagementService : IAccountManagementService
                 var stream = File.OpenRead(document.FilePath);
                 openedFiles.Add(stream);
                 var fileContent = new StreamContent(stream);
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetDocumentContentType(document.FilePath));
                 content.Add(fileContent, $"Documents[{index}].File", Path.GetFileName(document.FilePath));
             }
 
-            var response = await _apiClient.PostMultipartAsync<ApiMessageResponse<AccountResponse>>(
+            return await _apiClient.PostMultipartAsync<AccountResponse>(
                 ApiConstants.AccountsEndpoint,
                 content,
                 cancellationToken);
-
-            return response.Data ?? throw new InvalidOperationException("The account API returned an empty account.");
         }
         finally
         {
@@ -138,4 +187,13 @@ public sealed class AccountManagementService : IAccountManagementService
             AddField(content, name, value);
         }
     }
+
+    // Matches the MIME types accepted by the server's account-document validator.
+    private static string GetDocumentContentType(string filePath) => Path.GetExtension(filePath).ToLowerInvariant() switch
+    {
+        ".pdf" => "application/pdf",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".png" => "image/png",
+        _ => "application/octet-stream"
+    };
 }

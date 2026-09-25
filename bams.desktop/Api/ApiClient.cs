@@ -147,6 +147,14 @@ public sealed class ApiClient
             cancellationToken);
     }
 
+    /// <summary>Sends a JSON PATCH request and returns the success envelope payload.</summary>
+    public Task<TResponse> PatchAsync<TRequest, TResponse>(string endpoint, TRequest request, CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.PatchAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
+            cancellationToken);
+    }
+
     /// <summary>
     /// Sends a DELETE request. Succeeds on any 2xx status; the response body is not required.
     /// </summary>

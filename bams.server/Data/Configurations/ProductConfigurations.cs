@@ -14,6 +14,10 @@ public sealed class AccountTypeConfiguration : IEntityTypeConfiguration<AccountT
         builder.Property(t => t.Name).IsRequired().HasMaxLength(150);
         builder.Property(t => t.Category).HasMaxLength(40);
         builder.Property(t => t.Status).IsRequired().HasMaxLength(20);
+        builder.Property(t => t.AllowCitizen).HasDefaultValue(true);
+        builder.Property(t => t.AllowForeigner).HasDefaultValue(true);
+        builder.Property(t => t.CitizenRequiredRefer).HasDefaultValue(0);
+        builder.Property(t => t.ForeignRequiredRefer).HasDefaultValue(0);
 
         builder.HasIndex(t => t.Code).IsUnique();
 
