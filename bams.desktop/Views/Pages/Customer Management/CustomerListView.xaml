@@ -1,0 +1,182 @@
+<UserControl x:Class="bams.desktop.Views.Pages.CustomerListView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:t="clr-namespace:bams.desktop.Themes">
+    <!--
+        Customer List page. DataContext: CustomerListViewModel.
+        Filter bar (Filter) → outcome banner → titled customer table (Table) with pagination.
+    -->
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <!-- filter bar -->
+            <RowDefinition Height="Auto" />
+            <!-- outcome banner -->
+            <RowDefinition Height="*" />
+            <!-- table -->
+        </Grid.RowDefinitions>
+        <!-- ===== Filter bar ===== -->
+        <Border Style="{StaticResource Card.Compact}" DataContext="{Binding Filter}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <!-- ROW 1 -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Customer No -->
+                    <StackPanel Grid.Column="0" Margin="0,0,16,12">
+                        <TextBlock Text="CUSTOMER NO" Style="{StaticResource Text.FieldLabel}" />
+                        <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. CUS00000001" Text="{Binding CustomerNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <!-- Customer Name -->
+                    <StackPanel Grid.Column="1" Margin="0,0,16,12">
+                        <TextBlock Text="CUSTOMER NAME" Style="{StaticResource Text.FieldLabel}" />
+                        <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Mg Mg" Text="{Binding CustomerName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <!-- Status -->
+                    <StackPanel Grid.Column="2" Margin="0,0,16,12">
+                        <TextBlock Text="STATUS" Style="{StaticResource Text.FieldLabel}" />
+                        <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding StatusOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedStatus, Mode=TwoWay}" />
+                    </StackPanel>
+                    <!-- Risk Level -->
+                    <StackPanel Grid.Column="3" Margin="0,0,16,12">
+                        <TextBlock Text="RISK LEVEL" Style="{StaticResource Text.FieldLabel}" />
+                        <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding RiskLevelOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedRiskLevel, Mode=TwoWay}" />
+                    </StackPanel>
+                    <!-- KYC Status -->
+                    <StackPanel Grid.Column="4" Margin="0,0,16,12">
+                        <TextBlock Text="KYC STATUS" Style="{StaticResource Text.FieldLabel}" />
+                        <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding KycStatusOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedKycStatus, Mode=TwoWay}" />
+                    </StackPanel>
+                </Grid>
+                <!-- ROW 2 -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Start Date -->
+                    <StackPanel Grid.Column="0" Margin="0,0,16,12">
+                        <TextBlock Text="START DATE" Style="{StaticResource Text.FieldLabel}" />
+                        <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding StartDate, Mode=TwoWay}" />
+                    </StackPanel>
+                    <!-- End Date -->
+                    <StackPanel Grid.Column="1" Margin="0,0,16,12">
+                        <TextBlock Text="END DATE" Style="{StaticResource Text.FieldLabel}" />
+                        <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding EndDate, Mode=TwoWay}" />
+                    </StackPanel>
+                    <!-- Search -->
+                    <Button Grid.Column="2" Content="Search" Style="{StaticResource Button.Secondary}" t:ThemeAssist.Icon="{StaticResource Icon.Search}" VerticalAlignment="Bottom" Margin="0,0,8,12" Command="{Binding SearchCommand}" />
+                    <!-- Reset -->
+                    <Button Grid.Column="3" Content="Reset" Style="{StaticResource Button.Ghost}" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Clear all filters and show every customer" VerticalAlignment="Bottom" Margin="0,0,0,12" Command="{Binding ResetFiltersCommand}" />
+                </Grid>
+            </Grid>
+        </Border>
+        <!-- ===== Outcome banner ===== -->
+        <ContentControl Grid.Row="1" Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0" Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        <!-- ===== Customer table ===== -->
+        <Border Grid.Row="2" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list" t:ThemeAssist.IsLoading="{Binding Table.IsLoading}" Command="{Binding RefreshCommand}" />
+                            <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Customers" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />
+                            <ContentControl Style="{StaticResource Badge.Neutral}" t:ThemeAssist.ShowDot="False" Content="{Binding Table.CountText}" Margin="10,0,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <!-- Pagination footer -->
+                <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,10">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource Button.Icon}" ToolTip="Previous page" t:ThemeAssist.Icon="{StaticResource Icon.ChevronLeft}" Command="{Binding Table.PreviousPageCommand}" />
+                            <TextBlock Text="{Binding Table.PageIndicatorText}" Style="{StaticResource Text.BodyMuted}" VerticalAlignment="Center" Margin="8,0" />
+                            <Button Style="{StaticResource Button.Icon}" ToolTip="Next page" t:ThemeAssist.Icon="{StaticResource Icon.ChevronRight}" Command="{Binding Table.NextPageCommand}" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Grid>
+                    <DataGrid x:Name="CustomersGrid" Style="{StaticResource Table}" BorderThickness="0" ItemsSource="{Binding Table.Customers}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="No" Binding="{Binding No}" Width="50" />
+                            <DataGridTextColumn Header="Customer No" Binding="{Binding CustomerNo}" Width="120" ElementStyle="{StaticResource Table.Text.Code}" />
+                            <DataGridTextColumn Header="Customer Type" Binding="{Binding CustomerType}" Width="110" />
+                            <DataGridTextColumn Header="Full Name" Binding="{Binding FullName}" Width="*" MinWidth="120" />
+                            <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="140" ElementStyle="{StaticResource Table.Text.Muted}" />
+                            <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*" MinWidth="150" ElementStyle="{StaticResource Table.Text.Muted}" />
+                            <DataGridTemplateColumn Header="KYC Status" Width="110" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl x:Name="KycBadge" Style="{StaticResource Badge.Warning}" Content="{Binding KycStatus}" />
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding KycStatus}" Value="Verified">
+                                                <Setter TargetName="KycBadge" Property="Style" Value="{StaticResource Badge.Success}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding KycStatus}" Value="Rejected">
+                                                <Setter TargetName="KycBadge" Property="Style" Value="{StaticResource Badge.Danger}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Risk Level" Width="90" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl x:Name="RiskBadge" Style="{StaticResource Badge.Warning}" Content="{Binding RiskLevel}" />
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding RiskLevel}" Value="Low">
+                                                <Setter TargetName="RiskBadge" Property="Style" Value="{StaticResource Badge.Success}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding RiskLevel}" Value="High">
+                                                <Setter TargetName="RiskBadge" Property="Style" Value="{StaticResource Badge.Danger}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Status" Width="120" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl x:Name="StatusBadge" Style="{StaticResource Badge.Success}" Content="{Binding Status}" />
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Status}" Value="Inactive">
+                                                <Setter TargetName="StatusBadge" Property="Style" Value="{StaticResource Badge.Neutral}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Created At" Binding="{Binding CreatedAt}" Width="120" ElementStyle="{StaticResource Table.Text.Muted}" />
+                            <DataGridTemplateColumn Header="Action" Width="90" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Style="{StaticResource Button.Icon}" ToolTip="View customer" t:ThemeAssist.Icon="{StaticResource Icon.Eye}" />
+                                            <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <!-- Empty state under the column headers -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,72,0,0" IsHitTestVisible="False" Visibility="{Binding Table.IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="No customers found" Style="{StaticResource Text.Subheading}" HorizontalAlignment="Center" />
+                        <TextBlock Text="Try another search or clear the filters with Reset." Style="{StaticResource Text.BodyMuted}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -55,6 +55,11 @@ public partial class App : Application
         services.AddTransient<ViewModels.Pages.Users.UserFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Users.UserListViewModel>();
 
+        // Customer Management
+        services.AddSingleton<Services.ICustomerService, Services.CustomerService>();
+        services.AddTransient<ViewModels.Pages.Customers.CustomerFilterViewModel>();
+        services.AddTransient<ViewModels.Pages.Customers.CustomerTableViewModel>();
+
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<ChangePasswordViewModel>();
@@ -63,7 +68,7 @@ public partial class App : Application
 
         // Register Page ViewModels
         services.AddTransient<UserManagementViewModel>();
-        services.AddTransient<CustomerManagementViewModel>();
+        // services.AddTransient<CustomerManagementViewModel>();
         services.AddTransient<CustomerKYCViewModel>();
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();

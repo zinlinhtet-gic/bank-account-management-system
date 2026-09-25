@@ -91,6 +91,23 @@ public sealed class ApiClient
     }
 
     /// <summary>
+    /// Sends a multipart form POST request (for endpoints that accept <c>[FromForm]</c>, e.g. so a file
+    /// can be attached) and returns the <c>Data</c> payload of the server response. The caller builds the
+    /// form content, since only the feature service knows how its request maps to form fields.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public Task<TResponse> PostFormAsync<TResponse>(
+        string endpoint,
+        MultipartFormDataContent formContent,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.PostAsync(endpoint, formContent, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Sends a JSON PUT request (full update) and returns the <c>Data</c> payload of the server response.
     /// </summary>
     /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>

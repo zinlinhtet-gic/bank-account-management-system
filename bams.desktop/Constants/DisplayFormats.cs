@@ -5,8 +5,8 @@ namespace bams.desktop.Constants;
 /// </summary>
 public static class DisplayFormats
 {
-    public const string Date = "dd MMM yyyy";
-    public const string DateTime = "dd MMM yyyy, HH:mm";
+    public const string Date = "dd/MM/yyyy";
+    public const string DateTime = "dd MM yyyy, HH:mm";
 
     // Shown instead of an empty optional value.
     public const string EmptyValue = "—";

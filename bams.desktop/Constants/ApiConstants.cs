@@ -19,5 +19,8 @@ public static class ApiConstants
     public const string UserRolesEndpoint = UsersEndpoint + "/roles";
     public const string ResetPasswordSegment = "reset-password";
 
+    // Customer Management. Route with an id: $"{CustomersEndpoint}/{id}".
+    public const string CustomersEndpoint = "api/customers";
+
     public const string BearerScheme = "Bearer";
 }
