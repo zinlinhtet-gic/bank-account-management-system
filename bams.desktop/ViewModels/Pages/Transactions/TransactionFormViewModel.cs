@@ -22,15 +22,16 @@ public enum TransactionFormKind
 }
 
 /// <summary>
-/// The form for a new deposit, withdrawal or transfer, shown in a modal. One form serves every kind; only the fields
-/// that kind needs are visible. Closes itself with <c>true</c> after a successful posting; <see cref="SavedTransaction"/>
-/// holds the result (including the NRC pickup code).
+/// The form for a new deposit, withdrawal or transfer, shown in the Transactions page's tab. One form serves every
+/// kind; only the fields that kind needs are visible. Raises <see cref="Posted"/> after a successful posting
+/// (<see cref="SavedTransaction"/> holds the result, including the NRC pickup code) and <see cref="ClearRequested"/>
+/// when the officer clears it; the page then puts a fresh form in its place.
 /// </summary>
 /// <remarks>
 /// Each form instance has its own idempotency key. Retrying after a network error resends the same key, so the
 /// server returns the first result instead of posting the money twice.
 /// </remarks>
-public sealed class TransactionFormViewModel : ViewModelBase, IDialogViewModel
+public sealed class TransactionFormViewModel : ViewModelBase
 {
     private readonly ITransactionService _transactionService;
     private readonly string _idempotencyKey = Guid.NewGuid().ToString("N");
@@ -74,15 +75,14 @@ public sealed class TransactionFormViewModel : ViewModelBase, IDialogViewModel
         Branches = branches;
 
         SaveCommand = new AsyncRelayCommand(SaveAsync, () => !IsBusy);
-        CancelCommand = new RelayCommand(_ => CloseRequested?.Invoke(false), _ => CanCancel);
+        ClearCommand = new RelayCommand(_ => ClearRequested?.Invoke(), _ => !IsBusy);
     }
 
-    public event Action<bool>? CloseRequested;
+    /// <summary>Raised after the transaction was posted; <see cref="SavedTransaction"/> is set.</summary>
+    public event Action? Posted;
 
-    // A stray click outside must not throw away what was typed.
-    public bool CanCloseOnBackdropClick => false;
-
-    public bool CanCancel => !IsBusy;
+    /// <summary>Raised when the officer clears the form to start over.</summary>
+    public event Action? ClearRequested;
 
     public TransactionFormKind Kind { get; }
 
@@ -97,9 +97,9 @@ public sealed class TransactionFormViewModel : ViewModelBase, IDialogViewModel
 
     public AsyncRelayCommand SaveCommand { get; }
 
-    public RelayCommand CancelCommand { get; }
+    public RelayCommand ClearCommand { get; }
 
-    /// <summary>The posted transaction, set just before the dialog closes with success.</summary>
+    /// <summary>The posted transaction, set just before <see cref="Posted"/> is raised.</summary>
     public TransactionResponse? SavedTransaction { get; private set; }
 
     // ===== Texts that depend on the kind =====
@@ -439,8 +439,7 @@ public sealed class TransactionFormViewModel : ViewModelBase, IDialogViewModel
             if (SetProperty(ref _isBusy, value))
             {
                 OnPropertyChanged(nameof(IsNotBusy));
-                OnPropertyChanged(nameof(CanCancel));
-                CancelCommand.RaiseCanExecuteChanged();
+                ClearCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -490,7 +489,7 @@ public sealed class TransactionFormViewModel : ViewModelBase, IDialogViewModel
             IsBusy = false;
         }
 
-        CloseRequested?.Invoke(true);
+        Posted?.Invoke();
     }
 
     // Sends the request for this kind with the form's idempotency key.

@@ -4,11 +4,12 @@ using System.Windows.Controls;
 namespace bams.desktop.Views.Pages.Transactions;
 
 /// <summary>
-/// New transaction form. Code-behind only sets the initial keyboard focus, which is a view concern.
+/// New transaction form shown under the Transactions page tabs. Code-behind only sets the initial keyboard
+/// focus, which is a view concern.
 /// </summary>
-public partial class TransactionFormDialogView : UserControl
+public partial class TransactionFormView : UserControl
 {
-    public TransactionFormDialogView()
+    public TransactionFormView()
     {
         InitializeComponent();
 

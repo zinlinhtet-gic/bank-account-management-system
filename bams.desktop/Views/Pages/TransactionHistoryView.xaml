@@ -5,9 +5,15 @@
              xmlns:b="clr-namespace:bams.desktop.Behaviors"
              xmlns:tx="clr-namespace:bams.desktop.Views.Pages.Transactions">
     <!--
-        Transaction History page (auditors, read-only). DataContext: TransactionHistoryViewModel.
-        Filter bar (Filter) → error banner → titled transaction table (List). Clicking a row opens the detail card.
+        Transaction History page. DataContext: TransactionHistoryViewModel.
+        Filter bar (Filter) → outcome banners → titled transaction table (List). Clicking a row opens the detail card.
+        Officers also get row actions on pending transfers (pickup / payout / cancel, settled / failed); auditors do not.
     -->
+    <UserControl.Resources>
+        <!-- DataGrid columns are outside the visual tree; the proxy lets the Actions column see the page. -->
+        <b:BindingProxy x:Key="PageProxy" Data="{Binding}"/>
+    </UserControl.Resources>
+
     <Grid Margin="{StaticResource PagePadding}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -18,9 +24,13 @@
         <!-- ===== Filter bar ===== -->
         <tx:TransactionFilterBar DataContext="{Binding Filter}"/>
 
-        <!-- ===== Error banner ===== -->
-        <ContentControl Grid.Row="1" Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
-                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        <!-- ===== Outcome banners ===== -->
+        <StackPanel Grid.Row="1">
+            <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
+                            Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <ContentControl Style="{StaticResource Alert.Success}" Content="{Binding SuccessMessage}" Margin="0,16,0,0"
+                            Visibility="{Binding HasSuccess, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </StackPanel>
 
         <!-- ===== Transaction table ===== -->
         <Border Grid.Row="2" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
@@ -29,10 +39,13 @@
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <tx:TransactionPager DataContext="{Binding List}" Margin="0,0,12,0"/>
-                            <Button Style="{StaticResource Button.Icon}"
+                            <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0"
                                     t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"
                                     t:ThemeAssist.IsLoading="{Binding List.IsLoading}"
                                     Command="{Binding RefreshCommand}"/>
+                            <Button Content="Show pending" Style="{StaticResource Button.Secondary}" t:ThemeAssist.Size="Small"
+                                    ToolTip="Transfers waiting for pickup or a gateway result"
+                                    Command="{Binding ShowPendingCommand}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Transaction history" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
@@ -43,15 +56,15 @@
                 </Border>
 
                 <Grid>
-                    <!-- Row click (or Enter) opens the detail card. -->
+                    <!-- Row click (or Enter) opens the detail card; clicks on the row buttons do not. -->
                     <DataGrid Style="{StaticResource Table}" BorderThickness="0" Cursor="Hand"
                               ItemsSource="{Binding List.Transactions}"
                               b:DataGridRowClick.Command="{Binding ShowDetailsCommand}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Transaction no" Binding="{Binding TransactionNo}" Width="240"
+                            <DataGridTextColumn Header="Transaction no" Binding="{Binding TransactionNo}" Width="220"
                                                 ElementStyle="{StaticResource Table.Text.Code}"/>
 
-                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="150"
+                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="160"
                                                 ElementStyle="{StaticResource Table.Text}"/>
 
                             <DataGridTemplateColumn Header="Status" Width="125" SortMemberPath="Status">
@@ -65,11 +78,46 @@
                             <DataGridTextColumn Header="Amount (MMK)" Binding="{Binding AmountText}" Width="125"
                                                 SortMemberPath="Amount" ElementStyle="{StaticResource Table.Text.Mono}"/>
 
-                            <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceText}" Width="*"
+                            <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceText}" Width="*" MinWidth="80"
                                                 ElementStyle="{StaticResource Table.Text.Muted}"/>
 
-                            <DataGridTextColumn Header="Date" Binding="{Binding TransactionAtText}" Width="175"
+                            <DataGridTextColumn Header="Date" Binding="{Binding TransactionAtText}" Width="160"
                                                 SortMemberPath="TransactionAt" ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <!-- Officers only: finish pending transfers. -->
+                            <DataGridTemplateColumn Header="Actions" Width="96" CanUserSort="False"
+                                                    Visibility="{Binding Data.CanManagePendingTransfers, Source={StaticResource PageProxy}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Cursor="Arrow">
+                                            <!-- Pending NRC transfer: pay out (pickup here, or the other bank's payout) or cancel -->
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding IsPendingNrcTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Button Style="{StaticResource Button.Icon}" ToolTip="Pay out: pickup at our branch, or record the other bank's payout"
+                                                        t:ThemeAssist.Icon="{StaticResource Icon.UserCheck}" Margin="0,0,4,0"
+                                                        Command="{Binding DataContext.PickUpNrcTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource Button.IconDanger}" ToolTip="Cancel and refund the sender"
+                                                        t:ThemeAssist.Icon="{StaticResource Icon.Close}"
+                                                        Command="{Binding DataContext.CancelNrcTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                            <!-- Pending interbank transfer: record the gateway result -->
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding IsPendingInterbankTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Button Style="{StaticResource Button.Icon}" ToolTip="Mark as settled"
+                                                        t:ThemeAssist.Icon="{StaticResource Icon.Check}" Margin="0,0,4,0"
+                                                        Command="{Binding DataContext.CompleteInterbankTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource Button.IconDanger}" ToolTip="Mark as failed and refund the sender"
+                                                        t:ThemeAssist.Icon="{StaticResource Icon.AlertCircle}"
+                                                        Command="{Binding DataContext.FailInterbankTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
 

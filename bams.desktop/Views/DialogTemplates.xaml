@@ -19,9 +19,6 @@
     </DataTemplate>
 
     <!-- Transactions -->
-    <DataTemplate DataType="{x:Type transactions:TransactionFormViewModel}">
-        <transactionviews:TransactionFormDialogView/>
-    </DataTemplate>
     <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
         <transactionviews:TransactionDetailsDialogView/>
     </DataTemplate>

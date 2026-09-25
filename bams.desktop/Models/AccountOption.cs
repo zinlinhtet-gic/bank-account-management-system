@@ -24,6 +24,19 @@ public sealed record AccountOption(long Id, string AccountNo, string AccountType
     }
 
     /// <summary>
+    /// Loads the accounts that can take part in a transaction, as picker options.
+    /// </summary>
+    /// <exception cref="Exceptions.AppException">Server or network failure; the caller shows the message.</exception>
+    public static async Task<IReadOnlyList<AccountOption>> LoadUsableAsync(
+        Services.IAccountService accountService,
+        CancellationToken cancellationToken)
+    {
+        var accounts = await accountService.GetAccountsAsync(cancellationToken);
+
+        return accounts.Where(IsUsable).Select(FromResponse).ToList();
+    }
+
+    /// <summary>
     /// Builds an option from a server account summary.
     /// </summary>
     public static AccountOption FromResponse(AccountSummaryResponse account)

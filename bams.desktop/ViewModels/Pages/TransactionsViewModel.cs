@@ -1,5 +1,4 @@
 using bams.desktop.Commands;
-using bams.desktop.Constants;
 using bams.desktop.DTOs.Transactions;
 using bams.desktop.Exceptions;
 using bams.desktop.Models;
@@ -10,95 +9,91 @@ using bams.desktop.ViewModels.Pages.Transactions;
 namespace bams.desktop.ViewModels.Pages;
 
 /// <summary>
-/// ViewModel for the Transactions page (officers): post deposits, withdrawals and transfers, and finish pending
-/// transfers (NRC pickup or cancel, interbank settled or failed). Coordinates the <see cref="Filter"/> and
-/// <see cref="List"/> components and opens the form, action and detail dialogs.
+/// ViewModel for the Transactions page (officers): one tab per kind of posting (deposit, withdrawal, internal,
+/// interbank and NRC transfer) with its form shown inline. After a posting the tab gets a fresh form with fresh
+/// balances. Existing transactions and their pending actions live on the Transaction History page.
 /// </summary>
 public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly ITransactionService _transactionService;
     private readonly IAccountService _accountService;
     private readonly IDialogService _dialogService;
-    private readonly TransactionDetailsLauncher _detailsLauncher;
 
     private IReadOnlyList<OtherBankResponse> _banks = [];
     private IReadOnlyList<BranchResponse> _branches = [];
+    private TransactionFormViewModel? _currentForm;
+    private bool _isLoadingForm;
+    private int _formLoadVersion;
     private string _errorMessage = string.Empty;
     private string _successMessage = string.Empty;
 
     public TransactionsViewModel(
         ITransactionService transactionService,
         IAccountService accountService,
-        IDialogService dialogService,
-        TransactionDetailsLauncher detailsLauncher,
-        TransactionFilterViewModel filter,
-        TransactionListViewModel list)
+        IDialogService dialogService)
     {
         // Constructors only store dependencies and create commands. No server calls here.
         _transactionService = transactionService;
         _accountService = accountService;
         _dialogService = dialogService;
-        _detailsLauncher = detailsLauncher;
-        Filter = filter;
-        List = list;
 
-        // The parent coordinates its components: a filter change reloads from page 1, the pager loads its page.
-        Filter.FiltersChanged += OnFiltersChanged;
-        List.PageRequested += OnPageRequested;
+        Tabs =
+        [
+            new(TransactionFormKind.Deposit, "Deposit", "Icon.Download", "Cash paid into a customer account"),
+            new(TransactionFormKind.Withdrawal, "Withdraw", "Icon.Upload", "Cash paid out of a customer account"),
+            new(TransactionFormKind.InternalTransfer, "Internal transfer", "Icon.Transfers", "Between two accounts in this bank"),
+            new(TransactionFormKind.InterbankTransfer, "Interbank transfer", "Icon.Bank", "To an account at another bank"),
+            new(TransactionFormKind.NrcTransfer, "NRC transfer", "Icon.Send", "Collected by a named receiver with their NRC and a pickup code")
+        ];
+        foreach (var tab in Tabs)
+        {
+            tab.Selected += OnTabSelected;
+        }
 
-        RefreshCommand = new AsyncRelayCommand(() => ReloadAsync(List.Page, CancellationToken.None));
-        ShowPendingCommand = new RelayCommand(_ => Filter.ShowOnly(null, TransactionStatus.Pending));
-        NewDepositCommand = new AsyncRelayCommand(() => OpenTransactionFormAsync(TransactionFormKind.Deposit));
-        NewWithdrawalCommand = new AsyncRelayCommand(() => OpenTransactionFormAsync(TransactionFormKind.Withdrawal));
-        NewInternalTransferCommand = new AsyncRelayCommand(() => OpenTransactionFormAsync(TransactionFormKind.InternalTransfer));
-        NewInterbankTransferCommand = new AsyncRelayCommand(() => OpenTransactionFormAsync(TransactionFormKind.InterbankTransfer));
-        NewNrcTransferCommand = new AsyncRelayCommand(() => OpenTransactionFormAsync(TransactionFormKind.NrcTransfer));
-        ShowDetailsCommand = new AsyncRelayCommand(ShowDetailsAsync);
-        PickUpNrcTransferCommand = new AsyncRelayCommand(PickUpNrcTransferAsync);
-        CancelNrcTransferCommand = new AsyncRelayCommand(row => FinishPendingTransferAsync(row, PendingTransferAction.CancelNrcTransfer));
-        CompleteInterbankTransferCommand = new AsyncRelayCommand(row => FinishPendingTransferAsync(row, PendingTransferAction.CompleteInterbankTransfer));
-        FailInterbankTransferCommand = new AsyncRelayCommand(row => FinishPendingTransferAsync(row, PendingTransferAction.FailInterbankTransfer));
+        ReloadFormCommand = new AsyncRelayCommand(() => OpenFormAsync(SelectedTab.Kind, keepMessages: false));
     }
 
     // Kept for the placeholder view; the header already shows the page name.
     public string PageTitle => "Transactions";
-    public string PageDescription => "Process and manage financial transactions";
+    public string PageDescription => "Post deposits, withdrawals and transfers";
 
-    public TransactionFilterViewModel Filter { get; }
+    public IReadOnlyList<TransactionTabViewModel> Tabs { get; }
 
-    public TransactionListViewModel List { get; }
+    public TransactionTabViewModel SelectedTab => Tabs.FirstOrDefault(tab => tab.IsSelected) ?? Tabs[0];
 
-    public AsyncRelayCommand RefreshCommand { get; }
+    /// <summary>The form of the selected tab; null while it loads or when loading failed.</summary>
+    public TransactionFormViewModel? CurrentForm
+    {
+        get => _currentForm;
+        private set
+        {
+            if (SetProperty(ref _currentForm, value))
+            {
+                OnPropertyChanged(nameof(HasForm));
+                OnPropertyChanged(nameof(ShowsFormUnavailable));
+            }
+        }
+    }
 
-    /// <summary>Shows every pending transfer, the ones waiting for pickup or a gateway result.</summary>
-    public RelayCommand ShowPendingCommand { get; }
+    public bool HasForm => CurrentForm is not null;
 
-    public AsyncRelayCommand NewDepositCommand { get; }
+    public bool IsLoadingForm
+    {
+        get => _isLoadingForm;
+        private set
+        {
+            if (SetProperty(ref _isLoadingForm, value))
+            {
+                OnPropertyChanged(nameof(ShowsFormUnavailable));
+            }
+        }
+    }
 
-    public AsyncRelayCommand NewWithdrawalCommand { get; }
+    /// <summary>The form could not be opened (e.g. accounts failed to load); the view offers "Try again".</summary>
+    public bool ShowsFormUnavailable => !IsLoadingForm && CurrentForm is null;
 
-    public AsyncRelayCommand NewInternalTransferCommand { get; }
-
-    public AsyncRelayCommand NewInterbankTransferCommand { get; }
-
-    public AsyncRelayCommand NewNrcTransferCommand { get; }
-
-    /// <summary>Row click: parameter is the clicked <see cref="TransactionDisplayModel"/>.</summary>
-    public AsyncRelayCommand ShowDetailsCommand { get; }
-
-    /// <summary>
-    /// Row action on a pending NRC transfer: pickup with the code at our branch, or recording the other bank's payout.
-    /// </summary>
-    public AsyncRelayCommand PickUpNrcTransferCommand { get; }
-
-    /// <summary>Row action on a pending NRC transfer.</summary>
-    public AsyncRelayCommand CancelNrcTransferCommand { get; }
-
-    /// <summary>Row action on a pending interbank transfer.</summary>
-    public AsyncRelayCommand CompleteInterbankTransferCommand { get; }
-
-    /// <summary>Row action on a pending interbank transfer.</summary>
-    public AsyncRelayCommand FailInterbankTransferCommand { get; }
+    /// <summary>Opens the selected tab's form again, e.g. after a failed load.</summary>
+    public AsyncRelayCommand ReloadFormCommand { get; }
 
     public string ErrorMessage
     {
@@ -128,190 +123,124 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
 
     public bool HasSuccess => !string.IsNullOrEmpty(SuccessMessage);
 
-    // Called by MainViewModel every time the user opens this page.
+    // Called by MainViewModel every time the user opens this page: opens the first tab.
     public Task InitializeAsync(CancellationToken cancellationToken)
     {
-        return ReloadAsync(TransactionListViewModel.FirstPageNumber, cancellationToken);
+        Tabs[0].SelectSilently();
+        return OpenFormAsync(Tabs[0].Kind, keepMessages: false);
     }
 
-    // async void is intentional: event handlers; ReloadAsync catches every expected failure itself.
-    private async void OnFiltersChanged()
+    // async void is intentional: an event handler; OpenFormAsync catches every expected failure itself.
+    private async void OnTabSelected(TransactionTabViewModel tab)
     {
-        await ReloadAsync(TransactionListViewModel.FirstPageNumber, CancellationToken.None);
-    }
-
-    private async void OnPageRequested(int page)
-    {
-        await ReloadAsync(page, CancellationToken.None);
-    }
-
-    // Reloads the table page with the current filters and shows a failure in the banner.
-    private async Task ReloadAsync(int page, CancellationToken cancellationToken)
-    {
-        var (filter, error) = Filter.BuildFilter();
-        if (error is not null)
+        // RadioButtons uncheck the previous tab themselves; keep the ViewModels in step.
+        foreach (var other in Tabs.Where(other => other != tab && other.IsSelected))
         {
-            ErrorMessage = MessageCatalog.GetMessage(error.Value);
-            return;
+            other.IsSelected = false;
         }
+
+        OnPropertyChanged(nameof(SelectedTab));
+        await OpenFormAsync(tab.Kind, keepMessages: false);
+    }
+
+    // Loads fresh account balances (and banks / branches when the kind needs them) and shows a new form.
+    // A newer open replaces one still loading, so quickly switching tabs never shows an older form last.
+    private async Task OpenFormAsync(TransactionFormKind kind, bool keepMessages)
+    {
+        var version = ++_formLoadVersion;
+        if (!keepMessages)
+        {
+            ClearMessages();
+        }
+
+        ReplaceForm(null);
+        IsLoadingForm = true;
 
         try
         {
-            ErrorMessage = string.Empty;
-            await List.LoadAsync(filter!, page, cancellationToken);
+            var accounts = await AccountOption.LoadUsableAsync(_accountService, CancellationToken.None);
+            if (kind == TransactionFormKind.InterbankTransfer && !await EnsureBanksLoadedAsync(isRequired: true))
+            {
+                return;
+            }
+
+            // NRC transfers are collected at one of our branches (required) or at another bank (optional choice).
+            if (kind == TransactionFormKind.NrcTransfer
+                && (!await EnsureBranchesLoadedAsync() || !await EnsureBanksLoadedAsync(isRequired: false)))
+            {
+                return;
+            }
+
+            if (version == _formLoadVersion)
+            {
+                ReplaceForm(new TransactionFormViewModel(_transactionService, kind, accounts, _banks, _branches));
+            }
         }
         catch (AppException exception)
         {
-            ErrorMessage = exception.Message;
+            if (version == _formLoadVersion)
+            {
+                ErrorMessage = exception.Message;
+            }
+        }
+        finally
+        {
+            if (version == _formLoadVersion)
+            {
+                IsLoadingForm = false;
+            }
         }
     }
 
-    // Opens the form for a new posting with fresh account balances; after success reloads and confirms.
-    private async Task OpenTransactionFormAsync(TransactionFormKind kind)
+    // Swaps the shown form, moving the event subscriptions so a replaced form cannot report back.
+    private void ReplaceForm(TransactionFormViewModel? form)
     {
-        ClearMessages();
+        if (CurrentForm is not null)
+        {
+            CurrentForm.Posted -= OnFormPosted;
+            CurrentForm.ClearRequested -= OnFormClearRequested;
+        }
 
-        var accounts = await LoadAccountOptionsAsync();
-        if (accounts is null)
+        if (form is not null)
+        {
+            form.Posted += OnFormPosted;
+            form.ClearRequested += OnFormClearRequested;
+        }
+
+        CurrentForm = form;
+    }
+
+    // async void is intentional: an event handler. Confirms the posting, shows the one-time NRC pickup code, and
+    // replaces the form with a fresh one (new idempotency key, updated balances).
+    private async void OnFormPosted()
+    {
+        var form = CurrentForm;
+        if (form?.SavedTransaction is not { } saved)
         {
             return;
         }
-
-        if (kind == TransactionFormKind.InterbankTransfer && !await EnsureBanksLoadedAsync(isRequired: true))
-        {
-            return;
-        }
-
-        // NRC transfers are collected at one of our branches (required) or at another bank (optional choice).
-        if (kind == TransactionFormKind.NrcTransfer
-            && (!await EnsureBranchesLoadedAsync() || !await EnsureBanksLoadedAsync(isRequired: false)))
-        {
-            return;
-        }
-
-        var form = new TransactionFormViewModel(_transactionService, kind, accounts, _banks, _branches);
-        if (!_dialogService.ShowDialog(form))
-        {
-            return;
-        }
-
-        var saved = form.SavedTransaction!;
-
-        // The code exists only in this response; show it before anything else so it cannot be missed.
-        if (kind == TransactionFormKind.NrcTransfer)
-        {
-            _dialogService.ShowDialog(new NrcPickupCodeViewModel(saved, form.ReceiverName.Trim(), form.PickupLocationText));
-        }
-
-        await ReloadAsync(TransactionListViewModel.FirstPageNumber, CancellationToken.None);
 
         var outcome = saved.TransactionStatus == TransactionStatus.Pending
             ? MessageCode.TransactionSubmittedSuccessfully
             : MessageCode.TransactionCompletedSuccessfully;
+        ErrorMessage = string.Empty;
         SuccessMessage = $"{MessageCatalog.GetMessage(outcome)} {DescribeTransaction(saved)}";
+
+        // The code exists only in this response; show it before anything else so it cannot be missed.
+        if (form.Kind == TransactionFormKind.NrcTransfer)
+        {
+            _dialogService.ShowDialog(new NrcPickupCodeViewModel(saved, form.ReceiverName.Trim(), form.PickupLocationText));
+        }
+
+        await OpenFormAsync(form.Kind, keepMessages: true);
     }
 
-    // Loads the full record and shows it; the card can continue to an account statement.
-    private async Task ShowDetailsAsync(object? parameter)
+    // async void is intentional: an event handler; the officer starts over with an empty form.
+    private async void OnFormClearRequested()
     {
-        if (parameter is not TransactionDisplayModel row)
+        if (CurrentForm is { } form)
         {
-            return;
-        }
-
-        ClearMessages();
-
-        var transaction = await GetTransactionDetailAsync(row.Id);
-        if (transaction is not null)
-        {
-            ErrorMessage = await _detailsLauncher.ShowAsync(transaction) ?? string.Empty;
-        }
-    }
-
-    // Loads the transfer to see where it is collected. At our branch: the pickup form (receiver's NRC, code, cash or
-    // account). At another bank: record that bank's payout. Then reloads and confirms.
-    private async Task PickUpNrcTransferAsync(object? parameter)
-    {
-        if (parameter is not TransactionDisplayModel { IsPendingNrcTransfer: true } row)
-        {
-            return;
-        }
-
-        ClearMessages();
-
-        var transfer = await GetTransactionDetailAsync(row.Id);
-        if (transfer?.NrcTransfer is null)
-        {
-            return;
-        }
-
-        if (transfer.NrcTransfer.DeliveryType == TransactionFieldRules.NrcDeliveryAtOtherBank)
-        {
-            await FinishPendingTransferAsync(row, PendingTransferAction.RecordNrcPayout);
-            return;
-        }
-
-        var accounts = await LoadAccountOptionsAsync();
-        if (accounts is null)
-        {
-            return;
-        }
-
-        var form = new NrcPickupFormViewModel(_transactionService, transfer, accounts);
-        var completed = _dialogService.ShowDialog(form);
-
-        // Reload even when cancelled: wrong codes may have blocked the transfer meanwhile.
-        await ReloadAsync(List.Page, CancellationToken.None);
-
-        if (completed)
-        {
-            SuccessMessage = $"{MessageCatalog.GetMessage(MessageCode.TransactionCompletedSuccessfully)} "
-                + $"{row.TransactionNo} was picked up: {TransactionDisplay.FormatMoney(row.Amount)} "
-                + (form.IsPaidInCash ? "paid out in cash." : $"paid into {form.DestinationAccount!.AccountNo}.");
-        }
-    }
-
-    // Cancels an NRC transfer or records an interbank result, then reloads and confirms.
-    private async Task FinishPendingTransferAsync(object? parameter, PendingTransferAction action)
-    {
-        if (parameter is not TransactionDisplayModel row)
-        {
-            return;
-        }
-
-        ClearMessages();
-
-        var form = new PendingTransferActionViewModel(_transactionService, row, action);
-        if (!_dialogService.ShowDialog(form))
-        {
-            return;
-        }
-
-        await ReloadAsync(List.Page, CancellationToken.None);
-
-        SuccessMessage = action switch
-        {
-            PendingTransferAction.CompleteInterbankTransfer =>
-                $"{MessageCatalog.GetMessage(MessageCode.InterbankTransferSettledSuccessfully)} {row.TransactionNo}.",
-            PendingTransferAction.RecordNrcPayout =>
-                $"{MessageCatalog.GetMessage(MessageCode.TransactionCompletedSuccessfully)} {row.TransactionNo} was paid out by the other bank.",
-            _ => $"{MessageCatalog.GetMessage(MessageCode.TransactionRefundedSuccessfully)} Refund {form.Result!.TransactionNo}."
-        };
-    }
-
-    // Loads the accounts that can take part in a transaction; on failure shows the error and returns null.
-    private async Task<IReadOnlyList<AccountOption>?> LoadAccountOptionsAsync()
-    {
-        try
-        {
-            var accounts = await _accountService.GetAccountsAsync(CancellationToken.None);
-
-            return accounts.Where(AccountOption.IsUsable).Select(AccountOption.FromResponse).ToList();
-        }
-        catch (AppException exception)
-        {
-            ErrorMessage = exception.Message;
-            return null;
+            await OpenFormAsync(form.Kind, keepMessages: false);
         }
     }
 
@@ -320,15 +249,7 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     {
         if (_branches.Count == 0)
         {
-            try
-            {
-                _branches = await _transactionService.GetBranchesAsync(CancellationToken.None);
-            }
-            catch (AppException exception)
-            {
-                ErrorMessage = exception.Message;
-                return false;
-            }
+            _branches = await _transactionService.GetBranchesAsync(CancellationToken.None);
         }
 
         if (_branches.Count == 0)
@@ -346,15 +267,7 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     {
         if (_banks.Count == 0)
         {
-            try
-            {
-                _banks = await _transactionService.GetOtherBanksAsync(CancellationToken.None);
-            }
-            catch (AppException exception)
-            {
-                ErrorMessage = exception.Message;
-                return false;
-            }
+            _banks = await _transactionService.GetOtherBanksAsync(CancellationToken.None);
         }
 
         if (_banks.Count == 0 && isRequired)
@@ -364,20 +277,6 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
         }
 
         return true;
-    }
-
-    // Loads one transaction; on failure shows the error and returns null.
-    private async Task<TransactionDetailResponse?> GetTransactionDetailAsync(long transactionId)
-    {
-        try
-        {
-            return await _transactionService.GetTransactionByIdAsync(transactionId, CancellationToken.None);
-        }
-        catch (AppException exception)
-        {
-            ErrorMessage = exception.Message;
-            return null;
-        }
     }
 
     // e.g. "Cash deposit TXN2026… · MMK 10,000.00."

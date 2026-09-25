@@ -53,25 +53,31 @@ envelope like every other endpoint, so the WPF `ApiClient` can read them.
 
 ## WPF transaction screens
 
-- Pages: `TransactionsViewModel` / `Views/Pages/TransactionsView` (officers: post, finish pending transfers) and
-  `TransactionHistoryViewModel` / `TransactionHistoryView` (auditors: read-only). Both compose the same components
-  from `ViewModels/Pages/Transactions`: `TransactionFilterViewModel` (filter bar, `Views/.../TransactionFilterBar`)
-  and `TransactionListViewModel` (one page of rows + pager, `TransactionPager`; a newer load cancels an older one).
+- Sidebar: **Transactions** (permission `transactions`) and **Transaction History** (`transactions` or
+  `transaction_history`, so officers and auditors both see it).
+- `TransactionsViewModel` / `Views/Pages/TransactionsView` (officers): one tab per posting kind
+  (`TransactionTabViewModel`, `Tab` / `Tab.Strip` styles in `Themes/Controls/Tabs.xaml`). The selected tab shows
+  `TransactionFormViewModel` inline (`TransactionFormView`): one form for deposit, withdrawal, internal, interbank and
+  NRC transfer, `TransactionFormKind` picks the visible fields. Opening a tab loads fresh balances; after a posting
+  (`Posted`) the page shows the outcome banner and puts a fresh form in place (new idempotency key, so a retry of the
+  same form never posts twice); `Clear` starts over. A new NRC transfer's pickup code is still shown once in the
+  `NrcPickupCodeViewModel` dialog so it cannot be missed.
+- `TransactionHistoryViewModel` / `TransactionHistoryView`: the filterable, paged table
+  (`TransactionFilterViewModel` + `TransactionFilterBar`, `TransactionListViewModel` + `TransactionPager`; a newer
+  load cancels an older one), the detail card and account statements. Officers (`CanManagePendingTransfers`) also get
+  an Actions column on pending transfers; auditors do not (the column binds through `Behaviors/BindingProxy`).
 - Dialogs (templates in `Views/DialogTemplates.xaml`):
-  - `TransactionFormViewModel`: one form for deposit, withdrawal, internal, interbank and NRC transfer
-    (`TransactionFormKind` picks the visible fields). Each form instance has its own idempotency key, so a retry
-    of the same form never posts twice.
-  - `NrcPickupCodeViewModel`: shows a new NRC transfer's pickup code once.
   - `NrcPickupFormViewModel`: pickup at our branch: shows the receiver's name and NRC to check, takes the code,
     pays out in cash or into the receiver's account.
   - `PendingTransferActionViewModel`: cancel an NRC transfer, record another bank's NRC payout, or mark an interbank
     transfer settled / failed. The pending-NRC row action opens the pickup form or the payout form depending on where
     the transfer is collected.
   - `TransactionDetailsViewModel`: read-only detail card (entries, NRC or interbank detail). Each entry has a
-    Statement button; `TransactionDetailsLauncher` (used by both pages) then opens `AccountStatementViewModel`:
-    the account's entries with balance after each, a date range and the shared pager.
+    Statement button; `TransactionDetailsLauncher` then opens `AccountStatementViewModel`: the account's entries with
+    balance after each, a date range and the shared pager.
 - Services: `ITransactionService` / `TransactionService` (`api/transactions`, sends `Idempotency-Key` through
-  `ApiClient.PostAsync(..., headers, ...)`) and `IAccountService` / `AccountService` (account pickers).
+  `ApiClient.PostAsync(..., headers, ...)`) and `IAccountService` / `AccountService` (account pickers, loaded through
+  `AccountOption.LoadUsableAsync`).
 - Shared helpers: `Api/QueryString` (list filters, also used by `UserService`), `Utils/TransactionDisplay` (type /
   status names and MMK amounts), `ViewModels/FieldError` (per-field error for forms with many fields),
   `Constants/TransactionFieldRules` (client copy of the server limits), and the `Badge.TransactionStatus` /
