@@ -102,6 +102,11 @@ builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
 builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
 builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<LedgerPostingService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
+builder.Services.AddScoped<INrcTransferService, NrcTransferService>();
+builder.Services.AddScoped<ITransactionQueryService, TransactionQueryService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
@@ -163,6 +168,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
+    await BranchSeeder.SeedBranchesAsync(dbContext);
 }
 
 app.Run();

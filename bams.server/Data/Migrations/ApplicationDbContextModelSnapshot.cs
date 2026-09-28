@@ -875,6 +875,39 @@ namespace bams.server.Data.Migrations
                     b.ToTable("InterestAccruals");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Organization.Branch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Branches");
+                });
+
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
                 {
                     b.Property<long>("Id")
@@ -1341,8 +1374,16 @@ namespace bams.server.Data.Migrations
                     b.Property<long?>("DestinationAccountId")
                         .HasColumnType("bigint");
 
+                    b.Property<int>("FailedPickupAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("PickupBranchId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("PickupCodeHash")
                         .HasMaxLength(256)
@@ -1350,6 +1391,9 @@ namespace bams.server.Data.Migrations
 
                     b.Property<DateTime?>("PickupExpiresAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("PickupOtherBankId")
+                        .HasColumnType("bigint");
 
                     b.Property<long?>("PickupVerifiedBy")
                         .HasColumnType("bigint");
@@ -1394,6 +1438,10 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("DestinationAccountId");
 
+                    b.HasIndex("PickupBranchId");
+
+                    b.HasIndex("PickupOtherBankId");
+
                     b.HasIndex("PickupVerifiedBy");
 
                     b.HasIndex("TransactionId")
@@ -1428,6 +1476,10 @@ namespace bams.server.Data.Migrations
                     b.Property<decimal>("FeeAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
 
                     b.Property<long>("InitiatedBy")
                         .HasColumnType("bigint");
@@ -1465,6 +1517,9 @@ namespace bams.server.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorizedBy");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
 
                     b.HasIndex("InitiatedBy");
 
@@ -1913,6 +1968,16 @@ namespace bams.server.Data.Migrations
                         .HasForeignKey("DestinationAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("bams.server.Models.Organization.Branch", "PickupBranch")
+                        .WithMany()
+                        .HasForeignKey("PickupBranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("bams.server.Models.External.OtherBank", "PickupOtherBank")
+                        .WithMany()
+                        .HasForeignKey("PickupOtherBankId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("bams.server.Models.Security.User", "PickupVerifiedByUser")
                         .WithMany()
                         .HasForeignKey("PickupVerifiedBy")
@@ -1925,6 +1990,10 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("DestinationAccount");
+
+                    b.Navigation("PickupBranch");
+
+                    b.Navigation("PickupOtherBank");
 
                     b.Navigation("PickupVerifiedByUser");
 

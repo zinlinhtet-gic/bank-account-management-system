@@ -9,11 +9,15 @@ public enum MessageCode
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
     AccountCreatedSuccessfully = 1100,
+    TransactionCompletedSuccessfully = 1200,
+    TransactionSubmittedSuccessfully = 1201,
+    TransactionRefundedSuccessfully = 1202,
+    InterbankTransferSettledSuccessfully = 1203,
     AccountStatusUpdatedSuccessfully = 1101,
     AccountBalanceUpdatedSuccessfully = 1102,
     AccountHoldersUpdatedSuccessfully = 1103,
     FixedDepositUpdatedSuccessfully = 1104,
-    CustomerCreatedSuccessfully = 1200,
+    CustomerCreatedSuccessfully = 1300,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -31,6 +35,8 @@ public enum MessageCode
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
     OpeningBalanceInvalid = 3102,
+    SameSourceAndDestinationAccount = 3300,
+    InvalidPickupCode = 3301,
     HolderAlreadyHasActiveAccount = 3103,
     SharedAccountRequiresTwoHolders = 3104,
     SharedAccountRequiresTwoOwnershipPercentages = 3105,
@@ -78,6 +84,9 @@ public enum MessageCode
     CustomerNotFound = 4202,
     AccountTypeNotFound = 4203,
     UserNotFound = 4204,
+    TransactionNotFound = 4240,
+    OtherBankNotFound = 4241,
+    BranchNotFound = 4242,
     FixedDepositNotFound = 4205,
     InterestRateRuleNotFound = 4206,
     PayoutAccountNotFound = 4207,
@@ -86,6 +95,22 @@ public enum MessageCode
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    IdempotencyKeyReused = 4330,
+
+    // Business Rules: 4400 - 4499
+    BusinessRuleViolation = 4400,
+    InsufficientBalance = 4440,
+    AccountNotOperational = 4441,
+    PickupCodeExpired = 4442,
+    TransactionNotPendingPickup = 4443,
+    WithdrawalNotAllowed = 4444,
+    TransferNotAllowed = 4445,
+    MinimumBalanceRequired = 4446,
+    DailyTransactionLimitExceeded = 4447,
+    MonthlyTransactionLimitExceeded = 4448,
+    PickupAttemptsExceeded = 4449,
+    TransactionNotPending = 4450,
+    NrcPickupLocationMismatch = 4451,
     CustomerNrcAlreadyExists = 4307,
 
     // Conflict: 4300 - 4399
