@@ -8,4 +8,6 @@ public static class AuditConstants
     public const string AccountHoldersUpdatedAction = "AccountHoldersUpdated";
     public const string FixedDepositCreatedAction = "FixedDepositCreated";
     public const string FixedDepositUpdatedAction = "FixedDepositUpdated";
+    public const string ScheduledFinancialAccruedAction = "ScheduledFinancialAccrued";
+    public const string ScheduledFinancialPostedAction = "ScheduledFinancialPosted";
 }

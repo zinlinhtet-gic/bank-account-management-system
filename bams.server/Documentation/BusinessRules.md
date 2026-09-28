@@ -98,4 +98,7 @@
 
 - Jobs are registered in code by stable key and a reusable interval or monthly schedule, then synchronized to `ScheduledJobs` at startup.
 - Each attempt is recorded in `ScheduledJobExecutions`; failures include bounded exception details. Jobs retry up to `Jobs:MaximumAttempts`, then retain `Failed` as their latest status and proceed to the next recurrence.
+- Account maintenance and interest accumulation run at 00:00 Asia/Rangoon on the fifth day of each month. They process accounts in batches and persist monthly accruals idempotently.
+- Saving maintenance fees accrue monthly and are deducted after calendar quarter close; dormant penalties are accrued and deducted monthly. Saving and active fixed-deposit interest accrue monthly and are credited quarterly. Monthly accruals and balance postings each create account transaction entries, balanced General Ledger entries, and audit records.
+- Scheduled account operations use effective product fee and interest rules. Missing/invalid rules fail the affected account and are recorded by the scheduled-job retry workflow. Seeded demo saving fees are 1,000 MMK monthly and dormant penalties are 5,000 MMK monthly.
 - Database lease tokens and heartbeats ensure only one application instance owns a running occurrence. Missed interval occurrences are skipped; the next interval is aligned to the UTC interval boundary.

@@ -33,6 +33,8 @@ Controllers handle routing, binding, authorization attributes, and response enve
 
 `JobsHostedService` polls registered schedules and delegates work to scoped service functions through `JobsOperationService`. Job definitions and execution attempts persist in `ScheduledJobs` and `ScheduledJobExecutions`; execution rows record running, succeeded, failed, or cancelled attempts and error details. Database leases prevent multiple server instances from executing the same occurrence concurrently.
 
+The monthly account maintenance and interest accumulation handlers run on day 5 at Myanmar midnight and page through product-category account batches. `ScheduledFinancialPostingService` records accrual and settlement transactions, balanced ledger entries, account transactions, and system-attributed audit records atomically.
+
 Register an existing service method directly in `Program.cs`:
 
 ```csharp

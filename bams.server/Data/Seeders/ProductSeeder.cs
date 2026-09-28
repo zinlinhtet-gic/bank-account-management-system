@@ -1,5 +1,9 @@
 using bams.server.Models.Customers;
+using bams.server.Models.Accounting;
 using bams.server.Models.Products;
+using bams.server.Models.Security;
+using bams.server.Utils.Security;
+using bams.server.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Data.Seeders;
@@ -18,10 +22,15 @@ public sealed class ProductSeeder
     ];
 
     private readonly ApplicationDbContext _dbContext;
+    private readonly InterestRateRuleSeeder _interestRateRuleSeeder;
+    private readonly FeeRuleSeeder _feeRuleSeeder;
 
-    public ProductSeeder(ApplicationDbContext dbContext)
+    public ProductSeeder(ApplicationDbContext dbContext,
+        InterestRateRuleSeeder interestRateRuleSeeder, FeeRuleSeeder feeRuleSeeder)
     {
         _dbContext = dbContext;
+        _interestRateRuleSeeder = interestRateRuleSeeder;
+        _feeRuleSeeder = feeRuleSeeder;
     }
 
     /// <summary>
@@ -46,7 +55,7 @@ public sealed class ProductSeeder
         var productCodes = products.Select(product => product.Code).ToArray();
         var persistedProducts = await _dbContext.AccountTypes
             .Where(accountType => productCodes.Contains(accountType.Code))
-            .Select(accountType => new { accountType.Id, accountType.Code })
+            .Select(accountType => new PersistedProduct(accountType.Id, accountType.Code, accountType.Category))
             .ToListAsync(cancellationToken);
         var persistedProductIds = persistedProducts
             .Select(product => product.Id)
@@ -78,77 +87,62 @@ public sealed class ProductSeeder
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        await SeedInterestRateRulesAsync(
+        await _interestRateRuleSeeder.SeedAsync(
             persistedProducts.ToDictionary(product => product.Code, product => product.Id),
             cancellationToken);
+        await _feeRuleSeeder.SeedAsync(
+            persistedProducts.Select(product => (product.Id, product.Category)).ToArray(),
+            cancellationToken);
+        await SeedScheduledOperationLedgerAccountsAsync(cancellationToken);
+        await SeedScheduledJobActorAsync(cancellationToken);
     }
 
-    // Adds missing demo rates by product, term, and balance band without overwriting configured rules.
-    private async Task SeedInterestRateRulesAsync(
-        IReadOnlyDictionary<string, long> productIdsByCode,
-        CancellationToken cancellationToken)
+    private async Task SeedScheduledOperationLedgerAccountsAsync(CancellationToken cancellationToken)
     {
-        var accountTypeIds = productIdsByCode.Values.ToArray();
-        var existingRules = await _dbContext.InterestRateRules
-            .Where(rule => accountTypeIds.Contains(rule.AccountTypeId))
-            .Select(rule => new
-            {
-                rule.AccountTypeId,
-                rule.TermDays,
-                rule.TermMonths,
-                rule.BalanceMin,
-                rule.BalanceMax
-            })
-            .ToListAsync(cancellationToken);
-        var existingKeys = existingRules
-            .Select(rule => (rule.AccountTypeId, rule.TermDays, rule.TermMonths, rule.BalanceMin, rule.BalanceMax))
-            .ToHashSet();
-        var effectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow);
-        var missingRules = CreateInterestRateRuleSeeds()
-            .Select(seed =>
-            {
-                var accountTypeId = productIdsByCode[seed.AccountTypeCode];
-                var key = (accountTypeId, seed.TermDays, seed.TermMonths, (decimal?)null, (decimal?)null);
-                return (Seed: seed, AccountTypeId: accountTypeId, Key: key);
-            })
-            .Where(item => !existingKeys.Contains(item.Key))
-            .Select(item => new InterestRateRule
-            {
-                AccountTypeId = item.AccountTypeId,
-                TermDays = item.Seed.TermDays,
-                TermMonths = item.Seed.TermMonths,
-                AnnualRate = item.Seed.AnnualRate,
-                EffectiveFrom = effectiveFrom,
-                Status = ActiveStatus
-            })
-            .ToList();
+        var accounts = new[]
+        {
+            new GlAccount { Code = "1101", Name = "Maintenance Fee Receivable", AccountClass = GlAccountClass.Asset, Status = ActiveStatus },
+            new GlAccount { Code = "1102", Name = "Dormant Penalty Receivable", AccountClass = GlAccountClass.Asset, Status = ActiveStatus },
+            new GlAccount { Code = "2001", Name = "Customer Deposit Liabilities", AccountClass = GlAccountClass.Liability, Status = ActiveStatus },
+            new GlAccount { Code = "2101", Name = "Interest Payable", AccountClass = GlAccountClass.Liability, Status = ActiveStatus },
+            new GlAccount { Code = "6001", Name = "Interest Expense", AccountClass = GlAccountClass.Expense, Status = ActiveStatus },
+            new GlAccount { Code = "4001", Name = "Maintenance Fee Income", AccountClass = GlAccountClass.Income, Status = ActiveStatus },
+            new GlAccount { Code = "4002", Name = "Dormant Account Penalty Income", AccountClass = GlAccountClass.Income, Status = ActiveStatus }
+        };
+        var codes = accounts.Select(account => account.Code).ToArray();
+        var existingCodes = await _dbContext.GlAccounts
+            .Where(account => codes.Contains(account.Code))
+            .Select(account => account.Code)
+            .ToHashSetAsync(cancellationToken);
+        var missingAccounts = accounts.Where(account => !existingCodes.Contains(account.Code)).ToArray();
+        if (missingAccounts.Length > 0)
+        {
+            await _dbContext.GlAccounts.AddRangeAsync(missingAccounts, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
 
-        if (missingRules.Count == 0)
+    private async Task SeedScheduledJobActorAsync(CancellationToken cancellationToken)
+    {
+        var username = ScheduledJobConstants.SystemActorUsername;
+        if (await _dbContext.Users.AnyAsync(user => user.Username == username, cancellationToken))
         {
             return;
         }
 
-        await _dbContext.InterestRateRules.AddRangeAsync(missingRules, cancellationToken);
+        var now = DateTime.UtcNow;
+        _dbContext.Users.Add(new User
+        {
+            Username = username,
+            Email = "system-scheduled-jobs@invalid.local",
+            FullName = "Scheduled Jobs",
+            PasswordHash = PasswordHasher.HashPassword(Guid.NewGuid().ToString("N")),
+            Status = UserStatus.Disabled,
+            OnlineStatus = OnlineStatus.Inactive,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
         await _dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    // Keeps the requested demo rates as annual percentages and leaves Current without a rule.
-    private static IReadOnlyList<InterestRateRuleSeed> CreateInterestRateRuleSeeds()
-    {
-        return
-        [
-            new("NORMAL_SAVING", null, null, 6.5m),
-            new("SPECIAL_SAVING", null, null, 8m),
-            new("NORMAL_DEPOSIT", null, 1, 8.5m),
-            new("NORMAL_DEPOSIT", null, 3, 9m),
-            new("NORMAL_DEPOSIT", null, 6, 9.5m),
-            new("NORMAL_DEPOSIT", null, 12, 10m),
-            new("SPECIAL_DEPOSIT", null, 1, 9m),
-            new("SPECIAL_DEPOSIT", null, 3, 9.5m),
-            new("SPECIAL_DEPOSIT", null, 6, 10m),
-            new("SPECIAL_DEPOSIT", null, 12, 10.5m),
-            new("HUNDRED_DAYS_DEPOSIT", 100, null, 9.25m)
-        ];
     }
 
     // Defines the initial account products independently from EF model configuration.
@@ -196,9 +190,5 @@ public sealed class ProductSeeder
         };
     }
 
-    private sealed record InterestRateRuleSeed(
-        string AccountTypeCode,
-        int? TermDays,
-        int? TermMonths,
-        decimal AnnualRate);
+    private sealed record PersistedProduct(long Id, string Code, AccountTypeCategory Category);
 }

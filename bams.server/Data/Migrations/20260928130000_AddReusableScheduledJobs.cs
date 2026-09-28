@@ -29,7 +29,7 @@ public sealed class AddReusableScheduledJobs : Migration
                 IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
                 NextRunAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                 PendingScheduledAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                LeaseToken = table.Column<string>(type: "char(36)", maxLength: 36, nullable: true),
+                LeaseToken = table.Column<string>(type: "varchar(36)", maxLength: 36, nullable: true),
                 LeaseUntilUtc = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                 LastRunAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                 Status = table.Column<string>(type: "varchar(24)", maxLength: 24, nullable: false),
@@ -71,11 +71,11 @@ public sealed class AddReusableScheduledJobs : Migration
             column: "JobKey",
             unique: true);
         migrationBuilder.CreateIndex(
-            name: "IX_ScheduledJobs_IsEnabled_NextRunAtUtc_LeaseUntilUtc",
+            name: "IX_SJobs_IsEnabled_NextAtUtc_LeaseUtc",
             table: "ScheduledJobs",
             columns: new[] { "IsEnabled", "NextRunAtUtc", "LeaseUntilUtc" });
         migrationBuilder.CreateIndex(
-            name: "IX_ScheduledJobExecutions_ScheduledJobId_ScheduledForUtc_AttemptNumber",
+            name: "IX_SJobExecutions_SJId_SUtc_Attempt",
             table: "ScheduledJobExecutions",
             columns: new[] { "ScheduledJobId", "ScheduledForUtc", "AttemptNumber" },
             unique: true);

@@ -15,7 +15,7 @@ public sealed class ScheduledJobConfiguration : IEntityTypeConfiguration<Schedul
         builder.Property(job => job.TimeZoneId).IsRequired().HasMaxLength(100);
         builder.Property(job => job.LocalTime).HasColumnType("time(6)");
         builder.Property(job => job.Status).HasConversion<string>().HasMaxLength(24);
-        builder.Property(job => job.LeaseToken).HasColumnType("char(36)").HasMaxLength(36);
+        builder.Property(job => job.LeaseToken).HasColumnType("varchar(36)").HasMaxLength(36);
         builder.HasIndex(job => job.JobKey).IsUnique();
         builder.HasIndex(job => new { job.IsEnabled, job.NextRunAtUtc, job.LeaseUntilUtc });
     }
