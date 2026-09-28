@@ -19,5 +19,12 @@ public static class ApiConstants
     public const string UserRolesEndpoint = UsersEndpoint + "/roles";
     public const string ResetPasswordSegment = "reset-password";
 
+    // Other Banks
+    public const string OtherBanksEndpoint = "api/other-banks";
+
+    // Interest Rate. Routes with an id: $"{InterestRatesEndpoint}/{id}" (update).
+    public const string InterestRatesEndpoint = "api/interest-rates";
+    public const string InterestRateAccountTypesEndpoint = InterestRatesEndpoint + "/account-types";
+
     public const string BearerScheme = "Bearer";
 }

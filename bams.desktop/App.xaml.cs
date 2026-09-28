@@ -56,6 +56,12 @@ public partial class App : Application
         services.AddTransient<ViewModels.Pages.Users.UserFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Users.UserListViewModel>();
 
+        // Other Banks (view only)
+        services.AddSingleton<Services.IOtherBankService, Services.OtherBankService>();
+
+        // Interest Rate
+        services.AddSingleton<Services.IInterestRateService, Services.InterestRateService>();
+
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<ChangePasswordViewModel>();

@@ -86,6 +86,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOtherBankService, OtherBankService>();
+builder.Services.AddScoped<IInterestRateService, InterestRateService>();
 
 var app = builder.Build();
 
@@ -115,6 +117,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await OtherBankSeeder.SeedAsync(dbContext);
+    await AccountTypeSeeder.SeedAsync(dbContext);
 }
 
 app.Run();

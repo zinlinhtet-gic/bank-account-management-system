@@ -9,6 +9,8 @@ public enum MessageCode
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
     AccountCreatedSuccessfully = 1100,
+    InterestRateCreatedSuccessfully = 1400,
+    InterestRateUpdatedSuccessfully = 1401,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -26,6 +28,7 @@ public enum MessageCode
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
     OpeningBalanceInvalid = 3102,
+    InterestRateBalanceRangeInvalid = 3400,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -43,6 +46,7 @@ public enum MessageCode
     AccountNotFound = 4201,
     AccountTypeNotFound = 4203,
     UserNotFound = 4204,
+    InterestRateRuleNotFound = 4250,
 
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
