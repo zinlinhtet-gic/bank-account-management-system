@@ -28,6 +28,34 @@ Controllers handle routing, binding, authorization attributes, and response enve
 - `FixedDepositService` owns fixed-deposit creation, payout validation, editable instructions, principal/status lifecycle operations, maturity, and renewal.
 
 `GetAccountOpeningOptionsAsync` stays in `AccountService` as the account-opening response composer. It delegates customer resolution, product eligibility, document requirements, and payout-account queries to their focused services; its HTTP response shape is unchanged.
+
+## Scheduled jobs
+
+`JobsHostedService` polls registered schedules and delegates work to scoped service functions through `JobsOperationService`. Job definitions and execution attempts persist in `ScheduledJobs` and `ScheduledJobExecutions`; execution rows record running, succeeded, failed, or cancelled attempts and error details. Database leases prevent multiple server instances from executing the same occurrence concurrently.
+
+The monthly account maintenance and interest accumulation handlers run on day 5 at Myanmar midnight and page through product-category account batches. `ScheduledFinancialPostingService` records accrual and settlement transactions, balanced ledger entries, account transactions, and system-attributed audit records atomically.
+
+Register an existing service method directly in `Program.cs`:
+
+```csharp
+builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
+{
+    jobs.Add<ReportService>(
+        "report-every-five-minutes",
+        JobSchedule.Every(TimeSpan.FromMinutes(5)),
+        (service, cancellationToken) => service.GenerateReportAsync(cancellationToken));
+
+    jobs.Add<ReportService>(
+        "monthly-report",
+        "Monthly report",
+        JobSchedule.Monthly(1, TimeSpan.Zero, "Myanmar Standard Time"),
+        (service, execution, cancellationToken) =>
+            service.GenerateMonthlyReportAsync(execution.ScheduledForUtc, cancellationToken));
+});
+```
+
+The first overload wraps an existing function that needs cancellation only. The second also receives the scheduled occurrence and attempt number. `Jobs` configuration controls polling, lease duration, and retry behavior.
+
 User Management follows the same layers:
 
 - `UsersController` (`api/users`, `[RequirePermission(user_management)]` on the class): list, roles, get, create,

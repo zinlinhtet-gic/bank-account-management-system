@@ -12,6 +12,7 @@ using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
+using bams.server.Services.Jobs;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features;
@@ -118,10 +119,31 @@ builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAccountTransactionService, AccountTransactionService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
+builder.Services.AddScoped<IScheduledTransactionService, ScheduledTransactionService>();
+builder.Services.AddScoped<IGeneralLedgerPostingService, GeneralLedgerPostingService>();
+builder.Services.AddScoped<ScheduledFinancialPostingService>();
+builder.Services.AddScoped<AccountMaintenanceService>();
+builder.Services.AddScoped<InterestAccumulationService>();
 builder.Services.AddScoped<ProductSeeder>();
+builder.Services.AddScoped<InterestRateRuleSeeder>();
+builder.Services.AddScoped<FeeRuleSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
+{
+    var monthlyAtMyanmarMidnight = JobSchedule.Monthly(5, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
+    jobs.Add<AccountMaintenanceService>(
+        "account-maintenance",
+        "Account Maintenance",
+        monthlyAtMyanmarMidnight,
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+    jobs.Add<InterestAccumulationService>(
+        "interest-accumulation",
+        "Interest Accumulation",
+        monthlyAtMyanmarMidnight,
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+});
 
 var app = builder.Build();
 

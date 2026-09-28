@@ -13,5 +13,8 @@ public enum TransactionType
     Penalty = 9,
     FdMaturity = 10,
     FdEarlyWithdrawal = 11,
-    Reversal = 12
+    Reversal = 15,
+    InterestAccrual = 12,
+    MaintenanceAccrual = 13,
+    DormantPenaltyAccrual = 14
 }

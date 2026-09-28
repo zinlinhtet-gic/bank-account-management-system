@@ -3,6 +3,7 @@ using bams.server.DTO.Accounts;
 using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
+using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,5 +57,20 @@ public sealed class AccountTransactionService : IAccountTransactionService
         CancellationToken cancellationToken)
     {
         // Create a new account transaction for the account opening
+    }
+
+    public async Task RecordScheduledTransactionAsync(Transaction transaction, Account account, decimal beforeLedger,
+        decimal beforeAvailable, decimal afterLedger, decimal afterAvailable, decimal amount,
+        EntryType entryType, DateOnly effectiveDate, string description, string status, DateTime createdAt,
+        CancellationToken cancellationToken)
+    {
+        await _dbContext.AccountTransactions.AddAsync(new AccountTransaction
+        {
+            TransactionId = transaction.Id, AccountId = account.Id, EntryType = entryType, Amount = amount,
+            LedgerBalanceBefore = beforeLedger, LedgerBalanceAfter = afterLedger,
+            AvailableBalanceBefore = beforeAvailable, AvailableBalanceAfter = afterAvailable,
+            ValueDate = effectiveDate, PostingDate = effectiveDate, Description = description,
+            ReferenceNo = transaction.ReferenceNo, Status = status, CreatedAt = createdAt
+        }, cancellationToken);
     }
 }
