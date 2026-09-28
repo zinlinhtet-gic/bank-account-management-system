@@ -47,6 +47,9 @@ public enum MessageCode
     // Not Found: 4200 - 4299
     ResourceNotFound = 4200,
     AccountTypeNotFound = 4203,
+
+    AccountNotFound = 4201,
+    CustomerNotFound = 4202,
     UserNotFound = 4204,
     InterestRateRuleNotFound = 4250,
 

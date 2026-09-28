@@ -1,4 +1,4 @@
-namespace bams.server.Models.Accounts;
+namespace bams.server.Models.Accounts.Enums;
 
 public enum AccountStatus
 {
