@@ -1306,6 +1306,225 @@ When generating or modifying code:
 
 ---
 
+## Function Responsibility and Decomposition Rules
+
+Every function must have **one clear responsibility**.
+
+A function must not contain multiple distinct jobs simply because those jobs are part of the same request or workflow.
+
+When a function needs to perform multiple meaningful operations, separate those operations into well-named private functions and let the main function coordinate them.
+
+### Required decomposition
+
+Separate logic into another function when a block of code performs a distinct responsibility, such as:
+
+- validating input
+- validating business rules
+- loading data
+- checking entity existence
+- checking state transitions
+- performing calculations
+- generating identifiers or numbers
+- modifying an entity
+- creating related entities
+- writing audit records
+- building a response
+- executing a distinct database operation
+
+The main service function should describe the workflow at a high level rather than contain the implementation details of every step.
+
+For example, avoid:
+
+```csharp
+public async Task<AccountResponse> CloseAccountAsync(
+    long accountId,
+    CloseAccountRequest request,
+    CancellationToken cancellationToken)
+{
+    // Load account.
+    var account = await _dbContext.Accounts
+        .FirstOrDefaultAsync(
+            account => account.Id == accountId,
+            cancellationToken);
+
+    if (account is null)
+    {
+        throw new NotFoundException(...);
+    }
+
+    // Validate account status.
+    if (account.Status == AccountStatus.Closed)
+    {
+        throw new BusinessRuleException(...);
+    }
+
+    if (account.Balance != 0)
+    {
+        throw new BusinessRuleException(...);
+    }
+
+    // Change account state.
+    account.Status = AccountStatus.Closed;
+    account.ClosedAt = DateTime.UtcNow;
+
+    // Create audit record.
+    var auditLog = new AuditLog
+    {
+        ...
+    };
+
+    _dbContext.AuditLogs.Add(auditLog);
+
+    // Save.
+    await _dbContext.SaveChangesAsync(cancellationToken);
+
+    // Build response.
+    return new AccountResponse
+    {
+        ...
+    };
+}
+```
+
+Prefer:
+
+```csharp
+public async Task<AccountResponse> CloseAccountAsync(
+    long accountId,
+    CloseAccountRequest request,
+    CancellationToken cancellationToken)
+{
+    var account = await GetTrackedAccountByIdAsync(
+        accountId,
+        cancellationToken);
+
+    ValidateAccountCanBeClosed(account);
+
+    ApplyAccountClosure(account);
+
+    await CreateAccountClosureAuditLogAsync(
+        account,
+        request,
+        cancellationToken);
+
+    await _dbContext.SaveChangesAsync(cancellationToken);
+
+    return BuildAccountResponse(account);
+}
+```
+
+Each extracted function must have a clear and specific responsibility:
+
+```csharp
+private void ValidateAccountCanBeClosed(Account account)
+{
+    ...
+}
+
+private void ApplyAccountClosure(Account account)
+{
+    ...
+}
+
+private async Task CreateAccountClosureAuditLogAsync(
+    Account account,
+    CloseAccountRequest request,
+    CancellationToken cancellationToken)
+{
+    ...
+}
+
+private AccountResponse BuildAccountResponse(Account account)
+{
+    ...
+}
+```
+
+### Extraction rule
+
+Extract code into a separate function when:
+
+1. The code performs a different responsibility from the surrounding code.
+2. The block can be given a meaningful responsibility-based name.
+3. The block contains a separate business rule.
+4. The block performs a separate database operation.
+5. The block performs a calculation or transformation that is conceptually independent.
+6. The block is reusable or likely to be reused.
+7. Extracting the block makes the parent function read more like a workflow.
+
+Do **not** keep unrelated responsibilities together merely to reduce the number of functions.
+
+### Coordinator methods
+
+It is acceptable for a public service method to coordinate multiple operations.
+
+A coordinator method should primarily show **what happens and in what order**.
+
+Implementation details should be delegated to focused methods.
+
+Prefer:
+
+```csharp
+ValidateRequest(request);
+
+var account = await GetTrackedAccountByIdAsync(
+    accountId,
+    cancellationToken);
+
+ValidateStatusTransition(
+    account,
+    request.Status);
+
+ApplyStatusChange(
+    account,
+    request.Status);
+
+await CreateStatusChangeAuditAsync(
+    account,
+    cancellationToken);
+
+await _dbContext.SaveChangesAsync(cancellationToken);
+
+return BuildAccountResponse(account);
+```
+
+instead of placing all validation, querying, transition rules, entity mutation, audit creation, and response mapping directly inside one large function.
+
+### Do not over-extract
+
+Do not create functions solely to reduce line count.
+
+A function does not need to be extracted when the code:
+
+- is trivial
+- belongs naturally to the current responsibility
+- would produce a meaningless wrapper
+- cannot be given a useful responsibility-based name
+
+Avoid meaningless functions such as:
+
+```csharp
+private void SetName(Account account, string name)
+{
+    account.Name = name;
+}
+```
+
+unless setting the name itself contains business rules or meaningful domain behavior.
+
+### Decision principle
+
+Do not decide whether to extract a function based only on the number of lines.
+
+Decide based on **responsibility**.
+
+A 10-line function performing three different jobs should be separated.
+
+A 30-line function performing one cohesive responsibility may remain a single function.
+
+When in doubt, prefer a small number of clearly named, responsibility-focused functions over one function containing multiple business operations.
+
+
 # 38. Architectural Rule of Thumb
 
 ```text

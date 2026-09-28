@@ -25,4 +25,17 @@ public sealed class AccountType
     public bool AllowPartialWithdrawal { get; set; }
 
     public string Status { get; set; } = string.Empty;
+
+    public long? RequiredProductId { get; set; } = null;
+    public AccountType? RequiredProduct { get; set; }
+
+    public bool IsFixedDeposit { get; set; } = false;
+
+    public bool AllowForeigner { get; set; } = true;
+
+    public bool AllowCitizen { get; set; } = true;
+
+    public int CitizenRequiredRefer { get; set; }
+
+    public int ForeignRequiredRefer { get; set; }
 }

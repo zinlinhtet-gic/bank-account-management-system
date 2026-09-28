@@ -155,6 +155,9 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("AccountTypeId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("ActiveAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<decimal>("AvailableBalance")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -166,6 +169,9 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("DormantAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FrozenAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("LastActivityAt")
@@ -187,6 +193,10 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountNo")
@@ -195,6 +205,56 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("AccountTypeId");
 
                     b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileReference")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "DocumentType")
+                        .IsUnique();
+
+                    b.ToTable("AccountDocuments");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
@@ -231,6 +291,10 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
@@ -238,6 +302,46 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("CustomerId");
 
                     b.ToTable("AccountHolders");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.AccountNumberGeneration", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AccountTypeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("GenerationPeriod")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<int>("LastSequenceNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountTypeId", "GenerationPeriod")
+                        .IsUnique();
+
+                    b.ToTable("AccountNumberGenerations");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.AccountReferer", b =>
+                {
+                    b.Property<long>("AccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("AccountId", "CustomerId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("AccountReferers");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountStatusHistory", b =>
@@ -287,6 +391,9 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)");
 
+                    b.Property<bool>("CalculateFromCurrent")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -331,14 +438,18 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.HasKey("Id");
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
 
-                    b.HasIndex("AccountId")
-                        .IsUnique();
+                    b.HasKey("Id");
 
                     b.HasIndex("InterestRateRuleId");
 
                     b.HasIndex("PayoutAccountId");
+
+                    b.HasIndex("AccountId", "StartDate", "MaturityDate")
+                        .IsUnique();
 
                     b.ToTable("FixedDeposits");
                 });
@@ -803,6 +914,16 @@ namespace bams.server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("AllowCitizen")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("AllowForeigner")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("AllowPartialWithdrawal")
                         .HasColumnType("tinyint(1)");
 
@@ -816,6 +937,11 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("varchar(40)");
 
+                    b.Property<int>("CitizenRequiredRefer")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -824,6 +950,14 @@ namespace bams.server.Data.Migrations
                     b.Property<decimal?>("DailyTransactionLimit")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ForeignRequiredRefer")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<bool>("IsFixedDeposit")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("MinimumMaintainedBalance")
                         .HasPrecision(18, 2)
@@ -842,6 +976,9 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
+                    b.Property<long?>("RequiredProductId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -852,7 +989,22 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
+                    b.HasIndex("RequiredProductId");
+
                     b.ToTable("AccountTypes");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
+                {
+                    b.Property<long>("AccountTypeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("int");
+
+                    b.HasKey("AccountTypeId", "DocumentType");
+
+                    b.ToTable("AccountTypeRequiredDocuments");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
@@ -1467,7 +1619,46 @@ namespace bams.server.Data.Migrations
                     b.Navigation("AccountType");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounts.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounts.Account", "Account")
+                        .WithMany("AccountHolders")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("bams.server.Models.Customers.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.AccountNumberGeneration", b =>
+                {
+                    b.HasOne("bams.server.Models.Products.AccountType", null)
+                        .WithMany()
+                        .HasForeignKey("AccountTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.AccountReferer", b =>
                 {
                     b.HasOne("bams.server.Models.Accounts.Account", "Account")
                         .WithMany()
@@ -1649,6 +1840,27 @@ namespace bams.server.Data.Migrations
                     b.Navigation("InterestRateRule");
 
                     b.Navigation("PostedTransaction");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
+                {
+                    b.HasOne("bams.server.Models.Products.AccountType", "RequiredProduct")
+                        .WithMany()
+                        .HasForeignKey("RequiredProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("RequiredProduct");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
+                {
+                    b.HasOne("bams.server.Models.Products.AccountType", "AccountType")
+                        .WithMany()
+                        .HasForeignKey("AccountTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccountType");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
@@ -1844,6 +2056,11 @@ namespace bams.server.Data.Migrations
                     b.Navigation("GlAccount");
 
                     b.Navigation("Transaction");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
+                {
+                    b.Navigation("AccountHolders");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.User", b =>

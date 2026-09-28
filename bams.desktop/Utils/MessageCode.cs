@@ -50,6 +50,7 @@ public enum MessageCode
     // Not Found: 4200 - 4299
     ResourceNotFound = 4200,
     AccountNotFound = 4201,
+    CustomerNotFound = 4202,
     UserNotFound = 4204,
     TransactionNotFound = 4240,
     OtherBankNotFound = 4241,
