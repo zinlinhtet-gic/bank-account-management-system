@@ -93,3 +93,9 @@
   `UserMappings.IsOnline`.
 - Self-delete is allowed, but the bank must keep one active manager: deleting the only active manager, or changing
   that manager's role, fails with `LastManagerCannotBeRemoved` (422).
+
+## Generic scheduled jobs
+
+- Jobs are registered in code by stable key and a reusable interval or monthly schedule, then synchronized to `ScheduledJobs` at startup.
+- Each attempt is recorded in `ScheduledJobExecutions`; failures include bounded exception details. Jobs retry up to `Jobs:MaximumAttempts`, then retain `Failed` as their latest status and proceed to the next recurrence.
+- Database lease tokens and heartbeats ensure only one application instance owns a running occurrence. Missed interval occurrences are skipped; the next interval is aligned to the UTC interval boundary.

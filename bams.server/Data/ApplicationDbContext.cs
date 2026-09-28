@@ -4,6 +4,7 @@ using bams.server.Models.Audit;
 using bams.server.Models.Customers;
 using bams.server.Models.External;
 using bams.server.Models.InterestFees;
+using bams.server.Models.Jobs;
 using bams.server.Models;
 using bams.server.Models.Products;
 using bams.server.Models.Security;
@@ -51,6 +52,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Interest / fees
     public DbSet<InterestAccrual> InterestAccruals => Set<InterestAccrual>();
     public DbSet<FeeAccrual> FeeAccruals => Set<FeeAccrual>();
+
+    // Scheduled jobs
+    public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
+    public DbSet<ScheduledJobExecution> ScheduledJobExecutions => Set<ScheduledJobExecution>();
 
     // External banking
     public DbSet<OtherBank> OtherBanks => Set<OtherBank>();

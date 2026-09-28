@@ -12,6 +12,7 @@ using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
+using bams.server.Services.Jobs;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features;
@@ -117,6 +118,7 @@ builder.Services.AddScoped<ProductSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScheduledJobs(builder.Configuration, _ => { });
 
 var app = builder.Build();
 

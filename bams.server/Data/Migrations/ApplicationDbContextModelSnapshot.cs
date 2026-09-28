@@ -875,6 +875,119 @@ namespace bams.server.Data.Migrations
                     b.ToTable("InterestAccruals");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("DayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<long?>("IntervalTicks")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastRunAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LeaseToken")
+                        .HasMaxLength(36)
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<TimeSpan?>("LocalTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<DateTime>("NextRunAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("PendingScheduledAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("JobKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("ScheduleType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobKey")
+                        .IsUnique();
+
+                    b.HasIndex("IsEnabled", "NextRunAtUtc", "LeaseUntilUtc");
+
+                    b.ToTable("ScheduledJobs");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJobExecution", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<DateTime>("ScheduledForUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ScheduledJobId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduledJobId", "ScheduledForUtc", "AttemptNumber")
+                        .IsUnique();
+
+                    b.ToTable("ScheduledJobExecutions");
+                });
+
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
                 {
                     b.Property<long>("Id")
@@ -1785,6 +1898,22 @@ namespace bams.server.Data.Migrations
                     b.Navigation("InterestRateRule");
 
                     b.Navigation("PostedTransaction");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJobExecution", b =>
+                {
+                    b.HasOne("bams.server.Models.Jobs.ScheduledJob", "ScheduledJob")
+                        .WithMany("Executions")
+                        .HasForeignKey("ScheduledJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScheduledJob");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
+                {
+                    b.Navigation("Executions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
