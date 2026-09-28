@@ -7,23 +7,33 @@ namespace bams.desktop.ViewModels.Pages;
 
 /// <summary>
 /// ViewModel for the Customer List page. Coordinates the <see cref="Filter"/> and <see cref="Table"/>
-/// components: a filter change reloads the table's first page.
+/// components (a filter change reloads the table's first page) and the <see cref="CreateForm"/>
+/// component (switches the page between the table and the create-customer form).
 /// </summary>
 public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
 {
     private CancellationTokenSource? _loadCancellation;
     private string _errorMessage = string.Empty;
+    private bool _isShowingCreateForm;
 
-    public CustomerListViewModel(CustomerFilterViewModel filter, CustomerTableViewModel table)
+    public CustomerListViewModel(CustomerFilterViewModel filter, CustomerTableViewModel table, CustomerCreateViewModel createForm)
     {
         // Constructors only store dependencies and create commands. No server calls here.
         Filter = filter;
         Table = table;
+        CreateForm = createForm;
 
-        // The parent coordinates its components: a filter change reloads the table.
+        // The parent coordinates its components: a filter change reloads the table, and the create
+        // form finishing (Cancel or a successful Save) switches the page back to the table.
         Filter.FiltersChanged += OnFiltersChanged;
+        CreateForm.Completed += OnCreateFormCompleted;
 
         RefreshCommand = new AsyncRelayCommand(() => ReloadFirstPageAsync(CancellationToken.None));
+        ShowCreateFormCommand = new RelayCommand(_ =>
+        {
+            CreateForm.Reset();
+            IsShowingCreateForm = true;
+        });
     }
 
     // Kept for the placeholder view; the header already shows the page name.
@@ -34,7 +44,26 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
 
     public CustomerTableViewModel Table { get; }
 
+    public CustomerCreateViewModel CreateForm { get; }
+
     public AsyncRelayCommand RefreshCommand { get; }
+
+    public RelayCommand ShowCreateFormCommand { get; }
+
+    /// <summary>True while the create-customer form replaces the table.</summary>
+    public bool IsShowingCreateForm
+    {
+        get => _isShowingCreateForm;
+        private set
+        {
+            if (SetProperty(ref _isShowingCreateForm, value))
+            {
+                OnPropertyChanged(nameof(IsShowingList));
+            }
+        }
+    }
+
+    public bool IsShowingList => !IsShowingCreateForm;
 
     public string ErrorMessage
     {
@@ -59,6 +88,14 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
     // async void is intentional: an event handler; ReloadFirstPageAsync catches every expected failure itself.
     private async void OnFiltersChanged()
     {
+        await ReloadFirstPageAsync(CancellationToken.None);
+    }
+
+    // The create form finished (Cancel, or a successful Save): show the table again, refreshing it
+    // so a newly created customer appears immediately. async void is intentional: an event handler.
+    private async void OnCreateFormCompleted(object? sender, EventArgs e)
+    {
+        IsShowingCreateForm = false;
         await ReloadFirstPageAsync(CancellationToken.None);
     }
 

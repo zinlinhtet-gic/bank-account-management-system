@@ -56,16 +56,14 @@ public enum MessageCode
     AccountNotFound = 4201,
     CustomerNotFound = 4202,
     AccountTypeNotFound = 4203,
-    CustomerDocumentNotFound = 4204,
-    KycReviewerNotFound = 4205,
-
-    // Conflict: 4300 - 4399
-    CustomerAlreadyExists = 4305,
     UserNotFound = 4204,
+    KycReviewerNotFound = 4205,
+    CustomerDocumentNotFound = 4206,
 
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    CustomerAlreadyExists = 4307,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,

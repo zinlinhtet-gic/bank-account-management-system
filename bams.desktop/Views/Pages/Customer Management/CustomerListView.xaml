@@ -1,9 +1,12 @@
-<UserControl x:Class="bams.desktop.Views.Pages.CustomerListView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:t="clr-namespace:bams.desktop.Themes">
+<UserControl x:Class="bams.desktop.Views.Pages.CustomerListView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:t="clr-namespace:bams.desktop.Themes" xmlns:pages="clr-namespace:bams.desktop.Views.Pages">
     <!--
         Customer List page. DataContext: CustomerListViewModel.
         Filter bar (Filter) → outcome banner → titled customer table (Table) with pagination.
+        "Create Customer" switches IsShowingCreateForm on, showing CreateForm (CustomerCreateView)
+        in place of the table; CreateForm.Completed switches it back. Purely declarative, no code-behind.
     -->
-    <Grid Margin="{StaticResource PagePadding}">
+    <Grid>
+    <Grid Margin="{StaticResource PagePadding}" Visibility="{Binding IsShowingList, Converter={StaticResource BooleanToVisibilityConverter}}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <!-- filter bar -->
@@ -88,7 +91,7 @@
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list" t:ThemeAssist.IsLoading="{Binding Table.IsLoading}" Command="{Binding RefreshCommand}" />
-                            <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" />
+                            <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" Command="{Binding ShowCreateFormCommand}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Customers" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />
@@ -178,5 +181,10 @@
                 </Grid>
             </DockPanel>
         </Border>
+    </Grid>
+
+        <Grid Visibility="{Binding IsShowingCreateForm, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <pages:CustomerCreateView DataContext="{Binding CreateForm}"/>
+        </Grid>
     </Grid>
 </UserControl>

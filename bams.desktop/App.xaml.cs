@@ -59,6 +59,7 @@ public partial class App : Application
         services.AddSingleton<Services.ICustomerService, Services.CustomerService>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerTableViewModel>();
+        services.AddTransient<ViewModels.Pages.Customers.CustomerCreateViewModel>();
 
         // Register ViewModels
         services.AddTransient<LoginViewModel>();

@@ -1,0 +1,403 @@
+<UserControl x:Class="bams.desktop.Views.Pages.CustomerCreateView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:t="clr-namespace:bams.desktop.Themes">
+    <!--
+        Create Customer page. DataContext: CustomerCreateViewModel.
+        Customer information card + 8 document cards; Save confirms, then calls the API and raises
+        Completed (see CustomerListViewModel), which switches the host page back to the table.
+    -->
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <!-- header -->
+            <RowDefinition Height="Auto" />
+            <!-- outcome banner -->
+            <RowDefinition Height="*" />
+            <!-- scrollable form -->
+        </Grid.RowDefinitions>
+        <!-- ===== Header ===== -->
+        <Border Style="{StaticResource Card.Caption}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Save Customer" Style="{StaticResource Button.Primary}"
+                        t:ThemeAssist.Icon="{StaticResource Icon.Check}" t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                        Command="{Binding SaveCommand}" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource Button.Icon}" ToolTip="Back to list" Margin="0,0,8,0"
+                            t:ThemeAssist.Icon="{StaticResource Icon.ChevronLeft}" Command="{Binding CancelCommand}" />
+                    <TextBlock Text="Create New Customer" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <!-- ===== Outcome banner ===== -->
+        <ContentControl Grid.Row="1" Style="{StaticResource Alert.Danger}" Content="{Binding FormError}" Margin="0,16,0,0"
+                        Visibility="{Binding HasFormError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        <ScrollViewer Grid.Row="2" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto" IsEnabled="{Binding IsNotBusy}">
+            <StackPanel>
+                <!-- ===== Customer information ===== -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Customer Information" Style="{StaticResource Text.CardTitle}" />
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <!-- Row 0: customer type, full name, date of birth -->
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="CUSTOMER TYPE"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <ComboBox Style="{StaticResource Input.Select}"
+                                          ItemsSource="{Binding CustomerTypeOptions}" DisplayMemberPath="DisplayName"
+                                          SelectedItem="{Binding SelectedCustomerType, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="FULL NAME"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Mg Mg"
+                                         Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasFullNameError}" />
+                                <TextBlock Text="{Binding FullNameError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasFullNameError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="4">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="DATE OF BIRTH"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding DateOfBirth, Mode=TwoWay}"
+                                            t:ThemeAssist.HasError="{Binding HasDateOfBirthError}" />
+                                <TextBlock Text="{Binding DateOfBirthError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasDateOfBirthError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <!-- Row 1: NRC (Citizen) or passport (Foreigner), nationality. Both stay visible; only
+                                 the one that applies is enabled and required, per SelectedCustomerType. -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0" IsEnabled="{Binding IsCitizen}">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="NRC NUMBER"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 12/AhLaNa(N)123456"
+                                         Text="{Binding NrcNumber, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasNrcNumberError}" />
+                                <TextBlock Text="{Binding NrcNumberError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasNrcNumberError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0" IsEnabled="{Binding IsForeigner}">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="PASSPORT NUMBER"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. MA1234567"
+                                         Text="{Binding PassportNumber, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasPassportNumberError}" />
+                                <TextBlock Text="{Binding PassportNumberError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasPassportNumberError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="4" Margin="0,16,0,0">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="NATIONALITY"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Myanmar"
+                                         Text="{Binding Nationality, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasNationalityError}" />
+                                <TextBlock Text="{Binding NationalityError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasNationalityError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <!-- Row 2: phone, email, occupation -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,16,0,0">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="PHONE"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 09123456789"
+                                         Text="{Binding Phone, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasPhoneError}" />
+                                <TextBlock Text="{Binding PhoneError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasPhoneError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,16,0,0">
+                                <TextBlock Text="EMAIL" Style="{StaticResource Text.FieldLabel}" />
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. mgmg@example.com"
+                                         Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="4" Margin="0,16,0,0">
+                                <TextBlock Text="OCCUPATION" Style="{StaticResource Text.FieldLabel}" />
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Engineer"
+                                         Text="{Binding Occupation, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <!-- Row 3: address lines -->
+                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,16,0,0">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="ADDRESS LINE 1"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Street, house number"
+                                         Text="{Binding AddressLine1, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasAddressLine1Error}" />
+                                <TextBlock Text="{Binding AddressLine1Error}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasAddressLine1Error, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="3" Grid.Column="4" Margin="0,16,0,0">
+                                <TextBlock Text="ADDRESS LINE 2" Style="{StaticResource Text.FieldLabel}" />
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Optional"
+                                         Text="{Binding AddressLine2, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <!-- Row 4: city, state, postal code + country -->
+                            <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,16,0,0">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="CITY"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Yangon"
+                                         Text="{Binding City, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasCityError}" />
+                                <TextBlock Text="{Binding CityError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasCityError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,16,0,0">
+                                <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="STATE / REGION"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Yangon Region"
+                                         Text="{Binding State, UpdateSourceTrigger=PropertyChanged}"
+                                         t:ThemeAssist.HasError="{Binding HasStateError}" />
+                                <TextBlock Text="{Binding StateError}" Style="{StaticResource Text.Error}"
+                                           Visibility="{Binding HasStateError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <Grid Grid.Row="4" Grid.Column="4" Margin="0,16,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="POSTAL CODE" Style="{StaticResource Text.FieldLabel}" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding PostalCode, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource Text.FieldLabel}"><Run Text="COUNTRY"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                    <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. Myanmar"
+                                             Text="{Binding Country, UpdateSourceTrigger=PropertyChanged}"
+                                             t:ThemeAssist.HasError="{Binding HasCountryError}" />
+                                    <TextBlock Text="{Binding CountryError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasCountryError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <!-- ===== Documents (8 fixed types) ===== -->
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Documents" Style="{StaticResource Text.CardTitle}" />
+                        <TextBlock Text="Attach the documents collected for KYC. Only the starred ones are required now; the rest can be added later." Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,0" />
+                        <!-- 4 equal-width columns per row (2 rows of 4), instead of a fixed pixel card width. -->
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- NRC (Citizen) / Passport (Foreigner): both stay visible; the Border's own IsEnabled
+                                 uses the parent DataContext (IsCitizen/IsForeigner), while the inner StackPanel's
+                                 DataContext switches to the matching DocumentFormViewModel for its own fields. -->
+                            <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource Card.Compact}" IsEnabled="{Binding IsCitizen}">
+                                <StackPanel DataContext="{Binding NrcDocument}">
+                                    <TextBlock Style="{StaticResource Text.Label}"><Run Text="NRC"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Passport -->
+                            <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource Card.Compact}" IsEnabled="{Binding IsForeigner}">
+                                <StackPanel DataContext="{Binding PassportDocument}">
+                                    <TextBlock Style="{StaticResource Text.Label}"><Run Text="Passport"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Visa -->
+                            <Border Grid.Row="0" Grid.Column="4" Style="{StaticResource Card.Compact}" DataContext="{Binding VisaDocument}">
+                                <StackPanel>
+                                    <TextBlock Text="Visa" Style="{StaticResource Text.Label}" />
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Household Registration -->
+                            <Border Grid.Row="0" Grid.Column="6" Style="{StaticResource Card.Compact}" DataContext="{Binding HouseholdRegistrationDocument}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource Text.Label}"><Run Text="Household Registration"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Proof of Address -->
+                            <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding ProofOfAddressDocument}">
+                                <StackPanel>
+                                    <TextBlock Text="Proof of Address" Style="{StaticResource Text.Label}" />
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Tax Document -->
+                            <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding TaxDocumentDocument}">
+                                <StackPanel>
+                                    <TextBlock Text="Tax Document" Style="{StaticResource Text.Label}" />
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Source of Funds -->
+                            <Border Grid.Row="1" Grid.Column="4" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding SourceOfFundsDocument}">
+                                <StackPanel>
+                                    <TextBlock Text="Source of Funds" Style="{StaticResource Text.Label}" />
+                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
+                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Photo: no document number or dates, just the file -->
+                            <Border Grid.Row="1" Grid.Column="6" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding PhotoDocument}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource Text.Label}"><Run Text="Photo"/><Run Text=" *" Foreground="{StaticResource DangerBrush}"/></TextBlock>
+                                    <TextBlock Text="Recent passport-sized photo." Style="{StaticResource Text.Hint}" Margin="0,4,0,0" />
+                                    <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch"
+                                            t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
+                                    <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}"
+                                               Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

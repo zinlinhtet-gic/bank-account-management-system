@@ -94,10 +94,13 @@ Codes are stable once released. The WPF client mirrors the server codes below 60
 | 4100 | AccessDenied                    | The user is not allowed to perform the operation.                              |
 | 4201 | AccountNotFound                 | The requested account does not exist.                                          |
 | 4202 | CustomerNotFound                | The requested customer does not exist.                                         |
-| 4204 | CustomerDocumentNotFound        | A document Id in an update request does not belong to the customer.            |
+| 4204 | UserNotFound                    | The requested user does not exist.                                             |
 | 4205 | KycReviewerNotFound             | The user performing a KYC review does not exist.                               |
+| 4206 | CustomerDocumentNotFound        | A document Id in an update request does not belong to the customer.            |
 | 4302 | AccountAlreadyExists            | An account conflicts with an existing account.                                 |
-| 4305 | CustomerAlreadyExists           | A customer with the same NRC number, passport number, or email already exists. |
+| 4305 | UsernameAlreadyExists           | A user with this username already exists.                                      |
+| 4306 | EmailAlreadyExists              | A user with this email already exists.                                         |
+| 4307 | CustomerAlreadyExists           | A customer with the same NRC number, passport number, or email already exists. |
 | 4400 | BusinessRuleViolation           | A business rule was violated.                                                  |
 | 5000 | InternalServerError             | An unexpected server error occurred.                                           |
 | 6000 | ClientError                     | Unexpected client-side failure.                                                |

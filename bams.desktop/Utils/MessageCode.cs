@@ -13,6 +13,7 @@ public enum MessageCode
     UserUpdatedSuccessfully = 1002,
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
+    CustomerCreatedSuccessfully = 1300,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -28,6 +29,13 @@ public enum MessageCode
     InvalidDateRange = 3011,
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
+    CustomerFullNameRequired = 3200,
+    CustomerDateOfBirthInvalid = 3201,
+    CustomerBelowMinimumAge = 3202,
+    NrcNumberRequired = 3203,
+    PassportNumberRequired = 3204,
+    CustomerDocumentFileEmpty = 3205,
+    CustomerEmailInvalid = 3206,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -42,11 +50,13 @@ public enum MessageCode
 
     // Not Found: 4200 - 4299
     ResourceNotFound = 4200,
+    CustomerNotFound = 4202,
     UserNotFound = 4204,
 
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    CustomerAlreadyExists = 4307,
 
     // Business Rules: 4400 - 4499
     LastManagerCannotBeRemoved = 4480,

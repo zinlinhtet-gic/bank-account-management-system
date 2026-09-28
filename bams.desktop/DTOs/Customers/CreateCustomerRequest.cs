@@ -1,15 +1,23 @@
 namespace bams.desktop.DTOs.Customers;
 
 /// <summary>
-/// Fields the Customer Management create form actually collects. The server's real
-/// CreateCustomerRequest has more optional fields (nationality, address, documents); they
-/// are simply omitted from the multipart request when not supplied here (all optional server-side).
+/// Mirrors the server's CreateCustomerRequest (POST /api/customers, multipart form). Every field
+/// besides CustomerType, FullName and DateOfBirth is optional, matching the server contract.
 /// </summary>
 public sealed record CreateCustomerRequest(
     CustomerType CustomerType,
     string FullName,
     DateOnly DateOfBirth,
+    string? Nationality,
     string? NrcNumber,
     string? PassportNumber,
     string? Phone,
-    string? Email);
+    string? Occupation,
+    string? AddressLine1,
+    string? AddressLine2,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? Country,
+    string? Email,
+    List<CreateCustomerDocumentRequest>? Documents);

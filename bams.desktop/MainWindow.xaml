@@ -28,7 +28,7 @@
                         <pages:UserManagementView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type pageviewmodels:CustomerListViewModel}">
-                        <pages:CustomeistView />
+                        <pages:CustomerListView />
                     </DataTemplate>
                     <!-- <DataTemplate DataType="{x:Type pageviewmodels:CustomerListViewModel}">
                         <pages:CustomerListView/>
