@@ -56,13 +56,17 @@ public partial class NavBarViewModel : ObservableObject
             AddNavItem(PageNames.TransactionHistory, "Icon.Reports");
 
         if (flags.CanAccessAccounting)
-            AddNavItem(PageNames.Accounting, "Icon.Finance");
+        {
+            AddAccountingNavigation();
+        }
 
         if (flags.CanPerformOperations)
             AddNavItem(PageNames.Operations, "Icon.Settings");
 
         if (flags.CanViewAudit)
-            AddNavItem(PageNames.Audit, "Icon.Shield");
+        {
+            AddAuditNavigation();
+        }
 
         if (flags.CanConfigureSystem)
             AddNavItem(PageNames.Configurations, "Icon.Settings");
@@ -123,5 +127,93 @@ public partial class NavBarViewModel : ObservableObject
 
         ActiveItem = item.Label;
         NavigateCommand?.Execute(item.Label);
+    }
+    /// <summary>
+    /// Adds the Accounting navigation group and its child pages.
+    /// </summary>
+    private void AddAccountingNavigation()
+    {
+        var accounting = new NavItem
+        {
+            Label = PageNames.Accounting,
+            IconKey = "Icon.Finance"
+        };
+
+        accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
+
+        accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
+
+        accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+
+        accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));
+
+        Items.Add(accounting);
+    }
+
+    /// <summary>
+    /// Adds the Audit navigation group and its child pages.
+    /// </summary>
+    private void AddAuditNavigation()
+    {
+        var audit = new NavItem
+        {
+            Label = PageNames.Audit,
+            IconKey = "Icon.Shield"
+        };
+
+        audit.Children.Add(CreateChildNavItem(PageNames.TransactionAudit));
+
+        audit.Command =new RelayCommand(_ => ToggleGroup(audit));
+
+        Items.Add(audit);
+    }
+    /// <summary>
+    /// Creates a navigation item that opens an actual page.
+    /// </summary>
+    private NavItem CreateChildNavItem(string label)
+    {
+        var item = new NavItem
+        {
+            Label = label
+        };
+
+        item.Command =
+            new RelayCommand(_ => SelectPage(item));
+
+        return item;
+    }
+    /// <summary>
+    /// Expands or collapses a parent navigation group.
+    /// </summary>
+    private static void ToggleGroup(NavItem item)
+    {
+        item.IsExpanded = !item.IsExpanded;
+    }
+    /// <summary>
+    /// Selects a child page and sends its label to the main navigation service.
+    /// </summary>
+    private void SelectPage(NavItem selectedItem)
+    {
+        foreach (var item in Items)
+        {
+            item.IsActive = false;
+
+            foreach (var child in item.Children)
+            {
+                child.IsActive =
+                    ReferenceEquals(child, selectedItem);
+
+                if (child.IsActive)
+                {
+                    item.IsActive = true;
+                    item.IsExpanded = true;
+                }
+            }
+        }
+
+        selectedItem.IsActive = true;
+        ActiveItem = selectedItem.Label;
+
+        NavigateCommand?.Execute(selectedItem.Label);
     }
 }

@@ -156,8 +156,10 @@ public sealed class MainViewModel : ViewModelBase
             return PageNames.AccountManagement;
         if (flags.CanViewTransactions)
             return PageNames.Transactions;
+        if (flags.CanAccessAccounting)
+            return PageNames.GeneralLedger;
         if (flags.CanViewAudit)
-            return PageNames.Audit;
+            return PageNames.TransactionAudit;
         
         // Fall back to the first tab the user is allowed to see, never a page they lack permission for.
         return NavBar.Items.FirstOrDefault()?.Label ?? string.Empty;
