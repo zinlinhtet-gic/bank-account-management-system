@@ -8,130 +8,94 @@ using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using bams.server.Messages;
+using System.Security.Claims;
 
 namespace bams.server.Services;
 
 public sealed class EndOfDayAuditService: IEndOfDayAuditService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public EndOfDayAuditService(
-        ApplicationDbContext dbContext)
+    public EndOfDayAuditService(ApplicationDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
         _dbContext = dbContext;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     /// <summary>
     /// Runs the complete end-of-day accounting audit,
     /// reconciliation and daily summary generation.
     /// </summary>
-    public async Task<EndOfDayAuditResult>
-        RunEndOfDayAuditAsync(
-            DateOnly auditDate,
-            CancellationToken cancellationToken)
+    public async Task<EndOfDayAuditResult>RunEndOfDayAuditAsync(DateOnly auditDate, CancellationToken cancellationToken)
     {
         // Prevent accidental duplicate EOD execution.
-        await EnsureAuditHasNotAlreadyRunAsync(
-            auditDate,
-            cancellationToken);
-
+        await EnsureAuditHasNotAlreadyRunAsync(auditDate, cancellationToken);
         /*
          * Everything after validation should be atomic.
          *
          * If reconciliation or DailySummary creation fails,
          * nothing should remain partially saved.
          */
-        await using var dbTransaction =
-            await _dbContext.Database.BeginTransactionAsync(
-                cancellationToken);
-
+        await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         // 1. Retrieve transactions occurring on the requested date.
-        var transactions =
-            await GetTransactionsForAuditDateAsync(
-                auditDate,
-                cancellationToken);
+        var transactions =await GetTransactionsForAuditDateAsync(auditDate,cancellationToken);
 
         // 2. Include only valid posted financial transactions.
         var includedTransactions = transactions
             .Where(IsValidPostedTransaction)
             .ToList();
 
-        var excludedTransactionCount =
-            transactions.Count
-            - includedTransactions.Count;
+        var excludedTransactionCount =transactions.Count - includedTransactions.Count;
 
         // 3. Classify transaction types.
         // Keep this because it corresponds to the flowchart.
-        var transactionTypeCounts =
-            ClassifyTransactions(
-                includedTransactions);
+        var transactionTypeCounts =ClassifyTransactions(includedTransactions);
 
         // 4. Retrieve the corresponding GL entries.
-        var accountingEntries =
-            await GetAccountingEntriesAsync(
-                includedTransactions,
-                auditDate,
-                cancellationToken);
+        var accountingEntries =await GetAccountingEntriesAsync(includedTransactions,auditDate, cancellationToken);
 
         // 5. Ensure each included transaction actually has GL entries.
-        var transactionsWithoutEntries =
-            GetTransactionIdsWithoutAccountingEntries(
-                includedTransactions,
-                accountingEntries);
+        var transactionsWithoutEntries = GetTransactionIdsWithoutAccountingEntries(includedTransactions, accountingEntries);
 
         if (transactionsWithoutEntries.Count > 0)
         {
-            throw new BusinessRuleException(
-                MessageCode.BusinessRuleViolation);
+            throw new BusinessRuleException(MessageCode.TransactionMissingAccountingEntries);
         }
 
         // 6. Find transaction-level debit/credit mismatches.
-        var unbalancedTransactionIds =
-            GetUnbalancedTransactionIds(
-                accountingEntries);
+        var unbalancedTransactionIds = GetUnbalancedTransactionIds(accountingEntries);
 
         if (unbalancedTransactionIds.Count > 0)
         {
-            throw new BusinessRuleException(
-                MessageCode.BusinessRuleViolation);
+            throw new BusinessRuleException(MessageCode.TransactionEntriesUnbalanced);
         }
 
         // 7. Group entries by GL account.
-        var glAccountTotals =
-            CalculateGlAccountTotals(
-                accountingEntries);
+        var glAccountTotals =CalculateGlAccountTotals(accountingEntries);
 
         // 8. Calculate total daily debit.
-        var totalDebit =
-            CalculateTotalDebit(
-                accountingEntries);
+        var totalDebit =CalculateTotalDebit(accountingEntries);
 
         // 9. Calculate total daily credit.
-        var totalCredit =
-            CalculateTotalCredit(
-                accountingEntries);
+        var totalCredit = CalculateTotalCredit(accountingEntries);
 
         // 10. Final double-entry balance check.
-        var isBalanced =
-            totalDebit == totalCredit;
+        var isBalanced =totalDebit == totalCredit;
 
         if (!isBalanced)
         {
-            throw new BusinessRuleException(
-                MessageCode.BusinessRuleViolation);
+            throw new BusinessRuleException(MessageCode.DailyAccountingUnbalanced);
         }
 
         // 11. Resolve the user performing the reconciliation.
         //
         // TEMPORARY development behavior:
         // later replace this with the authenticated auditor/current user.
-        var performedBy =
-            await GetPerformedByUserIdAsync(
-                cancellationToken);
+        var performedBy = GetPerformedByUserId();
 
         // 12. Create the reconciliation batch.
-        var reconciliationBatch =
-            await CreateReconciliationBatchAsync(
+        var reconciliationBatch =await CreateReconciliationBatchAsync(
                 auditDate,
                 totalDebit,
                 totalCredit,
@@ -139,31 +103,20 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
                 cancellationToken);
 
         // 13. Create reconciliation item records.
-        var reconciliationItems =
-            CreateReconciliationItems(
-                reconciliationBatch.Id,
-                accountingEntries);
+        var reconciliationItems =CreateReconciliationItems(reconciliationBatch.Id, accountingEntries);
 
-        _dbContext.ReconciliationItems.AddRange(
-            reconciliationItems);
+        _dbContext.ReconciliationItems.AddRange(reconciliationItems);
 
         // 14. Generate GL DailySummary records.
-        var dailySummaries =
-            await CreateDailySummariesAsync(
-                auditDate,
-                glAccountTotals,
-                cancellationToken);
+        var dailySummaries =await CreateDailySummariesAsync(auditDate,glAccountTotals,cancellationToken);
 
-        _dbContext.DailySummaries.AddRange(
-            dailySummaries);
+        _dbContext.DailySummaries.AddRange(dailySummaries);
 
         // 15. Save reconciliation items and summaries together.
-        await _dbContext.SaveChangesAsync(
-            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         // 16. Everything succeeded.
-        await dbTransaction.CommitAsync(
-            cancellationToken);
+        await dbTransaction.CommitAsync(cancellationToken);
 
         return new EndOfDayAuditResult(
             auditDate,
@@ -177,36 +130,25 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
     }
 
     // Retrieves all transactions initiated on the requested audit date.
-    private async Task<IReadOnlyList<Transaction>>
-        GetTransactionsForAuditDateAsync(
-            DateOnly auditDate,
-            CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<Transaction>> GetTransactionsForAuditDateAsync(DateOnly auditDate, CancellationToken cancellationToken)
     {
-        var startUtc =
-            auditDate.ToDateTime(
-                TimeOnly.MinValue,
-                DateTimeKind.Utc);
+        var startUtc =auditDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
-        var endUtc =
-            auditDate
+        var endUtc = auditDate
                 .AddDays(1)
-                .ToDateTime(
-                    TimeOnly.MinValue,
-                    DateTimeKind.Utc);
+                .ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
         return await _dbContext.Transactions
             .AsNoTracking()
             .Where(transaction =>
                 transaction.TransactionAt >= startUtc &&
                 transaction.TransactionAt < endUtc)
-            .ToListAsync(
-                cancellationToken);
+            .ToListAsync(cancellationToken);
     }
 
     // Determines whether the transaction should participate
     // in end-of-day accounting.
-    private static bool IsValidPostedTransaction(
-        Transaction transaction)
+    private static bool IsValidPostedTransaction(Transaction transaction)
     {
         return transaction.PostedAt.HasValue &&
             transaction.TransactionStatus is
@@ -215,21 +157,17 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
     }
 
     // Groups included transactions by their business type.
-    private static IReadOnlyDictionary<TransactionType, int>
-        ClassifyTransactions(
-            IReadOnlyCollection<Transaction> transactions)
+    private static IReadOnlyDictionary<TransactionType, int> ClassifyTransactions(IReadOnlyCollection<Transaction> transactions)
     {
         return transactions
-            .GroupBy(transaction =>
-                transaction.TransactionType)
+            .GroupBy(transaction =>transaction.TransactionType)
             .ToDictionary(
                 group => group.Key,
                 group => group.Count());
     }
 
     // Retrieves accounting entries belonging to included transactions.
-    private async Task<IReadOnlyList<TransactionEntry>>
-        GetAccountingEntriesAsync(
+    private async Task<IReadOnlyList<TransactionEntry>> GetAccountingEntriesAsync(
             IReadOnlyCollection<Transaction> transactions,
             DateOnly auditDate,
             CancellationToken cancellationToken)
@@ -254,266 +192,164 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
     }
 
     // Finds transactions that have no accounting entries.
-    private static IReadOnlyList<long>
-        GetTransactionIdsWithoutAccountingEntries(
+    private static IReadOnlyList<long> GetTransactionIdsWithoutAccountingEntries(
             IReadOnlyCollection<Transaction> transactions,
             IReadOnlyCollection<TransactionEntry> entries)
     {
         var transactionIdsWithEntries =
             entries
-                .Select(entry =>
-                    entry.TransactionId)
+                .Select(entry => entry.TransactionId)
                 .ToHashSet();
 
         return transactions
-            .Where(transaction =>
-                !transactionIdsWithEntries.Contains(
-                    transaction.Id))
-            .Select(transaction =>
-                transaction.Id)
+            .Where(transaction => !transactionIdsWithEntries.Contains(transaction.Id))
+            .Select(transaction => transaction.Id)
             .ToList();
     }
 
     // Finds transactions whose debit total does not equal
     // their credit total.
-    private static IReadOnlyList<long>
-        GetUnbalancedTransactionIds(
-            IReadOnlyCollection<TransactionEntry> entries)
+    private static IReadOnlyList<long> GetUnbalancedTransactionIds(IReadOnlyCollection<TransactionEntry> entries)
     {
         return entries
-            .GroupBy(entry =>
-                entry.TransactionId)
+            .GroupBy(entry =>entry.TransactionId)
             .Where(group =>
             {
                 var debit = group
-                    .Where(entry =>
-                        entry.EntryType ==
-                        EntryType.Debit)
-                    .Sum(entry =>
-                        entry.Amount);
+                    .Where(entry => entry.EntryType == EntryType.Debit)
+                    .Sum(entry => entry.Amount);
 
                 var credit = group
-                    .Where(entry =>
-                        entry.EntryType ==
-                        EntryType.Credit)
-                    .Sum(entry =>
-                        entry.Amount);
+                    .Where(entry => entry.EntryType == EntryType.Credit)
+                    .Sum(entry => entry.Amount);
 
                 return debit != credit;
             })
-            .Select(group =>
-                group.Key)
+            .Select(group => group.Key)
             .ToList();
     }
 
     // Groups accounting activity by GL account.
-    private static IReadOnlyList<GlAuditTotal>
-        CalculateGlAccountTotals(
-            IReadOnlyCollection<TransactionEntry> entries)
+    private static IReadOnlyList<GlAuditTotal> CalculateGlAccountTotals(IReadOnlyCollection<TransactionEntry> entries)
     {
         return entries
-            .GroupBy(entry =>
-                entry.GlAccountId)
+            .GroupBy(entry =>entry.GlAccountId)
             .Select(group =>
                 new GlAuditTotal(
                     group.Key,
+                    group
+                        .Where(entry => entry.EntryType == EntryType.Debit)
+                        .Sum(entry => entry.Amount),
 
                     group
-                        .Where(entry =>
-                            entry.EntryType ==
-                            EntryType.Debit)
-                        .Sum(entry =>
-                            entry.Amount),
-
-                    group
-                        .Where(entry =>
-                            entry.EntryType ==
-                            EntryType.Credit)
-                        .Sum(entry =>
-                            entry.Amount)))
+                        .Where(entry => entry.EntryType == EntryType.Credit)
+                        .Sum(entry => entry.Amount)))
             .ToList();
     }
 
     // Calculates the total debit for the audit date.
-    private static decimal CalculateTotalDebit(
-        IReadOnlyCollection<TransactionEntry> entries)
+    private static decimal CalculateTotalDebit(IReadOnlyCollection<TransactionEntry> entries)
     {
         return entries
-            .Where(entry =>
-                entry.EntryType ==
-                EntryType.Debit)
-            .Sum(entry =>
-                entry.Amount);
+            .Where(entry => entry.EntryType == EntryType.Debit)
+            .Sum(entry => entry.Amount);
     }
 
     // Calculates the total credit for the audit date.
-    private static decimal CalculateTotalCredit(
-        IReadOnlyCollection<TransactionEntry> entries)
+    private static decimal CalculateTotalCredit(IReadOnlyCollection<TransactionEntry> entries)
     {
         return entries
-            .Where(entry =>
-                entry.EntryType ==
-                EntryType.Credit)
-            .Sum(entry =>
-                entry.Amount);
+            .Where(entry => entry.EntryType == EntryType.Credit)
+            .Sum(entry => entry.Amount);
     }
 
     // Prevents duplicate EOD processing.
-    private async Task EnsureAuditHasNotAlreadyRunAsync(
-        DateOnly auditDate,
-        CancellationToken cancellationToken)
+    private async Task EnsureAuditHasNotAlreadyRunAsync(DateOnly auditDate,CancellationToken cancellationToken)
     {
-        var reconciliationExists =
-            await _dbContext.ReconciliationBatches
+        var reconciliationExists = await _dbContext.ReconciliationBatches
                 .AsNoTracking()
-                .AnyAsync(
-                    batch =>
-                        batch.ReconciliationDate ==
-                            auditDate &&
-                        batch.ReconciliationType ==
-                            AuditConstants
-                                .EndOfDayReconciliationType,
-                    cancellationToken);
+                .AnyAsync(batch => batch.ReconciliationDate ==auditDate &&
+                        batch.ReconciliationType == AuditConstants.EndOfDayReconciliationType,cancellationToken);
 
         if (reconciliationExists)
         {
-            throw new ConflictException(
-                MessageCode.Conflict);
+            throw new ConflictException(MessageCode.EndOfDayAuditAlreadyProcessed);
         }
 
-        var summaryExists =
-            await _dbContext.DailySummaries
+        var summaryExists =await _dbContext.DailySummaries
                 .AsNoTracking()
                 .AnyAsync(
-                    summary =>
-                        summary.SummaryDate ==
-                            auditDate,
+                    summary => summary.SummaryDate == auditDate,
                     cancellationToken);
 
         if (summaryExists)
         {
-            throw new ConflictException(
-                MessageCode.Conflict);
+            throw new ConflictException(MessageCode.EndOfDayAuditAlreadyProcessed);
         }
     }
 
-    // Temporary development implementation.
-    // Replace with the authenticated auditor/current-user service later.
-    private async Task<long> GetPerformedByUserIdAsync(
-        CancellationToken cancellationToken)
+    // Returns the authenticated user ID that started the end-of-day audit.
+    private long GetPerformedByUserId()
     {
-        var userId =
-            await _dbContext.Users
-                .AsNoTracking()
-                .OrderBy(user =>
-                    user.Id)
-                .Select(user =>
-                    (long?)user.Id)
-                .FirstOrDefaultAsync(
-                    cancellationToken);
-
-        if (!userId.HasValue)
+        var user = _httpContextAccessor.HttpContext?.User;
+        if(user?.Identity?.IsAuthenticated != true)
         {
-            throw new BusinessRuleException(
-                MessageCode.BusinessRuleViolation);
+            throw new ForbiddenException(MessageCode.Forbidden);
         }
-
-        return userId.Value;
+        var userIdValue = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if(!long.TryParse(userIdValue, out var userId))
+        {
+            throw new ForbiddenException(MessageCode.Forbidden);
+        }
+        return userId;
     }
-
     // Creates the overall reconciliation batch.
-    private async Task<ReconciliationBatch>
-        CreateReconciliationBatchAsync(
+    private async Task<ReconciliationBatch>CreateReconciliationBatchAsync(
             DateOnly auditDate,
             decimal totalDebit,
             decimal totalCredit,
             long performedBy,
             CancellationToken cancellationToken)
     {
-        var batch =
-            new ReconciliationBatch
+        var batch =new ReconciliationBatch
             {
-                ReconciliationDate =
-                    auditDate,
-
-                ReconciliationType =
-                    AuditConstants
-                        .EndOfDayReconciliationType,
-
-                Status =
-                    AuditConstants
-                        .ReconciliationCompletedStatus,
-
-                TotalDebit =
-                    totalDebit,
-
-                TotalCredit =
-                    totalCredit,
-
-                Difference =
-                    totalDebit - totalCredit,
-
-                PerformedBy =
-                    performedBy,
-
-                PerformedAt =
-                    DateTime.UtcNow
+                ReconciliationDate =auditDate,
+                ReconciliationType =AuditConstants.EndOfDayReconciliationType,
+                Status = AuditConstants.ReconciliationCompletedStatus,
+                TotalDebit = totalDebit,
+                TotalCredit = totalCredit,
+                Difference = totalDebit - totalCredit,
+                PerformedBy = performedBy,
+                PerformedAt = DateTime.UtcNow
             };
+        _dbContext.ReconciliationBatches.Add(batch);
 
-        _dbContext.ReconciliationBatches.Add(
-            batch);
-
-        await _dbContext.SaveChangesAsync(
-            cancellationToken);
-
+        await _dbContext.SaveChangesAsync(cancellationToken);
         return batch;
     }
 
     // Creates item-level reconciliation trace records.
-    private static IReadOnlyList<ReconciliationItem>
-        CreateReconciliationItems(
+    private static IReadOnlyList<ReconciliationItem> CreateReconciliationItems(
             long reconciliationBatchId,
             IReadOnlyCollection<TransactionEntry> entries)
     {
         return entries
             .Select(entry =>
             {
-                var expectedAmount =
-                    entry.Amount;
-
-                var actualAmount =
-                    entry.Amount;
-
+                var expectedAmount =entry.Amount;
+                var actualAmount =entry.Amount;
                 return new ReconciliationItem
                 {
-                    ReconciliationBatchId =
-                        reconciliationBatchId,
-
-                    TransactionId =
-                        entry.TransactionId,
-
-                    TransactionEntryId =
-                        entry.Id,
-
-                    ExpectedAmount =
-                        expectedAmount,
-
-                    ActualAmount =
-                        actualAmount,
-
-                    Difference =
-                        actualAmount -
-                        expectedAmount,
-
-                    Status =
-                        AuditConstants
-                            .ReconciliationMatchedStatus,
-
-                    Note =
-                        "Matched during end-of-day internal reconciliation."
+                    ReconciliationBatchId = reconciliationBatchId,
+                    TransactionId = entry.TransactionId,
+                    TransactionEntryId = entry.Id,
+                    ExpectedAmount = expectedAmount,
+                    ActualAmount = actualAmount,
+                    Difference = actualAmount -expectedAmount,
+                    Status = AuditConstants.ReconciliationMatchedStatus,
+                    Note = "Matched during end-of-day internal reconciliation."
                 };
-            })
-            .ToList();
+            }).ToList();
     }
 
     // Gets the latest closing balance before the audit date.
@@ -567,7 +403,7 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
                     - totalDebit,
 
             _ => throw new BusinessRuleException(
-                MessageCode.BusinessRuleViolation)
+                MessageCode.UnsupportedGlAccountClass)
         };
     }
 
@@ -634,29 +470,15 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
                     total.TotalDebit,
                     total.TotalCredit);
 
-            summaries.Add(
-                new DailySummary
+            summaries.Add(new DailySummary
                 {
-                    SummaryDate =
-                        auditDate,
-
-                    GlAccountId =
-                        total.GlAccountId,
-
-                    OpeningBalance =
-                        openingBalance,
-
-                    TotalDebit =
-                        total.TotalDebit,
-
-                    TotalCredit =
-                        total.TotalCredit,
-
-                    ClosingBalance =
-                        closingBalance,
-
-                    GeneratedAt =
-                        DateTime.UtcNow
+                    SummaryDate = auditDate,
+                    GlAccountId = total.GlAccountId,
+                    OpeningBalance = openingBalance,
+                    TotalDebit = total.TotalDebit,
+                    TotalCredit = total.TotalCredit,
+                    ClosingBalance = closingBalance,
+                    GeneratedAt = DateTime.UtcNow
                 });
         }
 

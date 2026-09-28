@@ -43,19 +43,21 @@ public sealed class TransactionEntryConfiguration : IEntityTypeConfiguration<Tra
     public void Configure(EntityTypeBuilder<TransactionEntry> builder)
     {
         builder.HasKey(e => e.Id);
-
         builder.Property(e => e.Description).HasMaxLength(300);
-
+        // MySQL DATE <-> .NET DateOnly
+        builder.Property(e => e.PostingDate)
+            .HasConversion(
+                date => date.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+            .HasColumnType("date");
         builder.HasOne(e => e.Transaction)
             .WithMany()
             .HasForeignKey(e => e.TransactionId)
             .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasOne(e => e.GlAccount)
             .WithMany()
             .HasForeignKey(e => e.GlAccountId)
             .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(e => e.CustomerAccount)
             .WithMany()
             .HasForeignKey(e => e.CustomerAccountId)

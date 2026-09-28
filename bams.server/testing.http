@@ -55,10 +55,53 @@ Accept: application/json
 ###
 POST http://localhost:5121/api/audit/end-of-day?date=2026-09-25
 Accept: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoibWFuYWdlciIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6Im1hbmFnZXJAYmFtcy5sb2NhbCIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2dpdmVubmFtZSI6InN5c3RlbSBtYW5hZ2VyIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoibWFuYWdlciIsImV4cCI6MTc5MDU3MTE2NSwiaXNzIjoiQkFNUy5TZXJ2ZXIiLCJhdWQiOiJCQU1TLkNsaWVudCJ9.ZFxASmDtamtwW-5EK4OeYV01IOuRv0DySC9TL6KIeps
+
+###
+POST http://localhost:5121/api/audit/end-of-day?date=2026-09-30
+Accept: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoibWFuYWdlciIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6Im1hbmFnZXJAYmFtcy5sb2NhbCIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2dpdmVubmFtZSI6InN5c3RlbSBtYW5hZ2VyIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoibWFuYWdlciIsImV4cCI6MTc5MDU3MTE2NSwiaXNzIjoiQkFNUy5TZXJ2ZXIiLCJhdWQiOiJCQU1TLkNsaWVudCJ9.ZFxASmDtamtwW-5EK4OeYV01IOuRv0DySC9TL6KIeps
 
 ###
 POST http://localhost:5121/api/dev/audit-test-data/unbalanced
 
 ###
 POST http://localhost:5121/api/dev/audit-test-data/gl-accounts
+Accept: application/json
+
+###
+POST http://localhost:5121/api/audit/end-of-day?date=2026-09-26
+Accept: application/json
+
+###
+POST http://localhost:5121/api/dev/audit-test-data/missing-entries
+Accept: application/json
+
+###
+POST http://localhost:5121/api/audit/end-of-day?date=2026-09-27
+Accept: application/json
+
+###
+POST http://localhost:5121/api/audit/end-of-day?date=2026-09-28
+Accept: application/json
+
+###
+POST http://localhost:5121/api/dev/audit-test-data/pending
+Accept: application/json
+
+###
+POST http://localhost:5121/api/audit/end-of-day?date=2026-09-29
+Accept: application/json
+
+###
+POST http://localhost:5121/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "manager",
+  "password": "Manager123!"
+}
+
+###
+GET http://localhost:5121/api/dev/audit-test-data/balanced
 Accept: application/json

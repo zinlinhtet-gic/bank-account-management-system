@@ -26,7 +26,7 @@ public enum MessageCode
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
     OpeningBalanceInvalid = 3102,
-    InvalidDate = 3004,
+    InvalidDate = 3014,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -34,6 +34,7 @@ public enum MessageCode
     PasswordChangedSuccessfully = 4002,
     UserAccountDisabled = 4003,
     UserAccountDeleted = 4004,
+    Forbidden = 4005,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
@@ -48,10 +49,16 @@ public enum MessageCode
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
-    Conflict = 4307,
+    Conflict = 4300,
+    EndOfDayAuditAlreadyProcessed = 4307,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
+    TransactionMissingAccountingEntries = 4401,
+    TransactionEntriesUnbalanced = 4402,
+    DailyAccountingUnbalanced = 4403,
+    AuditUserUnavailable = 4404,
+    UnsupportedGlAccountClass = 4405,
     LastManagerCannotBeRemoved = 4480,
 
     // System / Infrastructure: 5000 - 5999

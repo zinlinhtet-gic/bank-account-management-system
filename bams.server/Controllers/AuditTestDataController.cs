@@ -1,3 +1,5 @@
+# if DEBUG
+
 using bams.server.Data;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
@@ -363,4 +365,105 @@ public sealed class AuditTestDataController : ControllerBase
     {
         return $"{prefix}-{Guid.NewGuid():N}"[..10];
     }
+
+    // Creates a completed transaction without TransactionEntry records.
+    // Used to verify missing-accounting-entry detection.
+    [HttpPost("missing-entries")]
+    public async Task<IActionResult> CreateMissingEntriesTestDataAsync(CancellationToken cancellationToken)
+    {
+        var auditDate = new DateOnly(2026, 9, 27);
+        var userId = await _dbContext.Users
+            .AsNoTracking()
+            .OrderBy(user => user.Id)
+            .Select(user => (long?)user.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!userId.HasValue)
+        {
+            return BadRequest("No user exists. Create a user before inserting audit test data.");
+        }
+
+        var transaction = new Transaction
+        {
+            TransactionNo =$"M-{Guid.NewGuid():N}"[..10],
+
+            TransactionType = TransactionType.CashDeposit,
+
+            TransactionStatus =TransactionStatus.Completed,
+
+            InitiatedBy =userId.Value,
+
+            Amount = 1000m,
+
+            FeeAmount = 0m,
+
+            TransactionAt = auditDate.ToDateTime(new TimeOnly(10, 0),DateTimeKind.Utc),
+
+            PostedAt = auditDate.ToDateTime(new TimeOnly(10, 5), DateTimeKind.Utc),
+
+            CreatedAt = DateTime.UtcNow,
+
+            UpdatedAt =DateTime.UtcNow
+        };
+
+        _dbContext.Transactions.Add(transaction);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Intentionally do NOT create TransactionEntry records.
+
+        return Ok(new
+        {
+            auditDate,
+            transactionId = transaction.Id,
+            transactionNo = transaction.TransactionNo,
+            expectedResult = "End-of-day audit should reject this transaction because accounting entries are missing."
+        });
+    }
+
+    // Creates a pending transaction that should be excluded
+    // from end-of-day accounting.
+    [HttpPost("pending")]
+    public async Task<IActionResult> CreatePendingTestDataAsync(CancellationToken cancellationToken)
+    {
+        var auditDate = new DateOnly(2026, 9, 29);
+        var userId = await _dbContext.Users
+            .AsNoTracking()
+            .OrderBy(user => user.Id)
+            .Select(user => (long?)user.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!userId.HasValue)
+        {
+            return BadRequest("No user exists. Create a user before inserting audit test data.");
+        }
+
+        var transaction = new Transaction
+        {
+            TransactionNo =$"P-{Guid.NewGuid():N}"[..10],
+            TransactionType = TransactionType.CashDeposit,
+            TransactionStatus =TransactionStatus.Pending,
+            InitiatedBy = userId.Value,
+            Amount = 1000m,
+            FeeAmount = 0m,
+            TransactionAt = auditDate.ToDateTime(new TimeOnly(10, 0), DateTimeKind.Utc),
+            // Important:
+            // pending transaction has not been posted.
+            PostedAt = null,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        _dbContext.Transactions.Add(transaction);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(new
+        {
+            auditDate,
+            transactionId = transaction.Id,
+            transactionNo = transaction.TransactionNo,
+            status = transaction.TransactionStatus,
+            expectedResult = "Transaction should be excluded from end-of-day accounting."
+        });
+    }
 }
+
+#endif

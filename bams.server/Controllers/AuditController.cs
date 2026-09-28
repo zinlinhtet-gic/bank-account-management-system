@@ -1,6 +1,7 @@
 using bams.server.DTO.Audit;
 using bams.server.DTOs.Audit;
 using bams.server.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bams.server.Controllers;
@@ -49,17 +50,13 @@ public sealed class AuditController : ControllerBase
     }
 
     // Runs the end-of-day accounting audit for the requested date.
+    [Authorize]
     [HttpPost("end-of-day")]
-    public async Task<ActionResult<EndOfDayAuditResult>>
-        RunEndOfDayAuditAsync(
+    public async Task<ActionResult<EndOfDayAuditResult>>RunEndOfDayAuditAsync(
             [FromQuery] DateOnly date,
             CancellationToken cancellationToken)
     {
-        var result =
-            await _endOfDayAuditService.RunEndOfDayAuditAsync(
-                date,
-                cancellationToken);
-
+        var result = await _endOfDayAuditService.RunEndOfDayAuditAsync(date,cancellationToken);
         return Ok(result);
     }
 }

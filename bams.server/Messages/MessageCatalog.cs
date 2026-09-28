@@ -23,6 +23,7 @@ public static class MessageCatalog
             [MessageCode.InvalidRole] = "The selected role is not valid.",
             [MessageCode.FieldTooLong] = "One or more fields are longer than allowed.",
             [MessageCode.InvalidDateRange] = "The start date must be on or before the end date.",
+            [MessageCode.InvalidDate] = "The provided date is invalid.",
             [MessageCode.NewPasswordSameAsCurrent] = "The new password must be different from your current password.",
             [MessageCode.DefaultPasswordNotAllowed] = "You cannot use a default password. Please choose your own password.",
             [MessageCode.OpeningBalanceInvalid] = "Opening balance is below the account type's minimum.",
@@ -39,6 +40,12 @@ public static class MessageCatalog
             [MessageCode.UsernameAlreadyExists] = "A user with this username already exists.",
             [MessageCode.EmailAlreadyExists] = "A user with this email already exists.",
             [MessageCode.BusinessRuleViolation] = "The requested operation violates a business rule.",
+            [MessageCode.EndOfDayAuditAlreadyProcessed] = "The end-of-day audit has already been completed for this date.",
+            [MessageCode.TransactionMissingAccountingEntries] = "One or more posted transactions have no accounting entries.",
+            [MessageCode.TransactionEntriesUnbalanced] = "One or more transactions have unbalanced debit and credit entries.",
+            [MessageCode.DailyAccountingUnbalanced] = "The end-of-day debit and credit totals are not balanced.",
+            [MessageCode.AuditUserUnavailable] = "No user is available to perform the end-of-day reconciliation.",
+            [MessageCode.UnsupportedGlAccountClass] = "A GL account has an unsupported account class.",
             [MessageCode.LastManagerCannotBeRemoved] = "This is the only active manager. Add another manager before deleting this account or changing its role.",
             [MessageCode.InternalServerError] = "An unexpected error occurred."
         };
