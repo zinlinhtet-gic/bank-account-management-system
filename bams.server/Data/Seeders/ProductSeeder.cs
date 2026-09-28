@@ -156,12 +156,12 @@ public sealed class ProductSeeder
     {
         return
         [
-            CreateProduct(1, "CURRENT", "Current", "Current", true, false, null),
-            CreateProduct(2, "NORMAL_SAVING", "Normal Saving", "Saving", true, false, null),
-            CreateProduct(3, "SPECIAL_SAVING", "Special Saving", "Saving", true, false, null),
-            CreateProduct(4, "NORMAL_DEPOSIT", "Normal Deposit", "Deposit", false, true, 2),
-            CreateProduct(5, "SPECIAL_DEPOSIT", "Special Deposit", "Deposit", false, true, 2),
-            CreateProduct(6, "HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", "Deposit", false, true, 2)
+            CreateProduct(1, "CURRENT", "Current", AccountTypeCategory.CURRENT, true, null),
+            CreateProduct(2, "NORMAL_SAVING", "Normal Saving", AccountTypeCategory.SAVING, true, null),
+            CreateProduct(3, "SPECIAL_SAVING", "Special Saving", AccountTypeCategory.SAVING, true, null),
+            CreateProduct(4, "NORMAL_DEPOSIT", "Normal Deposit", AccountTypeCategory.FIXED, false, 2),
+            CreateProduct(5, "SPECIAL_DEPOSIT", "Special Deposit", AccountTypeCategory.FIXED, false, 2),
+            CreateProduct(6, "HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", AccountTypeCategory.FIXED, false, 2)
         ];
     }
 
@@ -170,9 +170,8 @@ public sealed class ProductSeeder
         long id,
         string code,
         string name,
-        string category,
+        AccountTypeCategory category,
         bool allowsTransactions,
-        bool isFixedDeposit,
         long? requiredProductId)
     {
         return new AccountType
@@ -188,7 +187,6 @@ public sealed class ProductSeeder
             AllowWithdrawal = allowsTransactions,
             AllowTransfer = allowsTransactions,
             AllowPartialWithdrawal = allowsTransactions,
-            IsFixedDeposit = isFixedDeposit,
             AllowCitizen = true,
             AllowForeigner = true,
             CitizenRequiredRefer = 0,

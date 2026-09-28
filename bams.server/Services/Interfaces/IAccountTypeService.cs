@@ -29,11 +29,6 @@ public interface IAccountTypeService
     /// </summary>
     void ValidateOpeningBalance(decimal openingBalance, AccountType accountType);
 
-    /// <summary>
-    /// Determines whether an account type represents a fixed-deposit product.
-    /// </summary>
-    bool IsFixedDeposit(AccountType accountType);
-
     void ValidateCustomerTypeEligibility(AccountType accountType, IReadOnlyList<Customer> customers);
 
     int GetRequiredRefererCount(AccountType accountType, IReadOnlyList<Customer> accountOwners);

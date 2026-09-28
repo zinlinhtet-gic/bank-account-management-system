@@ -30,7 +30,7 @@
 
 ## Fixed deposits
 
-- Fixed-deposit classification uses persisted `AccountType.IsFixedDeposit`, not product-name parsing.
+- Product category is stored as `AccountTypeCategory`; fixed-deposit behavior uses the `FIXED` category.
 - Normal Deposit, Special Deposit, and Hundred-Days Deposit are fixed-deposit products.
 - Creation requires an applicable interest-rate rule, renewal instruction, and calculation-source flag.
 - The calculation-source flag is immutable after creation.

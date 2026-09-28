@@ -8,7 +8,7 @@ public sealed class AccountType
 
     public string Name { get; set; } = string.Empty;
 
-    public string? Category { get; set; }
+    public AccountTypeCategory Category { get; set; }
 
     public decimal MinimumOpeningBalance { get; set; }
 
@@ -28,8 +28,6 @@ public sealed class AccountType
 
     public long? RequiredProductId { get; set; } = null;
     public AccountType? RequiredProduct { get; set; }
-
-    public bool IsFixedDeposit { get; set; } = false;
 
     public bool AllowForeigner { get; set; } = true;
 

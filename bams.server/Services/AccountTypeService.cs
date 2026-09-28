@@ -42,7 +42,6 @@ public sealed class AccountTypeService : IAccountTypeService
                 accountType.AllowTransfer,
                 accountType.AllowPartialWithdrawal,
                 accountType.RequiredProductId,
-                accountType.IsFixedDeposit,
                 accountType.AllowForeigner,
                 accountType.AllowCitizen,
                 accountType.CitizenRequiredRefer,
@@ -119,7 +118,6 @@ public sealed class AccountTypeService : IAccountTypeService
                 accountType.AllowTransfer,
                 accountType.AllowPartialWithdrawal,
                 accountType.RequiredProductId,
-                accountType.IsFixedDeposit,
                 accountType.AllowForeigner,
                 accountType.AllowCitizen,
                 accountType.CitizenRequiredRefer,
@@ -151,12 +149,6 @@ public sealed class AccountTypeService : IAccountTypeService
         {
             throw new ValidationException(MessageCode.OpeningBalanceInvalid);
         }
-    }
-
-    /// <inheritdoc />
-    public bool IsFixedDeposit(AccountType accountType)
-    {
-        return accountType.IsFixedDeposit;
     }
 
     /// <summary>Rejects account holders whose customer type is not allowed by the selected product.</summary>

@@ -1013,9 +1013,11 @@ namespace bams.server.Data.Migrations
                     b.Property<bool>("AllowWithdrawal")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("Category")
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)");
+                    b.Property<bams.server.Models.Products.AccountTypeCategory>("Category")
+                        .IsRequired()
+                        .HasConversion<string>()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("CitizenRequiredRefer")
                         .ValueGeneratedOnAdd()
@@ -1035,9 +1037,6 @@ namespace bams.server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
-
-                    b.Property<bool>("IsFixedDeposit")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("MinimumMaintainedBalance")
                         .HasPrecision(18, 2)
