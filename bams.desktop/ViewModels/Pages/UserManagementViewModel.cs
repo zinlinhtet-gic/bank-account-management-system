@@ -240,9 +240,6 @@ public sealed class UserManagementViewModel : ViewModelBase, IAsyncInitializable
             return;
         }
 
-        // The card shows fresh presence; update the row too so the table never contradicts it.
-        row.UpdatePresence(user.IsOnline, user.LastSeenAt);
-
         var details = new UserDetailsViewModel(user, row.IsCurrentUser);
         if (_dialogService.ShowDialog(details))
         {
@@ -263,7 +260,6 @@ public sealed class UserManagementViewModel : ViewModelBase, IAsyncInitializable
         var user = await GetUserDetailAsync(row.Id);
         if (user is not null)
         {
-            row.UpdatePresence(user.IsOnline, user.LastSeenAt);
             await OpenEditFormAsync(user);
         }
     }

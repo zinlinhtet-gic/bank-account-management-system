@@ -32,10 +32,6 @@ public sealed class InterestAccrual
 
     public Transaction? PostedTransaction { get; set; }
 
-    public long? AccruedTransactionId { get; set; }
-
-    public Transaction? AccruedTransaction { get; set; }
-
     public DateTime CalculatedAt { get; set; }
 
     public DateTime? PostedAt { get; set; }
