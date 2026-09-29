@@ -11,6 +11,8 @@
         xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages"
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
+        xmlns:accountingViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Accounting"
+        xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting"
         mc:Ignorable="d"
         Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
         FontFamily="{StaticResource SansFont}"
@@ -62,6 +64,10 @@
 
                     <DataTemplate DataType="{x:Type pageviewmodels:TransactionHistoryViewModel}">
                         <pages:TransactionHistoryView/>
+                    </DataTemplate>
+
+                    <DataTemplate DataType="{x:Type accountingViewModels:GeneralLedgerViewModel}">
+                        <accountingViews:GeneralLedgerView/>
                     </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:

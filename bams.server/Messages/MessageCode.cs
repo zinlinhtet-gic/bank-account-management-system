@@ -128,7 +128,6 @@ public enum MessageCode
     ConcurrentModification = 4304,
 
     // Business Rules: 4400 - 4499
-    BusinessRuleViolation = 4400,
     AccountTypeIdentifierOutOfRange = 4401,
     AccountNumberSequenceExhausted = 4402,
     AccountStatusTransitionNotAllowed = 4403,

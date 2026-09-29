@@ -1,4 +1,6 @@
 using bams.server.DTO.Accounting;
+using bams.server.DTO.Common;
+using bams.server.Messages;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +21,7 @@ public sealed class AccountingController : ControllerBase
 
     // Returns all general-ledger accounts.
     [HttpGet("gl-accounts")]
-    public async Task<ActionResult<IReadOnlyList<GlAccountResponse>>>
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<GlAccountResponse>>>>
         GetGlAccountsAsync(
             CancellationToken cancellationToken)
     {
@@ -27,12 +29,14 @@ public sealed class AccountingController : ControllerBase
             await _accountingReportService.GetGlAccountsAsync(
                 cancellationToken);
 
-        return Ok(accounts);
+        return Ok(ApiMessageResponse<IReadOnlyList<GlAccountResponse>>.FromCode(
+            MessageCode.Success,
+            accounts));
     }
 
     // Returns a general-ledger account by its unique identifier.
     [HttpGet("gl-accounts/{id:long}")]
-    public async Task<ActionResult<GlAccountResponse>>
+    public async Task<ActionResult<ApiMessageResponse<GlAccountResponse>>>
         GetGlAccountByIdAsync(
             long id,
             CancellationToken cancellationToken)
@@ -42,12 +46,14 @@ public sealed class AccountingController : ControllerBase
                 id,
                 cancellationToken);
 
-        return Ok(account);
+        return Ok(ApiMessageResponse<GlAccountResponse>.FromCode(
+            MessageCode.Success,
+            account));
     }
 
     // Returns daily accounting summaries for the requested date.
     [HttpGet("daily-summaries")]
-    public async Task<ActionResult<IReadOnlyList<DailySummaryResponse>>>
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<DailySummaryResponse>>>>
         GetDailySummariesAsync(
             [FromQuery] DateOnly date,
             [FromQuery] long? glAccountId,
@@ -59,12 +65,14 @@ public sealed class AccountingController : ControllerBase
                 glAccountId,
                 cancellationToken);
 
-        return Ok(summaries);
+        return Ok(ApiMessageResponse<IReadOnlyList<DailySummaryResponse>>.FromCode(
+            MessageCode.Success,
+            summaries));
     }
 
     // Returns monthly accounting summaries for the requested period.
     [HttpGet("monthly-summaries")]
-    public async Task<ActionResult<IReadOnlyList<MonthlySummaryResponse>>>
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<MonthlySummaryResponse>>>>
         GetMonthlySummariesAsync(
             [FromQuery] int year,
             [FromQuery] int month,
@@ -78,6 +86,8 @@ public sealed class AccountingController : ControllerBase
                 glAccountId,
                 cancellationToken);
 
-        return Ok(summaries);
+        return Ok(ApiMessageResponse<IReadOnlyList<MonthlySummaryResponse>>.FromCode(
+            MessageCode.Success,
+            summaries));
     }
 }

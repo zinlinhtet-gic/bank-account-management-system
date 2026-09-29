@@ -31,4 +31,11 @@ public static class AuditConstants
     public const string FixedDepositUpdatedAction = "FixedDepositUpdated";
     public const string ScheduledFinancialAccruedAction = "ScheduledFinancialAccrued";
     public const string ScheduledFinancialPostedAction = "ScheduledFinancialPosted";
+    public const string EndOfDayReconciliationType = "EndOfDay";
+
+    public const string ReconciliationCompletedStatus = "Completed";
+
+    public const string ReconciliationMatchedStatus = "Matched";
+
+    public const string ActiveStatus = "Active";
 }

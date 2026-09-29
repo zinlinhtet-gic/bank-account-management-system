@@ -1,5 +1,6 @@
 # if DEBUG
 
+using bams.server.Constants;
 using bams.server.Data;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
@@ -15,7 +16,6 @@ public sealed class AuditTestDataController : ControllerBase
     private const string TestCashGlCode = "TEST-CASH";
     private const string TestDepositGlCode = "TEST-DEPOSIT";
     private const string ActiveStatus = "Active";
-
     private const decimal BalancedDebitAmount = 1000m;
     private const decimal BalancedCreditAmount = 1000m;
     private const decimal UnbalancedCreditAmount = 900m;
@@ -56,7 +56,7 @@ public sealed class AuditTestDataController : ControllerBase
                     Code = TestCashGlCode,
                     Name = "Audit Test Cash",
                     AccountClass = GlAccountClass.Asset,
-                    Status = ActiveStatus
+                    Status = AccountingConstants.ActiveStatus
                 });
         }
 
@@ -69,7 +69,7 @@ public sealed class AuditTestDataController : ControllerBase
                     Code = TestDepositGlCode,
                     Name = "Audit Test Deposit Liability",
                     AccountClass = GlAccountClass.Liability,
-                    Status = ActiveStatus
+                    Status = AccountingConstants.ActiveStatus
                 });
         }
 

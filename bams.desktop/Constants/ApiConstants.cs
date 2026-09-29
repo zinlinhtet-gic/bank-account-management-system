@@ -26,7 +26,6 @@ public static class ApiConstants
     public const string ResetPasswordSegment = "reset-password";
 
     // Accounts (the officer's account pickers).
-    public const string AccountsEndpoint = "api/accounts";
 
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".

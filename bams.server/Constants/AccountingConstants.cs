@@ -18,6 +18,9 @@ public static class AccountingConstants
     public const string CustomerDepositsGlCode = "2000";
     public const string InterbankClearingGlCode = "2100";
     public const string NrcTransfersPayableGlCode = "2200";
+    
+    // Statuses
+    // public const string ActiveGlAccountStatus = "active";
 
-    public const string ActiveGlAccountStatus = "active";
+    public const string ActiveStatus = "Active";
 }

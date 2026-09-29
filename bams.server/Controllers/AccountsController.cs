@@ -45,7 +45,7 @@ public sealed class AccountsController : ControllerBase
     {
         var accounts = await _accountService.GetAccountsAsync(request, cancellationToken);
 
-        return Ok(ApiMessageResponse<IReadOnlyList<AccountSummaryResponse>>.FromCode(MessageCode.Success, accounts));
+        return Ok(accounts);
     }
 
     /// <summary>

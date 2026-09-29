@@ -235,39 +235,25 @@ public sealed class ApiClient
         }
     }
 
-    // Returns either a wrapped success payload or a direct/raw success payload.
-    // This keeps compatibility with server endpoints that use different response shapes.
     private static async Task<TResponse> ReadResponseAsync<TResponse>(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
         if (!response.IsSuccessStatusCode)
         {
             throw CreateApiException(content);
         }
-        // First support direct/raw responses such as:
-        // [ ... ]
-        // or
-        // { ... }
-        var directResponse = TryDeserialize<TResponse>(content);
-        if (directResponse is not null)
-        {
-            return directResponse;
-        }
-        // Then support the standard envelope:
-        // {
-        //   "code": ...,
-        //   "name": "...",
-        //   "message": "...",
-        //   "data": ...
-        // }
+
         var envelope = TryDeserialize<ApiMessageResponse<TResponse>>(content);
-        if (envelope is not null && envelope.Data is not null)
+
+        if (envelope is null || envelope.Data is null)
         {
-            return envelope.Data;
+            throw new ApiException(MessageCode.InvalidServerResponse);
         }
-        throw new ApiException(MessageCode.InvalidServerResponse);
+
+        return envelope.Data;
     }
 
     // Keeps the server's code, message and trace id; falls back when the body is not an ApiErrorResponse.
