@@ -64,9 +64,7 @@ public sealed class LocalFileStorageService : IFileStorageService
         string fileReference,
         CancellationToken cancellationToken)
     {
-        var physicalPath = Path.Combine(
-            _environment.ContentRootPath,
-            fileReference);
+        var physicalPath = GetPhysicalPath(fileReference);
 
         if (File.Exists(physicalPath))
         {
@@ -74,5 +72,10 @@ public sealed class LocalFileStorageService : IFileStorageService
         }
 
         return Task.CompletedTask;
+    }
+
+    public string GetPhysicalPath(string fileReference)
+    {
+        return Path.Combine(_environment.ContentRootPath, fileReference);
     }
 }

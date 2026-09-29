@@ -5,6 +5,7 @@ using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace bams.server.Controllers;
 
@@ -41,13 +42,33 @@ public sealed class CustomersController : ControllerBase
     /// </summary>
     [HttpGet("{id:long}", Name = GetCustomerByIdRouteName)]
     [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
-    public async Task<ActionResult<CustomerResponse>> GetCustomerByIdAsync(
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> GetCustomerByIdAsync(
         long id,
         CancellationToken cancellationToken)
     {
         var customer = await _customerService.GetCustomerByIdAsync(id, cancellationToken);
 
-        return Ok(customer);
+        return Ok(ApiMessageResponse<CustomerResponse>.FromCode(MessageCode.Success, customer));
+    }
+
+    /// <summary>
+    /// Downloads one of a customer's documents by its unique identifier.
+    /// </summary>
+    [HttpGet("{id:long}/documents/{documentId:long}/file")]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<IActionResult> DownloadCustomerDocumentAsync(
+        long id,
+        long documentId,
+        CancellationToken cancellationToken)
+    {
+        var (physicalPath, fileName) = await _customerService.GetCustomerDocumentFileAsync(id, documentId, cancellationToken);
+
+        if (!new FileExtensionContentTypeProvider().TryGetContentType(fileName, out var contentType))
+        {
+            contentType = "application/octet-stream";
+        }
+
+        return PhysicalFile(physicalPath, contentType, fileName);
     }
 
     /// <summary>

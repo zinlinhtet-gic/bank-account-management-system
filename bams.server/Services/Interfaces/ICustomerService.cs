@@ -46,4 +46,13 @@ public interface ICustomerService
         long id,
         ReviewCustomerKycRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the physical file location and a friendly download name for one of a customer's
+    /// documents, so the controller can stream it back.
+    /// </summary>
+    Task<(string PhysicalPath, string FileName)> GetCustomerDocumentFileAsync(
+        long customerId,
+        long documentId,
+        CancellationToken cancellationToken);
 }

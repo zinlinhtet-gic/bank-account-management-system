@@ -104,6 +104,38 @@ public sealed class CustomerService : ICustomerService
     }
 
     /// <summary>
+    /// Gets the physical file location and a friendly download name for one of a customer's
+    /// documents, so the controller can stream it back.
+    /// </summary>
+    public async Task<(string PhysicalPath, string FileName)> GetCustomerDocumentFileAsync(
+        long customerId,
+        long documentId,
+        CancellationToken cancellationToken)
+    {
+        var document = await _dbContext.CustomerDocuments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                document => document.Id == documentId && document.CustomerId == customerId,
+                cancellationToken);
+
+        if (document?.FileReference is null)
+        {
+            throw new NotFoundException(MessageCode.CustomerDocumentNotFound);
+        }
+
+        var physicalPath = _fileStorageService.GetPhysicalPath(document.FileReference);
+
+        if (!File.Exists(physicalPath))
+        {
+            throw new NotFoundException(MessageCode.CustomerDocumentNotFound);
+        }
+
+        var fileName = $"{document.DocumentType}{Path.GetExtension(document.FileReference)}";
+
+        return (physicalPath, fileName);
+    }
+
+    /// <summary>
     /// Creates a customer, its identity documents, and any uploaded files as a single unit of work.
     /// </summary>
     public async Task<CustomerResponse> CreateCustomerAsync(

@@ -12,4 +12,9 @@ public interface IFileStorageService
     Task DeleteAsync(
         string fileReference,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Resolves a stored file reference to its physical location on disk.
+    /// </summary>
+    string GetPhysicalPath(string fileReference);
 }
