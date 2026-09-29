@@ -1,7 +1,9 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:users="clr-namespace:bams.desktop.ViewModels.Pages.Users"
-                    xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users">
+                    xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users"
+                    xmlns:customers="clr-namespace:bams.desktop.ViewModels.Pages.Customers"
+                    xmlns:pages="clr-namespace:bams.desktop.Views.Pages">
 
     <!--
         Dialog ViewModel → dialog View, used by IDialogService.ShowDialog (Components/ModalDialog).
@@ -14,5 +16,10 @@
     </DataTemplate>
     <DataTemplate DataType="{x:Type users:UserDetailsViewModel}">
         <userviews:UserDetailsDialogView/>
+    </DataTemplate>
+
+    <!-- Customer Management -->
+    <DataTemplate DataType="{x:Type customers:CustomerDetailsViewModel}">
+        <pages:CustomerDetailsDialogView/>
     </DataTemplate>
 </ResourceDictionary>

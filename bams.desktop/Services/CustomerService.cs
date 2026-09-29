@@ -31,6 +31,26 @@ public sealed class CustomerService : ICustomerService
             cancellationToken);
     }
 
+    public Task<CustomerResponse> GetCustomerByIdAsync(long id, CancellationToken cancellationToken)
+    {
+        return _apiClient.GetAsync<CustomerResponse>($"{ApiConstants.CustomersEndpoint}/{id}", cancellationToken);
+    }
+
+    public Task DownloadCustomerDocumentAsync(long customerId, long documentId, string destinationPath, CancellationToken cancellationToken)
+    {
+        return _apiClient.DownloadFileAsync(
+            $"{ApiConstants.CustomersEndpoint}/{customerId}/documents/{documentId}/file",
+            destinationPath,
+            cancellationToken);
+    }
+
+    public Task<byte[]> GetCustomerDocumentBytesAsync(long customerId, long documentId, CancellationToken cancellationToken)
+    {
+        return _apiClient.GetBytesAsync(
+            $"{ApiConstants.CustomersEndpoint}/{customerId}/documents/{documentId}/file",
+            cancellationToken);
+    }
+
     public async Task<CustomerResponse> CreateCustomerAsync(CreateCustomerRequest request, CancellationToken cancellationToken)
     {
         // Must actually await here: a non-async method returning the task would let "using" dispose

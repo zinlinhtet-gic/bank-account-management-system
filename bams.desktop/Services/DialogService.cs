@@ -42,6 +42,19 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog(Application.Current?.MainWindow) == true ? dialog.FileName : null;
     }
 
+    /// <inheritdoc />
+    public string? PickSaveFile(string title, string suggestedFileName, string filter)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = title,
+            FileName = suggestedFileName,
+            Filter = filter
+        };
+
+        return dialog.ShowDialog(Application.Current?.MainWindow) == true ? dialog.FileName : null;
+    }
+
     // Positions the dialog over the main window, blurs the window content while the dialog is open, and waits.
     private static bool ShowOverMainWindow(Window dialog)
     {

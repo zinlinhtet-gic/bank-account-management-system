@@ -50,4 +50,13 @@ public interface IDialogService
     /// <param name="filter">Standard Win32 file-dialog filter, e.g. <c>"Documents|*.pdf;*.jpg;*.png|All files|*.*"</c>.</param>
     /// <returns>The chosen local file path, or null when the user cancelled.</returns>
     string? PickFile(string title, string filter);
+
+    /// <summary>
+    /// Opens a native "Save As" file picker (e.g. for a document download).
+    /// </summary>
+    /// <param name="title">Dialog window title.</param>
+    /// <param name="suggestedFileName">Default file name shown in the dialog.</param>
+    /// <param name="filter">Standard Win32 file-dialog filter.</param>
+    /// <returns>The chosen local file path, or null when the user cancelled.</returns>
+    string? PickSaveFile(string title, string suggestedFileName, string filter);
 }

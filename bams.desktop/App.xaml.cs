@@ -1,5 +1,6 @@
 ﻿using System.Net.Http;
 using System.Windows;
+using System.Windows.Threading;
 using bams.desktop.Api;
 using bams.desktop.Constants;
 using bams.desktop.Services;
@@ -21,6 +22,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Final safety net: log the real exception and show a message instead of letting WPF
+        // crash the process with no diagnostic trace (see AGENTS-WPF.md section 44).
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+
         // Setup dependency injection
         var services = new ServiceCollection();
         ConfigureServices(services);
@@ -29,6 +34,19 @@ public partial class App : Application
         // Create and show main window
         var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
+    }
+
+    // Catches any exception a ViewModel or Service did not handle itself. Logs it and shows a
+    // generic message rather than letting the process die with no diagnostic trace.
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        MessageBox.Show(
+            $"An unexpected error occurred.\n\n{e.Exception.Message}",
+            "Unexpected Error",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+
+        e.Handled = true;
     }
 
     private void ConfigureServices(IServiceCollection services)

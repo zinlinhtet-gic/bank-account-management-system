@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -140,6 +141,55 @@ public sealed class ApiClient
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             throw CreateApiException(content);
         }
+    }
+
+    /// <summary>
+    /// Downloads a file response (not the JSON envelope) to a local path.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public async Task DownloadFileAsync(
+        string endpoint,
+        string destinationPath,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendRequestAsync(
+            () => _httpClient.GetAsync(endpoint, HttpCompletionOption.ResponseHeadersRead, cancellationToken),
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw CreateApiException(content);
+        }
+
+        await using var sourceStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var destinationStream = new FileStream(
+            destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 64 * 1024, useAsync: true);
+
+        await sourceStream.CopyToAsync(destinationStream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Downloads a file response (not the JSON envelope) into memory, e.g. to decode as an image.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public async Task<byte[]> GetBytesAsync(
+        string endpoint,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendRequestAsync(
+            () => _httpClient.GetAsync(endpoint, cancellationToken),
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw CreateApiException(content);
+        }
+
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }
 
     // Sends the request and reads the success payload.
