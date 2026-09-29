@@ -35,8 +35,6 @@ public static class ApiConstants
     // Fee Rate. Routes with an id: $"{FeeRatesEndpoint}/{id}" (update).
     public const string FeeRatesEndpoint = "api/fee-rates";
     public const string FeeRateAccountTypesEndpoint = FeeRatesEndpoint + "/account-types";
-    // Accounts (the officer's account pickers).
-    public const string AccountsEndpoint = "api/accounts";
 
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".
@@ -47,7 +45,7 @@ public static class ApiConstants
     public const string InterbankTransferEndpoint = TransactionsEndpoint + "/transfer/interbank";
     public const string NrcTransferEndpoint = TransactionsEndpoint + "/transfer/nrc";
     public const string NrcPickupEndpoint = TransactionsEndpoint + "/nrc-pickup";
-    public const string OtherBanksEndpoint = TransactionsEndpoint + "/other-banks";
+    public const string TransactionOtherBanksEndpoint = TransactionsEndpoint + "/other-banks";
     public const string BranchesEndpoint = TransactionsEndpoint + "/branches";
     public const string PaidOutSegment = "paid-out";
     public const string CompleteSegment = "complete";

@@ -7,6 +7,7 @@ using bams.server.DTO.Transactions;
 using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
+using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Audit;
 using bams.server.Models.Transactions;
 using Microsoft.EntityFrameworkCore;

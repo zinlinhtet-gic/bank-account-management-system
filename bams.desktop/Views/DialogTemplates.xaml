@@ -28,6 +28,8 @@
     <!-- Configuration: Fee Rate -->
     <DataTemplate DataType="{x:Type config:FeeRateFormViewModel}">
         <configviews:FeeRateFormDialogView/>
+    </DataTemplate>
+
     <!-- Transactions -->
     <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
         <transactionviews:TransactionDetailsDialogView/>

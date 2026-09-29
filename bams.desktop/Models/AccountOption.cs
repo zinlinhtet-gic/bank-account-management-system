@@ -20,7 +20,7 @@ public sealed record AccountOption(long Id, string AccountNo, string AccountType
     /// </summary>
     public static bool IsUsable(AccountSummaryResponse account)
     {
-        return account.Status is AccountStatus.Active or AccountStatus.Dormant;
+        return account.Status is "Active" or "Dormant";
     }
 
     /// <summary>

@@ -68,7 +68,7 @@ public sealed class TransactionService : ITransactionService
 
     public Task<IReadOnlyList<OtherBankResponse>> GetOtherBanksAsync(CancellationToken cancellationToken)
     {
-        return _apiClient.GetAsync<IReadOnlyList<OtherBankResponse>>(ApiConstants.OtherBanksEndpoint, cancellationToken);
+        return _apiClient.GetAsync<IReadOnlyList<OtherBankResponse>>(ApiConstants.TransactionOtherBanksEndpoint, cancellationToken);
     }
 
     public Task<TransactionResponse> DepositAsync(DepositRequest request, string idempotencyKey, CancellationToken cancellationToken)

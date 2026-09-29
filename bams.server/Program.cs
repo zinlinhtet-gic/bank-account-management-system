@@ -147,7 +147,6 @@ builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
         monthlyAtMyanmarMidnight,
         (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
 });
->>>>>>> main
 
 var app = builder.Build();
 
