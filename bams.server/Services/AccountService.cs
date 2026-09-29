@@ -9,6 +9,7 @@ using bams.server.Mapping;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
+using bams.server.Models.Products;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.WebUtilities;
@@ -237,8 +238,7 @@ public sealed class AccountService : IAccountService
         var accountType = await _accountTypeService.GetAccountTypeByIdAsync(
             request.AccountTypeId,
             cancellationToken);
-        var isFixedDeposit = _accountTypeService.IsFixedDeposit(accountType);
-        ValidateFixedDepositFields(request, isFixedDeposit);
+        ValidateFixedDepositFields(request, accountType.Category);
         var customers = await _accountHolderService.ResolveAndValidateHoldersAsync(request, cancellationToken);
         _accountTypeService.ValidateCustomerTypeEligibility(accountType, customers);
         await _accountHolderService.ValidateRequiredProductsAsync(accountType, customers, cancellationToken);
@@ -280,7 +280,7 @@ public sealed class AccountService : IAccountService
             // Persist the account first so its database identifier can organize private files.
             await _dbContext.SaveChangesAsync(cancellationToken);
             await _accountRefererService.CreateAccountReferersAsync(account, referers, cancellationToken);
-            if (isFixedDeposit)
+            if (accountType.Category == AccountTypeCategory.FIXED)
             {
                 await _fixedDepositService.CreateFixedDepositAsync(
                     account,
@@ -327,9 +327,9 @@ public sealed class AccountService : IAccountService
     // Rejects fixed-deposit-only fields when opening a non-fixed account.
     private static void ValidateFixedDepositFields(
         CreateAccountRequest request,
-        bool isFixedDeposit)
+        AccountTypeCategory accountTypeCategory)
     {
-        if (!isFixedDeposit &&
+        if (accountTypeCategory != AccountTypeCategory.FIXED &&
             (request.PayoutAccountId.HasValue || request.InterestRateRuleId.HasValue ||
              request.RenewalInstruction.HasValue || request.CalculateFromCurrent.HasValue))
         {

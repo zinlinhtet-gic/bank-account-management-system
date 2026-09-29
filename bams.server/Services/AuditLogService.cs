@@ -6,6 +6,7 @@ using bams.server.DTO.Accounts;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Audit;
+using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 
 namespace bams.server.Services;
@@ -63,6 +64,25 @@ public sealed class AuditLogService : IAuditLogService
     {
         return AddAuditLogAsync(AuditConstants.FixedDepositUpdatedAction, nameof(FixedDeposit), newFixedDeposit.Id,
             oldFixedDeposit, newFixedDeposit, performedAt, cancellationToken);
+    }
+
+    public async Task RecordScheduledFinancialLogAsync(long actorId, Transaction transaction, long accountId,
+        decimal oldLedger, decimal oldAvailable, decimal newLedger, decimal newAvailable,
+        string description, DateTime createdAt, bool isAccrual, CancellationToken cancellationToken)
+    {
+        await _dbContext.AuditLogs.AddAsync(new AuditLog
+        {
+            UserId = actorId,
+            Action = isAccrual ? AuditConstants.ScheduledFinancialAccruedAction : AuditConstants.ScheduledFinancialPostedAction,
+            EntityType = nameof(Account), EntityId = accountId.ToString(CultureInfo.InvariantCulture),
+            OldValues = JsonSerializer.Serialize(new { LedgerBalance = oldLedger, AvailableBalance = oldAvailable }),
+            NewValues = JsonSerializer.Serialize(new
+            {
+                LedgerBalance = newLedger, AvailableBalance = newAvailable, transaction.Id,
+                transaction.TransactionNo, transaction.TransactionType, transaction.Amount, Description = description
+            }),
+            CreatedAt = createdAt
+        }, cancellationToken);
     }
 
     // Tracks an audit entry so the owning operation can persist it atomically with its write.

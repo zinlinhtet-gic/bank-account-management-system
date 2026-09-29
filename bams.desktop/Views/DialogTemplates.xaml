@@ -3,7 +3,9 @@
                     xmlns:users="clr-namespace:bams.desktop.ViewModels.Pages.Users"
                     xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users"
                     xmlns:config="clr-namespace:bams.desktop.ViewModels.Pages.Configuration"
-                    xmlns:configviews="clr-namespace:bams.desktop.Views.Pages.Configuration">
+                    xmlns:configviews="clr-namespace:bams.desktop.Views.Pages.Configuration"
+                    xmlns:transactions="clr-namespace:bams.desktop.ViewModels.Pages.Transactions"
+                    xmlns:transactionviews="clr-namespace:bams.desktop.Views.Pages.Transactions">
 
     <!--
         Dialog ViewModel → dialog View, used by IDialogService.ShowDialog (Components/ModalDialog).
@@ -26,5 +28,20 @@
     <!-- Configuration: Fee Rate -->
     <DataTemplate DataType="{x:Type config:FeeRateFormViewModel}">
         <configviews:FeeRateFormDialogView/>
+    <!-- Transactions -->
+    <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
+        <transactionviews:TransactionDetailsDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:NrcPickupFormViewModel}">
+        <transactionviews:NrcPickupDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:NrcPickupCodeViewModel}">
+        <transactionviews:NrcPickupCodeDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:PendingTransferActionViewModel}">
+        <transactionviews:PendingTransferActionDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type transactions:AccountStatementViewModel}">
+        <transactionviews:AccountStatementDialogView/>
     </DataTemplate>
 </ResourceDictionary>

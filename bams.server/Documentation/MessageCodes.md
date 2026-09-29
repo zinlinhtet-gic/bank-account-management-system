@@ -30,6 +30,12 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1401 | InterestRateUpdatedSuccessfully | 200 | An interest rate rule was updated. |
 | 1402 | FeeRuleCreatedSuccessfully | 201 | A fee rule was created (Configuration). |
 | 1403 | FeeRuleUpdatedSuccessfully | 200 | A fee rule was updated. |
+
+| 1200 | TransactionCompletedSuccessfully | 200 | A deposit, withdrawal, internal transfer or NRC pickup was posted. |
+| 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
+| 1202 | TransactionRefundedSuccessfully | 200 | An NRC transfer was cancelled or an interbank transfer failed; the sender was refunded. |
+| 1203 | InterbankTransferSettledSuccessfully | 200 | A pending interbank transfer was recorded as settled. |
+
 | 1101 | AccountStatusUpdatedSuccessfully | 200 | Account status update succeeded. |
 | 1102 | AccountBalanceUpdatedSuccessfully | 200 | Account balance adjustment succeeded. |
 | 1103 | AccountHoldersUpdatedSuccessfully | 200 | Joint-account holder update succeeded. |
@@ -55,6 +61,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3012 | NewPasswordSameAsCurrent | 400 | Change password: the new password equals the current one. |
 | 3013 | DefaultPasswordNotAllowed | 400 | Change password: the new password is one of the role default passwords. |
 | 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the account type's minimum. |
+
 | 3400 | InterestRateBalanceRangeInvalid | 400 | Minimum balance is greater than maximum balance on an interest rate rule. |
 | 3401 | FeeRuleAmountRangeInvalid | 400 | Minimum fee is greater than maximum fee on a fee rule. |
 | 4000 | AuthenticationRequired | 401 | No valid JWT, or the token's user no longer exists. |
@@ -75,7 +82,12 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
 | 4480 | LastManagerCannotBeRemoved | 422 | Deleting, or taking the manager role from, the only active manager is refused. |
 | 5000 | InternalServerError | 500 | An unexpected server error occurred. |
-=======
+
+| 3300 | SameSourceAndDestinationAccount | 400 | A transfer names the same account as source and destination. |
+| 3301 | InvalidPickupCode | 400 | The NRC pickup code does not match. |
+| 4000 | AuthenticationRequired | 401 | No valid JWT, or the token's user no longer exists. |
+| 4001 | PasswordChangeRequired | — | The user must change their password before continuing. |
+
 | 3004 | InvalidCredentials | 400 | Login or current-password credentials are incorrect. |
 | 3005 | PasswordDoesNotMeetRequirements | 400 | The new password fails complexity requirements. |
 | 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the product minimum. |
@@ -125,6 +137,29 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | Code | Name | HTTP | Meaning |
 | --- | --- | --- | --- |
 | 4200 | ResourceNotFound | 404 | A generic resource was not found. |
+| 4201 | AccountNotFound | 404 | The requested bank account does not exist. |
+| 4203 | AccountTypeNotFound | 404 | The requested account type does not exist. |
+| 4204 | UserNotFound | 404 | The requested staff user does not exist. |
+| 4240 | TransactionNotFound | 404 | The requested transaction (e.g. an NRC transfer for pickup) does not exist. |
+| 4241 | OtherBankNotFound | 404 | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist. |
+| 4242 | BranchNotFound | 404 | The NRC pickup branch does not exist or is not active. |
+| 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
+| 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
+| 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
+| 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
+| 4440 | InsufficientBalance | 422 | A debit exceeds the account's available balance. |
+| 4441 | AccountNotOperational | 422 | The account is closed, frozen or suspended. |
+| 4442 | PickupCodeExpired | 422 | The NRC pickup code has passed its expiry time. |
+| 4443 | TransactionNotPendingPickup | 422 | The NRC transfer was already picked up or is no longer pending. |
+| 4444 | WithdrawalNotAllowed | 422 | The account type does not allow withdrawals. |
+| 4445 | TransferNotAllowed | 422 | The source account type does not allow transfers. |
+| 4446 | MinimumBalanceRequired | 422 | The debit would leave less than the account type's minimum maintained balance. |
+| 4447 | DailyTransactionLimitExceeded | 422 | The debit would exceed the account type's daily limit. |
+| 4448 | MonthlyTransactionLimitExceeded | 422 | The debit would exceed the account type's monthly limit. |
+| 4449 | PickupAttemptsExceeded | 422 | Too many wrong pickup codes; the NRC transfer can only be cancelled. |
+| 4450 | TransactionNotPending | 422 | The interbank transfer's gateway result was already recorded. |
+| 4451 | NrcPickupLocationMismatch | 422 | Pickup was tried on an other-bank NRC transfer, or a payout recorded for a branch one. |
+| 4480 | LastManagerCannotBeRemoved | 422 | Deleting, or taking the manager role from, the only active manager is refused. |
 | 4201 | AccountNotFound | 404 | The account does not exist. |
 | 4202 | CustomerNotFound | 404 | The customer does not exist. |
 | 4203 | AccountTypeNotFound | 404 | The account type does not exist. |

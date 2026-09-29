@@ -38,6 +38,9 @@ public sealed class Transaction
 
     public string? ReferenceNo { get; set; }
 
+    // Client-supplied key that makes a retried request return the original transaction instead of posting twice.
+    public string? IdempotencyKey { get; set; }
+
     public long? ReversalOfTransactionId { get; set; }
 
     public Transaction? ReversalOfTransaction { get; set; }

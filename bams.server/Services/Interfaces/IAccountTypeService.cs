@@ -1,4 +1,5 @@
 using bams.server.DTO.Products;
+using bams.server.Models.Accounts;
 using bams.server.Models.Customers;
 using bams.server.Models.Products;
 
@@ -6,6 +7,36 @@ namespace bams.server.Services.Interfaces;
 
 public interface IAccountTypeService
 {
+    Task<IReadOnlyList<Account>> GetAccountsByCategoryAsync(
+        AccountTypeCategory category,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Account>> GetAccountsNotInCategoryAsync(
+        AccountTypeCategory category,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Account>> GetAccountsByCategoryPageAsync(
+        AccountTypeCategory category,
+        long? afterAccountId,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Account>> GetAccountsNotInCategoryPageAsync(
+        AccountTypeCategory category,
+        long? afterAccountId,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    IAsyncEnumerable<IReadOnlyList<Account>> GetAccountBatchesByCategoryAsync(
+        AccountTypeCategory category,
+        int batchSize,
+        CancellationToken cancellationToken = default);
+
+    IAsyncEnumerable<IReadOnlyList<Account>> GetAccountBatchesNotInCategoryAsync(
+        AccountTypeCategory category,
+        int batchSize,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Gets all active account products available for account opening.
     /// </summary>
@@ -28,11 +59,6 @@ public interface IAccountTypeService
     /// Validates the opening balance against the account type's configured minimum.
     /// </summary>
     void ValidateOpeningBalance(decimal openingBalance, AccountType accountType);
-
-    /// <summary>
-    /// Determines whether an account type represents a fixed-deposit product.
-    /// </summary>
-    bool IsFixedDeposit(AccountType accountType);
 
     void ValidateCustomerTypeEligibility(AccountType accountType, IReadOnlyList<Customer> customers);
 

@@ -1121,7 +1121,6 @@ components:
         - allowWithdrawal
         - allowTransfer
         - allowPartialWithdrawal
-        - isFixedDeposit
         - allowForeigner
         - allowCitizen
         - citizenRequiredRefer
@@ -1136,7 +1135,7 @@ components:
           type: string
         category:
           type: string
-          nullable: true
+          enum: [CURRENT, SAVING, FIXED, CALL]
         minimumOpeningBalance:
           type: number
           format: decimal
@@ -1161,8 +1160,6 @@ components:
           type: integer
           format: int64
           nullable: true
-        isFixedDeposit:
-          type: boolean
         allowForeigner:
           type: boolean
         allowCitizen:

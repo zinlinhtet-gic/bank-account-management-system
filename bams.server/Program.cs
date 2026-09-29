@@ -12,6 +12,7 @@ using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
+using bams.server.Services.Jobs;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features;
@@ -102,6 +103,11 @@ builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
 builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
 builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<LedgerPostingService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
+builder.Services.AddScoped<INrcTransferService, NrcTransferService>();
+builder.Services.AddScoped<ITransactionQueryService, TransactionQueryService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
@@ -113,13 +119,35 @@ builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAccountTransactionService, AccountTransactionService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
+builder.Services.AddScoped<IScheduledTransactionService, ScheduledTransactionService>();
+builder.Services.AddScoped<IGeneralLedgerPostingService, GeneralLedgerPostingService>();
+builder.Services.AddScoped<ScheduledFinancialPostingService>();
+builder.Services.AddScoped<AccountMaintenanceService>();
+builder.Services.AddScoped<InterestAccumulationService>();
 builder.Services.AddScoped<ProductSeeder>();
+builder.Services.AddScoped<InterestRateRuleSeeder>();
+builder.Services.AddScoped<FeeRuleSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOtherBankService, OtherBankService>();
 builder.Services.AddScoped<IInterestRateService, InterestRateService>();
 builder.Services.AddScoped<IFeeRateService, FeeRateService>();
+builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
+{
+    var monthlyAtMyanmarMidnight = JobSchedule.Monthly(5, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
+    jobs.Add<AccountMaintenanceService>(
+        "account-maintenance",
+        "Account Maintenance",
+        monthlyAtMyanmarMidnight,
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+    jobs.Add<InterestAccumulationService>(
+        "interest-accumulation",
+        "Interest Accumulation",
+        monthlyAtMyanmarMidnight,
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+});
+>>>>>>> main
 
 var app = builder.Build();
 
@@ -167,6 +195,8 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
     await OtherBankSeeder.SeedAsync(dbContext);
+    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
+    await BranchSeeder.SeedBranchesAsync(dbContext);
 }
 
 app.Run();

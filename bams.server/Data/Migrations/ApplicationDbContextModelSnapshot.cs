@@ -776,6 +776,9 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("AccountId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("AccruedTransactionId")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -810,11 +813,14 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountId");
+                    b.HasIndex("AccruedTransactionId")
+                        .IsUnique();
 
                     b.HasIndex("FeeRuleId");
 
-                    b.HasIndex("PostedTransactionId")
+                    b.HasIndex("PostedTransactionId");
+
+                    b.HasIndex("AccountId", "FeeType", "PeriodStart", "PeriodEnd")
                         .IsUnique();
 
                     b.ToTable("FeeAccruals");
@@ -827,6 +833,9 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<long>("AccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("AccruedTransactionId")
                         .HasColumnType("bigint");
 
                     b.Property<decimal>("AnnualRate")
@@ -866,13 +875,160 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountId");
+                    b.HasIndex("AccruedTransactionId")
+                        .IsUnique();
 
                     b.HasIndex("InterestRateRuleId");
 
                     b.HasIndex("PostedTransactionId");
 
+                    b.HasIndex("AccountId", "PeriodStart", "PeriodEnd")
+                        .IsUnique();
+
                     b.ToTable("InterestAccruals");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Organization.Branch", b =>
+            {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Branches");
+            });
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("DayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<long?>("IntervalTicks")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("JobKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("LastRunAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LeaseToken")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<TimeSpan?>("LocalTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<DateTime>("NextRunAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("PendingScheduledAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ScheduleType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobKey")
+                        .IsUnique();
+
+                    b.HasIndex("IsEnabled", "NextRunAtUtc", "LeaseUntilUtc");
+
+                    b.ToTable("ScheduledJobs");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJobExecution", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<DateTime>("ScheduledForUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ScheduledJobId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduledJobId", "ScheduledForUtc", "AttemptNumber")
+                        .IsUnique();
+
+                    b.ToTable("ScheduledJobExecutions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
@@ -901,8 +1057,9 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Category")
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)");
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("CitizenRequiredRefer")
                         .ValueGeneratedOnAdd()
@@ -922,9 +1079,6 @@ namespace bams.server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
-
-                    b.Property<bool>("IsFixedDeposit")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<decimal>("MinimumMaintainedBalance")
                         .HasPrecision(18, 2)
@@ -1341,8 +1495,16 @@ namespace bams.server.Data.Migrations
                     b.Property<long?>("DestinationAccountId")
                         .HasColumnType("bigint");
 
+                    b.Property<int>("FailedPickupAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("PickupBranchId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("PickupCodeHash")
                         .HasMaxLength(256)
@@ -1350,6 +1512,9 @@ namespace bams.server.Data.Migrations
 
                     b.Property<DateTime?>("PickupExpiresAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("PickupOtherBankId")
+                        .HasColumnType("bigint");
 
                     b.Property<long?>("PickupVerifiedBy")
                         .HasColumnType("bigint");
@@ -1394,6 +1559,10 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("DestinationAccountId");
 
+                    b.HasIndex("PickupBranchId");
+
+                    b.HasIndex("PickupOtherBankId");
+
                     b.HasIndex("PickupVerifiedBy");
 
                     b.HasIndex("TransactionId")
@@ -1428,6 +1597,10 @@ namespace bams.server.Data.Migrations
                     b.Property<decimal>("FeeAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
 
                     b.Property<long>("InitiatedBy")
                         .HasColumnType("bigint");
@@ -1465,6 +1638,9 @@ namespace bams.server.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorizedBy");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
 
                     b.HasIndex("InitiatedBy");
 
@@ -1743,6 +1919,11 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("bams.server.Models.Transactions.Transaction", "AccruedTransaction")
+                        .WithMany()
+                        .HasForeignKey("AccruedTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("bams.server.Models.Products.FeeRule", "FeeRule")
                         .WithMany()
                         .HasForeignKey("FeeRuleId")
@@ -1755,6 +1936,8 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Account");
+
+                    b.Navigation("AccruedTransaction");
 
                     b.Navigation("FeeRule");
 
@@ -1769,6 +1952,11 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("bams.server.Models.Transactions.Transaction", "AccruedTransaction")
+                        .WithMany()
+                        .HasForeignKey("AccruedTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("bams.server.Models.Products.InterestRateRule", "InterestRateRule")
                         .WithMany()
                         .HasForeignKey("InterestRateRuleId")
@@ -1782,9 +1970,22 @@ namespace bams.server.Data.Migrations
 
                     b.Navigation("Account");
 
+                    b.Navigation("AccruedTransaction");
+
                     b.Navigation("InterestRateRule");
 
                     b.Navigation("PostedTransaction");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJobExecution", b =>
+                {
+                    b.HasOne("bams.server.Models.Jobs.ScheduledJob", "ScheduledJob")
+                        .WithMany("Executions")
+                        .HasForeignKey("ScheduledJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScheduledJob");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
@@ -1913,6 +2114,16 @@ namespace bams.server.Data.Migrations
                         .HasForeignKey("DestinationAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("bams.server.Models.Organization.Branch", "PickupBranch")
+                        .WithMany()
+                        .HasForeignKey("PickupBranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("bams.server.Models.External.OtherBank", "PickupOtherBank")
+                        .WithMany()
+                        .HasForeignKey("PickupOtherBankId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("bams.server.Models.Security.User", "PickupVerifiedByUser")
                         .WithMany()
                         .HasForeignKey("PickupVerifiedBy")
@@ -1925,6 +2136,10 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("DestinationAccount");
+
+                    b.Navigation("PickupBranch");
+
+                    b.Navigation("PickupOtherBank");
 
                     b.Navigation("PickupVerifiedByUser");
 
@@ -1992,6 +2207,11 @@ namespace bams.server.Data.Migrations
             modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
                 {
                     b.Navigation("AccountHolders");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
+                {
+                    b.Navigation("Executions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Security.User", b =>

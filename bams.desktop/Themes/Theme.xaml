@@ -14,6 +14,7 @@
         <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/Inputs.xaml"/>
         <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/DataGrid.xaml"/>
         <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/Surfaces.xaml"/>
+        <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/Tabs.xaml"/>
         <ResourceDictionary Source="/bams.desktop;component/Themes/Controls/ScrollBars.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 </ResourceDictionary>

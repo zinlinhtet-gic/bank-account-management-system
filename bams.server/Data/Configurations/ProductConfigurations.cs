@@ -12,7 +12,7 @@ public sealed class AccountTypeConfiguration : IEntityTypeConfiguration<AccountT
 
         builder.Property(t => t.Code).IsRequired().HasMaxLength(40);
         builder.Property(t => t.Name).IsRequired().HasMaxLength(150);
-        builder.Property(t => t.Category).HasMaxLength(40);
+        builder.Property(t => t.Category).HasConversion<string>().HasMaxLength(20);
         builder.Property(t => t.Status).IsRequired().HasMaxLength(20);
         builder.Property(t => t.AllowCitizen).HasDefaultValue(true);
         builder.Property(t => t.AllowForeigner).HasDefaultValue(true);

@@ -4,12 +4,15 @@ using bams.server.Models.Audit;
 using bams.server.Models.Customers;
 using bams.server.Models.External;
 using bams.server.Models.InterestFees;
+using bams.server.Models.Organization;
+using bams.server.Models.Jobs;
 using bams.server.Models;
 using bams.server.Models.Products;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
 using bams.server.Data.Converters;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace bams.server.Data;
 
@@ -21,6 +24,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    // Organization
+    public DbSet<Branch> Branches => Set<Branch>();
 
     // Customer / KYC
     public DbSet<Customer> Customers => Set<Customer>();
@@ -52,6 +58,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<InterestAccrual> InterestAccruals => Set<InterestAccrual>();
     public DbSet<FeeAccrual> FeeAccruals => Set<FeeAccrual>();
 
+    // Scheduled jobs
+    public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
+    public DbSet<ScheduledJobExecution> ScheduledJobExecutions => Set<ScheduledJobExecution>();
+
     // External banking
     public DbSet<OtherBank> OtherBanks => Set<OtherBank>();
     public DbSet<ReconciliationBatch> ReconciliationBatches => Set<ReconciliationBatch>();
@@ -69,6 +79,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
 
+        // MySql.EntityFrameworkCore writes DateOnly but cannot read it back (InvalidCastException from DateTime),
+        // so DateOnly values travel as DateTime while the column stays a plain SQL date.
+        configurationBuilder.Properties<DateOnly>()
+            .HaveConversion<DateOnlyToDateTimeConverter>()
+            .HaveColumnType(DateColumnType);
         // MySQL materializes DATE columns as DateTime, so convert them explicitly to DateOnly.
         configurationBuilder.Properties<DateOnly>()
             .HaveConversion<DateOnlyValueConverter>()
@@ -77,6 +92,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HaveConversion<NullableDateOnlyValueConverter>()
             .HaveColumnType("date");
     }
+
+    private const string DateColumnType = "date";
+
+    // Converts DateOnly to midnight DateTime for the database and back.
+    private sealed class DateOnlyToDateTimeConverter()
+        : ValueConverter<DateOnly, DateTime>(
+            date => date.ToDateTime(TimeOnly.MinValue),
+            dateTime => DateOnly.FromDateTime(dateTime));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

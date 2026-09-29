@@ -1,6 +1,7 @@
 using bams.server.DTO.Accounts;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
+using bams.server.Models.Transactions;
 
 namespace bams.server.Services.Interfaces;
 
@@ -61,5 +62,9 @@ public interface IAuditLogService
         FixedDepositResponse newFixedDeposit,
         DateTime performedAt,
         CancellationToken cancellationToken);
+
+    Task RecordScheduledFinancialLogAsync(long actorId, Transaction transaction, long accountId,
+        decimal oldLedger, decimal oldAvailable, decimal newLedger, decimal newAvailable,
+        string description, DateTime createdAt, bool isAccrual, CancellationToken cancellationToken);
 
 }

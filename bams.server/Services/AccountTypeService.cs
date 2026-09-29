@@ -1,8 +1,10 @@
+using System.Runtime.CompilerServices;
 using bams.server.Data;
 using bams.server.DTO.Products;
 using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Products;
+using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Customers;
 using bams.server.Services.Interfaces;
@@ -42,12 +44,112 @@ public sealed class AccountTypeService : IAccountTypeService
                 accountType.AllowTransfer,
                 accountType.AllowPartialWithdrawal,
                 accountType.RequiredProductId,
-                accountType.IsFixedDeposit,
                 accountType.AllowForeigner,
                 accountType.AllowCitizen,
                 accountType.CitizenRequiredRefer,
                 accountType.ForeignRequiredRefer))
             .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Loads all accounts whose product category matches the requested category.</summary>
+    public async Task<IReadOnlyList<Account>> GetAccountsByCategoryAsync(
+        AccountTypeCategory category,
+        CancellationToken cancellationToken = default) =>
+        await GetAccountsQuery(category, excludeCategory: false).ToListAsync(cancellationToken);
+
+    /// <summary>Loads all accounts whose product category differs from the requested category.</summary>
+    public async Task<IReadOnlyList<Account>> GetAccountsNotInCategoryAsync(
+        AccountTypeCategory category,
+        CancellationToken cancellationToken = default) =>
+        await GetAccountsQuery(category, excludeCategory: true).ToListAsync(cancellationToken);
+
+    /// <summary>Loads a stable keyset page of accounts matching the category.</summary>
+    public async Task<IReadOnlyList<Account>> GetAccountsByCategoryPageAsync(
+        AccountTypeCategory category,
+        long? afterAccountId,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateAccountBatchSize(pageSize);
+        var query = GetAccountsQuery(category, excludeCategory: false);
+        if (afterAccountId.HasValue)
+        {
+            query = query.Where(account => account.Id > afterAccountId.Value);
+        }
+
+        return await query.OrderBy(account => account.Id).Take(pageSize).ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Loads a stable keyset page of accounts outside the category.</summary>
+    public async Task<IReadOnlyList<Account>> GetAccountsNotInCategoryPageAsync(
+        AccountTypeCategory category,
+        long? afterAccountId,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateAccountBatchSize(pageSize);
+        var query = GetAccountsQuery(category, excludeCategory: true);
+        if (afterAccountId.HasValue)
+        {
+            query = query.Where(account => account.Id > afterAccountId.Value);
+        }
+
+        return await query.OrderBy(account => account.Id).Take(pageSize).ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Streams matching accounts in bounded keyset batches.</summary>
+    public IAsyncEnumerable<IReadOnlyList<Account>> GetAccountBatchesByCategoryAsync(
+        AccountTypeCategory category,
+        int batchSize,
+        CancellationToken cancellationToken = default) =>
+        GetAccountBatchesAsync(category, excludeCategory: false, batchSize: batchSize, cancellationToken: cancellationToken);
+
+    /// <summary>Streams accounts outside the category in bounded keyset batches.</summary>
+    public IAsyncEnumerable<IReadOnlyList<Account>> GetAccountBatchesNotInCategoryAsync(
+        AccountTypeCategory category,
+        int batchSize,
+        CancellationToken cancellationToken = default) =>
+        GetAccountBatchesAsync(category, excludeCategory: true, batchSize: batchSize, cancellationToken: cancellationToken);
+
+    private IQueryable<Account> GetAccountsQuery(AccountTypeCategory category, bool excludeCategory)
+    {
+        var query = _dbContext.Accounts.AsNoTracking().Include(account => account.AccountType);
+        return excludeCategory
+            ? query.Where(account => account.AccountType != null && account.AccountType.Category != category)
+            : query.Where(account => account.AccountType != null && account.AccountType.Category == category);
+    }
+
+    private async IAsyncEnumerable<IReadOnlyList<Account>> GetAccountBatchesAsync(
+        AccountTypeCategory category,
+        bool excludeCategory,
+        int batchSize,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ValidateAccountBatchSize(batchSize);
+        long lastAccountId = 0;
+        while (true)
+        {
+            var batch = await GetAccountsQuery(category, excludeCategory)
+                .Where(account => account.Id > lastAccountId)
+                .OrderBy(account => account.Id)
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
+            if (batch.Count == 0)
+            {
+                yield break;
+            }
+
+            lastAccountId = batch[^1].Id;
+            yield return batch;
+        }
+    }
+
+    private static void ValidateAccountBatchSize(int size)
+    {
+        if (size is < 1 or > 1000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(size), "Account query size must be between 1 and 1000.");
+        }
     }
 
     /// <inheritdoc />
@@ -119,7 +221,6 @@ public sealed class AccountTypeService : IAccountTypeService
                 accountType.AllowTransfer,
                 accountType.AllowPartialWithdrawal,
                 accountType.RequiredProductId,
-                accountType.IsFixedDeposit,
                 accountType.AllowForeigner,
                 accountType.AllowCitizen,
                 accountType.CitizenRequiredRefer,
@@ -151,12 +252,6 @@ public sealed class AccountTypeService : IAccountTypeService
         {
             throw new ValidationException(MessageCode.OpeningBalanceInvalid);
         }
-    }
-
-    /// <inheritdoc />
-    public bool IsFixedDeposit(AccountType accountType)
-    {
-        return accountType.IsFixedDeposit;
     }
 
     /// <summary>Rejects account holders whose customer type is not allowed by the selected product.</summary>
