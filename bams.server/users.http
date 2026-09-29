@@ -42,7 +42,7 @@ Authorization: Bearer {{token}}
 DELETE {{baseUrl}}/users/4
 Authorization: Bearer {{token}}
 
-### Presence: keep the caller online (the desktop sends this every minute) / mark the caller offline
+### Presence: keep the caller online (the desktop sends this every 15 seconds) / mark the caller offline
 POST {{baseUrl}}/auth/heartbeat
 Authorization: Bearer {{token}}
 

@@ -10,4 +10,8 @@ public static class DisplayFormats
 
     // Shown instead of an empty optional value.
     public const string EmptyValue = "—";
+
+    // Money: thousands separators and always two decimals, e.g. "1,204,550.00".
+    public const string Amount = "#,##0.00";
+    public const string CurrencyCode = "MMK";
 }

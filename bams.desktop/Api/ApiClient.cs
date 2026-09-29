@@ -62,6 +62,48 @@ public sealed class ApiClient
     }
 
     /// <summary>
+    /// Gets a raw JSON response for endpoints that do not use the standard success envelope.
+    /// </summary>
+    public async Task<TResponse> GetRawAsync<TResponse>(
+        string endpoint,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendRequestAsync(
+            () => _httpClient.GetAsync(endpoint, cancellationToken),
+            cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw CreateApiException(content);
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<TResponse>(content, SerializerOptions)
+                ?? throw new ApiException(MessageCode.InvalidServerResponse);
+        }
+        catch (JsonException)
+        {
+            throw new ApiException(MessageCode.InvalidServerResponse);
+        }
+    }
+
+    /// <summary>
+    /// Posts multipart form data and returns the standard success envelope's data payload.
+    /// </summary>
+    public async Task<TResponse> PostMultipartAsync<TResponse>(
+        string endpoint,
+        MultipartFormDataContent content,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendRequestAsync(
+            () => _httpClient.PostAsync(endpoint, content, cancellationToken),
+            cancellationToken);
+        return await ReadResponseAsync<TResponse>(response, cancellationToken);
+    }
+
+    /// <summary>
     /// Sends a JSON POST request and returns the <c>Data</c> payload of the server response.
     /// </summary>
     /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
@@ -73,6 +115,36 @@ public sealed class ApiClient
     {
         return SendAsync<TResponse>(
             () => _httpClient.PostAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends a JSON POST request with extra headers for this request only (e.g. <c>Idempotency-Key</c>) and returns
+    /// the <c>Data</c> payload of the server response.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public Task<TResponse> PostAsync<TRequest, TResponse>(
+        string endpoint,
+        TRequest request,
+        IReadOnlyDictionary<string, string> headers,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () =>
+            {
+                // A request message can be sent only once, so it is built inside the send delegate.
+                var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = JsonContent.Create(request, options: SerializerOptions)
+                };
+                foreach (var (name, value) in headers)
+                {
+                    message.Headers.Add(name, value);
+                }
+
+                return _httpClient.SendAsync(message, cancellationToken);
+            },
             cancellationToken);
     }
 
@@ -120,6 +192,14 @@ public sealed class ApiClient
     {
         return SendAsync<TResponse>(
             () => _httpClient.PutAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>Sends a JSON PATCH request and returns the success envelope payload.</summary>
+    public Task<TResponse> PatchAsync<TRequest, TResponse>(string endpoint, TRequest request, CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.PatchAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
     }
 

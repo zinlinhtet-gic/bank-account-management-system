@@ -6,8 +6,10 @@ using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
+using System.Windows.Threading;
 
 namespace bams.desktop;
 
@@ -22,9 +24,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Final safety net: log the real exception and show a message instead of letting WPF
-        // crash the process with no diagnostic trace (see AGENTS-WPF.md section 44).
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        AppLog.WriteInformation($"Application starting. Log file: {AppLog.LogFilePath}");
 
         // Setup dependency injection
         var services = new ServiceCollection();
@@ -58,6 +61,7 @@ public partial class App : Application
         services.AddSingleton<HttpClient>(sp => new HttpClient { BaseAddress = new Uri(ApiConstants.ServerBaseAddress) });
         services.AddSingleton<ApiClient>();
         services.AddSingleton<Services.IAuthenticationService, Services.AuthenticationService>();
+        services.AddSingleton<Services.IAccountManagementService, Services.AccountManagementService>();
 
         // Register Navigation Service
         services.AddSingleton<Services.INavigationService, Services.NavigationService>();
@@ -78,6 +82,12 @@ public partial class App : Application
         services.AddTransient<ViewModels.Pages.Customers.CustomerFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerTableViewModel>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerCreateViewModel>();
+        // Transactions (Transactions and Transaction History pages share the filter and list components)
+        services.AddSingleton<Services.ITransactionService, Services.TransactionService>();
+        services.AddSingleton<Services.IAccountService, Services.AccountService>();
+        services.AddTransient<ViewModels.Pages.Transactions.TransactionFilterViewModel>();
+        services.AddTransient<ViewModels.Pages.Transactions.TransactionListViewModel>();
+        services.AddTransient<ViewModels.Pages.Transactions.TransactionDetailsLauncher>();
 
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
@@ -89,6 +99,7 @@ public partial class App : Application
         services.AddTransient<UserManagementViewModel>();
         // services.AddTransient<CustomerManagementViewModel>();
         services.AddTransient<CustomerKYCViewModel>();
+        // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();
         services.AddTransient<TransactionHistoryViewModel>();
