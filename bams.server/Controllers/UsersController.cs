@@ -108,12 +108,12 @@ public sealed class UsersController : ControllerBase
     /// Soft-deletes a user.
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<IActionResult> DeleteUserAsync(
+    public async Task<ActionResult<ApiMessageResponse<bool>>> DeleteUserAsync(
         long id,
         CancellationToken cancellationToken)
     {
         await _userService.DeleteUserAsync(id, cancellationToken);
 
-        return NoContent();
+        return Ok(ApiMessageResponse<bool>.FromCode(MessageCode.UserDeletedSuccessfully, true));
     }
 }

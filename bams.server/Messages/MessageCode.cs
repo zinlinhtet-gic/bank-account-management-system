@@ -98,7 +98,6 @@ public enum MessageCode
     IdempotencyKeyReused = 4330,
 
     // Business Rules: 4400 - 4499
-    BusinessRuleViolation = 4400,
     InsufficientBalance = 4440,
     AccountNotOperational = 4441,
     PickupCodeExpired = 4442,
