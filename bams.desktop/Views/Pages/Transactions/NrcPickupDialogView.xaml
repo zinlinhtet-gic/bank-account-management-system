@@ -6,7 +6,7 @@
              Width="480">
     <!--
         NRC pickup, hosted by ModalDialog. DataContext: NrcPickupFormViewModel.
-        Shows who may collect the money, then takes the six-digit pickup code.
+        Takes the collector's name and NRC from their NRC card and the six-digit pickup code; pays out in cash.
     -->
     <StackPanel>
         <Grid>
@@ -26,7 +26,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- Who may collect: the officer compares this with the NRC card presented -->
+        <!-- Transfer summary. The designated receiver is not shown: the officer enters the identity from the
+             collector's NRC card and the server checks it. -->
         <Border Style="{StaticResource Card.Compact}" Margin="0,24,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -37,19 +38,13 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="RECEIVER" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ReceiverName}" Style="{StaticResource Text.Body}" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="1" Text="NRC" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ReceiverNrc}" Style="{StaticResource Text.Mono}" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="2" Text="SENDER" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SenderText}" Style="{StaticResource Text.Body}" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="3" Text="CODE VALID TO" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ExpiresText}" Style="{StaticResource Text.Body}" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="4" Text="COLLECT AT" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PickupLocationText}" Style="{StaticResource Text.Body}"/>
+                <TextBlock Grid.Row="0" Text="SENDER" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SenderText}" Style="{StaticResource Text.Body}" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="1" Text="CODE VALID TO" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ExpiresText}" Style="{StaticResource Text.Body}" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="2" Text="COLLECT AT" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PickupLocationText}" Style="{StaticResource Text.Body}"/>
             </Grid>
         </Border>
 
@@ -57,49 +52,32 @@
                         Visibility="{Binding HasAttemptsWarning, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <StackPanel Margin="0,20,0,0" IsEnabled="{Binding IsNotBusy}">
-            <TextBlock Text="PICKUP CODE" Style="{StaticResource Text.FieldLabel}"/>
+            <TextBlock Text="COLLECTOR'S NAME" Style="{StaticResource Text.FieldLabel}"/>
+            <TextBox x:Name="ReceiverNameBox" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="As printed on the NRC card"
+                     MaxLength="{Binding PersonNameMaximumLength}"
+                     Text="{Binding ReceiverName, UpdateSourceTrigger=PropertyChanged}"
+                     t:ThemeAssist.HasError="{Binding ReceiverNameError.HasError}"/>
+            <TextBlock Text="{Binding ReceiverNameError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                       Visibility="{Binding ReceiverNameError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <TextBlock Text="COLLECTOR'S NRC" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+            <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="As printed on the NRC card"
+                     FontFamily="{StaticResource MonoFont}" MaxLength="{Binding NrcMaximumLength}"
+                     Text="{Binding ReceiverNrc, UpdateSourceTrigger=PropertyChanged}"
+                     t:ThemeAssist.HasError="{Binding ReceiverNrcError.HasError}"/>
+            <TextBlock Text="Only the receiver the sender named can collect. Cash is paid out over the counter."
+                       Style="{StaticResource Text.Hint}"
+                       Visibility="{Binding ReceiverNrcError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+            <TextBlock Text="{Binding ReceiverNrcError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                       Visibility="{Binding ReceiverNrcError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <TextBlock Text="PICKUP CODE" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
             <TextBox x:Name="PickupCodeBox" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="6 digits"
                      FontFamily="{StaticResource MonoFont}" MaxLength="{Binding PickupCodeLength}"
                      Text="{Binding PickupCode, UpdateSourceTrigger=PropertyChanged}"
                      t:ThemeAssist.HasError="{Binding PickupCodeError.HasError}"/>
-            <TextBlock Text="Check the receiver's NRC card before entering the code."
-                       Style="{StaticResource Text.Hint}"
-                       Visibility="{Binding PickupCodeError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
             <TextBlock Text="{Binding PickupCodeError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
                        Visibility="{Binding PickupCodeError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-
-            <TextBlock Text="PAY OUT" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <RadioButton Style="{StaticResource Input.Radio}" GroupName="NrcPayout"
-                             IsChecked="{Binding IsPaidInCash, Mode=TwoWay}">
-                    <StackPanel>
-                        <TextBlock Text="Cash" Style="{StaticResource Text.Body}" FontWeight="Medium"/>
-                        <TextBlock Text="Over the counter" Style="{StaticResource Text.Caption}"/>
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton Grid.Column="2" Style="{StaticResource Input.Radio}" GroupName="NrcPayout"
-                             IsChecked="{Binding IsPaidIntoAccount, Mode=TwoWay}">
-                    <StackPanel>
-                        <TextBlock Text="Into their account" Style="{StaticResource Text.Body}" FontWeight="Medium"/>
-                        <TextBlock Text="If they bank with us" Style="{StaticResource Text.Caption}"/>
-                    </StackPanel>
-                </RadioButton>
-            </Grid>
-            <StackPanel Margin="0,12,0,0"
-                        Visibility="{Binding IsPaidIntoAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="RECEIVER'S ACCOUNT" Style="{StaticResource Text.FieldLabel}"/>
-                <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
-                          ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
-                          SelectedItem="{Binding DestinationAccount, Mode=TwoWay}"
-                          t:ThemeAssist.HasError="{Binding DestinationAccountError.HasError}"/>
-                <TextBlock Text="{Binding DestinationAccountError.Message}" Style="{StaticResource Text.Error}"
-                           Visibility="{Binding DestinationAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            </StackPanel>
         </StackPanel>
 
         <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,20,0,0" Content="{Binding FormError}"

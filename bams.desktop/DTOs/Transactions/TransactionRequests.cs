@@ -55,12 +55,14 @@ public sealed record NrcTransferRequest(
     string? ReferenceNo);
 
 /// <summary>
-/// Body of <c>POST api/transactions/nrc-pickup</c>: paid out in cash, or into <paramref name="DestinationAccountId"/>.
+/// Body of <c>POST api/transactions/nrc-pickup</c>: paid out in cash to the designated receiver, whose name and NRC
+/// are read from the collector's NRC card.
 /// </summary>
 public sealed record NrcPickupRequest(
     long TransactionId,
     string PickupCode,
-    long? DestinationAccountId);
+    string ReceiverName,
+    string ReceiverNrc);
 
 /// <summary>Body of <c>POST api/transactions/transfer/nrc/{id}/paid-out</c> (the other bank paid the receiver).</summary>
 public sealed record NrcPayoutRequest(

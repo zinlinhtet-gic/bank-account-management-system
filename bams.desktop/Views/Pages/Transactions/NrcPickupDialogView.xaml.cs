@@ -15,9 +15,9 @@ public partial class NrcPickupDialogView : UserControl
         Loaded += OnLoaded;
     }
 
-    // Puts the caret in the code box so the officer can type the code right away.
+    // Puts the caret in the first field so the officer can type the collector's name right away.
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        PickupCodeBox.Focus();
+        ReceiverNameBox.Focus();
     }
 }

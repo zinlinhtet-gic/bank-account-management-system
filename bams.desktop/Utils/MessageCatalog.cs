@@ -38,6 +38,7 @@ public static class MessageCatalog
             [MessageCode.PickupAttemptsExceeded] = "Too many wrong pickup codes. The transfer is blocked and can only be cancelled.",
             [MessageCode.TransactionNotPending] = "This transaction is no longer pending.",
             [MessageCode.NrcPickupLocationMismatch] = "This transfer is paid out elsewhere. Our branches enter the pickup code; for another bank, record its payout.",
+            [MessageCode.NrcPickupReceiverMismatch] = "The name or NRC number does not match the receiver the sender designated. Only that person can collect this transfer.",
             [MessageCode.ValidationFailed] ="One or more validation errors occurred.",
             [MessageCode.RequiredFieldMissing] = "Please fill in all required fields.",
             [MessageCode.InvalidRequest] = "The request is invalid.",

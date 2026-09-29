@@ -129,6 +129,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4449 | PickupAttemptsExceeded | 422 | Too many wrong pickup codes; the NRC transfer can only be cancelled. |
 | 4450 | TransactionNotPending | 422 | The interbank transfer's gateway result was already recorded. |
 | 4451 | NrcPickupLocationMismatch | 422 | Pickup was tried on an other-bank NRC transfer, or a payout recorded for a branch one. |
+| 4452 | NrcPickupReceiverMismatch | 422 | The name or NRC entered at pickup does not match the receiver the sender designated; counted as a failed pickup attempt. |
 | 4480 | LastManagerCannotBeRemoved | 422 | Deleting, or taking the manager role from, the only active manager is refused. |
 | 4201 | AccountNotFound | 404 | The account does not exist. |
 | 4202 | CustomerNotFound | 404 | The customer does not exist. |
