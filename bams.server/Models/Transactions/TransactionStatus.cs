@@ -8,5 +8,6 @@ public enum TransactionStatus
     Completed = 4,
     Failed = 5,
     Cancelled = 6,
-    Reversed = 7
+    Reversed = 7,
+    Accrued = 8
 }

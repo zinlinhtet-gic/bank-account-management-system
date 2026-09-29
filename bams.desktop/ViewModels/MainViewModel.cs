@@ -2,6 +2,8 @@ using bams.desktop.Constants;
 using System.Windows.Input;
 using bams.desktop.Commands;
 using bams.desktop.Services;
+using bams.desktop.Utils;
+using bams.desktop.ViewModels.Pages;
 using Bams.Desktop.Components.NavBar;
 
 namespace bams.desktop.ViewModels;
@@ -15,7 +17,10 @@ public sealed class MainViewModel : ViewModelBase
     private readonly AuthContext _authContext;
     private readonly INavigationService _navigationService;
     private object? _currentPage;
+    private object? _previousPage;
     private string _activeItem = string.Empty;
+    private string _currentPageLabel = string.Empty;
+    private string _previousPageLabel = string.Empty;
     private CancellationTokenSource? _pageInitializationCancellation;
 
     public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel)
@@ -82,9 +87,60 @@ public sealed class MainViewModel : ViewModelBase
         var viewModel = _navigationService.GetPageViewModel(pageLabel);
         if (viewModel != null)
         {
+            AppLog.WriteInformation($"Navigating to page '{pageLabel}' ({viewModel.GetType().FullName}).");
+            _previousPage = CurrentPage;
+            _previousPageLabel = _currentPageLabel;
             CurrentPage = viewModel;
+            _currentPageLabel = pageLabel;
             ActiveItem = pageLabel;
             StartPageInitialization(viewModel);
+        }
+    }
+
+    /// <summary>Restores the last page known to have been usable after a dispatcher failure.</summary>
+    public bool TryRecoverFromUnhandledException()
+    {
+        try
+        {
+            if (CurrentPage is AccountManagementViewModel accountManagement && accountManagement.IsCreateScreen)
+            {
+                accountManagement.RecoverToListAfterUnexpectedError(
+                    "An unexpected error interrupted account creation. The account list has been restored.");
+                AppLog.WriteInformation("Recovered from an account creation screen error to the account list.");
+                return true;
+            }
+
+            if (_previousPage is not null && !string.IsNullOrWhiteSpace(_previousPageLabel))
+            {
+                CurrentPage = _previousPage;
+                _currentPageLabel = _previousPageLabel;
+                ActiveItem = _previousPageLabel;
+                AppLog.WriteInformation($"Recovered navigation to previous page '{_previousPageLabel}'.");
+                return true;
+            }
+
+            var fallback = NavBar.Items.FirstOrDefault(item => item.Label != _currentPageLabel);
+            if (fallback is null)
+            {
+                return false;
+            }
+
+            var fallbackViewModel = _navigationService.GetPageViewModel(fallback.Label);
+            if (fallbackViewModel is null)
+            {
+                return false;
+            }
+
+            CurrentPage = fallbackViewModel;
+            _currentPageLabel = fallback.Label;
+            ActiveItem = fallback.Label;
+            AppLog.WriteInformation($"Recovered navigation to fallback page '{fallback.Label}'.");
+            return true;
+        }
+        catch (Exception recoveryException)
+        {
+            AppLog.WriteError("Could not recover navigation after an unhandled UI exception.", recoveryException);
+            return false;
         }
     }
 

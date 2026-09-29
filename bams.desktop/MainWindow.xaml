@@ -49,8 +49,19 @@
                         <pages:GenericPageView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">
+                        <pages:AccountManagementView/>
+                    </DataTemplate>
                     <DataTemplate DataType="{x:Type pageviewmodels:UserManagementViewModel}">
                         <pages:UserManagementView/>
+                    </DataTemplate>
+
+                    <DataTemplate DataType="{x:Type pageviewmodels:TransactionsViewModel}">
+                        <pages:TransactionsView/>
+                    </DataTemplate>
+
+                    <DataTemplate DataType="{x:Type pageviewmodels:TransactionHistoryViewModel}">
+                        <pages:TransactionHistoryView/>
                     </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:

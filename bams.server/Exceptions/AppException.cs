@@ -21,4 +21,14 @@ public abstract class AppException : Exception
     {
         Code = code;
     }
+
+    // Creates an application exception while retaining its infrastructure cause for logging.
+    protected AppException(
+        MessageCode code,
+        string message,
+        Exception innerException)
+        : base(message, innerException)
+    {
+        Code = code;
+    }
 }
