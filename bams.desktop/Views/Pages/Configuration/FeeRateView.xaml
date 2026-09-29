@@ -11,6 +11,7 @@
     <Grid Margin="{StaticResource PagePadding}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -19,16 +20,23 @@
             <TextBlock Margin="0,4,0,0" Style="{StaticResource Text.BodyMuted}" Text="{Binding PageDescription}"/>
         </StackPanel>
 
+        <!-- ===== Outcome banner ===== -->
+        <ContentControl Grid.Row="1" Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
+                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
         <!-- ===== Fee rules table ===== -->
-        <Border Grid.Row="1" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
+        <Border Grid.Row="2" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
             <DockPanel>
                 <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0"
-                                    t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"/>
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"
+                                    t:ThemeAssist.IsLoading="{Binding IsLoading}"
+                                    Command="{Binding RefreshCommand}"/>
                             <Button Content="New fee" Style="{StaticResource Button.Primary}" t:ThemeAssist.Size="Small"
-                                    t:ThemeAssist.Icon="{StaticResource Icon.Plus}"/>
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Plus}"
+                                    Command="{Binding CreateFeeRuleCommand}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Fee rules" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
@@ -78,7 +86,9 @@
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Cursor="Arrow">
                                             <Button Style="{StaticResource Button.Icon}" ToolTip="Edit fee"
-                                                    t:ThemeAssist.Icon="{StaticResource Icon.Edit}"/>
+                                                    t:ThemeAssist.Icon="{StaticResource Icon.Edit}"
+                                                    Command="{Binding DataContext.EditFeeRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>

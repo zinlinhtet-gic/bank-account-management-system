@@ -15,6 +15,8 @@ public enum MessageCode
     UserDeletedSuccessfully = 1004,
     InterestRateCreatedSuccessfully = 1400,
     InterestRateUpdatedSuccessfully = 1401,
+    FeeRuleCreatedSuccessfully = 1402,
+    FeeRuleUpdatedSuccessfully = 1403,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -32,6 +34,7 @@ public enum MessageCode
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
     InterestRateBalanceRangeInvalid = 3400,
+    FeeRuleAmountRangeInvalid = 3401,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -52,6 +55,7 @@ public enum MessageCode
     CustomerNotFound = 4202,
     UserNotFound = 4204,
     InterestRateRuleNotFound = 4250,
+    FeeRuleNotFound = 4251,
 
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,

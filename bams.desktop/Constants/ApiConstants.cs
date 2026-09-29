@@ -32,5 +32,9 @@ public static class ApiConstants
     public const string InterestRatesEndpoint = "api/interest-rates";
     public const string InterestRateAccountTypesEndpoint = InterestRatesEndpoint + "/account-types";
 
+    // Fee Rate. Routes with an id: $"{FeeRatesEndpoint}/{id}" (update).
+    public const string FeeRatesEndpoint = "api/fee-rates";
+    public const string FeeRateAccountTypesEndpoint = FeeRatesEndpoint + "/account-types";
+
     public const string BearerScheme = "Bearer";
 }

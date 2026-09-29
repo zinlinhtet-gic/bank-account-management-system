@@ -119,6 +119,7 @@ builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOtherBankService, OtherBankService>();
 builder.Services.AddScoped<IInterestRateService, InterestRateService>();
+builder.Services.AddScoped<IFeeRateService, FeeRateService>();
 
 var app = builder.Build();
 

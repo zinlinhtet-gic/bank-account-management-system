@@ -89,6 +89,20 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
         builder.Property(r => r.TaxRate).HasPrecision(9, 4);
         builder.Property(r => r.Status).IsRequired().HasMaxLength(20);
 
+        // Same MySQL provider limitation as InterestRateRule: DATE columns must be converted
+        // through DateTime explicitly, since the provider cannot read them back into DateOnly directly.
+        builder.Property(r => r.EffectiveFrom)
+            .HasConversion(
+                date => date.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+            .HasColumnType("date");
+
+        builder.Property(r => r.EffectiveTo)
+            .HasConversion(
+                date => date.HasValue ? date.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null,
+                dateTime => dateTime.HasValue ? DateOnly.FromDateTime(dateTime.Value) : (DateOnly?)null)
+            .HasColumnType("date");
+
         builder.HasOne(r => r.AccountType)
             .WithMany()
             .HasForeignKey(r => r.AccountTypeId)

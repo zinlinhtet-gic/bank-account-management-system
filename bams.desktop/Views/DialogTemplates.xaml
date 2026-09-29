@@ -22,4 +22,9 @@
     <DataTemplate DataType="{x:Type config:InterestRateFormViewModel}">
         <configviews:InterestRateFormDialogView/>
     </DataTemplate>
+
+    <!-- Configuration: Fee Rate -->
+    <DataTemplate DataType="{x:Type config:FeeRateFormViewModel}">
+        <configviews:FeeRateFormDialogView/>
+    </DataTemplate>
 </ResourceDictionary>

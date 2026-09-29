@@ -28,6 +28,8 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
 | 1400 | InterestRateCreatedSuccessfully | 201 | An interest rate rule was created (Configuration). |
 | 1401 | InterestRateUpdatedSuccessfully | 200 | An interest rate rule was updated. |
+| 1402 | FeeRuleCreatedSuccessfully | 201 | A fee rule was created (Configuration). |
+| 1403 | FeeRuleUpdatedSuccessfully | 200 | A fee rule was updated. |
 | 1101 | AccountStatusUpdatedSuccessfully | 200 | Account status update succeeded. |
 | 1102 | AccountBalanceUpdatedSuccessfully | 200 | Account balance adjustment succeeded. |
 | 1103 | AccountHoldersUpdatedSuccessfully | 200 | Joint-account holder update succeeded. |
@@ -54,6 +56,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3013 | DefaultPasswordNotAllowed | 400 | Change password: the new password is one of the role default passwords. |
 | 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the account type's minimum. |
 | 3400 | InterestRateBalanceRangeInvalid | 400 | Minimum balance is greater than maximum balance on an interest rate rule. |
+| 3401 | FeeRuleAmountRangeInvalid | 400 | Minimum fee is greater than maximum fee on a fee rule. |
 | 4000 | AuthenticationRequired | 401 | No valid JWT, or the token's user no longer exists. |
 | 4001 | PasswordChangeRequired | — | The user must change their password before continuing. |
 | 4002 | PasswordChangedSuccessfully | 200 | Password change succeeded. |
@@ -66,6 +69,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4203 | AccountTypeNotFound | 404 | The requested account type does not exist. |
 | 4204 | UserNotFound | 404 | The requested staff user does not exist. |
 | 4250 | InterestRateRuleNotFound | 404 | The requested interest rate rule does not exist. |
+| 4251 | FeeRuleNotFound | 404 | The requested fee rule does not exist. |
 | 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
 | 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
 | 4400 | BusinessRuleViolation | 422 | A business rule was violated. |

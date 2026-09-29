@@ -109,6 +109,9 @@ public partial class App : Application
         // Interest Rate
         services.AddSingleton<Services.IInterestRateService, Services.InterestRateService>();
 
+        // Fee Rate
+        services.AddSingleton<Services.IFeeRateService, Services.FeeRateService>();
+
         // Register ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<ChangePasswordViewModel>();
