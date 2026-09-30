@@ -24,15 +24,16 @@ public sealed class FeeRatesController : ControllerBase
     }
 
     /// <summary>
-    /// Gets all fee rules.
+    /// Gets one page of fee rules, 10 per page.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<FeeRuleResponse>>>> GetFeeRulesAsync(
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<FeeRuleResponse>>>> GetFeeRulesAsync(
+        [FromQuery] int page,
         CancellationToken cancellationToken)
     {
-        var rules = await _feeRateService.GetFeeRulesAsync(cancellationToken);
+        var rules = await _feeRateService.GetFeeRulesAsync(page, cancellationToken);
 
-        return Ok(ApiMessageResponse<IReadOnlyList<FeeRuleResponse>>.FromCode(MessageCode.Success, rules));
+        return Ok(ApiMessageResponse<PagedResponse<FeeRuleResponse>>.FromCode(MessageCode.Success, rules));
     }
 
     /// <summary>

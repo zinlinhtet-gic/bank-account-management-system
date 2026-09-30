@@ -1,3 +1,4 @@
+using bams.desktop.DTOs.Common;
 using bams.desktop.DTOs.Configuration;
 
 namespace bams.desktop.Services;
@@ -6,8 +7,8 @@ namespace bams.desktop.Services;
 public interface IInterestRateService
 {
 
-    /// Loads all interest rate rules.
-    Task<IReadOnlyList<InterestRateResponse>> GetInterestRatesAsync(CancellationToken cancellationToken);
+    /// Loads one page of interest rate rules, 10 per page.
+    Task<PagedResponse<InterestRateResponse>> GetInterestRatesAsync(int page, CancellationToken cancellationToken);
 
 
     /// Loads the account types selectable in the form.

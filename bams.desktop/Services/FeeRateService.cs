@@ -1,5 +1,6 @@
 using bams.desktop.Api;
 using bams.desktop.Constants;
+using bams.desktop.DTOs.Common;
 using bams.desktop.DTOs.Configuration;
 
 namespace bams.desktop.Services;
@@ -13,9 +14,11 @@ public sealed class FeeRateService : IFeeRateService
         _apiClient = apiClient;
     }
 
-    public Task<IReadOnlyList<FeeRuleResponse>> GetFeeRulesAsync(CancellationToken cancellationToken)
+    public Task<PagedResponse<FeeRuleResponse>> GetFeeRulesAsync(int page, CancellationToken cancellationToken)
     {
-        return _apiClient.GetAsync<IReadOnlyList<FeeRuleResponse>>(ApiConstants.FeeRatesEndpoint, cancellationToken);
+        var query = new QueryString().Add("page", page);
+
+        return _apiClient.GetAsync<PagedResponse<FeeRuleResponse>>(ApiConstants.FeeRatesEndpoint + query, cancellationToken);
     }
 
     public Task<IReadOnlyList<AccountTypeOptionResponse>> GetAccountTypeOptionsAsync(CancellationToken cancellationToken)

@@ -9,11 +9,16 @@ namespace bams.desktop.ViewModels.Pages.Configuration;
 /// ViewModel for the Interest Rate list page.
 public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
 {
+    private const int FirstPage = 1;
+    private const int PageSize = 10;
+
     private readonly IInterestRateService _interestRateService;
     private readonly IDialogService _dialogService;
     private IReadOnlyList<AccountTypeOption> _accountTypes = [];
     private string _errorMessage = string.Empty;
     private bool _isLoading;
+    private int _page = FirstPage;
+    private int _totalCount;
 
     public InterestRateViewModel(IInterestRateService interestRateService, IDialogService dialogService)
     {
@@ -24,6 +29,8 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         RefreshCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None));
         CreateInterestRateCommand = new AsyncRelayCommand(CreateInterestRateAsync);
         EditInterestRateCommand = new AsyncRelayCommand(EditInterestRateAsync);
+        PreviousPageCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None, Page - 1), () => CanGoToPreviousPage);
+        NextPageCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None, Page + 1), () => CanGoToNextPage);
     }
 
     public string PageTitle => "Interest Rate";
@@ -37,6 +44,10 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
 
     /// <summary>Row action: parameter is the row's <see cref="InterestRateRowModel"/>.</summary>
     public AsyncRelayCommand EditInterestRateCommand { get; }
+
+    public AsyncRelayCommand PreviousPageCommand { get; }
+
+    public AsyncRelayCommand NextPageCommand { get; }
 
     public bool IsLoading
     {
@@ -54,7 +65,23 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
     public bool IsEmpty => !IsLoading && Rows.Count == 0;
 
     /// <summary>Counter shown next to the table title, e.g. "3 rules".</summary>
-    public string CountText => Rows.Count == 1 ? "1 rule" : $"{Rows.Count} rules";
+    public string CountText => _totalCount == 1 ? "1 rule" : $"{_totalCount} rules";
+
+    /// <summary>The page currently shown, starting at 1.</summary>
+    public int Page
+    {
+        get => _page;
+        private set => SetProperty(ref _page, value);
+    }
+
+    /// <summary>e.g. "Page 2 of 3".</summary>
+    public string PageText => $"Page {Page} of {TotalPages}";
+
+    private int TotalPages => Math.Max(FirstPage, (int)Math.Ceiling(_totalCount / (double)PageSize));
+
+    private bool CanGoToPreviousPage => !IsLoading && Page > FirstPage;
+
+    private bool CanGoToNextPage => !IsLoading && Page < TotalPages;
 
     public string ErrorMessage
     {
@@ -76,18 +103,19 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         return LoadAsync(cancellationToken);
     }
 
-    private async Task LoadAsync(CancellationToken cancellationToken)
+    private async Task LoadAsync(CancellationToken cancellationToken, int? page = null)
     {
         ErrorMessage = string.Empty;
 
         try
         {
             IsLoading = true;
+            RaisePagingChanged();
 
-            var interestRates = await _interestRateService.GetInterestRatesAsync(cancellationToken);
+            var result = await _interestRateService.GetInterestRatesAsync(page ?? Page, cancellationToken);
 
             Rows.Clear();
-            foreach (var rate in interestRates)
+            foreach (var rate in result.Items)
             {
                 Rows.Add(new InterestRateRowModel
                 {
@@ -101,6 +129,8 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
                 });
             }
 
+            Page = result.Page;
+            _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }
         catch (AppException exception)
@@ -110,6 +140,7 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         finally
         {
             IsLoading = false;
+            RaisePagingChanged();
         }
     }
 
@@ -190,5 +221,14 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         }
 
         return "-";
+    }
+
+    // The pager text and buttons depend on the page, total and loading state.
+    private void RaisePagingChanged()
+    {
+        OnPropertyChanged(nameof(PageText));
+        OnPropertyChanged(nameof(IsEmpty));
+        PreviousPageCommand.RaiseCanExecuteChanged();
+        NextPageCommand.RaiseCanExecuteChanged();
     }
 }

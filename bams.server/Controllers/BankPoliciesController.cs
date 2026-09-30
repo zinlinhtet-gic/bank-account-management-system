@@ -25,15 +25,16 @@ public sealed class BankPoliciesController : ControllerBase
     }
 
     /// <summary>
-    /// Gets all bank policies.
+    /// Gets one page of bank policies, 10 per page.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<BankPolicyResponse>>>> GetBankPoliciesAsync(
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<BankPolicyResponse>>>> GetBankPoliciesAsync(
+        [FromQuery] int page,
         CancellationToken cancellationToken)
     {
-        var policies = await _bankPolicyService.GetBankPoliciesAsync(cancellationToken);
+        var policies = await _bankPolicyService.GetBankPoliciesAsync(page, cancellationToken);
 
-        return Ok(ApiMessageResponse<IReadOnlyList<BankPolicyResponse>>.FromCode(MessageCode.Success, policies));
+        return Ok(ApiMessageResponse<PagedResponse<BankPolicyResponse>>.FromCode(MessageCode.Success, policies));
     }
 
     /// <summary>

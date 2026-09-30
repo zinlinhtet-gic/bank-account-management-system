@@ -22,14 +22,15 @@ public sealed class InterestRatesController : ControllerBase
         _interestRateService = interestRateService;
     }
 
-    /// Gets all interest rate rules.
+    /// Gets one page of interest rate rules, 10 per page.
     [HttpGet]
-    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<InterestRateResponse>>>> GetInterestRatesAsync(
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<InterestRateResponse>>>> GetInterestRatesAsync(
+        [FromQuery] int page,
         CancellationToken cancellationToken)
     {
-        var rates = await _interestRateService.GetInterestRatesAsync(cancellationToken);
+        var rates = await _interestRateService.GetInterestRatesAsync(page, cancellationToken);
 
-        return Ok(ApiMessageResponse<IReadOnlyList<InterestRateResponse>>.FromCode(MessageCode.Success, rates));
+        return Ok(ApiMessageResponse<PagedResponse<InterestRateResponse>>.FromCode(MessageCode.Success, rates));
     }
 
     /// <summary>

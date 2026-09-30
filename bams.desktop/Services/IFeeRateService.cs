@@ -1,3 +1,4 @@
+using bams.desktop.DTOs.Common;
 using bams.desktop.DTOs.Configuration;
 
 namespace bams.desktop.Services;
@@ -5,8 +6,8 @@ namespace bams.desktop.Services;
 /// Fee Rate API calls
 public interface IFeeRateService
 {
-    /// Loads all fee rules.
-    Task<IReadOnlyList<FeeRuleResponse>> GetFeeRulesAsync(CancellationToken cancellationToken);
+    /// Loads one page of fee rules, 10 per page.
+    Task<PagedResponse<FeeRuleResponse>> GetFeeRulesAsync(int page, CancellationToken cancellationToken);
 
     /// Loads the account types selectable in the form.
     Task<IReadOnlyList<AccountTypeOptionResponse>> GetAccountTypeOptionsAsync(CancellationToken cancellationToken);

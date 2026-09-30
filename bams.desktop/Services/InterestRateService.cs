@@ -1,5 +1,6 @@
 using bams.desktop.Api;
 using bams.desktop.Constants;
+using bams.desktop.DTOs.Common;
 using bams.desktop.DTOs.Configuration;
 
 namespace bams.desktop.Services;
@@ -13,9 +14,11 @@ public sealed class InterestRateService : IInterestRateService
         _apiClient = apiClient;
     }
 
-    public Task<IReadOnlyList<InterestRateResponse>> GetInterestRatesAsync(CancellationToken cancellationToken)
+    public Task<PagedResponse<InterestRateResponse>> GetInterestRatesAsync(int page, CancellationToken cancellationToken)
     {
-        return _apiClient.GetAsync<IReadOnlyList<InterestRateResponse>>(ApiConstants.InterestRatesEndpoint, cancellationToken);
+        var query = new QueryString().Add("page", page);
+
+        return _apiClient.GetAsync<PagedResponse<InterestRateResponse>>(ApiConstants.InterestRatesEndpoint + query, cancellationToken);
     }
 
     public Task<IReadOnlyList<AccountTypeOptionResponse>> GetAccountTypeOptionsAsync(CancellationToken cancellationToken)

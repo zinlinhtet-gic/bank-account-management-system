@@ -1,3 +1,4 @@
+using bams.server.DTO.Common;
 using bams.server.DTO.Configuration;
 
 namespace bams.server.Services.Interfaces;
@@ -5,9 +6,10 @@ namespace bams.server.Services.Interfaces;
 public interface IBankPolicyService
 {
     /// <summary>
-    /// Gets all bank policies (account types).
+    /// Gets one page of bank policies (account types), 10 per page.
     /// </summary>
-    Task<IReadOnlyList<BankPolicyResponse>> GetBankPoliciesAsync(
+    Task<PagedResponse<BankPolicyResponse>> GetBankPoliciesAsync(
+        int page,
         CancellationToken cancellationToken);
 
     /// <summary>

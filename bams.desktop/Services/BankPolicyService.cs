@@ -1,5 +1,6 @@
 using bams.desktop.Api;
 using bams.desktop.Constants;
+using bams.desktop.DTOs.Common;
 using bams.desktop.DTOs.Configuration;
 
 namespace bams.desktop.Services;
@@ -13,9 +14,11 @@ public sealed class BankPolicyService : IBankPolicyService
         _apiClient = apiClient;
     }
 
-    public Task<IReadOnlyList<BankPolicyResponse>> GetBankPoliciesAsync(CancellationToken cancellationToken)
+    public Task<PagedResponse<BankPolicyResponse>> GetBankPoliciesAsync(int page, CancellationToken cancellationToken)
     {
-        return _apiClient.GetAsync<IReadOnlyList<BankPolicyResponse>>(ApiConstants.BankPoliciesEndpoint, cancellationToken);
+        var query = new QueryString().Add("page", page);
+
+        return _apiClient.GetAsync<PagedResponse<BankPolicyResponse>>(ApiConstants.BankPoliciesEndpoint + query, cancellationToken);
     }
 
     public Task<BankPolicyResponse> CreateBankPolicyAsync(CreateBankPolicyRequest request, CancellationToken cancellationToken)

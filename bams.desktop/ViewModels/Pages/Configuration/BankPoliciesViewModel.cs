@@ -9,10 +9,15 @@ namespace bams.desktop.ViewModels.Pages.Configuration;
 /// ViewModel for the Bank Policies list page.
 public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
 {
+    private const int FirstPage = 1;
+    private const int PageSize = 10;
+
     private readonly IBankPolicyService _bankPolicyService;
     private readonly IDialogService _dialogService;
     private string _errorMessage = string.Empty;
     private bool _isLoading;
+    private int _page = FirstPage;
+    private int _totalCount;
 
     public BankPoliciesViewModel(IBankPolicyService bankPolicyService, IDialogService dialogService)
     {
@@ -23,6 +28,8 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
         RefreshCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None));
         CreateBankPolicyCommand = new AsyncRelayCommand(CreateBankPolicyAsync);
         EditBankPolicyCommand = new AsyncRelayCommand(EditBankPolicyAsync);
+        PreviousPageCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None, Page - 1), () => CanGoToPreviousPage);
+        NextPageCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None, Page + 1), () => CanGoToNextPage);
     }
 
     public string PageTitle => "Bank Policies";
@@ -36,6 +43,10 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
 
     /// <summary>Row action: parameter is the row's <see cref="BankPolicyRowModel"/>.</summary>
     public AsyncRelayCommand EditBankPolicyCommand { get; }
+
+    public AsyncRelayCommand PreviousPageCommand { get; }
+
+    public AsyncRelayCommand NextPageCommand { get; }
 
     public bool IsLoading
     {
@@ -53,7 +64,23 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
     public bool IsEmpty => !IsLoading && Rows.Count == 0;
 
     /// <summary>Counter shown next to the table title, e.g. "3 policies".</summary>
-    public string CountText => Rows.Count == 1 ? "1 policy" : $"{Rows.Count} policies";
+    public string CountText => _totalCount == 1 ? "1 policy" : $"{_totalCount} policies";
+
+    /// <summary>The page currently shown, starting at 1.</summary>
+    public int Page
+    {
+        get => _page;
+        private set => SetProperty(ref _page, value);
+    }
+
+    /// <summary>e.g. "Page 2 of 3".</summary>
+    public string PageText => $"Page {Page} of {TotalPages}";
+
+    private int TotalPages => Math.Max(FirstPage, (int)Math.Ceiling(_totalCount / (double)PageSize));
+
+    private bool CanGoToPreviousPage => !IsLoading && Page > FirstPage;
+
+    private bool CanGoToNextPage => !IsLoading && Page < TotalPages;
 
     public string ErrorMessage
     {
@@ -75,18 +102,19 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
         return LoadAsync(cancellationToken);
     }
 
-    private async Task LoadAsync(CancellationToken cancellationToken)
+    private async Task LoadAsync(CancellationToken cancellationToken, int? page = null)
     {
         ErrorMessage = string.Empty;
 
         try
         {
             IsLoading = true;
+            RaisePagingChanged();
 
-            var policies = await _bankPolicyService.GetBankPoliciesAsync(cancellationToken);
+            var result = await _bankPolicyService.GetBankPoliciesAsync(page ?? Page, cancellationToken);
 
             Rows.Clear();
-            foreach (var policy in policies)
+            foreach (var policy in result.Items)
             {
                 Rows.Add(new BankPolicyRowModel
                 {
@@ -99,6 +127,8 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
                 });
             }
 
+            Page = result.Page;
+            _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }
         catch (AppException exception)
@@ -108,6 +138,7 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
         finally
         {
             IsLoading = false;
+            RaisePagingChanged();
         }
     }
 
@@ -142,5 +173,14 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
         }
 
         await LoadAsync(CancellationToken.None);
+    }
+
+    // The pager text and buttons depend on the page, total and loading state.
+    private void RaisePagingChanged()
+    {
+        OnPropertyChanged(nameof(PageText));
+        OnPropertyChanged(nameof(IsEmpty));
+        PreviousPageCommand.RaiseCanExecuteChanged();
+        NextPageCommand.RaiseCanExecuteChanged();
     }
 }

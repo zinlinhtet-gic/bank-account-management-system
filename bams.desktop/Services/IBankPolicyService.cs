@@ -1,3 +1,4 @@
+using bams.desktop.DTOs.Common;
 using bams.desktop.DTOs.Configuration;
 
 namespace bams.desktop.Services;
@@ -8,9 +9,9 @@ namespace bams.desktop.Services;
 public interface IBankPolicyService
 {
     /// <summary>
-    /// Loads all bank policies.
+    /// Loads one page of bank policies, 10 per page.
     /// </summary>
-    Task<IReadOnlyList<BankPolicyResponse>> GetBankPoliciesAsync(CancellationToken cancellationToken);
+    Task<PagedResponse<BankPolicyResponse>> GetBankPoliciesAsync(int page, CancellationToken cancellationToken);
 
     /// <summary>
     /// Creates a new bank policy and returns the saved record.

@@ -19,14 +19,15 @@ public sealed class OtherBanksController : ControllerBase
         _otherBankService = otherBankService;
     }
 
-    /// Gets all other banks. 
+    /// Gets one page of other banks, 10 per page.
     [HttpGet]
     [RequirePermission(SecurityConstants.Configuration)]
-    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<OtherBankResponse>>>> GetOtherBanksAsync(
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<OtherBankResponse>>>> GetOtherBanksAsync(
+        [FromQuery] int page,
         CancellationToken cancellationToken)
     {
-        var otherBanks = await _otherBankService.GetOtherBanksAsync(cancellationToken);
+        var otherBanks = await _otherBankService.GetOtherBanksAsync(page, cancellationToken);
 
-        return Ok(ApiMessageResponse<IReadOnlyList<OtherBankResponse>>.FromCode(MessageCode.Success, otherBanks));
+        return Ok(ApiMessageResponse<PagedResponse<OtherBankResponse>>.FromCode(MessageCode.Success, otherBanks));
     }
 }

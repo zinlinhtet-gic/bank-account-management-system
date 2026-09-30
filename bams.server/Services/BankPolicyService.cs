@@ -1,4 +1,5 @@
 using bams.server.Data;
+using bams.server.DTO.Common;
 using bams.server.DTO.Configuration;
 using bams.server.Exceptions;
 using bams.server.Mapping;
@@ -11,6 +12,8 @@ namespace bams.server.Services;
 
 public sealed class BankPolicyService : IBankPolicyService
 {
+    private const int PageSize = 10;
+
     private readonly ApplicationDbContext _dbContext;
 
     public BankPolicyService(ApplicationDbContext dbContext)
@@ -19,17 +22,29 @@ public sealed class BankPolicyService : IBankPolicyService
     }
 
     /// <summary>
-    /// Gets all bank policies using a read-only database query.
+    /// Gets one page of bank policies, 10 per page.
     /// </summary>
-    public async Task<IReadOnlyList<BankPolicyResponse>> GetBankPoliciesAsync(
+    public async Task<PagedResponse<BankPolicyResponse>> GetBankPoliciesAsync(
+        int page,
         CancellationToken cancellationToken)
     {
-        var accountTypes = await _dbContext.AccountTypes
+        page = Math.Max(1, page);
+
+        var query = _dbContext.AccountTypes
             .AsNoTracking()
-            .OrderBy(type => type.Code)
+            .OrderBy(type => type.Code);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var accountTypes = await query
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToListAsync(cancellationToken);
 
-        return accountTypes.Select(type => type.ToResponse()).ToList();
+        return new PagedResponse<BankPolicyResponse>(
+            accountTypes.Select(type => type.ToResponse()).ToList(),
+            page,
+            PageSize,
+            totalCount);
     }
 
     /// <summary>

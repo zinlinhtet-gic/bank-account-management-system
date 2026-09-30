@@ -1,4 +1,5 @@
 using bams.server.Data;
+using bams.server.DTO.Common;
 using bams.server.DTO.Configuration;
 using bams.server.Exceptions;
 using bams.server.Mapping;
@@ -11,6 +12,8 @@ namespace bams.server.Services;
 
 public sealed class InterestRateService : IInterestRateService
 {
+    private const int PageSize = 10;
+
     private readonly ApplicationDbContext _dbContext;
 
     public InterestRateService(ApplicationDbContext dbContext)
@@ -18,18 +21,30 @@ public sealed class InterestRateService : IInterestRateService
         _dbContext = dbContext;
     }
 
-    /// Gets all interest rate rules.
-    public async Task<IReadOnlyList<InterestRateResponse>> GetInterestRatesAsync(
+    /// Gets one page of interest rate rules, 10 per page.
+    public async Task<PagedResponse<InterestRateResponse>> GetInterestRatesAsync(
+        int page,
         CancellationToken cancellationToken)
     {
-        var rules = await _dbContext.InterestRateRules
+        page = Math.Max(1, page);
+
+        var query = _dbContext.InterestRateRules
             .AsNoTracking()
             .Include(rule => rule.AccountType)
             .OrderBy(rule => rule.AccountTypeId)
-            .ThenBy(rule => rule.EffectiveFrom)
+            .ThenBy(rule => rule.EffectiveFrom);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var rules = await query
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToListAsync(cancellationToken);
 
-        return rules.Select(rule => rule.ToResponse()).ToList();
+        return new PagedResponse<InterestRateResponse>(
+            rules.Select(rule => rule.ToResponse()).ToList(),
+            page,
+            PageSize,
+            totalCount);
     }
 
     /// <summary>

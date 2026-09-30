@@ -1,11 +1,13 @@
+using bams.server.DTO.Common;
 using bams.server.DTO.Configuration;
 
 namespace bams.server.Services.Interfaces;
 
 public interface IFeeRateService
 {
-    /// Gets all fee rules.
-    Task<IReadOnlyList<FeeRuleResponse>> GetFeeRulesAsync(
+    /// Gets one page of fee rules, 10 per page.
+    Task<PagedResponse<FeeRuleResponse>> GetFeeRulesAsync(
+        int page,
         CancellationToken cancellationToken);
 
     /// Gets the account types selectable in the fee rule form.
