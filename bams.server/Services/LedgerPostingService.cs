@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using System.Security.Cryptography;
 using System.Text.Json;
 using bams.server.Constants;
@@ -62,17 +63,28 @@ public sealed class LedgerPostingService
     /// Runs a posting inside a database transaction. When the client sent an idempotency key that was already used
     /// for the same kind of transaction, the original result is returned and nothing is posted again.
     /// </summary>
+    /// <param name="customerAccountIds">
+    /// The customer accounts the request posts to (the accounts that receive an account entry). A replay must name
+    /// the same accounts, so a key reused for another account is rejected instead of silently returning the first.
+    /// </param>
     /// <param name="postAsync">Posts and saves the transaction; receives the normalized idempotency key to store.</param>
     public async Task<TransactionResponse> RunIdempotentPostingAsync(
         string? idempotencyKey,
         TransactionType transactionType,
         decimal amount,
         long userId,
+        IReadOnlyCollection<long> customerAccountIds,
         Func<string?, Task<TransactionResponse>> postAsync,
         CancellationToken cancellationToken)
     {
         var normalizedKey = NormalizeIdempotencyKey(idempotencyKey);
-        var replay = await FindIdempotentReplayAsync(normalizedKey, transactionType, amount, userId, cancellationToken);
+        var replay = await FindIdempotentReplayAsync(
+            normalizedKey,
+            transactionType,
+            amount,
+            userId,
+            customerAccountIds,
+            cancellationToken);
         if (replay is not null)
         {
             return replay;
@@ -92,6 +104,7 @@ public sealed class LedgerPostingService
                 transactionType,
                 amount,
                 userId,
+                customerAccountIds,
                 cancellationToken);
             if (concurrentReplay is null)
             {
@@ -203,8 +216,8 @@ public sealed class LedgerPostingService
             return;
         }
 
-        // Posting dates are UTC dates, the same dates stored on every account entry.
-        var today = DateOnly.FromDateTime(now);
+        // Limits reset at Myanmar midnight: posting dates are business dates, the same dates stored on every entry.
+        var today = BusinessTime.ToBusinessDate(now);
         var firstDayOfMonth = new DateOnly(today.Year, today.Month, 1);
         var monthDebits = _dbContext.AccountTransactions
             .AsNoTracking()
@@ -290,6 +303,7 @@ public sealed class LedgerPostingService
         account.AvailableBalance += signedAmount;
         account.LastActivityAt = now;
         account.UpdatedAt = now;
+        await ReactivateDormantAccountAsync(account, transaction.InitiatedBy, now, cancellationToken);
 
         _dbContext.AccountTransactions.Add(new AccountTransaction
         {
@@ -301,8 +315,8 @@ public sealed class LedgerPostingService
             LedgerBalanceAfter = account.LedgerBalance,
             AvailableBalanceBefore = availableBalanceBefore,
             AvailableBalanceAfter = account.AvailableBalance,
-            ValueDate = DateOnly.FromDateTime(now),
-            PostingDate = DateOnly.FromDateTime(now),
+            ValueDate = BusinessTime.ToBusinessDate(now),
+            PostingDate = BusinessTime.ToBusinessDate(now),
             Description = transaction.Description,
             ReferenceNo = transaction.ReferenceNo,
             Status = TransactionConstants.CompletedStatus,
@@ -317,6 +331,35 @@ public sealed class LedgerPostingService
             account.Id,
             now,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves a dormant account back to Active when a teller posting touches it, so the monthly dormant penalty
+    /// stops once the customer uses the account again. Scheduled interest, fee and penalty postings do not come
+    /// through here and therefore never count as customer activity.
+    /// </summary>
+    private async Task ReactivateDormantAccountAsync(
+        Account account,
+        long changedBy,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (account.Status != AccountStatus.Dormant)
+        {
+            return;
+        }
+
+        account.Status = AccountStatus.Active;
+        account.ActiveAt = now;
+        await _dbContext.AccountStatusHistories.AddAsync(new AccountStatusHistory
+        {
+            Account = account,
+            OldStatus = AccountStatus.Dormant,
+            NewStatus = AccountStatus.Active,
+            Reason = AccountConstants.DormantReactivationReason,
+            ChangedBy = changedBy,
+            ChangedAt = now
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -338,7 +381,7 @@ public sealed class LedgerPostingService
             CustomerAccountId = customerAccountId,
             EntryType = entryType,
             Amount = transaction.Amount,
-            PostingDate = DateOnly.FromDateTime(now),
+            PostingDate = BusinessTime.ToBusinessDate(now),
             Description = transaction.Description,
             CreatedAt = now
         });
@@ -481,12 +524,13 @@ public sealed class LedgerPostingService
     }
 
     // Returns the original result when the key was already used for the same request, or null when the key is new.
-    // A key reused for a different user, transaction type or amount is a client bug and is rejected.
+    // A key reused for a different user, transaction type, amount or set of accounts is a client bug and is rejected.
     private async Task<TransactionResponse?> FindIdempotentReplayAsync(
         string? idempotencyKey,
         TransactionType transactionType,
         decimal amount,
         long userId,
+        IReadOnlyCollection<long> customerAccountIds,
         CancellationToken cancellationToken)
     {
         if (idempotencyKey is null)
@@ -514,6 +558,18 @@ public sealed class LedgerPostingService
         if (existing.TransactionType != transactionType
             || existing.Amount != amount
             || existing.InitiatedBy != userId)
+        {
+            throw new ConflictException(MessageCode.IdempotencyKeyReused);
+        }
+
+        // Compare the accounts the original posting touched with the accounts this request names.
+        var postedAccountIds = await _dbContext.AccountTransactions
+            .AsNoTracking()
+            .Where(entry => entry.TransactionId == existing.Id)
+            .Select(entry => entry.AccountId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        if (!postedAccountIds.ToHashSet().SetEquals(customerAccountIds))
         {
             throw new ConflictException(MessageCode.IdempotencyKeyReused);
         }

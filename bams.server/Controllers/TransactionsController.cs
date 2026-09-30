@@ -283,6 +283,23 @@ public sealed class TransactionsController : ControllerBase
     }
 
     /// <summary>
+    /// Issues a new pickup code for a pending NRC transfer and returns it once; the previous code stops working.
+    /// </summary>
+    [HttpPost("transfer/nrc/{id:long}/reissue-code")]
+    [RequirePermission(SecurityConstants.Transactions)]
+    public async Task<ActionResult<ApiMessageResponse<TransactionResponse>>> ReissueNrcPickupCodeAsync(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var response = await _nrcTransferService.ReissuePickupCodeAsync(
+            id,
+            HttpContext.GetRequestActor(),
+            cancellationToken);
+
+        return Ok(ApiMessageResponse<TransactionResponse>.FromCode(MessageCode.NrcPickupCodeReissuedSuccessfully, response));
+    }
+
+    /// <summary>
     /// Pays out an NRC transfer at one of our branches after the pickup code is verified (cash or into an account).
     /// </summary>
     [HttpPost("nrc-pickup")]

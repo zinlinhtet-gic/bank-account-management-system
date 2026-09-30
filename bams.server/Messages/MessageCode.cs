@@ -13,6 +13,7 @@ public enum MessageCode
     TransactionSubmittedSuccessfully = 1201,
     TransactionRefundedSuccessfully = 1202,
     InterbankTransferSettledSuccessfully = 1203,
+    NrcPickupCodeReissuedSuccessfully = 1204,
     AccountStatusUpdatedSuccessfully = 1101,
     AccountBalanceUpdatedSuccessfully = 1102,
     AccountHoldersUpdatedSuccessfully = 1103,
@@ -102,16 +103,21 @@ public enum MessageCode
     EndOfDayAuditAlreadyProcessed = 4308,
     CustomerNrcAlreadyExists = 4307,
 
-    // Business Rules: 4400 - 4499
-    BusinessRuleViolation = 4400,
-    TransactionMissingAccountingEntries = 4401,
-    TransactionEntriesUnbalanced = 4402,
-    DailyAccountingUnbalanced = 4403,
-    AuditUserUnavailable = 4404,
-    UnsupportedGlAccountClass = 4405,
     IdempotencyKeyReused = 4330,
 
     // Business Rules: 4400 - 4499
+    BusinessRuleViolation = 4400,
+
+    // Accounts (incl. fixed deposits): 4401 - 4429
+    AccountTypeIdentifierOutOfRange = 4401,
+    AccountNumberSequenceExhausted = 4402,
+    AccountStatusTransitionNotAllowed = 4403,
+    AccountHolderUpdateNotAllowed = 4404,
+    InterestRateRuleNotApplicable = 4405,
+    RequiredPayoutAccountNotConfigured = 4406,
+    FixedDepositStatusTransitionNotAllowed = 4407,
+
+    // Transactions: 4440 - 4459
     InsufficientBalance = 4440,
     AccountNotOperational = 4441,
     PickupCodeExpired = 4442,
@@ -124,9 +130,16 @@ public enum MessageCode
     PickupAttemptsExceeded = 4449,
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
-
-
     NrcPickupReceiverMismatch = 4452,
+
+    // Accounting / Audit: 4460 - 4479
+    TransactionMissingAccountingEntries = 4460,
+    TransactionEntriesUnbalanced = 4461,
+    DailyAccountingUnbalanced = 4462,
+    AuditUserUnavailable = 4463,
+    UnsupportedGlAccountClass = 4464,
+
+    // Users: 4480 - 4489
     LastManagerCannotBeRemoved = 4480,
 
     // System / Infrastructure: 5000 - 5999

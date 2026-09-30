@@ -30,6 +30,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
 | 1202 | TransactionRefundedSuccessfully | 200 | An NRC transfer was cancelled or an interbank transfer failed; the sender was refunded. |
 | 1203 | InterbankTransferSettledSuccessfully | 200 | A pending interbank transfer was recorded as settled. |
+| 1204 | NrcPickupCodeReissuedSuccessfully | 200 | A new pickup code replaced the old one on a pending NRC transfer; the code is returned once in `pickupCode`. |
 | 1101 | AccountStatusUpdatedSuccessfully | 200 | Account status update succeeded. |
 | 1102 | AccountBalanceUpdatedSuccessfully | 200 | Account balance adjustment succeeded. |
 | 1103 | AccountHoldersUpdatedSuccessfully | 200 | Joint-account holder update succeeded. |
@@ -168,6 +169,11 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4405 | InterestRateRuleNotApplicable | 422 | The selected interest-rate rule is inapplicable. |
 | 4406 | RequiredPayoutAccountNotConfigured | 422 | The fixed-deposit product has no required payout product. |
 | 4407 | FixedDepositStatusTransitionNotAllowed | 422 | The fixed-deposit transition or update is forbidden. |
+| 4460 | TransactionMissingAccountingEntries | 422 | End-of-day audit found a posted transaction with no accounting entries. |
+| 4461 | TransactionEntriesUnbalanced | 422 | End-of-day audit found a transaction whose debit and credit entries differ. |
+| 4462 | DailyAccountingUnbalanced | 422 | The day's total debits and credits are not equal. |
+| 4463 | AuditUserUnavailable | 422 | No user is available to record the end-of-day reconciliation. |
+| 4464 | UnsupportedGlAccountClass | 422 | A GL account has an account class the reports cannot classify. |
 
 ## System and infrastructure
 

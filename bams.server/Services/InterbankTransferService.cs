@@ -59,6 +59,7 @@ public sealed class InterbankTransferService : IInterbankTransferService
             TransactionType.InterbankTransfer,
             request.Amount,
             actor.UserId,
+            [request.SourceAccountId],
             async key =>
             {
                 var accounts = await _ledger.LockAccountsAsync([request.SourceAccountId], isRefund: false, cancellationToken);

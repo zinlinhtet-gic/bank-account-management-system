@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using bams.server.Data;
 using bams.server.DTO.Accounts;
 using bams.server.DTO.Customers;
@@ -27,7 +28,7 @@ public sealed class CustomerCreationService : ICustomerCreationService
         CreateCustomerRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.DateOfBirth == DateOnly.MinValue || request.DateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
+        if (request.DateOfBirth == DateOnly.MinValue || request.DateOfBirth > BusinessTime.Today)
         {
             throw new ValidationException(MessageCode.InvalidRequest);
         }

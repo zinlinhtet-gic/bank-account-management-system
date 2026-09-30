@@ -56,6 +56,8 @@ public sealed class NrcTransferService : INrcTransferService
             TransactionType.NrcTransfer,
             request.Amount,
             actor.UserId,
+            // A cash-funded NRC transfer debits no customer account.
+            request.SourceAccountId is { } sourceAccountId ? [sourceAccountId] : [],
             async key =>
             {
                 var now = DateTime.UtcNow;
@@ -285,6 +287,41 @@ public sealed class NrcTransferService : INrcTransferService
         }, cancellationToken);
 
         return await _ledger.BuildTransactionResponseAsync(transactionId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<TransactionResponse> ReissuePickupCodeAsync(
+        long transactionId,
+        RequestActor actor,
+        CancellationToken cancellationToken)
+    {
+        var pickupCode = GeneratePickupCode();
+
+        await _ledger.RunInTransactionAsync(async () =>
+        {
+            // The same row lock as pickup and cancel, so a reissue cannot race a pickup with the old code.
+            var (entity, detail) = await LockPendingTransferAsync(transactionId, cancellationToken);
+
+            var now = DateTime.UtcNow;
+            detail.PickupCodeHash = PasswordHasher.HashPassword(pickupCode);
+            detail.PickupExpiresAt = now.Add(TransactionConstants.NrcPickupCodeValidity);
+            detail.FailedPickupAttempts = 0;
+            entity.UpdatedAt = now;
+
+            // The pickup code is a secret and is deliberately left out of the audit details.
+            _ledger.AddAuditLog(
+                AuditConstants.NrcPickupCodeReissuedAction,
+                entity,
+                actor,
+                new { detail.PickupExpiresAt },
+                now);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return entity.Id;
+        }, cancellationToken);
+
+        var response = await _ledger.BuildTransactionResponseAsync(transactionId, cancellationToken);
+        return response with { PickupCode = pickupCode };
     }
 
     /// <summary>

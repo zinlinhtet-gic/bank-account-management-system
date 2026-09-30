@@ -18,6 +18,7 @@ public static class MessageCatalog
             [MessageCode.TransactionSubmittedSuccessfully] = "Transfer submitted and is pending completion.",
             [MessageCode.TransactionRefundedSuccessfully] = "The transfer was stopped and the amount refunded to the sender's account.",
             [MessageCode.InterbankTransferSettledSuccessfully] = "The interbank transfer was marked as settled.",
+            [MessageCode.NrcPickupCodeReissuedSuccessfully] = "A new pickup code was issued; the previous code no longer works.",
             [MessageCode.InvalidAmount] = "Enter an amount greater than zero with at most 2 decimal places.",
             [MessageCode.SameSourceAndDestinationAccount] = "The source and destination accounts must be different.",
             [MessageCode.InvalidPickupCode] = "The pickup code is incorrect.",

@@ -67,6 +67,12 @@ public interface ITransactionService
     /// <summary>Pays out an NRC transfer at our branch with its pickup code (cash or into an account).</summary>
     Task<TransactionResponse> CompleteNrcPickupAsync(NrcPickupRequest request, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Replaces the pickup code of a pending NRC transfer. The response carries the new code once
+    /// (<see cref="TransactionResponse.PickupCode"/>); the previous code stops working.
+    /// </summary>
+    Task<TransactionResponse> ReissueNrcPickupCodeAsync(long id, CancellationToken cancellationToken);
+
     /// <summary>Cancels a pending NRC transfer and refunds the sender; returns the refund transaction.</summary>
     Task<TransactionResponse> CancelNrcTransferAsync(long id, NrcCancelRequest request, CancellationToken cancellationToken);
 

@@ -1,3 +1,5 @@
+using bams.server.Middlewares;
+using bams.server.Constants;
 using bams.server.DTO.Audit;
 using bams.server.DTOs.Audit;
 using bams.server.Services.Interfaces;
@@ -8,6 +10,8 @@ namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/audit")]
+// Audit logs and the end-of-day close are restricted to users holding the audit permission.
+[RequirePermission(SecurityConstants.Audit)]
 public sealed class AuditController : ControllerBase
 {
     private readonly IAuditService _auditService;

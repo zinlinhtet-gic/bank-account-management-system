@@ -35,8 +35,12 @@ public sealed class NavigationService : INavigationService
             PageNames.TransactionHistory => _serviceProvider.GetService<TransactionHistoryViewModel>(),
             PageNames.GeneralLedger => _serviceProvider.GetService<GeneralLedgerViewModel>(),
             PageNames.AccountingEntries => _serviceProvider.GetService<AccountingEntriesViewModel>(),
+            // Placeholder until reconciliation is built (shown by the generic page view).
+            PageNames.Reconciliation => _serviceProvider.GetService<ReconciliationViewModel>(),
             PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
             PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
+            // The Audit nav group's only page; shows the audit placeholder until it has its own view.
+            PageNames.TransactionAudit => _serviceProvider.GetService<AuditViewModel>(),
             PageNames.Configurations => _serviceProvider.GetService<ConfigurationsViewModel>(),
             PageNames.CustomerList => _serviceProvider.GetService<CustomerListViewModel>(),
             _ => null

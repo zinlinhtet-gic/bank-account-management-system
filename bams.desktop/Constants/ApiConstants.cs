@@ -40,6 +40,8 @@ public static class ApiConstants
     public const string CompleteSegment = "complete";
     public const string FailSegment = "fail";
     public const string CancelSegment = "cancel";
+    // $"{NrcTransferEndpoint}/{id}/{ReissueCodeSegment}": replaces a pending NRC transfer's pickup code.
+    public const string ReissueCodeSegment = "reissue-code";
 
     // Account statement: $"{TransactionAccountsEndpoint}/{accountId}/{StatementSegment}".
     public const string TransactionAccountsEndpoint = TransactionsEndpoint + "/accounts";

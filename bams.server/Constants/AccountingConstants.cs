@@ -25,9 +25,11 @@ public static class AccountingConstants
     public const string NrcTransfersPayableGlCode = "2200";
     
     // Statuses
-    // public const string ActiveGlAccountStatus = "active";
-
     public const string ActiveStatus = "Active";
+
+    // GL accounts share the single "Active" spelling so seeders and posting lookups never disagree on case.
+    public const string ActiveGlAccountStatus = ActiveStatus;
+
     // Income
     public const string MaintenanceFeeIncomeGlCode = "4001";
     public const string DormantPenaltyIncomeGlCode = "4002";
@@ -35,5 +37,4 @@ public static class AccountingConstants
     // Expenses
     public const string InterestExpenseGlCode = "6001";
 
-    public const string ActiveGlAccountStatus = "active";
 }

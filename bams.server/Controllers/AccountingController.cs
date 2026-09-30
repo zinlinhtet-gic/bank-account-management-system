@@ -1,3 +1,5 @@
+using bams.server.Middlewares;
+using bams.server.Constants;
 using bams.server.DTO.Accounting;
 using bams.server.DTO.Common;
 using bams.server.Messages;
@@ -10,6 +12,8 @@ namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/accounting")]
+// The general ledger and its summaries are restricted to users holding the accounting permission.
+[RequirePermission(SecurityConstants.Accounting)]
 public sealed class AccountingController : ControllerBase
 {
     private readonly IAccountingReportService _accountingReportService;

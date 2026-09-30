@@ -2,6 +2,7 @@
 
 using bams.server.Constants;
 using bams.server.Data;
+using bams.server.Middlewares;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,8 @@ namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/dev/audit-test-data")]
+// Debug-only fixtures still write to the real ledger, so callers must be signed-in auditors.
+[RequirePermission(SecurityConstants.Audit)]
 public sealed class AuditTestDataController : ControllerBase
 {
     private const string TestCashGlCode = "TEST-CASH";

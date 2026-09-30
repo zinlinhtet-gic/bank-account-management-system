@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using System.Globalization;
 using System.Text;
 using bams.server.Constants;
@@ -26,7 +27,6 @@ public sealed class AccountService : IAccountService
     private readonly IFixedDepositService _fixedDepositService;
     private readonly IAuditLogService _auditLogService;
     private readonly IAccountTransactionService _accountTransactionService;
-    private readonly IAccountingReportService _accountingReportService;
     private readonly ICurrentUserService _currentUserService;
 
     public AccountService(
@@ -38,7 +38,6 @@ public sealed class AccountService : IAccountService
         IFixedDepositService fixedDepositService,
         IAuditLogService auditLogService,
         IAccountTransactionService accountTransactionService,
-        IAccountingReportService accountingReportService,
         ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
@@ -49,7 +48,6 @@ public sealed class AccountService : IAccountService
         _fixedDepositService = fixedDepositService;
         _auditLogService = auditLogService;
         _accountTransactionService = accountTransactionService;
-        _accountingReportService = accountingReportService;
         _currentUserService = currentUserService;
     }
 
@@ -253,6 +251,7 @@ public sealed class AccountService : IAccountService
         var referers = await _accountRefererService.ResolveAndValidateReferersAsync(
             request.RefererNrcs,
             requiredRefererCount,
+            customers.Select(customer => customer.Id).ToArray(),
             cancellationToken);
         var now = DateTime.UtcNow;
         IReadOnlyList<string> storedFileReferences = [];
@@ -300,15 +299,11 @@ public sealed class AccountService : IAccountService
                 account,
                 now,
                 cancellationToken);
-            // Record account transaction for opening balance
+            // Post the opening deposit (account entry plus balanced GL lines) inside the same database transaction.
             await _accountTransactionService.RecordAccountOpeningTransactionAsync(
                 account,
                 request.OpeningBalance,
-                now,
-                cancellationToken);
-            // Record accounting report for account opening
-            await _accountingReportService.RecordAccountOpeningTransactionAsync(
-                request.OpeningBalance,
+                _currentUserService.GetCurrentUserId(),
                 now,
                 cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -576,7 +571,7 @@ public sealed class AccountService : IAccountService
         await _dbContext.AccountStatusHistories.AddAsync(history, cancellationToken);
     }
 
-    // Allocates the next sequence for the account type and UTC hour, then builds a 16-digit number.
+    // Allocates the next sequence for the account type and Myanmar local hour, then builds a 16-digit number.
     private async Task<string> GenerateAccountNumberAsync(
         long accountTypeId,
         DateTime currentDateTime,
@@ -587,7 +582,8 @@ public sealed class AccountService : IAccountService
             throw new BusinessRuleException(MessageCode.AccountTypeIdentifierOutOfRange);
         }
 
-        var generationPeriod = currentDateTime.ToString(
+        // Account numbers carry the local date and hour customers and staff see, not the UTC one.
+        var generationPeriod = BusinessTime.ToBusinessDateTime(currentDateTime).ToString(
             AccountConstants.AccountNumberTimestampFormat,
             CultureInfo.InvariantCulture);
 
@@ -633,8 +629,10 @@ public sealed class AccountService : IAccountService
             Status = AccountStatus.Active,
             OpenedAt = currentDateTime,
             ActiveAt = currentDateTime,
-            AvailableBalance = request.OpeningBalance,
-            LedgerBalance = request.OpeningBalance,
+            // Balances start at zero: the opening deposit is posted through the ledger so the account entry and
+            // the Cash on Hand / Customer Deposits lines always agree with the balance.
+            AvailableBalance = 0m,
+            LedgerBalance = 0m,
             CreatedAt = currentDateTime,
             UpdatedAt = currentDateTime
         };

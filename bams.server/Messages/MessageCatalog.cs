@@ -15,6 +15,7 @@ public static class MessageCatalog
             [MessageCode.TransactionSubmittedSuccessfully] = "Transaction submitted and is pending completion.",
             [MessageCode.TransactionRefundedSuccessfully] = "The transfer was cancelled and the amount refunded to the source account.",
             [MessageCode.InterbankTransferSettledSuccessfully] = "The interbank transfer was settled.",
+            [MessageCode.NrcPickupCodeReissuedSuccessfully] = "A new pickup code was issued; the previous code no longer works.",
             [MessageCode.CustomerCreatedSuccessfully] = "Customer created successfully.",
             [MessageCode.AccountStatusUpdatedSuccessfully] = "Account status updated successfully.",
             [MessageCode.AccountBalanceUpdatedSuccessfully] = "Account balance updated successfully.",

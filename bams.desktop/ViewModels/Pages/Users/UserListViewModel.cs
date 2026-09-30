@@ -15,6 +15,14 @@ public sealed class UserListViewModel : ViewModelBase
 
     private bool _isLoading;
 
+    // Incremented by every full load so only the newest one may clear IsLoading, and a background presence
+    // refresh started before a newer load never overwrites that load's rows.
+    private int _loadVersion;
+
+    // The filter of the last load that succeeded; presence refreshes re-read exactly what the table shows,
+    // not search text the user has typed but not submitted yet.
+    private UserListFilter? _appliedFilter;
+
     public UserListViewModel(IUserService userService, AuthContext authContext)
     {
         _userService = userService;
@@ -47,6 +55,8 @@ public sealed class UserListViewModel : ViewModelBase
     /// <exception cref="Exceptions.AppException">Server or network failure; the page shows the message.</exception>
     public async Task LoadAsync(UserListFilter filter, CancellationToken cancellationToken)
     {
+        var version = ++_loadVersion;
+
         try
         {
             IsLoading = true;
@@ -59,11 +69,16 @@ public sealed class UserListViewModel : ViewModelBase
                 Users.Add(UserDisplayModel.FromResponse(user, _authContext.UserId));
             }
 
+            _appliedFilter = filter;
             OnPropertyChanged(nameof(CountText));
         }
         finally
         {
-            IsLoading = false;
+            // A superseded load must not hide the spinner of the newer load that is still running.
+            if (version == _loadVersion)
+            {
+                IsLoading = false;
+            }
         }
     }
 
@@ -72,15 +87,22 @@ public sealed class UserListViewModel : ViewModelBase
     /// does not flicker or lose its selection. If users were added or removed meanwhile, the rows are replaced.
     /// </summary>
     /// <exception cref="Exceptions.AppException">Server or network failure; the page ignores it for background refreshes.</exception>
-    public async Task RefreshPresenceAsync(UserListFilter filter, CancellationToken cancellationToken)
+    public async Task RefreshPresenceAsync(CancellationToken cancellationToken)
     {
-        // A full load is running; it will bring fresh presence itself.
-        if (IsLoading)
+        // A full load is running (or none has succeeded yet); a load brings fresh presence itself.
+        if (IsLoading || _appliedFilter is null)
         {
             return;
         }
 
-        var users = await _userService.GetUsersAsync(filter, cancellationToken);
+        var version = _loadVersion;
+        var users = await _userService.GetUsersAsync(_appliedFilter, cancellationToken);
+
+        // A full load started while this refresh was in flight; its result is newer, so drop this one.
+        if (version != _loadVersion || IsLoading)
+        {
+            return;
+        }
 
         var isSameRowSet = users.Count == Users.Count
             && users.Select(user => user.Id).SequenceEqual(Users.Select(row => row.Id));

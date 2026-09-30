@@ -126,6 +126,7 @@ public partial class App : Application
         services.AddTransient<TransactionsViewModel>();
         services.AddTransient<TransactionHistoryViewModel>();
         services.AddTransient<GeneralLedgerViewModel>();
+        services.AddTransient<ReconciliationViewModel>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();

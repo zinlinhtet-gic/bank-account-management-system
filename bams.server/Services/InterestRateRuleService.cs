@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using bams.server.Data;
 using bams.server.DTO.Products;
 using bams.server.Exceptions;
@@ -28,7 +29,7 @@ public sealed class InterestRateRuleService : IInterestRateRuleService
             throw new ValidationException(MessageCode.InvalidRequest);
         }
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessTime.Today;
         var accountTypeExists = await _dbContext.AccountTypes
             .AsNoTracking()
             .AnyAsync(accountType => accountType.Id == accountTypeId, cancellationToken);

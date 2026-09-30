@@ -20,6 +20,9 @@ public static class AccountConstants
     public const int MaximumAccountPageSize = 100;
     public const decimal MinimumOwnershipPercentage = 0m;
     public const decimal FullOwnershipPercentage = 100m;
+
+    // Status-history reason recorded when a teller posting brings a dormant account back into use.
+    public const string DormantReactivationReason = "Reactivated automatically by new account activity.";
     public const string AccountNumberTimestampFormat = "yyyyMMddHH";
     public const string AccountCursorVersion = "v1";
     public const char AccountCursorSeparator = ':';

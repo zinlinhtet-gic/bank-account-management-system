@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using bams.server.Constants;
 using bams.server.Data;
 using bams.server.DTO.Audit;
@@ -52,11 +53,13 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         // Keep this because it corresponds to the flowchart.
         var transactionTypeCounts =ClassifyTransactions(includedTransactions);
 
-        // 4. Retrieve the corresponding GL entries.
-        var accountingEntries =await GetAccountingEntriesAsync(includedTransactions,auditDate, cancellationToken);
+        // 4. Retrieve the corresponding GL entries, whatever their posting date. A scheduled posting can run on
+        // one business day but carry another posting date (e.g. an accrual dated the period end), so the
+        // completeness and balance checks look at every entry of the transaction.
+        var transactionEntries =await GetAccountingEntriesAsync(includedTransactions, cancellationToken);
 
         // 5. Ensure each included transaction actually has GL entries.
-        var transactionsWithoutEntries = GetTransactionIdsWithoutAccountingEntries(includedTransactions, accountingEntries);
+        var transactionsWithoutEntries = GetTransactionIdsWithoutAccountingEntries(includedTransactions, transactionEntries);
 
         if (transactionsWithoutEntries.Count > 0)
         {
@@ -64,12 +67,17 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         }
 
         // 6. Find transaction-level debit/credit mismatches.
-        var unbalancedTransactionIds = GetUnbalancedTransactionIds(accountingEntries);
+        var unbalancedTransactionIds = GetUnbalancedTransactionIds(transactionEntries);
 
         if (unbalancedTransactionIds.Count > 0)
         {
             throw new BusinessRuleException(MessageCode.TransactionEntriesUnbalanced);
         }
+
+        // Only the lines posted on the audit date belong to this day's totals, reconciliation and summaries.
+        var accountingEntries = transactionEntries
+            .Where(entry => entry.PostingDate == auditDate)
+            .ToList();
 
         // 7. Group entries by GL account.
         var glAccountTotals =CalculateGlAccountTotals(accountingEntries);
@@ -129,31 +137,32 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
             true);
     }
 
-    // Retrieves all transactions initiated on the requested audit date.
+    // Retrieves the transactions of one Myanmar business day: those made during the local day, plus those whose
+    // ledger lines are posted on that date (scheduled postings carry their own business date).
     private async Task<IReadOnlyList<Transaction>> GetTransactionsForAuditDateAsync(DateOnly auditDate, CancellationToken cancellationToken)
     {
-        var startUtc =auditDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-
-        var endUtc = auditDate
-                .AddDays(1)
-                .ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var (startUtc, endUtc) = BusinessTime.GetUtcRange(auditDate);
 
         return await _dbContext.Transactions
             .AsNoTracking()
             .Where(transaction =>
-                transaction.TransactionAt >= startUtc &&
-                transaction.TransactionAt < endUtc)
+                (transaction.TransactionAt >= startUtc && transaction.TransactionAt < endUtc) ||
+                _dbContext.TransactionEntries.Any(entry =>
+                    entry.TransactionId == transaction.Id && entry.PostingDate == auditDate))
             .ToListAsync(cancellationToken);
     }
 
     // Determines whether the transaction should participate
     // in end-of-day accounting.
+    // Accruals (interest expense / payable, fee receivables) are real ledger lines, so they are included too;
+    // leaving them out would make the payable and receivable GL balances drift once the accruals are settled.
     private static bool IsValidPostedTransaction(Transaction transaction)
     {
         return transaction.PostedAt.HasValue &&
             transaction.TransactionStatus is
                 TransactionStatus.Posted or
-                TransactionStatus.Completed;
+                TransactionStatus.Completed or
+                TransactionStatus.Accrued;
     }
 
     // Groups included transactions by their business type.
@@ -169,7 +178,6 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
     // Retrieves accounting entries belonging to included transactions.
     private async Task<IReadOnlyList<TransactionEntry>> GetAccountingEntriesAsync(
             IReadOnlyCollection<Transaction> transactions,
-            DateOnly auditDate,
             CancellationToken cancellationToken)
     {
         if (transactions.Count == 0)
@@ -185,8 +193,7 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
             .AsNoTracking()
             .Where(entry =>
                 transactionIds.Contains(
-                    entry.TransactionId) &&
-                entry.PostingDate == auditDate)
+                    entry.TransactionId))
             .ToListAsync(
                 cancellationToken);
     }

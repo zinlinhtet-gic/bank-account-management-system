@@ -121,13 +121,31 @@ public partial class NavBarViewModel : ObservableObject
     [RelayCommand]
     private void ToggleCollapsed() => IsCollapsed = !IsCollapsed;
 
+    // Asks the shell to open the item's page. The highlight is not changed here: the shell sets ActiveItem only
+    // when navigation succeeds, and OnActiveItemChanged then moves the highlight.
     private void Select(NavItem item)
     {
-        foreach (var navItem in Items)
-            navItem.IsActive = navItem == item;
-
-        ActiveItem = item.Label;
         NavigateCommand?.Execute(item.Label);
+    }
+
+    // Keeps the highlighted item (and the expanded parent group of a child page) in step with the page shown.
+    partial void OnActiveItemChanged(string value)
+    {
+        foreach (var item in Items)
+        {
+            item.IsActive = item.Label == value;
+
+            foreach (var child in item.Children)
+            {
+                child.IsActive = child.Label == value;
+
+                if (child.IsActive)
+                {
+                    item.IsActive = true;
+                    item.IsExpanded = true;
+                }
+            }
+        }
     }
     /// <summary>
     /// Adds the Accounting navigation group and its child pages.
@@ -191,30 +209,11 @@ public partial class NavBarViewModel : ObservableObject
         item.IsExpanded = !item.IsExpanded;
     }
     /// <summary>
-    /// Selects a child page and sends its label to the main navigation service.
+    /// Sends a child page's label to the main navigation service; the highlight follows only when the page opens
+    /// (see <see cref="OnActiveItemChanged"/>).
     /// </summary>
     private void SelectPage(NavItem selectedItem)
     {
-        foreach (var item in Items)
-        {
-            item.IsActive = false;
-
-            foreach (var child in item.Children)
-            {
-                child.IsActive =
-                    ReferenceEquals(child, selectedItem);
-
-                if (child.IsActive)
-                {
-                    item.IsActive = true;
-                    item.IsExpanded = true;
-                }
-            }
-        }
-
-        selectedItem.IsActive = true;
-        ActiveItem = selectedItem.Label;
-
         NavigateCommand?.Execute(selectedItem.Label);
     }
 }

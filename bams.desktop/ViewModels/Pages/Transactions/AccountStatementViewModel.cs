@@ -49,6 +49,9 @@ public sealed class AccountStatementViewModel : ViewModelBase, IDialogViewModel
     private readonly ITransactionService _transactionService;
     private readonly long _accountId;
 
+    // The load in flight; a newer one (e.g. a date change) cancels it so an older response never shows last.
+    private CancellationTokenSource? _loadCancellation;
+
     private DateTime? _dateFrom;
     private DateTime? _dateTo;
     private int _page = FirstPage;
@@ -161,14 +164,23 @@ public sealed class AccountStatementViewModel : ViewModelBase, IDialogViewModel
         return !HasError;
     }
 
-    // Loads one page with the current date range; failures go to the dialog's banner.
+    // Loads one page with the current date range; failures go to the dialog's banner. A newer load cancels one
+    // still running (same pattern as TransactionListViewModel.LoadAsync), and only the latest load may update the
+    // lines, the banner or IsLoading.
     private async Task ReloadAsync(int page)
     {
+        _loadCancellation?.Cancel();
+        _loadCancellation = null;
+
         if (DateFrom is not null && DateTo is not null && DateFrom.Value.Date > DateTo.Value.Date)
         {
+            IsLoading = false;
             ErrorMessage = MessageCatalog.GetMessage(MessageCode.InvalidDateRange);
             return;
         }
+
+        using var cancellation = new CancellationTokenSource();
+        _loadCancellation = cancellation;
 
         try
         {
@@ -182,7 +194,12 @@ public sealed class AccountStatementViewModel : ViewModelBase, IDialogViewModel
                 DateTo is null ? null : DateTimeDisplay.StartOfLocalDay(DateTo.Value.AddDays(1)),
                 Math.Max(FirstPage, page),
                 TransactionFieldRules.PageSize,
-                CancellationToken.None);
+                cancellation.Token);
+
+            if (cancellation.IsCancellationRequested)
+            {
+                return;
+            }
 
             Lines.Clear();
             foreach (var line in result.Items)
@@ -194,13 +211,24 @@ public sealed class AccountStatementViewModel : ViewModelBase, IDialogViewModel
             _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // Replaced by a newer load.
+        }
         catch (AppException exception)
         {
-            ErrorMessage = exception.Message;
+            if (!cancellation.IsCancellationRequested)
+            {
+                ErrorMessage = exception.Message;
+            }
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_loadCancellation, cancellation))
+            {
+                _loadCancellation = null;
+                IsLoading = false;
+            }
         }
     }
 

@@ -26,14 +26,6 @@ public interface IAccountingReportService
     /// </summary>
     Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(int year, int month, long? glAccountId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Creates a new account from the API request contract.
-    /// </summary>
-    Task RecordAccountOpeningTransactionAsync(
-        decimal openingBalance,
-        DateTime currentDateTime,
-        CancellationToken cancellationToken);
-
     Task<IReadOnlyList<AccountingEntryResponse>> GetAccountingEntriesAsync(
         DateOnly? fromDate,
         DateOnly? toDate,

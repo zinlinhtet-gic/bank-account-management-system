@@ -1,16 +1,16 @@
+using bams.server.Utils;
 using bams.server.Services.Jobs;
 
 namespace bams.server.Services;
 
 internal static class ScheduledJobPeriod
 {
-    public const string TimeZoneId = "Asia/Rangoon";
+    // Scheduled jobs run on the bank's business clock.
+    public const string TimeZoneId = BusinessTime.TimeZoneId;
 
     public static DateOnly GetRunDate(ScheduledJobExecutionContext context)
     {
-        var scheduledUtc = DateTime.SpecifyKind(context.ScheduledForUtc, DateTimeKind.Utc);
-        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-            scheduledUtc, TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId)));
+        return BusinessTime.ToBusinessDate(context.ScheduledForUtc);
     }
 
     public static (DateOnly Start, DateOnly End) GetPreviousCalendarMonth(DateOnly runDate)

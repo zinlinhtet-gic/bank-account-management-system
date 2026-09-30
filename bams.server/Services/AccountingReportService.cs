@@ -201,15 +201,6 @@ public sealed class AccountingReportService : IAccountingReportService
         }
     }
 
-    /// <inheritdoc />
-    public async Task RecordAccountOpeningTransactionAsync(
-        decimal openingBalance,
-        DateTime currentDateTime,
-        CancellationToken cancellationToken)
-    {
-        // Create a new audit log entry for the account opening
-    }
-
     private static string NormalizeStatus(string status)
     {
         return string.Equals(

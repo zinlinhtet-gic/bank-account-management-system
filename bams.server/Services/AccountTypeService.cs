@@ -237,7 +237,10 @@ public sealed class AccountTypeService : IAccountTypeService
     {
         var accountType = await _dbContext.AccountTypes
             .AsNoTracking()
-            .FirstOrDefaultAsync(type => type.Id == accountTypeId, cancellationToken);
+            // Only active products can be opened; retired products are treated as unknown, matching the listings.
+            .FirstOrDefaultAsync(
+                type => type.Id == accountTypeId && type.Status == AvailableAccountTypeStatus,
+                cancellationToken);
 
         if (accountType is null)
         {
