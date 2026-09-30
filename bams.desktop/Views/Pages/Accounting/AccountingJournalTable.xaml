@@ -1,0 +1,78 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.AccountingJournalTable"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel MinWidth="1660">
+            <Grid Background="{StaticResource MutedBrush}" Height="38">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180"/><ColumnDefinition Width="110"/><ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="140"/><ColumnDefinition Width="140"/><ColumnDefinition Width="150"/><ColumnDefinition Width="410"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Transaction No" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="12,0"/>
+                <TextBlock Grid.Column="1" Text="Date" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="2" Text="Time" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="3" Text="Posting Date" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="4" Text="GL Code" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="5" Text="GL Account" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="6" Text="Credit" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="7" Text="Debit" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="8" Text="Customer Account" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="9" Text="Description" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding TransactionGroups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid MinHeight="48" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180"/><ColumnDefinition Width="110"/><ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="140"/><ColumnDefinition Width="140"/><ColumnDefinition Width="150"/><ColumnDefinition Width="410"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Grid.RowSpan="1000" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="12,8" VerticalAlignment="Stretch">
+                                <TextBlock Text="{Binding TransactionNo}" VerticalAlignment="Center" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border Grid.Column="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8" VerticalAlignment="Stretch">
+                                <TextBlock Text="{Binding TransactionDate}" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8" VerticalAlignment="Stretch">
+                                <TextBlock Text="{Binding TransactionTime}" VerticalAlignment="Center"/>
+                            </Border>
+                            <ItemsControl Grid.Column="3" Grid.ColumnSpan="7" ItemsSource="{Binding Entries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid MinHeight="48">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="200"/>
+                                                <ColumnDefinition Width="140"/><ColumnDefinition Width="140"/><ColumnDefinition Width="150"/><ColumnDefinition Width="410"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding PostingDate}" VerticalAlignment="Center"/></Border>
+                                            <Border Grid.Column="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding GlAccountCode}" VerticalAlignment="Center"/></Border>
+                                            <Border Grid.Column="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding GlAccountName}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
+                                            <Border Grid.Column="3" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding CreditAmount, StringFormat={}{0:N2}}" VerticalAlignment="Center" TextAlignment="Right"/></Border>
+                                            <Border Grid.Column="4" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding DebitAmount, StringFormat={}{0:N2}}" VerticalAlignment="Center" TextAlignment="Right"/></Border>
+                                            <Border Grid.Column="5" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding CustomerAccountId}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
+                                            <Border Grid.Column="6" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8"><TextBlock Text="{Binding Description}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+        <DockPanel Grid.Row="1" Margin="8" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" Text="{Binding PageInfo}" VerticalAlignment="Center" Margin="4,0"/>
+            <Button DockPanel.Dock="Right" Content="Next" Command="{Binding NextPageCommand}" Style="{StaticResource Button.Secondary}" Margin="8,0,0,0"/>
+            <Button DockPanel.Dock="Right" Content="Previous" Command="{Binding PreviousPageCommand}" Style="{StaticResource Button.Ghost}"/>
+        </DockPanel>
+    </Grid>
+</UserControl>

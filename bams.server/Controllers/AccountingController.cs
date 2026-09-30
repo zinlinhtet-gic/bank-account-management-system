@@ -56,6 +56,19 @@ public sealed class AccountingController : ControllerBase
             account));
     }
 
+    // Returns GL account metadata and complete journal lines for related transactions.
+    [HttpGet("gl-accounts/{id:long}/detail")]
+    public async Task<ActionResult<ApiMessageResponse<GlAccountDetailResponse>>>
+        GetGlAccountDetailAsync(
+            long id,
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
+            CancellationToken cancellationToken)
+    {
+        var detail = await _accountingReportService.GetGlAccountDetailAsync(id, page, pageSize, cancellationToken);
+        return Ok(ApiMessageResponse<GlAccountDetailResponse>.FromCode(MessageCode.Success, detail));
+    }
+
     // Returns daily accounting summaries for the requested date.
     [HttpGet("daily-summaries")]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<DailySummaryResponse>>>>
@@ -103,6 +116,8 @@ public sealed class AccountingController : ControllerBase
             [FromQuery] DateOnly? toDate,
             [FromQuery] long? glAccountId,
             [FromQuery] EntryType? entryType,
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
             CancellationToken cancellationToken
         )
     {
@@ -111,9 +126,11 @@ public sealed class AccountingController : ControllerBase
             toDate,
             glAccountId,
             entryType,
+            page,
+            pageSize,
             cancellationToken
         );
-        return Ok(ApiMessageResponse<IReadOnlyList<AccountingEntryResponse>>.FromCode(
+        return Ok(ApiMessageResponse<PagedResponse<AccountingEntryResponse>>.FromCode(
             MessageCode.Success,entries
         ));
     }

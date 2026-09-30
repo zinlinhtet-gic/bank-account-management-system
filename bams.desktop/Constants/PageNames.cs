@@ -17,6 +17,7 @@ public static class PageNames
     public const string Audit = "Audit";
     // Accounting child pages
     public const string GeneralLedger = "General Ledger";
+    public const string GLAccountDetail = "GL Account Detail";
     public const string AccountingEntries = "Accounting Entries";
     public const string Reconciliation = "Reconciliation";
     // Audit child pages

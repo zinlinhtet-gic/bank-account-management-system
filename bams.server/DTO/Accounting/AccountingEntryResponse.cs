@@ -5,6 +5,9 @@ public sealed record AccountingEntryResponse
 (
     long Id,
     long TransactionId,
+    string TransactionNo,
+    TransactionType TransactionType,
+    DateTime TransactionAt,
     long GlAccountId,
     string GlAccountCode,
     string GlAccountName,

@@ -34,6 +34,7 @@ public sealed class NavigationService : INavigationService
             PageNames.Transactions => _serviceProvider.GetService<TransactionsViewModel>(),
             PageNames.TransactionHistory => _serviceProvider.GetService<TransactionHistoryViewModel>(),
             PageNames.GeneralLedger => _serviceProvider.GetService<GeneralLedgerViewModel>(),
+            PageNames.GLAccountDetail => _serviceProvider.GetService<GLAccountDetailViewModel>(),
             PageNames.AccountingEntries => _serviceProvider.GetService<AccountingEntriesViewModel>(),
             // Placeholder until reconciliation is built (shown by the generic page view).
             PageNames.Reconciliation => _serviceProvider.GetService<ReconciliationViewModel>(),

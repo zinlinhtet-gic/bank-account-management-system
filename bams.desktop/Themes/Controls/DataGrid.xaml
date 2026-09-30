@@ -146,8 +146,8 @@
         <Setter Property="SelectionMode" Value="Single"/>
         <Setter Property="SelectionUnit" Value="FullRow"/>
         <Setter Property="EnableRowVirtualization" Value="True"/>
-        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource Table.ColumnHeader}"/>
         <Setter Property="CellStyle" Value="{StaticResource Table.Cell}"/>

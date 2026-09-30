@@ -4,6 +4,7 @@ using bams.desktop.Commands;
 using bams.desktop.Services;
 using bams.desktop.Utils;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.ViewModels.Pages.Accounting;
 using Bams.Desktop.Components.NavBar;
 
 namespace bams.desktop.ViewModels;
@@ -87,6 +88,11 @@ public sealed class MainViewModel : ViewModelBase
         var viewModel = _navigationService.GetPageViewModel(pageLabel);
         if (viewModel != null)
         {
+            if (viewModel is GeneralLedgerViewModel generalLedger)
+            {
+                generalLedger.DetailRequested += OpenGlAccountDetail;
+            }
+
             AppLog.WriteInformation($"Navigating to page '{pageLabel}' ({viewModel.GetType().FullName}).");
             _previousPage = CurrentPage;
             _previousPageLabel = _currentPageLabel;
@@ -99,6 +105,36 @@ public sealed class MainViewModel : ViewModelBase
 
         // No page is mapped to this label: keep the current page and nav highlight instead of showing nothing.
         AppLog.WriteInformation($"Navigation to page '{pageLabel}' ignored because no page is registered for it.");
+    }
+
+    private void OpenGlAccountDetail(long accountId)
+    {
+        if (_navigationService.GetPageViewModel(PageNames.GLAccountDetail) is not GLAccountDetailViewModel detailViewModel)
+        {
+            return;
+        }
+
+        detailViewModel.SetAccountId(accountId);
+        detailViewModel.BackRequested += ReturnFromGlAccountDetail;
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = detailViewModel;
+        _currentPageLabel = PageNames.GLAccountDetail;
+        StartPageInitialization(detailViewModel);
+    }
+
+    private void ReturnFromGlAccountDetail()
+    {
+        if (_previousPage is null || string.IsNullOrWhiteSpace(_previousPageLabel))
+        {
+            return;
+        }
+
+        CurrentPage = _previousPage;
+        _currentPageLabel = _previousPageLabel;
+        ActiveItem = _previousPageLabel;
+        _previousPage = null;
+        _previousPageLabel = string.Empty;
     }
 
     /// <summary>Restores the last page known to have been usable after a dispatcher failure.</summary>
@@ -197,6 +233,10 @@ public sealed class MainViewModel : ViewModelBase
 
         OnLogoutRequested = null;
         NavBar.NavigateCommand = null;
+        if (CurrentPage is GLAccountDetailViewModel detailViewModel)
+        {
+            detailViewModel.BackRequested -= ReturnFromGlAccountDetail;
+        }
     }
 
     /// <summary>

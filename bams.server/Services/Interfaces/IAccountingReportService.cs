@@ -1,4 +1,5 @@
 using bams.server.DTO.Accounting;
+using bams.server.DTO.Common;
 using bams.server.Models.Transactions;
 namespace bams.server.Services.Interfaces;
 /// <summary>
@@ -15,6 +16,7 @@ public interface IAccountingReportService
     /// Retrieves a general-ledger account by its identifier.
     /// </summary>
     Task<GlAccountResponse> GetGlAccountByIdAsync(long glAccountId, CancellationToken cancellationToken);
+    Task<GlAccountDetailResponse> GetGlAccountDetailAsync(long glAccountId, int? page, int? pageSize, CancellationToken cancellationToken);
     /// <summary>
     /// Retrieves daily accounting summaries for the specified date
     /// and optional GL account.
@@ -26,10 +28,12 @@ public interface IAccountingReportService
     /// </summary>
     Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(int year, int month, long? glAccountId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<AccountingEntryResponse>> GetAccountingEntriesAsync(
+    Task<PagedResponse<AccountingEntryResponse>> GetAccountingEntriesAsync(
         DateOnly? fromDate,
         DateOnly? toDate,
         long? glAccountId,
         EntryType? entryType,
+        int? page,
+        int? pageSize,
         CancellationToken cancellationToken);
 }

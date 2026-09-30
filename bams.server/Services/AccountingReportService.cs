@@ -1,6 +1,7 @@
 using bams.server.Constants;
 using bams.server.Data;
 using bams.server.DTO.Accounting;
+using bams.server.DTO.Common;
 using bams.server.Exceptions;
 using bams.server.Services.Interfaces;
 using bams.server.Messages;
@@ -87,6 +88,61 @@ public sealed class AccountingReportService : IAccountingReportService
             account.ParentId,
             NormalizeStatus(account.Status));
     }
+
+    /// <summary>
+    /// Returns a GL account and every journal line for transactions that posted to it.
+    /// </summary>
+    public async Task<GlAccountDetailResponse> GetGlAccountDetailAsync(
+        long glAccountId,
+        int? requestedPage,
+        int? requestedPageSize,
+        CancellationToken cancellationToken)
+    {
+        var account = await GetGlAccountByIdAsync(glAccountId, cancellationToken);
+
+        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(requestedPage, requestedPageSize ?? 10);
+        var relatedTransactionIds = _dbContext.TransactionEntries
+            .AsNoTracking()
+            .Where(entry => entry.GlAccountId == glAccountId)
+            .Select(entry => entry.TransactionId)
+            .Distinct();
+        var totalCount = await relatedTransactionIds.CountAsync(cancellationToken);
+        var transactionIds = await relatedTransactionIds
+            .OrderByDescending(id => _dbContext.Transactions
+                .Where(transaction => transaction.Id == id)
+                .Select(transaction => transaction.TransactionAt)
+                .FirstOrDefault())
+            .ThenByDescending(id => id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var entries = await _dbContext.TransactionEntries
+            .AsNoTracking()
+            .Where(entry => transactionIds.Contains(entry.TransactionId))
+            .OrderByDescending(entry => entry.Transaction!.TransactionAt)
+            .ThenBy(entry => entry.TransactionId)
+            .ThenBy(entry => entry.Id)
+            .Select(entry => new AccountingEntryResponse(
+                entry.Id,
+                entry.TransactionId,
+                entry.Transaction!.TransactionNo,
+                entry.Transaction.TransactionType,
+                entry.Transaction.TransactionAt,
+                entry.GlAccountId,
+                entry.GlAccount!.Code,
+                entry.GlAccount.Name,
+                entry.CustomerAccountId,
+                entry.EntryType,
+                entry.Amount,
+                entry.PostingDate,
+                entry.Description,
+                entry.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        return new GlAccountDetailResponse(account, new PagedResponse<AccountingEntryResponse>(entries, page, pageSize, totalCount));
+    }
+
     /// <summary>
     /// Retrieves daily accounting summaries for a specific date
     /// and optionally limits the result to one GL account.
@@ -149,14 +205,17 @@ public sealed class AccountingReportService : IAccountingReportService
             )).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AccountingEntryResponse>> GetAccountingEntriesAsync(
+    public async Task<PagedResponse<AccountingEntryResponse>> GetAccountingEntriesAsync(
         DateOnly? fromDate,
         DateOnly? toDate,
         long? glAccountId,
         EntryType? entryType,
+        int? requestedPage,
+        int? requestedPageSize,
         CancellationToken cancellationToken
     )
     {
+        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(requestedPage, requestedPageSize ?? 10);
         var query = _dbContext.TransactionEntries.AsNoTracking().AsQueryable();
         if (fromDate.HasValue)
         {
@@ -174,12 +233,30 @@ public sealed class AccountingReportService : IAccountingReportService
         {
             query = query.Where(entry => entry.EntryType == entryType.Value);
         }
-        return await query
+        var transactionQuery = query
+            .Select(entry => entry.TransactionId)
+            .Distinct();
+        var totalCount = await transactionQuery.CountAsync(cancellationToken);
+        var transactionIds = await transactionQuery
+            .OrderByDescending(id => _dbContext.Transactions
+                .Where(transaction => transaction.Id == id)
+                .Select(transaction => transaction.TransactionAt)
+                .FirstOrDefault())
+            .ThenByDescending(id => id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = await query
+            .Where(entry => transactionIds.Contains(entry.TransactionId))
             .OrderByDescending(entry => entry.PostingDate)
             .ThenByDescending(entry => entry.Id)
             .Select(entry => new AccountingEntryResponse(
                 entry.Id,
                 entry.TransactionId,
+                entry.Transaction!.TransactionNo,
+                entry.Transaction.TransactionType,
+                entry.Transaction.TransactionAt,
                 entry.GlAccountId,
                 entry.GlAccount!.Code,
                 entry.GlAccount.Name,
@@ -190,6 +267,8 @@ public sealed class AccountingReportService : IAccountingReportService
                 entry.Description,
                 entry.CreatedAt
             )).ToListAsync(cancellationToken);
+
+        return new PagedResponse<AccountingEntryResponse>(items, page, pageSize, totalCount);
     }
 
     // Ensures the supplied month represents a valid calendar month.

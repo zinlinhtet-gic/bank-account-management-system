@@ -70,6 +70,10 @@
                         <accountingViews:GeneralLedgerView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type accountingViewModels:GLAccountDetailViewModel}">
+                        <accountingViews:GLAccountDetailView/>
+                    </DataTemplate>
+
                     <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
                         <accountingViews:AccountingEntriesView/>
                     </DataTemplate>

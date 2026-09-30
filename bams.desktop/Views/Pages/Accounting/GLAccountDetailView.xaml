@@ -1,0 +1,102 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.GLAccountDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:accounting="clr-namespace:bams.desktop.Views.Pages.Accounting">
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+            <Button Content="Back to General Ledger"
+                    Style="{StaticResource Button.Ghost}"
+                    Command="{Binding BackCommand}"/>
+            <TextBlock Text="GL Account Details"
+                       Style="{StaticResource Text.Title}"
+                       VerticalAlignment="Center"
+                       Margin="16,0,0,0"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Card.Compact}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="CODE" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="{Binding Account.Code}" Style="{StaticResource Text.Body}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="ACCOUNT NAME" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="{Binding Account.Name}" Style="{StaticResource Text.Body}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="CLASS" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="{Binding Account.AccountClass}" Style="{StaticResource Text.Body}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="STATUS / PARENT ID" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Style="{StaticResource Text.Body}">
+                        <Run Text="{Binding Account.Status}"/>
+                        <Run Text=" / Parent #"/>
+                        <Run Text="{Binding Account.ParentId, TargetNullValue=—}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                <ContentControl Content="{Binding ErrorMessage}" Margin="0,0,0,8">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl" BasedOn="{StaticResource Alert.Danger}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasError}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
+                <ContentControl Content="Loading GL account details...">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl" BasedOn="{StaticResource Alert.Info}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
+            </StackPanel>
+
+            <Border Grid.Row="1" Style="{StaticResource Card.Flush}" Margin="0,8,0,0">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                        <DockPanel>
+                            <ContentControl DockPanel.Dock="Right"
+                                            Style="{StaticResource Badge.Neutral}"
+                                            t:ThemeAssist.ShowDot="False"
+                                            Content="{Binding CountText}"/>
+                            <TextBlock Text="Related Journal Entries" Style="{StaticResource Text.Title}"/>
+                        </DockPanel>
+                    </Border>
+                    <accounting:AccountingJournalTable/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
