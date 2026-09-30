@@ -112,7 +112,6 @@ public enum MessageCode
     AccountTypeCodeAlreadyExists = 4340,
 
     // Business Rules: 4400 - 4499
-    BusinessRuleViolation = 4400,
     InsufficientBalance = 4440,
     AccountNotOperational = 4441,
     PickupCodeExpired = 4442,

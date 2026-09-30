@@ -24,7 +24,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
 | 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
 | 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
-| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted (the endpoint returns 204; client-side text). |
+| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted; the endpoint returns this code in `ApiMessageResponse<bool>`. |
 | 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
 | 1400 | InterestRateCreatedSuccessfully | 201 | An interest rate rule was created (Configuration). |
 | 1401 | InterestRateUpdatedSuccessfully | 200 | An interest rate rule was updated. |

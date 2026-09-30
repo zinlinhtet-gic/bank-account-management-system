@@ -4,7 +4,7 @@ public sealed record AccountTypeResponse(
     long Id,
     string Code,
     string Name,
-    string? Category,
+    string Category,
     decimal MinimumOpeningBalance,
     decimal MinimumMaintainedBalance,
     decimal? DailyTransactionLimit,
