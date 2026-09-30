@@ -140,17 +140,20 @@ public sealed class NrcTransferService : INrcTransferService
     }
 
     /// <summary>
-    /// Pays out an NRC transfer at one of our branches after the pickup code is verified: in cash, or into the
-    /// receiver's account when they have one. Each wrong code is counted; after
-    /// <c>TransactionConstants.MaximumFailedPickupAttempts</c> the transfer is blocked and can only be cancelled.
-    /// Ledger: debit NRC Transfers Payable, credit Cash on Hand or Customer Deposits.
+    /// Pays out an NRC transfer in cash at one of our branches, only to the person the sender designated: the name
+    /// and NRC read from the collector's card must match the receiver, and the pickup code must be correct. Each
+    /// mismatch or wrong code is counted; after <c>TransactionConstants.MaximumFailedPickupAttempts</c> the transfer
+    /// is blocked and can only be cancelled.
+    /// Ledger: debit NRC Transfers Payable, credit Cash on Hand.
     /// </summary>
     public async Task<TransactionResponse> CompletePickupAsync(
         NrcPickupRequest request,
         RequestActor actor,
         CancellationToken cancellationToken)
     {
-        TransactionRequestValidator.EnsureRequired(request.PickupCode);
+        TransactionRequestValidator.EnsureRequired(request.PickupCode, request.ReceiverName, request.ReceiverNrc);
+        TransactionRequestValidator.EnsureMaximumLength(request.ReceiverName, TransactionConstants.PersonNameMaximumLength);
+        TransactionRequestValidator.EnsureMaximumLength(request.ReceiverNrc, TransactionConstants.NrcMaximumLength);
 
         await using (var dbTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken))
         {
@@ -173,17 +176,20 @@ public sealed class NrcTransferService : INrcTransferService
                 throw new BusinessRuleException(MessageCode.PickupCodeExpired);
             }
 
+            // Only the receiver the sender designated may collect. A mismatch is counted like a wrong code, so
+            // trying different identities against one transfer is also blocked.
+            if (!IsDesignatedReceiver(detail, request.ReceiverName, request.ReceiverNrc))
+            {
+                await RecordFailedPickupAttemptAsync(entity, detail, actor, MessageCode.NrcPickupReceiverMismatch, now, cancellationToken);
+                await dbTransaction.CommitAsync(cancellationToken);
+
+                throw new BusinessRuleException(MessageCode.NrcPickupReceiverMismatch);
+            }
+
             if (!PasswordHasher.VerifyPassword(request.PickupCode.Trim(), detail.PickupCodeHash!))
             {
                 // Commit the failed attempt before rejecting, so repeated guessing is counted and eventually blocked.
-                detail.FailedPickupAttempts++;
-                _ledger.AddAuditLog(
-                    AuditConstants.NrcPickupFailedAction,
-                    entity,
-                    actor,
-                    new { detail.FailedPickupAttempts },
-                    now);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                await RecordFailedPickupAttemptAsync(entity, detail, actor, MessageCode.InvalidPickupCode, now, cancellationToken);
                 await dbTransaction.CommitAsync(cancellationToken);
 
                 throw new ValidationException(MessageCode.InvalidPickupCode);
@@ -197,30 +203,21 @@ public sealed class NrcTransferService : INrcTransferService
                 now,
                 cancellationToken);
 
-            // Money out: into the receiver's account if they want it there, otherwise cash over the counter.
-            if (request.DestinationAccountId is { } accountId)
-            {
-                var accounts = await _ledger.LockAccountsAsync([accountId], isRefund: false, cancellationToken);
-                await _ledger.PostCustomerEntryAsync(entity, accounts[accountId], EntryType.Credit, now, cancellationToken);
-                detail.DestinationAccountId = accountId;
-            }
-            else
-            {
-                await _ledger.PostGlEntryAsync(
-                    entity,
-                    AccountingConstants.CashOnHandGlCode,
-                    EntryType.Credit,
-                    null,
-                    now,
-                    cancellationToken);
-            }
+            // Money out: cash over the counter, since the receiver need not have an account with us.
+            await _ledger.PostGlEntryAsync(
+                entity,
+                AccountingConstants.CashOnHandGlCode,
+                EntryType.Credit,
+                null,
+                now,
+                cancellationToken);
 
             CompleteTransfer(entity, detail, actor, now);
             _ledger.AddAuditLog(
                 AuditConstants.NrcPickupAction,
                 entity,
                 actor,
-                new { entity.Amount, DestinationAccountId = request.DestinationAccountId, PaidInCash = request.DestinationAccountId is null },
+                new { entity.Amount, detail.ReceiverName, detail.ReceiverNrc, PaidInCash = true },
                 now);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -344,6 +341,46 @@ public sealed class NrcTransferService : INrcTransferService
         detail.PickupVerifiedBy = actor.UserId;
         detail.Status = TransactionConstants.PickupCompletedStatus;
         detail.PickupCodeHash = null;
+    }
+
+    // Compares the identity on the collector's NRC card with the receiver the sender designated. Names ignore case
+    // and repeated spaces; NRC numbers ignore case and all whitespace, so typing differences are not rejected.
+    private static bool IsDesignatedReceiver(NrcCashTransferDetail detail, string receiverName, string receiverNrc)
+    {
+        return string.Equals(NormalizeName(receiverName), NormalizeName(detail.ReceiverName), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(NormalizeNrc(receiverNrc), NormalizeNrc(detail.ReceiverNrc), StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Trims a person name and collapses runs of whitespace to one space.
+    private static string NormalizeName(string name)
+    {
+        return string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    // Removes all whitespace from an NRC number.
+    private static string NormalizeNrc(string nrc)
+    {
+        return string.Concat(nrc.Where(character => !char.IsWhiteSpace(character)));
+    }
+
+    // Counts and audits a rejected pickup (wrong identity or wrong code) and saves it, so the caller can commit it
+    // before rejecting the request.
+    private async Task RecordFailedPickupAttemptAsync(
+        Transaction entity,
+        NrcCashTransferDetail detail,
+        RequestActor actor,
+        MessageCode reason,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        detail.FailedPickupAttempts++;
+        _ledger.AddAuditLog(
+            AuditConstants.NrcPickupFailedAction,
+            entity,
+            actor,
+            new { detail.FailedPickupAttempts, Reason = reason.ToString() },
+            now);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     // The receiver collects at an active branch of ours or at a known other bank; the matching id is required.

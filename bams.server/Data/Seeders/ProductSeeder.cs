@@ -101,13 +101,13 @@ public sealed class ProductSeeder
     {
         var accounts = new[]
         {
-            new GlAccount { Code = "1101", Name = "Maintenance Fee Receivable", AccountClass = GlAccountClass.Asset, Status = ActiveStatus },
-            new GlAccount { Code = "1102", Name = "Dormant Penalty Receivable", AccountClass = GlAccountClass.Asset, Status = ActiveStatus },
-            new GlAccount { Code = "2001", Name = "Customer Deposit Liabilities", AccountClass = GlAccountClass.Liability, Status = ActiveStatus },
-            new GlAccount { Code = "2101", Name = "Interest Payable", AccountClass = GlAccountClass.Liability, Status = ActiveStatus },
-            new GlAccount { Code = "6001", Name = "Interest Expense", AccountClass = GlAccountClass.Expense, Status = ActiveStatus },
-            new GlAccount { Code = "4001", Name = "Maintenance Fee Income", AccountClass = GlAccountClass.Income, Status = ActiveStatus },
-            new GlAccount { Code = "4002", Name = "Dormant Account Penalty Income", AccountClass = GlAccountClass.Income, Status = ActiveStatus }
+            // Customer Deposits is seeded by ChartOfAccountsSeeder and shared with teller postings.
+            new GlAccount { Code = AccountingConstants.MaintenanceFeeReceivableGlCode, Name = "Maintenance Fee Receivable", AccountClass = GlAccountClass.Asset, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.DormantPenaltyReceivableGlCode, Name = "Dormant Penalty Receivable", AccountClass = GlAccountClass.Asset, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.InterestPayableGlCode, Name = "Interest Payable", AccountClass = GlAccountClass.Liability, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.InterestExpenseGlCode, Name = "Interest Expense", AccountClass = GlAccountClass.Expense, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.MaintenanceFeeIncomeGlCode, Name = "Maintenance Fee Income", AccountClass = GlAccountClass.Income, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.DormantPenaltyIncomeGlCode, Name = "Dormant Account Penalty Income", AccountClass = GlAccountClass.Income, Status = AccountingConstants.ActiveGlAccountStatus }
         };
         var codes = accounts.Select(account => account.Code).ToArray();
         var existingCodes = await _dbContext.GlAccounts

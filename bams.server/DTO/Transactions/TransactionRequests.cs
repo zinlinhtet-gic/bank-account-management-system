@@ -49,13 +49,15 @@ public sealed record NrcTransferRequest(
     string? ReferenceNo);
 
 /// <summary>
-/// Pays out an NRC transfer at one of our branches: in cash, or into <paramref name="DestinationAccountId"/> when the
-/// receiver has an account with us.
+/// Pays out an NRC transfer in cash at one of our branches. <paramref name="ReceiverName"/> and
+/// <paramref name="ReceiverNrc"/> are read from the NRC card of the person collecting and must match the receiver the
+/// sender designated.
 /// </summary>
 public sealed record NrcPickupRequest(
     long TransactionId,
     string PickupCode,
-    long? DestinationAccountId = null);
+    string ReceiverName,
+    string ReceiverNrc);
 
 /// <summary>
 /// Records that the other bank paid out an NRC transfer to the receiver.

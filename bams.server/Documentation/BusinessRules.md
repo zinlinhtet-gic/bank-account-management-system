@@ -121,8 +121,10 @@
     `pickupOtherBankId` (`OtherBankNotFound`); anything else is `InvalidRequest`.
   - The transfer stays `Pending`. The response contains a six-digit pickup code, shown only once; only its hash is
     stored. It is valid for `TransactionConstants.NrcPickupCodeValidity` (24 hours).
-  - At our branch, pickup (`nrc-pickup`) verifies the code and pays out in cash, or into `destinationAccountId` when
-    the receiver has an account. A wrong code is `InvalidPickupCode` (400) and is counted; after
+  - At our branch, pickup (`nrc-pickup`) pays out in cash only, since the receiver need not have an account. The
+    officer enters `receiverName` and `receiverNrc` from the collector's NRC card; they must match the receiver the
+    sender designated (ignoring case and extra whitespace), else `NrcPickupReceiverMismatch` (422). Then the code is
+    verified. A mismatch counts as a failed attempt, like a wrong code. A wrong code is `InvalidPickupCode` (400) and is counted; after
     `TransactionConstants.MaximumFailedPickupAttempts` (5) every pickup is `PickupAttemptsExceeded` (422). An expired
     code is `PickupCodeExpired` (422).
   - At another bank, that bank checks the code and pays; an officer then records it with
@@ -138,7 +140,9 @@
 ### General ledger
 
 GL accounts are created at startup by `ChartOfAccountsSeeder` (codes in `AccountingConstants`). Customer entries always
-hit Customer Deposits (2000) with the customer account id.
+hit Customer Deposits (2000) with the customer account id, including scheduled interest credits, maintenance fees
+and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001, 4002, 6001) are seeded by
+`ProductSeeder`.
 
 | Event | Debit | Credit |
 | --- | --- | --- |
@@ -151,7 +155,6 @@ hit Customer Deposits (2000) with the customer account id.
 | NRC transfer, paid in cash | Cash on Hand | NRC Transfers Payable (2200) |
 | NRC transfer, paid from account | Customer Deposits | NRC Transfers Payable |
 | NRC pickup at our branch, in cash | NRC Transfers Payable | Cash on Hand |
-| NRC pickup at our branch, into an account | NRC Transfers Payable | Customer Deposits (receiver) |
 | NRC paid out by another bank | NRC Transfers Payable | Due from Other Banks |
 | NRC cancelled (refund) | NRC Transfers Payable | Cash on Hand, or Customer Deposits (sender) |
 

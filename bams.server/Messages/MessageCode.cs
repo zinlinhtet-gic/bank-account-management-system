@@ -95,10 +95,12 @@ public enum MessageCode
     RequiredPayoutAccountNotFound = 4208,
 
     // Conflict: 4300 - 4399
+    ConcurrentModification = 4304,
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
     Conflict = 4300,
-    EndOfDayAuditAlreadyProcessed = 4307,
+    EndOfDayAuditAlreadyProcessed = 4308,
+    CustomerNrcAlreadyExists = 4307,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
@@ -122,19 +124,9 @@ public enum MessageCode
     PickupAttemptsExceeded = 4449,
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
-    CustomerNrcAlreadyExists = 4307,
 
-    // Conflict: 4300 - 4399
-    ConcurrentModification = 4304,
 
-    // Business Rules: 4400 - 4499
-    AccountTypeIdentifierOutOfRange = 4401,
-    AccountNumberSequenceExhausted = 4402,
-    AccountStatusTransitionNotAllowed = 4403,
-    AccountHolderUpdateNotAllowed = 4404,
-    InterestRateRuleNotApplicable = 4405,
-    RequiredPayoutAccountNotConfigured = 4406,
-    FixedDepositStatusTransitionNotAllowed = 4407,
+    NrcPickupReceiverMismatch = 4452,
     LastManagerCannotBeRemoved = 4480,
 
     // System / Infrastructure: 5000 - 5999

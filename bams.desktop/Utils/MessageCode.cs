@@ -74,6 +74,7 @@ public enum MessageCode
     PickupAttemptsExceeded = 4449,
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
+    NrcPickupReceiverMismatch = 4452,
     LastManagerCannotBeRemoved = 4480,
 
     // Server / Infrastructure: 5000 - 5999

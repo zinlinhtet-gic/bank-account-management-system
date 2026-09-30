@@ -22,7 +22,7 @@ public sealed class AccountManagementService : IAccountManagementService
 
     public Task<IReadOnlyList<AccountTypeResponse>> GetAccountTypesAsync(CancellationToken cancellationToken)
     {
-        return _apiClient.GetRawAsync<IReadOnlyList<AccountTypeResponse>>(
+        return _apiClient.GetAsync<IReadOnlyList<AccountTypeResponse>>(
             ApiConstants.AccountTypesEndpoint,
             cancellationToken);
     }
@@ -31,7 +31,7 @@ public sealed class AccountManagementService : IAccountManagementService
         long accountTypeId,
         CancellationToken cancellationToken)
     {
-        return _apiClient.GetRawAsync<IReadOnlyList<InterestRateRuleResponse>>(
+        return _apiClient.GetAsync<IReadOnlyList<InterestRateRuleResponse>>(
             $"{ApiConstants.InterestRateRulesEndpoint}?accountTypeId={accountTypeId.ToString(CultureInfo.InvariantCulture)}",
             cancellationToken);
     }
@@ -65,21 +65,21 @@ public sealed class AccountManagementService : IAccountManagementService
             query.Add($"cursor={Uri.EscapeDataString(criteria.Cursor)}");
         }
 
-        return _apiClient.GetRawAsync<AccountPageResponse>(
+        return _apiClient.GetAsync<AccountPageResponse>(
             $"{ApiConstants.AccountsEndpoint}?{string.Join("&", query)}",
             cancellationToken);
     }
 
     public Task<AccountResponse> GetAccountAsync(long id, CancellationToken cancellationToken)
     {
-        return _apiClient.GetRawAsync<AccountResponse>(
+        return _apiClient.GetAsync<AccountResponse>(
             $"{ApiConstants.AccountsEndpoint}/{id.ToString(CultureInfo.InvariantCulture)}",
             cancellationToken);
     }
 
     public Task<CustomerLookupResponse> GetCustomerByNrcAsync(string nrc, CancellationToken cancellationToken)
     {
-        return _apiClient.GetRawAsync<CustomerLookupResponse>(
+        return _apiClient.GetAsync<CustomerLookupResponse>(
             $"{ApiConstants.AccountCustomerLookupEndpoint}?nrc={Uri.EscapeDataString(nrc.Trim())}", cancellationToken);
     }
 
@@ -98,17 +98,17 @@ public sealed class AccountManagementService : IAccountManagementService
     {
         var query = $"holderNrc={Uri.EscapeDataString(holderNrc.Trim())}";
         if (!string.IsNullOrWhiteSpace(secondHolderNrc)) query += $"&secondHolderNrc={Uri.EscapeDataString(secondHolderNrc.Trim())}";
-        return _apiClient.GetRawAsync<AccountOpeningOptionsResponse>($"{ApiConstants.AccountOpeningOptionsEndpoint}?{query}", cancellationToken);
+        return _apiClient.GetAsync<AccountOpeningOptionsResponse>($"{ApiConstants.AccountOpeningOptionsEndpoint}?{query}", cancellationToken);
     }
 
     public Task<IReadOnlyList<AccountTransactionDetailResponse>> GetAccountTransactionsAsync(long id, CancellationToken cancellationToken) =>
-        _apiClient.GetRawAsync<IReadOnlyList<AccountTransactionDetailResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/transactions", cancellationToken);
+        _apiClient.GetAsync<IReadOnlyList<AccountTransactionDetailResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/transactions", cancellationToken);
 
     public Task<IReadOnlyList<AccountStatusHistoryResponse>> GetAccountStatusHistoryAsync(long id, CancellationToken cancellationToken) =>
-        _apiClient.GetRawAsync<IReadOnlyList<AccountStatusHistoryResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/status-history", cancellationToken);
+        _apiClient.GetAsync<IReadOnlyList<AccountStatusHistoryResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/status-history", cancellationToken);
 
     public Task<IReadOnlyList<InterestAccrualResponse>> GetAccountInterestAccrualsAsync(long id, CancellationToken cancellationToken) =>
-        _apiClient.GetRawAsync<IReadOnlyList<InterestAccrualResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/interest-accruals", cancellationToken);
+        _apiClient.GetAsync<IReadOnlyList<InterestAccrualResponse>>($"{ApiConstants.AccountsEndpoint}/{id}/interest-accruals", cancellationToken);
 
     public async Task<AccountResponse> UpdateAccountStatusAsync(long id, string status, string? reason, long version, CancellationToken cancellationToken)
     {

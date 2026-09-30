@@ -1,3 +1,5 @@
+using bams.server.DTO.Common;
+using bams.server.Messages;
 using bams.server.DTO.Products;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -19,11 +21,11 @@ public sealed class AccountTypesController : ControllerBase
     /// Gets all active account products available for account opening.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AccountTypeResponse>>> GetAvailableAccountTypesAsync(
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<AccountTypeResponse>>>> GetAvailableAccountTypesAsync(
         CancellationToken cancellationToken)
     {
         var accountTypes = await _accountTypeService.GetAvailableAccountTypesAsync(cancellationToken);
 
-        return Ok(accountTypes);
+        return Ok(ApiMessageResponse<IReadOnlyList<AccountTypeResponse>>.FromCode(MessageCode.Success, accountTypes));
     }
 }

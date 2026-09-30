@@ -1,3 +1,4 @@
+using bams.server.Constants;
 using bams.server.Data;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
@@ -8,18 +9,17 @@ namespace bams.server.Services;
 
 public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) : IGeneralLedgerPostingService
 {
-    private const string DepositLiability = "2001", InterestExpense = "6001", InterestPayable = "2101";
-    private const string MaintenanceReceivable = "1101", PenaltyReceivable = "1102";
-    private const string MaintenanceIncome = "4001", PenaltyIncome = "4002";
-
     public async Task AddAccrualEntriesAsync(Transaction transaction, long accountId, TransactionType type,
         decimal amount, string description, DateOnly postingDate, DateTime createdAt, CancellationToken cancellationToken)
     {
         var (debitCode, debitClass, creditCode, creditClass, creditCustomerId) = type switch
         {
-            TransactionType.InterestAccrual => (InterestExpense, GlAccountClass.Expense, InterestPayable, GlAccountClass.Liability, (long?)accountId),
-            TransactionType.MaintenanceAccrual => (MaintenanceReceivable, GlAccountClass.Asset, MaintenanceIncome, GlAccountClass.Income, null),
-            TransactionType.DormantPenaltyAccrual => (PenaltyReceivable, GlAccountClass.Asset, PenaltyIncome, GlAccountClass.Income, null),
+            TransactionType.InterestAccrual => (AccountingConstants.InterestExpenseGlCode, GlAccountClass.Expense,
+                AccountingConstants.InterestPayableGlCode, GlAccountClass.Liability, (long?)accountId),
+            TransactionType.MaintenanceAccrual => (AccountingConstants.MaintenanceFeeReceivableGlCode, GlAccountClass.Asset,
+                AccountingConstants.MaintenanceFeeIncomeGlCode, GlAccountClass.Income, null),
+            TransactionType.DormantPenaltyAccrual => (AccountingConstants.DormantPenaltyReceivableGlCode, GlAccountClass.Asset,
+                AccountingConstants.DormantPenaltyIncomeGlCode, GlAccountClass.Income, null),
             _ => throw new InvalidOperationException($"Transaction type '{type}' is not an accrual type.")
         };
         var debit = await GetAsync(debitCode, debitClass, cancellationToken);
@@ -35,12 +35,14 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
         var isCredit = type == TransactionType.InterestCredit;
         var (offsetCode, offsetClass) = type switch
         {
-            TransactionType.InterestCredit => (InterestPayable, GlAccountClass.Liability),
-            TransactionType.MaintenanceFee => (MaintenanceReceivable, GlAccountClass.Asset),
-            TransactionType.Penalty => (PenaltyReceivable, GlAccountClass.Asset),
+            TransactionType.InterestCredit => (AccountingConstants.InterestPayableGlCode, GlAccountClass.Liability),
+            TransactionType.MaintenanceFee => (AccountingConstants.MaintenanceFeeReceivableGlCode, GlAccountClass.Asset),
+            TransactionType.Penalty => (AccountingConstants.DormantPenaltyReceivableGlCode, GlAccountClass.Asset),
             _ => throw new InvalidOperationException($"Transaction type '{type}' is not supported for scheduled posting.")
         };
-        var deposit = await GetAsync(DepositLiability, GlAccountClass.Liability, cancellationToken);
+
+        // Scheduled postings move customer balances, so they hit the same Customer Deposits account as teller postings.
+        var deposit = await GetAsync(AccountingConstants.CustomerDepositsGlCode, GlAccountClass.Liability, cancellationToken);
         var offset = await GetAsync(offsetCode, offsetClass, cancellationToken);
         dbContext.TransactionEntries.AddRange(
             CreateEntry(transaction.Id, deposit.Id, accountId, isCredit ? EntryType.Credit : EntryType.Debit, amount, postingDate, description, createdAt),
@@ -48,7 +50,7 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
     }
 
     private async Task<GlAccount> GetAsync(string code, GlAccountClass expectedClass, CancellationToken cancellationToken) =>
-        await dbContext.GlAccounts.SingleOrDefaultAsync(a => a.Code == code && a.Status == "Active" && a.AccountClass == expectedClass, cancellationToken)
+        await dbContext.GlAccounts.SingleOrDefaultAsync(a => a.Code == code && a.Status == AccountingConstants.ActiveGlAccountStatus && a.AccountClass == expectedClass, cancellationToken)
         ?? throw new InvalidOperationException($"Required active General Ledger account '{code}' is missing.");
 
     private static TransactionEntry CreateEntry(long transactionId, long glAccountId, long? customerAccountId,

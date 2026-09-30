@@ -17,7 +17,6 @@ namespace bams.desktop.ViewModels.Pages;
 public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly ITransactionService _transactionService;
-    private readonly IAccountService _accountService;
     private readonly IDialogService _dialogService;
     private readonly TransactionDetailsLauncher _detailsLauncher;
 
@@ -26,7 +25,6 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
 
     public TransactionHistoryViewModel(
         ITransactionService transactionService,
-        IAccountService accountService,
         IDialogService dialogService,
         TransactionDetailsLauncher detailsLauncher,
         AuthContext authContext,
@@ -35,7 +33,6 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
     {
         // Constructors only store dependencies and create commands. No server calls here.
         _transactionService = transactionService;
-        _accountService = accountService;
         _dialogService = dialogService;
         _detailsLauncher = detailsLauncher;
         Filter = filter;
@@ -196,18 +193,7 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
             return;
         }
 
-        IReadOnlyList<AccountOption> accounts;
-        try
-        {
-            accounts = await AccountOption.LoadUsableAsync(_accountService, CancellationToken.None);
-        }
-        catch (AppException exception)
-        {
-            ErrorMessage = exception.Message;
-            return;
-        }
-
-        var form = new NrcPickupFormViewModel(_transactionService, transfer, accounts);
+        var form = new NrcPickupFormViewModel(_transactionService, transfer);
         var completed = _dialogService.ShowDialog(form);
 
         // Reload even when cancelled: wrong codes may have blocked the transfer meanwhile.
@@ -217,7 +203,7 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
         {
             SuccessMessage = $"{MessageCatalog.GetMessage(MessageCode.TransactionCompletedSuccessfully)} "
                 + $"{row.TransactionNo} was picked up: {TransactionDisplay.FormatMoney(row.Amount)} "
-                + (form.IsPaidInCash ? "paid out in cash." : $"paid into {form.DestinationAccount!.AccountNo}.");
+                + "paid out in cash.";
         }
     }
 

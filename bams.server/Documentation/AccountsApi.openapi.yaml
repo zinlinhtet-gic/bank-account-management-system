@@ -42,7 +42,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountCursorPage'
+                $ref: '#/components/schemas/AccountCursorPageMessageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -109,7 +109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountResponse'
+                $ref: '#/components/schemas/AccountMessageResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -298,9 +298,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AccountTypeResponse'
+                $ref: '#/components/schemas/AccountTypesMessageResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -323,7 +321,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomerLookupResponse'
+                $ref: '#/components/schemas/CustomerLookupMessageResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -390,7 +388,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountOpeningOptionsResponse'
+                $ref: '#/components/schemas/AccountOpeningOptionsMessageResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -413,9 +411,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AccountTransactionDetailResponse'
+                $ref: '#/components/schemas/AccountTransactionsMessageResponse'
         '404':
           $ref: '#/components/responses/NotFound'
   /api/accounts/{id}/status-history:
@@ -433,9 +429,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AccountStatusHistoryResponse'
+                $ref: '#/components/schemas/AccountStatusHistoryMessageResponse'
         '404':
           $ref: '#/components/responses/NotFound'
   /api/accounts/{id}/interest-accruals:
@@ -453,9 +447,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/InterestAccrualResponse'
+                $ref: '#/components/schemas/InterestAccrualsMessageResponse'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -481,9 +473,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/InterestRateRuleResponse'
+                $ref: '#/components/schemas/InterestRulesMessageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1122,6 +1112,7 @@ components:
         - allowTransfer
         - allowPartialWithdrawal
         - allowForeigner
+        - isFixedDeposit
         - allowCitizen
         - citizenRequiredRefer
         - foreignRequiredRefer
@@ -1160,6 +1151,8 @@ components:
           type: integer
           format: int64
           nullable: true
+        isFixedDeposit:
+          type: boolean
         allowForeigner:
           type: boolean
         allowCitizen:
@@ -1218,6 +1211,81 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/AccountResponse'
+
+    AccountCursorPageMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/AccountCursorPage'
+
+    AccountTypesMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AccountTypeResponse' }
+
+    CustomerLookupMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/CustomerLookupResponse' }
+
+    AccountOpeningOptionsMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/AccountOpeningOptionsResponse' }
+
+    AccountTransactionsMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AccountTransactionDetailResponse' }
+
+    AccountStatusHistoryMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AccountStatusHistoryResponse' }
+
+    InterestAccrualsMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/InterestAccrualResponse' }
+
+    InterestRulesMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/InterestRateRuleResponse' }
 
     AccountHoldersMessageResponse:
       allOf:

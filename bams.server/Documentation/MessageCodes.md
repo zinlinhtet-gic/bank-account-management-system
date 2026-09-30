@@ -24,7 +24,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
 | 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
 | 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
-| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted (the endpoint returns 204; client-side text). |
+| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted; the endpoint returns this code in `ApiMessageResponse<bool>`. |
 | 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
 | 1200 | TransactionCompletedSuccessfully | 200 | A deposit, withdrawal, internal transfer or NRC pickup was posted. |
 | 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
@@ -129,6 +129,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4449 | PickupAttemptsExceeded | 422 | Too many wrong pickup codes; the NRC transfer can only be cancelled. |
 | 4450 | TransactionNotPending | 422 | The interbank transfer's gateway result was already recorded. |
 | 4451 | NrcPickupLocationMismatch | 422 | Pickup was tried on an other-bank NRC transfer, or a payout recorded for a branch one. |
+| 4452 | NrcPickupReceiverMismatch | 422 | The name or NRC entered at pickup does not match the receiver the sender designated; counted as a failed pickup attempt. |
 | 4480 | LastManagerCannotBeRemoved | 422 | Deleting, or taking the manager role from, the only active manager is refused. |
 | 4201 | AccountNotFound | 404 | The account does not exist. |
 | 4202 | CustomerNotFound | 404 | The customer does not exist. |
@@ -153,6 +154,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4305 | UsernameAlreadyExists | 409 | Another user has the username. |
 | 4306 | EmailAlreadyExists | 409 | Another user has the email address. |
 | 4307 | CustomerNrcAlreadyExists | 409 | A customer already exists with the supplied NRC number. |
+| 4308 | EndOfDayAuditAlreadyProcessed | 409 | The end-of-day audit has already been completed for this date. |
 
 ## Business rules
 
