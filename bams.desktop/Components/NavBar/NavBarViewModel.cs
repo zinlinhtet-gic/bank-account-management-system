@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using bams.desktop.Commands;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RelayCommand = bams.desktop.Commands.RelayCommand;
@@ -25,6 +26,7 @@ public partial class NavBarViewModel : ObservableObject
 
     public NavBarViewModel()
     {
+        AppLog.WriteInformation($"{nameof(NavBarViewModel)}: ViewModel created.");
         // Initialize with default items (will be replaced by permission-based items)
         BuildDefaultNavigationItems();
     }

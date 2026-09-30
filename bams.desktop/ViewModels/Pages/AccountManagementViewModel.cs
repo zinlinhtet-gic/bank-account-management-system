@@ -1034,9 +1034,9 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         ErrorMessage = message;
     }
 
-    private static void LogException(string operation, Exception exception)
+    private void LogException(string operation, Exception exception)
     {
-        AppLog.WriteError($"{nameof(AccountManagementViewModel)}: {operation} failed.", exception);
+        LogError($"{operation} failed.", exception);
     }
 
     private void NotifyScreenChanged()

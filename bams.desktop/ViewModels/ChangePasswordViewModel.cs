@@ -267,8 +267,9 @@ public sealed class ChangePasswordViewModel : ViewModelBase
         {
             ErrorMessage = GetChangePasswordErrorMessage(exception);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            LogError("Password change failed unexpectedly.", exception);
             ErrorMessage = MessageCatalog.GetMessage(MessageCode.ClientError);
         }
         finally

@@ -195,8 +195,9 @@ public sealed class LoginViewModel : ViewModelBase
             // (e.g. InvalidCredentials, UserAccountDisabled, NetworkUnavailable).
             ErrorMessage = exception.Message;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            LogError("Login failed unexpectedly.", exception);
             ErrorMessage = MessageCatalog.GetMessage(MessageCode.ClientError);
         }
         finally

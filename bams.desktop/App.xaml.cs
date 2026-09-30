@@ -1,4 +1,5 @@
 ﻿using System.Net.Http;
+using System.Runtime.ExceptionServices;
 using System.Windows;
 using bams.desktop.Api;
 using bams.desktop.Constants;
@@ -17,12 +18,19 @@ namespace bams.desktop;
 /// </summary>
 public partial class App : Application
 {
+    [ThreadStatic]
+    private static bool _handlingFirstChanceException;
+
     public static IServiceProvider? ServiceProvider { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        // Set true here to enable daily desktop diagnostic logs.
+        Properties["Debug Log"] = true;
+
+        AppDomain.CurrentDomain.FirstChanceException += OnFirstChanceException;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -36,6 +44,39 @@ public partial class App : Application
         // Create and show main window
         var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
+    }
+
+    private static void OnFirstChanceException(object? sender, FirstChanceExceptionEventArgs e)
+    {
+        if (_handlingFirstChanceException ||
+            !AppLog.IsEnabled ||
+            e.Exception is OperationCanceledException)
+        {
+            return;
+        }
+
+        var stackTrace = e.Exception.StackTrace;
+        if (stackTrace is null ||
+            (!stackTrace.Contains("bams.desktop.ViewModels.", StringComparison.Ordinal) &&
+             !stackTrace.Contains("Bams.Desktop.Components.NavBar.NavBarViewModel", StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        try
+        {
+            _handlingFirstChanceException = true;
+            AppLog.WriteError("Exception thrown while executing view-model code.", e.Exception);
+        }
+        catch (Exception loggingException)
+        {
+            // Diagnostic exception handling must never replace the application's original exception.
+            System.Diagnostics.Debug.WriteLine($"Could not log a view-model exception: {loggingException}");
+        }
+        finally
+        {
+            _handlingFirstChanceException = false;
+        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
