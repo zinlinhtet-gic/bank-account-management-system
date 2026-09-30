@@ -1,4 +1,3 @@
-using System.Globalization;
 using bams.desktop.Api;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounts;
@@ -10,6 +9,7 @@ namespace bams.desktop.Services;
 /// </summary>
 public sealed class AccountService : IAccountService
 {
+    private const int AccountPickerPageSize = 100;
     private readonly ApiClient _apiClient;
 
     public AccountService(ApiClient apiClient)
@@ -22,23 +22,22 @@ public sealed class AccountService : IAccountService
         var accounts = new List<AccountSummaryResponse>();
         string? cursor = null;
 
-        // The server returns a forward-only cursor page (no envelope); follow NextCursor until the last page.
         do
         {
-            var page = await _apiClient.GetRawAsync<AccountPageResponse>(BuildAccountPageEndpoint(cursor), cancellationToken);
+            var query = $"?pageSize={AccountPickerPageSize}";
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                query += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+
+            var page = await _apiClient.GetAsync<AccountPageResponse>(
+                ApiConstants.AccountsEndpoint + query,
+                cancellationToken);
             accounts.AddRange(page.Items);
             cursor = page.HasMore ? page.NextCursor : null;
         }
-        while (!string.IsNullOrEmpty(cursor));
+        while (!string.IsNullOrWhiteSpace(cursor));
 
         return accounts;
-    }
-
-    // Builds the accounts query for one picker page, continuing after the given cursor when there is one.
-    private static string BuildAccountPageEndpoint(string? cursor)
-    {
-        var endpoint = $"{ApiConstants.AccountsEndpoint}?pageSize={ApiConstants.AccountPickerPageSize.ToString(CultureInfo.InvariantCulture)}";
-
-        return cursor is null ? endpoint : $"{endpoint}&cursor={Uri.EscapeDataString(cursor)}";
     }
 }

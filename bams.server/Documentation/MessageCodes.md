@@ -24,7 +24,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
 | 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
 | 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
-| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted (the endpoint returns 204; client-side text). |
+| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted; the endpoint returns this code in `ApiMessageResponse<bool>`. |
 | 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
 | 1200 | TransactionCompletedSuccessfully | 200 | A deposit, withdrawal, internal transfer or NRC pickup was posted. |
 | 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
