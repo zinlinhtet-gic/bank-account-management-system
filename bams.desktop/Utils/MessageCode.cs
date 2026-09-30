@@ -17,6 +17,8 @@ public enum MessageCode
     InterestRateUpdatedSuccessfully = 1401,
     FeeRuleCreatedSuccessfully = 1402,
     FeeRuleUpdatedSuccessfully = 1403,
+    BankPolicyCreatedSuccessfully = 1404,
+    BankPolicyUpdatedSuccessfully = 1405,
     TransactionCompletedSuccessfully = 1200,
     TransactionSubmittedSuccessfully = 1201,
     TransactionRefundedSuccessfully = 1202,
@@ -39,6 +41,7 @@ public enum MessageCode
     DefaultPasswordNotAllowed = 3013,
     InterestRateBalanceRangeInvalid = 3400,
     FeeRuleAmountRangeInvalid = 3401,
+    BankPolicyBalanceRangeInvalid = 3402,
 
     SameSourceAndDestinationAccount = 3300,
     InvalidPickupCode = 3301,
@@ -72,6 +75,7 @@ public enum MessageCode
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
     IdempotencyKeyReused = 4330,
+    AccountTypeCodeAlreadyExists = 4340,
 
     // Business Rules: 4400 - 4499
     InsufficientBalance = 4440,

@@ -36,6 +36,9 @@ public static class ApiConstants
     public const string FeeRatesEndpoint = "api/fee-rates";
     public const string FeeRateAccountTypesEndpoint = FeeRatesEndpoint + "/account-types";
 
+    // Bank Policies. Routes with an id: $"{BankPoliciesEndpoint}/{id}" (update).
+    public const string BankPoliciesEndpoint = "api/bank-policies";
+
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".
     public const string TransactionsEndpoint = "api/transactions";

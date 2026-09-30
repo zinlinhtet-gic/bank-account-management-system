@@ -112,6 +112,9 @@ public partial class App : Application
         // Fee Rate
         services.AddSingleton<Services.IFeeRateService, Services.FeeRateService>();
 
+        // Bank Policies
+        services.AddSingleton<Services.IBankPolicyService, Services.BankPolicyService>();
+
         // Transactions (Transactions and Transaction History pages share the filter and list components)
         services.AddSingleton<Services.ITransactionService, Services.TransactionService>();
         services.AddSingleton<Services.IAccountService, Services.AccountService>();

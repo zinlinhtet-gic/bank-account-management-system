@@ -133,6 +133,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOtherBankService, OtherBankService>();
 builder.Services.AddScoped<IInterestRateService, InterestRateService>();
 builder.Services.AddScoped<IFeeRateService, FeeRateService>();
+builder.Services.AddScoped<IBankPolicyService, BankPolicyService>();
 builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
 {
     var monthlyAtMyanmarMidnight = JobSchedule.Monthly(5, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);

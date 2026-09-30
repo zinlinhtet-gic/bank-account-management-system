@@ -30,6 +30,8 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 1401 | InterestRateUpdatedSuccessfully | 200 | An interest rate rule was updated. |
 | 1402 | FeeRuleCreatedSuccessfully | 201 | A fee rule was created (Configuration). |
 | 1403 | FeeRuleUpdatedSuccessfully | 200 | A fee rule was updated. |
+| 1404 | BankPolicyCreatedSuccessfully | 201 | A bank policy (account type) was created. |
+| 1405 | BankPolicyUpdatedSuccessfully | 200 | A bank policy (account type) was updated. |
 
 | 1200 | TransactionCompletedSuccessfully | 200 | A deposit, withdrawal, internal transfer or NRC pickup was posted. |
 | 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
@@ -64,6 +66,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 
 | 3400 | InterestRateBalanceRangeInvalid | 400 | Minimum balance is greater than maximum balance on an interest rate rule. |
 | 3401 | FeeRuleAmountRangeInvalid | 400 | Minimum fee is greater than maximum fee on a fee rule. |
+| 3402 | BankPolicyBalanceRangeInvalid | 400 | Minimum maintained balance is greater than minimum opening balance on a bank policy. |
 | 4000 | AuthenticationRequired | 401 | No valid JWT, or the token's user no longer exists. |
 | 4001 | PasswordChangeRequired | — | The user must change their password before continuing. |
 | 4002 | PasswordChangedSuccessfully | 200 | Password change succeeded. |
@@ -146,6 +149,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
 | 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
 | 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
+| 4340 | AccountTypeCodeAlreadyExists | 409 | Another account type already uses this code (bank policy create/update). |
 | 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
 | 4440 | InsufficientBalance | 422 | A debit exceeds the account's available balance. |
 | 4441 | AccountNotOperational | 422 | The account is closed, frozen or suspended. |

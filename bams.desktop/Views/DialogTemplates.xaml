@@ -30,6 +30,11 @@
         <configviews:FeeRateFormDialogView/>
     </DataTemplate>
 
+    <!-- Configuration: Bank Policies -->
+    <DataTemplate DataType="{x:Type config:BankPolicyFormViewModel}">
+        <configviews:BankPolicyFormDialogView/>
+    </DataTemplate>
+
     <!-- Transactions -->
     <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
         <transactionviews:TransactionDetailsDialogView/>
