@@ -25,7 +25,9 @@ public static class ApiConstants
     public const string UserRolesEndpoint = UsersEndpoint + "/roles";
     public const string ResetPasswordSegment = "reset-password";
 
-    // Accounts (the officer's account pickers) use AccountsEndpoint above.
+    // Accounts (the officer's account pickers) use AccountsEndpoint above, read in cursor pages of this size
+    // (the server's maximum, so the pickers need as few round trips as possible).
+    public const int AccountPickerPageSize = 100;
 
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".
