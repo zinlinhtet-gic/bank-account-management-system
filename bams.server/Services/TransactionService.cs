@@ -45,6 +45,13 @@ public sealed class TransactionService : ITransactionService
                 var account = accounts[request.AccountId];
 
                 var now = DateTime.UtcNow;
+                await _ledger.EnsureCanDebitAsync(
+                    account,
+                    request.Amount,
+                    DebitPurpose.Deposit,
+                    now,
+                    cancellationToken);
+
                 var entity = LedgerPostingService.CreateTransaction(
                     TransactionType.CashDeposit,
                     TransactionStatus.Completed,

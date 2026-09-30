@@ -16,10 +16,11 @@ using Microsoft.EntityFrameworkCore;
 namespace bams.server.Services;
 
 /// <summary>
-/// What a debit is for. It decides which account-type permission (withdrawal or transfer) applies.
+/// Identifies the posting purpose so account-type permissions can be enforced consistently.
 /// </summary>
 public enum DebitPurpose
 {
+    Deposit = 0,
     Withdrawal = 1,
     Transfer = 2
 }
@@ -177,8 +178,9 @@ public sealed class LedgerPostingService
     }
 
     /// <summary>
-    /// Applies the account type's debit rules: withdrawal/transfer permission, available balance, minimum maintained
-    /// balance, and daily and monthly limits. The account must have been locked by <see cref="LockAccountsAsync"/>,
+    /// Applies the account type's deposit or debit rules. Deposits check deposit permission; debits also check
+    /// available balance, minimum maintained balance, and daily and monthly limits. The account must be locked by
+    /// <see cref="LockAccountsAsync"/>,
     /// which also keeps the limit totals stable until the posting commits.
     /// </summary>
     public async Task EnsureCanDebitAsync(
@@ -191,6 +193,10 @@ public sealed class LedgerPostingService
         var accountType = account.AccountType
             ?? throw new InvalidOperationException("The account type must be loaded before checking debit rules.");
 
+        if (purpose == DebitPurpose.Deposit && !accountType.AllowDeposit)
+        {
+            throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+        }
         if (purpose == DebitPurpose.Withdrawal && !accountType.AllowWithdrawal)
         {
             throw new BusinessRuleException(MessageCode.WithdrawalNotAllowed);

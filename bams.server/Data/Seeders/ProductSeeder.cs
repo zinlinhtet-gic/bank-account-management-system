@@ -212,6 +212,7 @@ public sealed class ProductSeeder
             MinimumMaintainedBalance = 0m,
             DailyTransactionLimit = null,
             MonthlyTransactionLimit = null,
+            AllowDeposit = allowsTransactions,
             AllowWithdrawal = allowsTransactions,
             AllowTransfer = allowsTransactions,
             AllowPartialWithdrawal = allowsTransactions,

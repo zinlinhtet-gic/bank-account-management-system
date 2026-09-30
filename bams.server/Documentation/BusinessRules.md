@@ -82,6 +82,7 @@
   changed by the posting user). Scheduled interest, fee and dormant-penalty postings do not reactivate an account.
   Refunds only need the account to be not closed.
 - Debits follow the account type (`AccountType`), all 422:
+  - deposits need `AllowDeposit` (`DepositNotAllowed`);
   - withdrawals need `AllowWithdrawal` (`WithdrawalNotAllowed`);
   - internal, interbank and NRC transfers need `AllowTransfer` on the source (`TransferNotAllowed`);
   - the debit may not exceed the available balance (`InsufficientBalance`) or leave less than

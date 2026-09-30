@@ -131,6 +131,7 @@ public enum MessageCode
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
     NrcPickupReceiverMismatch = 4452,
+    DepositNotAllowed = 4453,
 
     // Accounting / Audit: 4460 - 4479
     TransactionMissingAccountingEntries = 4460,

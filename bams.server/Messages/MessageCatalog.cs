@@ -93,6 +93,7 @@ public static class MessageCatalog
             [MessageCode.TransactionNotPendingPickup] = "This transfer has already been picked up or is no longer pending.",
             [MessageCode.WithdrawalNotAllowed] = "Withdrawals are not allowed for this account type.",
             [MessageCode.TransferNotAllowed] = "Transfers are not allowed for this account type.",
+            [MessageCode.DepositNotAllowed] = "Deposits are not allowed for this account type.",
             [MessageCode.MinimumBalanceRequired] = "This transaction would take the account below its minimum balance.",
             [MessageCode.DailyTransactionLimitExceeded] = "This transaction exceeds the account's daily limit.",
             [MessageCode.MonthlyTransactionLimitExceeded] = "This transaction exceeds the account's monthly limit.",
