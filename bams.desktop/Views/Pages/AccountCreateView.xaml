@@ -85,7 +85,7 @@
               <ItemsControl ItemsSource="{Binding Workflow.OwnedAccounts}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <TextBlock Text="{Binding Workflow.DisplayName}" Margin="0,3" />
+                    <TextBlock Text="{Binding DisplayName}" Margin="0,3" />
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>

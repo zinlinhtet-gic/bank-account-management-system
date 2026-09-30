@@ -17,6 +17,7 @@ public static class AuditConstants
     public const string NrcPickupAction = "transaction.nrc_pickup";
     public const string NrcPickupFailedAction = "transaction.nrc_pickup_failed";
     public const string NrcCancelledAction = "transaction.nrc_cancelled";
+    public const string NrcPickupCodeReissuedAction = "transaction.nrc_pickup_code_reissued";
     public const string NrcPaidOutByOtherBankAction = "transaction.nrc_paid_out_other_bank";
 
     // These match the column sizes in Data/Configurations/AuditConfigurations.cs.
@@ -31,4 +32,11 @@ public static class AuditConstants
     public const string FixedDepositUpdatedAction = "FixedDepositUpdated";
     public const string ScheduledFinancialAccruedAction = "ScheduledFinancialAccrued";
     public const string ScheduledFinancialPostedAction = "ScheduledFinancialPosted";
+    public const string EndOfDayReconciliationType = "EndOfDay";
+
+    public const string ReconciliationCompletedStatus = "Completed";
+
+    public const string ReconciliationMatchedStatus = "Matched";
+
+    public const string ActiveStatus = "Active";
 }

@@ -15,7 +15,7 @@ public static class MessageCatalog
             [MessageCode.TransactionSubmittedSuccessfully] = "Transaction submitted and is pending completion.",
             [MessageCode.TransactionRefundedSuccessfully] = "The transfer was cancelled and the amount refunded to the source account.",
             [MessageCode.InterbankTransferSettledSuccessfully] = "The interbank transfer was settled.",
-            [MessageCode.ValidationFailed] ="One or more validation errors occurred.",
+            [MessageCode.NrcPickupCodeReissuedSuccessfully] = "A new pickup code was issued; the previous code no longer works.",
             [MessageCode.CustomerCreatedSuccessfully] = "Customer created successfully.",
             [MessageCode.AccountStatusUpdatedSuccessfully] = "Account status updated successfully.",
             [MessageCode.AccountBalanceUpdatedSuccessfully] = "Account balance updated successfully.",
@@ -33,6 +33,7 @@ public static class MessageCatalog
             [MessageCode.InvalidRole] = "The selected role is not valid.",
             [MessageCode.FieldTooLong] = "One or more fields are longer than allowed.",
             [MessageCode.InvalidDateRange] = "The start date must be on or before the end date.",
+            [MessageCode.InvalidDate] = "The provided date is invalid.",
             [MessageCode.NewPasswordSameAsCurrent] = "The new password must be different from your current password.",
             [MessageCode.DefaultPasswordNotAllowed] = "You cannot use a default password. Please choose your own password.",
             [MessageCode.OpeningBalanceInvalid] = "Opening balance is below the account type's minimum.",
@@ -98,13 +99,19 @@ public static class MessageCatalog
             [MessageCode.PickupAttemptsExceeded] = "Too many wrong pickup codes. The transfer is blocked and can only be cancelled.",
             [MessageCode.TransactionNotPending] = "This transaction is no longer pending.",
             [MessageCode.NrcPickupLocationMismatch] = "This NRC transfer is paid out elsewhere: our branches verify the pickup code, other banks' payouts are recorded instead.",
+            [MessageCode.NrcPickupReceiverMismatch] = "The name or NRC number does not match the receiver designated by the sender.",
             [MessageCode.LastManagerCannotBeRemoved] ="This is the only active manager. Add another manager before deleting this account or changing its role.",
             [MessageCode.CustomerNrcAlreadyExists] = "A customer with this NRC number already exists.",
             [MessageCode.FixedDepositNotFound] = "Fixed deposit was not found.",
             [MessageCode.InterestRateRuleNotFound] = "Interest rate rule was not found.",
             [MessageCode.PayoutAccountNotFound] = "Payout account was not found.",
             [MessageCode.RequiredPayoutAccountNotFound] = "The primary holder does not have the required payout account.",
-            [MessageCode.BusinessRuleViolation] = "The requested operation violates a business rule.",
+            [MessageCode.EndOfDayAuditAlreadyProcessed] = "The end-of-day audit has already been completed for this date.",
+            [MessageCode.TransactionMissingAccountingEntries] = "One or more posted transactions have no accounting entries.",
+            [MessageCode.TransactionEntriesUnbalanced] = "One or more transactions have unbalanced debit and credit entries.",
+            [MessageCode.DailyAccountingUnbalanced] = "The end-of-day debit and credit totals are not balanced.",
+            [MessageCode.AuditUserUnavailable] = "No user is available to perform the end-of-day reconciliation.",
+            [MessageCode.UnsupportedGlAccountClass] = "A GL account has an unsupported account class.",
             [MessageCode.AccountTypeIdentifierOutOfRange] = "Account type identifier must fit the two-digit account number segment.",
             [MessageCode.AccountNumberSequenceExhausted] = "The hourly account number sequence is exhausted for this account type.",
             [MessageCode.AccountStatusTransitionNotAllowed] = "The requested account status transition is not allowed.",
@@ -113,9 +120,7 @@ public static class MessageCatalog
             [MessageCode.RequiredPayoutAccountNotConfigured] = "The fixed-deposit account type does not configure a required payout product.",
             [MessageCode.FixedDepositStatusTransitionNotAllowed] = "The requested fixed-deposit status transition is not allowed.",
             [MessageCode.InternalServerError] = "An unexpected error occurred.",
-            [MessageCode.FileStorageFailed] = "The uploaded document could not be stored.",
-            [MessageCode.LastManagerCannotBeRemoved] = "This is the only active manager. Add another manager before deleting this account or changing its role.",
-            [MessageCode.InternalServerError] = "An unexpected error occurred."
+            [MessageCode.FileStorageFailed] = "The uploaded document could not be stored."
         };
 
     // Resolves the human-readable message associated with a stable message code.

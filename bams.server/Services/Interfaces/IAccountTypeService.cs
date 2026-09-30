@@ -49,7 +49,7 @@ public interface IAccountTypeService
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Gets an account type by its identifier and rejects unknown identifiers.
+    /// Gets an active account type by its identifier and rejects unknown or inactive identifiers.
     /// </summary>
     Task<AccountType> GetAccountTypeByIdAsync(
         long accountTypeId,

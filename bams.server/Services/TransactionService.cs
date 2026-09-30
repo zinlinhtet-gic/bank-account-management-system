@@ -38,6 +38,7 @@ public sealed class TransactionService : ITransactionService
             TransactionType.CashDeposit,
             request.Amount,
             actor.UserId,
+            [request.AccountId],
             async key =>
             {
                 var accounts = await _ledger.LockAccountsAsync([request.AccountId], isRefund: false, cancellationToken);
@@ -94,6 +95,7 @@ public sealed class TransactionService : ITransactionService
             TransactionType.CashWithdrawal,
             request.Amount,
             actor.UserId,
+            [request.AccountId],
             async key =>
             {
                 var accounts = await _ledger.LockAccountsAsync([request.AccountId], isRefund: false, cancellationToken);
@@ -158,6 +160,7 @@ public sealed class TransactionService : ITransactionService
             TransactionType.InternalTransfer,
             request.Amount,
             actor.UserId,
+            [request.SourceAccountId, request.DestinationAccountId],
             async key =>
             {
                 var accounts = await _ledger.LockAccountsAsync(

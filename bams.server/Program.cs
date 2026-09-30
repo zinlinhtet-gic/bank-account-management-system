@@ -23,6 +23,25 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Automatic model-validation failures use the standard ApiErrorResponse contract (not ProblemDetails),
+        // so clients always receive a stable code and a readable message for the first invalid field.
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var firstError = context.ModelState.Values
+                .SelectMany(entry => entry.Errors)
+                .Select(error => error.ErrorMessage)
+                .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+            var response = new ApiErrorResponse(
+                (int)MessageCode.ValidationFailed,
+                MessageCode.ValidationFailed.ToString(),
+                firstError ?? MessageCatalog.GetMessage(MessageCode.ValidationFailed),
+                context.HttpContext.TraceIdentifier);
+
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
     });
 
 // Register the EF Core context using the configured MySQL connection string.
@@ -88,6 +107,7 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+builder.Services.AddHttpContextAccessor();
 
 // -------------------------
 // Identity define here
@@ -103,6 +123,9 @@ builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
 builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
 builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IEndOfDayAuditService, EndOfDayAuditService>();
 builder.Services.AddScoped<LedgerPostingService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
@@ -153,6 +176,12 @@ await using (var scope = app.Services.CreateAsyncScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
 
+    // Security data must be seeded before any other seeder adds users: on an empty database it clears the
+    // Users table, which would otherwise delete the scheduled-jobs system actor created by ProductSeeder.
+    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
+    await BranchSeeder.SeedBranchesAsync(dbContext);
+
     var productSeeder = scope.ServiceProvider.GetRequiredService<ProductSeeder>();
     await productSeeder.SeedAsync();
 
@@ -171,7 +200,7 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Home/Error");
+    // GlobalExceptionHandler below is the single error handler; there is no MVC /Home/Error page to re-execute.
     app.UseHsts();
 }
 
@@ -184,14 +213,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapStaticAssets();
-
-// Seed security data on startup
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
-    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
-    await BranchSeeder.SeedBranchesAsync(dbContext);
-}
 
 app.Run();

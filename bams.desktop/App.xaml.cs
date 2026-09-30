@@ -9,6 +9,7 @@ using bams.desktop.ViewModels.Pages;
 using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
+using bams.desktop.ViewModels.Pages.Accounting;
 using System.Windows.Threading;
 
 namespace bams.desktop;
@@ -160,11 +161,13 @@ public partial class App : Application
         services.AddTransient<UserManagementViewModel>();
         services.AddTransient<CustomerManagementViewModel>();
         services.AddTransient<CustomerKYCViewModel>();
+        services.AddTransient<AccountingEntriesViewModel>();
         // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();
         services.AddTransient<TransactionHistoryViewModel>();
-        services.AddTransient<AccountingViewModel>();
+        services.AddTransient<GeneralLedgerViewModel>();
+        services.AddTransient<ReconciliationViewModel>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();
@@ -176,6 +179,10 @@ public partial class App : Application
 
         // Register main window
         services.AddTransient<MainWindow>();
+
+        // Register Accounting Service
+        services.AddScoped<IAccountingService, AccountingService>();
+
     }
 }
 

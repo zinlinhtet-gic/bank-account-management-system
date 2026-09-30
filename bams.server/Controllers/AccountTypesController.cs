@@ -1,3 +1,5 @@
+using bams.server.Middlewares;
+using bams.server.Constants;
 using bams.server.DTO.Common;
 using bams.server.Messages;
 using bams.server.DTO.Products;
@@ -8,6 +10,8 @@ namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/account-types")]
+// Product configuration is read while opening accounts, so it shares the account-management permission.
+[RequirePermission(SecurityConstants.AccountManagement)]
 public sealed class AccountTypesController : ControllerBase
 {
     private readonly IAccountTypeService _accountTypeService;

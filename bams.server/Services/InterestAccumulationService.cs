@@ -1,3 +1,5 @@
+using bams.server.Utils;
+using System.Globalization;
 using bams.server.Data;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
@@ -15,6 +17,9 @@ public sealed class InterestAccumulationService
 {
     private const int AccountBatchSize = 250;
     private const string ActiveRuleStatus = "Active";
+    // Annual rates are stored as percentages and fixed deposits accrue on an actual/365 day count.
+    private const decimal PercentageDivisor = 100m;
+    private const decimal DaysPerYear = 365m;
     private readonly ApplicationDbContext _dbContext;
     private readonly IAccountTypeService _accountTypeService;
     private readonly ScheduledFinancialPostingService _postingService;
@@ -114,7 +119,7 @@ public sealed class InterestAccumulationService
         DateOnly periodEnd,
         CancellationToken cancellationToken)
     {
-        if (DateOnly.FromDateTime(account.OpenedAt) > periodStart)
+        if (BusinessTime.ToBusinessDate(account.OpenedAt) > periodStart)
         {
             return;
         }
@@ -137,11 +142,20 @@ public sealed class InterestAccumulationService
                 (!rule.BalanceMax.HasValue || rule.BalanceMax.Value >= account.LedgerBalance))
             .OrderByDescending(rule => rule.BalanceMin)
             .ThenByDescending(rule => rule.EffectiveFrom)
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? throw new InvalidOperationException(
-                $"No effective savings interest rule applies to account {account.Id} for {periodEnd:yyyy-MM}.");
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var annualAmount = account.LedgerBalance * rateRule.AnnualRate / 100m;
+        // A balance outside every configured tier earns no interest for the month. This is a data condition, not a
+        // job failure: throwing here would fail (and retry) the whole run for every other account.
+        if (rateRule is null)
+        {
+            _logger.LogWarning(
+                "No effective savings interest rule applies to account {AccountId} for {Period}; no interest accrued.",
+                account.Id,
+                periodEnd.ToString("yyyy-MM", CultureInfo.InvariantCulture));
+            return;
+        }
+
+        var annualAmount = account.LedgerBalance * rateRule.AnnualRate / PercentageDivisor;
         var monthlyAmount = ScheduledJobPeriod.RoundMoney(annualAmount / 12m);
         var accrual = new InterestAccrual
         {
@@ -198,17 +212,21 @@ public sealed class InterestAccumulationService
             return;
         }
 
+        // A deposit earns interest from its start date up to, but not including, its maturity date, so a
+        // 91-day term accrues exactly 91 days across the months it spans.
+        var lastInterestDay = fixedDeposit.MaturityDate.AddDays(-1);
         var activeStart = fixedDeposit.StartDate > periodStart ? fixedDeposit.StartDate : periodStart;
-        var activeEnd = fixedDeposit.MaturityDate < periodEnd ? fixedDeposit.MaturityDate : periodEnd;
+        var activeEnd = lastInterestDay < periodEnd ? lastInterestDay : periodEnd;
         var activeDays = activeEnd.DayNumber - activeStart.DayNumber + 1;
         if (activeDays <= 0)
         {
             return;
         }
 
-        var annualAmount = fixedDeposit.CurrentPrincipal * fixedDeposit.AppliedAnnualRate / 100m;
-        var dailyAmount = ScheduledJobPeriod.RoundMoney(annualAmount / 365m);
-        var totalInterest = ScheduledJobPeriod.RoundMoney(dailyAmount * activeDays);
+        // Round once on the period total; rounding the daily amount first over- or under-pays by up to half a
+        // cent per day (about 10% on small deposits).
+        var annualAmount = fixedDeposit.CurrentPrincipal * fixedDeposit.AppliedAnnualRate / PercentageDivisor;
+        var totalInterest = ScheduledJobPeriod.RoundMoney(annualAmount * activeDays / DaysPerYear);
         var accrual = new InterestAccrual
         {
             AccountId = account.Id,

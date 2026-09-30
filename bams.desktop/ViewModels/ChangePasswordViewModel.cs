@@ -16,6 +16,7 @@ public sealed class ChangePasswordViewModel : ViewModelBase
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly AuthContext _authContext;
+    private readonly ISessionService _sessionService;
     private string _currentPassword = string.Empty;
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
@@ -23,13 +24,18 @@ public sealed class ChangePasswordViewModel : ViewModelBase
     private string _errorMessage = string.Empty;
     private string _statusMessage = string.Empty;
 
-    public ChangePasswordViewModel(IAuthenticationService authenticationService, AuthContext authContext)
+    public ChangePasswordViewModel(
+        IAuthenticationService authenticationService,
+        AuthContext authContext,
+        ISessionService sessionService)
     {
         _authenticationService = authenticationService;
         _authContext = authContext;
+        _sessionService = sessionService;
         ChangePasswordCommand = new RelayCommand(
             async _ => await ChangePasswordAsync(CancellationToken.None),
             _ => CanChangePassword());
+        SignOutCommand = new AsyncRelayCommand(SignOutAsync, () => !IsBusy);
     }
 
     public string CurrentPassword
@@ -109,6 +115,7 @@ public sealed class ChangePasswordViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(IsNotBusy));
                 ChangePasswordCommand.RaiseCanExecuteChanged();
+                SignOutCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -144,6 +151,9 @@ public sealed class ChangePasswordViewModel : ViewModelBase
     public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
 
     public RelayCommand ChangePasswordCommand { get; }
+
+    /// <summary>Leaves the forced password change without changing it and returns to the sign-in screen.</summary>
+    public AsyncRelayCommand SignOutCommand { get; }
 
     private bool CanChangePassword()
     {
@@ -276,6 +286,13 @@ public sealed class ChangePasswordViewModel : ViewModelBase
         {
             IsBusy = false;
         }
+    }
+
+    // Ends the half-signed-in session through the session service (server logout, token and session cleared);
+    // its SessionEnded event makes the main window show the sign-in screen again.
+    private Task SignOutAsync()
+    {
+        return _sessionService.EndSessionAsync();
     }
 
     // Chooses the message for a failed password change based on the stable MessageCode.

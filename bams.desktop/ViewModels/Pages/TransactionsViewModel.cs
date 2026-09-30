@@ -71,6 +71,7 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
             {
                 OnPropertyChanged(nameof(HasForm));
                 OnPropertyChanged(nameof(ShowsFormUnavailable));
+                OnPropertyChanged(nameof(CanChangeTab));
             }
         }
     }
@@ -88,6 +89,12 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
             }
         }
     }
+
+    /// <summary>
+    /// False while the current form is posting. Switching tabs then would drop the form's Posted handler, so the
+    /// one-time NRC pickup code would never be shown; the view disables the tab strip instead.
+    /// </summary>
+    public bool CanChangeTab => CurrentForm?.IsBusy != true;
 
     /// <summary>The form could not be opened (e.g. accounts failed to load); the view offers "Try again".</summary>
     public bool ShowsFormUnavailable => !IsLoadingForm && CurrentForm is null;
@@ -133,6 +140,14 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     // async void is intentional: an event handler; OpenFormAsync catches every expected failure itself.
     private async void OnTabSelected(TransactionTabViewModel tab)
     {
+        // A posting is in flight: keep its tab selected so its outcome (and NRC pickup code) is still shown.
+        if (!CanChangeTab && CurrentForm is { } postingForm)
+        {
+            tab.IsSelected = false;
+            Tabs.First(other => other.Kind == postingForm.Kind).SelectSilently();
+            return;
+        }
+
         // RadioButtons uncheck the previous tab themselves; keep the ViewModels in step.
         foreach (var other in Tabs.Where(other => other != tab && other.IsSelected))
         {
@@ -159,14 +174,14 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
         try
         {
             var accounts = await AccountOption.LoadUsableAsync(_accountService, CancellationToken.None);
-            if (kind == TransactionFormKind.InterbankTransfer && !await EnsureBanksLoadedAsync(isRequired: true))
+            if (kind == TransactionFormKind.InterbankTransfer && !await EnsureBanksLoadedAsync(isRequired: true, version))
             {
                 return;
             }
 
             // NRC transfers are collected at one of our branches (required) or at another bank (optional choice).
             if (kind == TransactionFormKind.NrcTransfer
-                && (!await EnsureBranchesLoadedAsync() || !await EnsureBanksLoadedAsync(isRequired: false)))
+                && (!await EnsureBranchesLoadedAsync(version) || !await EnsureBanksLoadedAsync(isRequired: false, version)))
             {
                 return;
             }
@@ -199,15 +214,26 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
         {
             CurrentForm.Posted -= OnFormPosted;
             CurrentForm.ClearRequested -= OnFormClearRequested;
+            CurrentForm.PropertyChanged -= OnFormPropertyChanged;
         }
 
         if (form is not null)
         {
             form.Posted += OnFormPosted;
             form.ClearRequested += OnFormClearRequested;
+            form.PropertyChanged += OnFormPropertyChanged;
         }
 
         CurrentForm = form;
+    }
+
+    // Re-evaluates whether the tab strip is usable when the shown form starts or finishes posting.
+    private void OnFormPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TransactionFormViewModel.IsBusy))
+        {
+            OnPropertyChanged(nameof(CanChangeTab));
+        }
     }
 
     // async void is intentional: an event handler. Confirms the posting, shows the one-time NRC pickup code, and
@@ -244,8 +270,9 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
         }
     }
 
-    // Loads the branches once per page visit; returns false (with a banner) when there are none.
-    private async Task<bool> EnsureBranchesLoadedAsync()
+    // Loads the branches once per page visit; returns false (with a banner) when there are none. The banner is
+    // shown only while this form open (version) is still the latest, so a superseded tab never reports errors.
+    private async Task<bool> EnsureBranchesLoadedAsync(int version)
     {
         if (_branches.Count == 0)
         {
@@ -254,7 +281,11 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
 
         if (_branches.Count == 0)
         {
-            ErrorMessage = "No branches are set up yet, so NRC transfers are not available.";
+            if (version == _formLoadVersion)
+            {
+                ErrorMessage = "No branches are set up yet, so NRC transfers are not available.";
+            }
+
             return false;
         }
 
@@ -262,8 +293,9 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     }
 
     // Loads the other banks once per page visit. When they are required (interbank transfers), returns false with a
-    // banner if there are none; for NRC transfers they are only an optional pickup location.
-    private async Task<bool> EnsureBanksLoadedAsync(bool isRequired)
+    // banner if there are none; for NRC transfers they are only an optional pickup location. As with branches, the
+    // banner is only shown for the latest form open (version).
+    private async Task<bool> EnsureBanksLoadedAsync(bool isRequired, int version)
     {
         if (_banks.Count == 0)
         {
@@ -272,7 +304,11 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
 
         if (_banks.Count == 0 && isRequired)
         {
-            ErrorMessage = "No destination banks are set up yet, so interbank transfers are not available.";
+            if (version == _formLoadVersion)
+            {
+                ErrorMessage = "No destination banks are set up yet, so interbank transfers are not available.";
+            }
+
             return false;
         }
 

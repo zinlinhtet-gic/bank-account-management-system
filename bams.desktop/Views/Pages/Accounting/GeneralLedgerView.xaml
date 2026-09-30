@@ -1,0 +1,265 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.GeneralLedgerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource Card.Compact}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"
+                                    MinWidth="220"
+                                    MaxWidth="360"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="SEARCH"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <TextBox Style="{StaticResource Input.Text}"
+                            Text="{Binding SearchText,
+                                UpdateSourceTrigger=PropertyChanged}"
+                                t:ThemeAssist.Placeholder="Search by GL code or account name"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="ACCOUNT CLASS"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <ComboBox Style="{StaticResource Input.Select}"
+                            ItemsSource="{Binding AccountClassOptions}"
+                            SelectedItem="{Binding SelectedAccountClass}"
+                            DisplayMemberPath="Label"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="STATUS"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <ComboBox Style="{StaticResource Input.Select}"
+                            ItemsSource="{Binding StatusOptions}"
+                            SelectedItem="{Binding SelectedStatus}"
+                            DisplayMemberPath="Label"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="6"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Bottom">
+
+                    <Button Content="Reset"
+                            Style="{StaticResource Button.Ghost}"
+                            Command="{Binding ResetFiltersCommand}"
+                            Margin="0,0,8,0"
+                            t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"/>
+
+                    <Button Content="Refresh"
+                            Style="{StaticResource Button.Secondary}"
+                            Command="{Binding RefreshCommand}"
+                            t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"/>
+
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ===== Error / loading state ===== -->
+        <StackPanel Grid.Row="1"
+                    Margin="0,16,0,0">
+
+            <ContentControl Content="{Binding ErrorMessage}">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl"
+                        BasedOn="{StaticResource Alert.Danger}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}"
+                                        Value="True">
+                                <Setter Property="Visibility"
+                                        Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
+
+            <ContentControl Content="Loading general ledger accounts..."
+                            Margin="0,8,0,0">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl"
+                        BasedOn="{StaticResource Alert.Info}">
+                        <Setter Property="Visibility"
+                                Value="Collapsed"/>
+
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLoading}"
+                                        Value="True">
+                                <Setter Property="Visibility"
+                                        Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
+        </StackPanel>
+
+        <!-- ===== General Ledger table ===== -->
+        <Border Grid.Row="2"
+                Style="{StaticResource Card.Flush}"
+                Margin="0,16,0,0">
+
+            <DockPanel>
+
+                <!-- Table title -->
+                <Border DockPanel.Dock="Top"
+                        Style="{StaticResource Card.Caption}">
+
+                    <DockPanel>
+
+                        <ContentControl DockPanel.Dock="Right"
+                                        Style="{StaticResource Badge.Neutral}"
+                                        t:ThemeAssist.ShowDot="False"
+                                        Content="{Binding CountText}"/>
+
+                        <TextBlock Text="General Ledger Accounts"
+                                   Style="{StaticResource Text.Title}"
+                                   VerticalAlignment="Center"/>
+
+                    </DockPanel>
+
+                </Border>
+
+                <Grid>
+
+                    <DataGrid Style="{StaticResource Table}"
+                              BorderThickness="0"
+                              ItemsSource="{Binding Accounts}">
+
+                        <DataGrid.Columns>
+
+                            <!-- GL code -->
+                            <DataGridTextColumn Header="Code"
+                                                Binding="{Binding Code}"
+                                                Width="150"
+                                                SortMemberPath="Code"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <!-- GL name -->
+                            <DataGridTextColumn Header="Account Name"
+                                                Binding="{Binding Name}"
+                                                Width="*"
+                                                MinWidth="220"
+                                                SortMemberPath="Name"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+
+                            <!-- Account class -->
+                            <DataGridTemplateColumn Header="Class"
+                                                    Width="140"
+                                                    SortMemberPath="AccountClass">
+
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl Style="{StaticResource Badge.Info}"
+                                                        Content="{Binding AccountClass}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+
+                            </DataGridTemplateColumn>
+
+                            <!-- Parent GL -->
+                            <DataGridTextColumn Header="Parent GL"
+                                Binding="{Binding ParentDisplay}"
+                                Width="220"
+                                SortMemberPath="ParentDisplay"
+                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <!-- Status -->
+                            <DataGridTemplateColumn Header="Status"
+                                                    Width="120"
+                                                    SortMemberPath="Status">
+
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+
+                                        <ContentControl Content="{Binding Status}">
+                                            <ContentControl.Style>
+                                                <Style TargetType="ContentControl"
+                                                    BasedOn="{StaticResource Badge.Neutral}">
+
+                                                    <Style.Triggers>
+
+                                                        <DataTrigger Binding="{Binding Status}"
+                                                                    Value="Active">
+                                                            <Setter Property="Background"
+                                                                    Value="{StaticResource SuccessSoftBrush}"/>
+
+                                                            <Setter Property="Foreground"
+                                                                    Value="{StaticResource SuccessBrush}"/>
+                                                        </DataTrigger>
+
+                                                    </Style.Triggers>
+
+                                                </Style>
+                                            </ContentControl.Style>
+                                        </ContentControl>
+
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+
+                            </DataGridTemplateColumn>
+
+                        </DataGrid.Columns>
+
+                    </DataGrid>
+
+                    <!-- Empty state -->
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Margin="0,72,0,0"
+                                IsHitTestVisible="False">
+
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility"
+                                        Value="Collapsed"/>
+
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEmpty}"
+                                                Value="True">
+                                        <Setter Property="Visibility"
+                                                Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <TextBlock Text="No general ledger accounts found"
+                                Style="{StaticResource Text.Subheading}"
+                                HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="No GL accounts are currently available."
+                                Style="{StaticResource Text.BodyMuted}"
+                                HorizontalAlignment="Center"
+                                Margin="0,4,0,0"/>
+
+                    </StackPanel>
+
+                </Grid>
+
+            </DockPanel>
+
+        </Border>
+
+    </Grid>
+</UserControl>

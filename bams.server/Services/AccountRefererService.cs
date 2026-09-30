@@ -2,6 +2,7 @@ using bams.server.Data;
 using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Accounts;
+using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Customers;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ public sealed class AccountRefererService : IAccountRefererService
     public async Task<IReadOnlyList<Customer>> ResolveAndValidateReferersAsync(
         IReadOnlyList<string>? refererNrcs,
         int requiredCount,
+        IReadOnlyCollection<long> holderCustomerIds,
         CancellationToken cancellationToken)
     {
         if (requiredCount < 0)
@@ -54,9 +56,18 @@ public sealed class AccountRefererService : IAccountRefererService
             referers.Add(await _customerLookUpService.FindRegisteredCustomerByNrcAsync(nrc, cancellationToken));
         }
 
+        // A holder cannot vouch for their own account.
+        if (referers.Any(referer => holderCustomerIds.Contains(referer.Id)))
+        {
+            throw new ValidationException(MessageCode.AccountRefererSelectionInvalid);
+        }
+
+        // Only customers who still hold an open (not closed) account qualify as referers.
         var refererIds = referers.Select(referer => referer.Id).ToArray();
         var customersWithOwnedAccounts = await _dbContext.AccountHolders.AsNoTracking()
-            .Where(holder => refererIds.Contains(holder.CustomerId))
+            .Where(holder => refererIds.Contains(holder.CustomerId) &&
+                holder.Account != null &&
+                holder.Account.Status != AccountStatus.Closed)
             .Select(holder => holder.CustomerId)
             .Distinct()
             .ToListAsync(cancellationToken);

@@ -8,6 +8,11 @@ public static class TransactionFieldRules
 {
     public const int MaximumAmountDecimalPlaces = 2;
 
+    // An amount as typed, always in invariant form: plain digits or correctly grouped thousands ("1,000"),
+    // then an optional decimal point with up to MaximumAmountDecimalPlaces digits. "100,50" is rejected rather
+    // than read as 10050, whatever the machine's culture.
+    public const string AmountPattern = @"^(\d+|\d{1,3}(,\d{3})+)(\.\d{1,2})?$";
+
     public const int DescriptionMaximumLength = 300;
     public const int ReferenceNoMaximumLength = 100;
     public const int PersonNameMaximumLength = 150;

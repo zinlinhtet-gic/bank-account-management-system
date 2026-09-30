@@ -1,3 +1,4 @@
+using bams.server.Constants;
 using bams.server.Data;
 using bams.server.DTO.Accounts;
 using bams.server.Exceptions;
@@ -11,12 +12,17 @@ namespace bams.server.Services;
 
 public sealed class AccountTransactionService : IAccountTransactionService
 {
+    private const string AccountOpeningDescription = "Account opening deposit";
+
     private readonly ApplicationDbContext _dbContext;
+    private readonly LedgerPostingService _ledger;
 
     public AccountTransactionService(
-        ApplicationDbContext dbContext)
+        ApplicationDbContext dbContext,
+        LedgerPostingService ledger)
     {
         _dbContext = dbContext;
+        _ledger = ledger;
     }
 
     /// <inheritdoc />
@@ -32,6 +38,8 @@ public sealed class AccountTransactionService : IAccountTransactionService
         return await _dbContext.AccountTransactions.AsNoTracking()
             .Where(entry => entry.AccountId == accountId)
             .OrderByDescending(entry => entry.CreatedAt)
+            // Entries of one posting share a timestamp; the id keeps their order stable.
+            .ThenByDescending(entry => entry.Id)
             .Select(entry => new AccountTransactionDetailResponse(
                 entry.Id,
                 entry.Transaction!.TransactionNo,
@@ -53,10 +61,35 @@ public sealed class AccountTransactionService : IAccountTransactionService
     public async Task RecordAccountOpeningTransactionAsync(
         Account account,
         decimal openingBalance,
+        long initiatedByUserId,
         DateTime currentDateTime,
         CancellationToken cancellationToken)
     {
-        // Create a new account transaction for the account opening
+        if (openingBalance <= 0m)
+        {
+            return;
+        }
+
+        // The opening deposit is booked exactly like a teller cash deposit so reports and statements need no
+        // special case.
+        var entity = LedgerPostingService.CreateTransaction(
+            TransactionType.CashDeposit,
+            TransactionStatus.Completed,
+            openingBalance,
+            AccountOpeningDescription,
+            referenceNo: account.AccountNo,
+            idempotencyKey: null,
+            initiatedByUserId,
+            currentDateTime);
+        await _ledger.PostGlEntryAsync(
+            entity,
+            AccountingConstants.CashOnHandGlCode,
+            EntryType.Debit,
+            null,
+            currentDateTime,
+            cancellationToken);
+        await _ledger.PostCustomerEntryAsync(entity, account, EntryType.Credit, currentDateTime, cancellationToken);
+        await _dbContext.Transactions.AddAsync(entity, cancellationToken);
     }
 
     public async Task RecordScheduledTransactionAsync(Transaction transaction, Account account, decimal beforeLedger,

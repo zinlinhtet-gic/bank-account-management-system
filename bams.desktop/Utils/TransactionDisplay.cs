@@ -24,6 +24,9 @@ public static class TransactionDisplay
         TransactionType.Penalty => "Penalty",
         TransactionType.FdMaturity => "FD maturity",
         TransactionType.FdEarlyWithdrawal => "FD early withdrawal",
+        TransactionType.InterestAccrual => "Interest accrual",
+        TransactionType.MaintenanceAccrual => "Maintenance fee accrual",
+        TransactionType.DormantPenaltyAccrual => "Dormant penalty accrual",
         TransactionType.Reversal => "Refund",
         _ => type.ToString()
     };

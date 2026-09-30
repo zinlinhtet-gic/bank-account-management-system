@@ -16,7 +16,10 @@ public enum TransactionType
     Penalty = 9,
     FdMaturity = 10,
     FdEarlyWithdrawal = 11,
-    Reversal = 12
+    InterestAccrual = 12,
+    MaintenanceAccrual = 13,
+    DormantPenaltyAccrual = 14,
+    Reversal = 15
 }
 
 /// <summary>Server: <c>Models/Transactions/TransactionStatus</c>.</summary>
@@ -28,7 +31,8 @@ public enum TransactionStatus
     Completed = 4,
     Failed = 5,
     Cancelled = 6,
-    Reversed = 7
+    Reversed = 7,
+    Accrued = 8
 }
 
 /// <summary>Server: <c>Models/Transactions/EntryType</c>.</summary>
