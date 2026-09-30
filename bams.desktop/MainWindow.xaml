@@ -70,6 +70,10 @@
                         <accountingViews:GeneralLedgerView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
+                        <accountingViews:AccountingEntriesView/>
+                    </DataTemplate>
+
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:
                     <DataTemplate DataType="{x:Type pageviewmodels:CustomerManagementViewModel}">
                         <pages:CustomerManagementView/>

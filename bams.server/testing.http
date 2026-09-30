@@ -105,3 +105,15 @@ Content-Type: application/json
 ###
 GET http://localhost:5121/api/dev/audit-test-data/balanced
 Accept: application/json
+
+###
+GET http://localhost:5121/api/accounting/entries
+
+###
+GET http://localhost:5121/api/accounting/entries?fromDate=2026-09-25&toDate=2026-09-30
+
+###
+GET http://localhost:5121/api/accounting/entries?glAccountId=1
+
+###
+GET http://localhost:5121/api/accounting/entries?entryType=Debit

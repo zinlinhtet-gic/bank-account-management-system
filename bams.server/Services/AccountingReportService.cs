@@ -13,6 +13,7 @@ using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Customers;
 using bams.server.Models.Products;
+using bams.server.Models.Transactions;
 
 namespace bams.server.Services;
 
@@ -147,6 +148,50 @@ public sealed class AccountingReportService : IAccountingReportService
                 summary.GeneratedAt
             )).ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<AccountingEntryResponse>> GetAccountingEntriesAsync(
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        long? glAccountId,
+        EntryType? entryType,
+        CancellationToken cancellationToken
+    )
+    {
+        var query = _dbContext.TransactionEntries.AsNoTracking().AsQueryable();
+        if (fromDate.HasValue)
+        {
+            query = query.Where(entry => entry.PostingDate >= fromDate.Value);
+        }
+        if (toDate.HasValue)
+        {
+            query = query.Where(entry => entry.PostingDate <= toDate.Value);
+        }
+        if (glAccountId.HasValue)
+        {
+            query = query.Where(entry => entry.GlAccountId == glAccountId.Value);
+        }
+        if (entryType.HasValue)
+        {
+            query = query.Where(entry => entry.EntryType == entryType.Value);
+        }
+        return await query
+            .OrderByDescending(entry => entry.PostingDate)
+            .ThenByDescending(entry => entry.Id)
+            .Select(entry => new AccountingEntryResponse(
+                entry.Id,
+                entry.TransactionId,
+                entry.GlAccountId,
+                entry.GlAccount!.Code,
+                entry.GlAccount.Name,
+                entry.CustomerAccountId,
+                entry.EntryType,
+                entry.Amount,
+                entry.PostingDate,
+                entry.Description,
+                entry.CreatedAt
+            )).ToListAsync(cancellationToken);
+    }
+
     // Ensures the supplied month represents a valid calendar month.
     private static void ValidateMonth(int month)
     {

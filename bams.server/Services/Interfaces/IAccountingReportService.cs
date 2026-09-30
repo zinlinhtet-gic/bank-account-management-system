@@ -1,4 +1,5 @@
 using bams.server.DTO.Accounting;
+using bams.server.Models.Transactions;
 namespace bams.server.Services.Interfaces;
 /// <summary>
 /// Provides read-only access to general-ledger accounts
@@ -33,4 +34,10 @@ public interface IAccountingReportService
         DateTime currentDateTime,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<AccountingEntryResponse>> GetAccountingEntriesAsync(
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        long? glAccountId,
+        EntryType? entryType,
+        CancellationToken cancellationToken);
 }

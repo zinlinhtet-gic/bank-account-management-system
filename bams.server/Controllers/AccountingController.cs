@@ -1,6 +1,7 @@
 using bams.server.DTO.Accounting;
 using bams.server.DTO.Common;
 using bams.server.Messages;
+using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -89,5 +90,27 @@ public sealed class AccountingController : ControllerBase
         return Ok(ApiMessageResponse<IReadOnlyList<MonthlySummaryResponse>>.FromCode(
             MessageCode.Success,
             summaries));
+    }
+
+    [HttpGet("entries")]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<AccountingEntryResponse>>>>
+        GetAccountingEntriesAsync(
+            [FromQuery] DateOnly? fromDate,
+            [FromQuery] DateOnly? toDate,
+            [FromQuery] long? glAccountId,
+            [FromQuery] EntryType? entryType,
+            CancellationToken cancellationToken
+        )
+    {
+        var entries = await _accountingReportService.GetAccountingEntriesAsync(
+            fromDate,
+            toDate,
+            glAccountId,
+            entryType,
+            cancellationToken
+        );
+        return Ok(ApiMessageResponse<IReadOnlyList<AccountingEntryResponse>>.FromCode(
+            MessageCode.Success,entries
+        ));
     }
 }

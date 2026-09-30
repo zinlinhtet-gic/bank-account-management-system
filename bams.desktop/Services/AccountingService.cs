@@ -24,4 +24,37 @@ public sealed class AccountingService : IAccountingService
             cancellationToken
         );
     }
+    public Task<IReadOnlyList<AccountingEntryResponse>> GetAccountingEntriesAsync(
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        long? glAccountId,
+        EntryType? entryType,
+        CancellationToken cancellationToken)
+    {
+        var query = new List<string>();
+        if (fromDate.HasValue)
+        {
+            query.Add($"fromDate={fromDate.Value:yyyy-MM-dd}");
+        }
+        if (toDate.HasValue)
+        {
+            query.Add($"toDate={toDate.Value:yyyy-MM-dd}");
+        }
+        if (glAccountId.HasValue)
+        {
+            query.Add($"glAccountId={glAccountId.Value}");
+        }
+        if (entryType.HasValue)
+        {
+            query.Add($"entryType={entryType.Value}");
+        }
+        var endpoint = "/api/accounting/entries";
+        if (query.Count > 0)
+        {
+            endpoint += "?" + string.Join("&", query);
+        }
+        return _apiClient.GetAsync<IReadOnlyList<AccountingEntryResponse>>(
+            endpoint,
+            cancellationToken);
+    }
 }
