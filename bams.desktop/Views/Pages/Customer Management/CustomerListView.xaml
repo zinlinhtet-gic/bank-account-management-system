@@ -168,7 +168,9 @@
                                             <Button Style="{StaticResource Button.Icon}" ToolTip="View customer" t:ThemeAssist.Icon="{StaticResource Icon.Eye}"
                                                     Command="{Binding DataContext.ShowCustomerDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}" />
-                                            <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}" />
+                                            <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}"
+                                                    Command="{Binding DataContext.EditCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>

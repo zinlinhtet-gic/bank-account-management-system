@@ -109,6 +109,22 @@ public sealed class ApiClient
     }
 
     /// <summary>
+    /// Sends a multipart form PATCH request (partial update with an optional file) and returns the
+    /// <c>Data</c> payload of the server response.
+    /// </summary>
+    /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>
+    /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
+    public Task<TResponse> PatchFormAsync<TResponse>(
+        string endpoint,
+        MultipartFormDataContent formContent,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.PatchAsync(endpoint, formContent, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Sends a JSON PUT request (full update) and returns the <c>Data</c> payload of the server response.
     /// </summary>
     /// <exception cref="ApiException">The server rejected the request or returned an unreadable body.</exception>

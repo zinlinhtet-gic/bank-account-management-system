@@ -16,13 +16,13 @@
         <!-- ===== Header ===== -->
         <Border Style="{StaticResource Card.Caption}">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Content="Save Customer" Style="{StaticResource Button.Primary}"
+                <Button DockPanel.Dock="Right" Content="{Binding SaveButtonText}" Style="{StaticResource Button.Primary}"
                         t:ThemeAssist.Icon="{StaticResource Icon.Check}" t:ThemeAssist.IsLoading="{Binding IsBusy}"
                         Command="{Binding SaveCommand}" />
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource Button.Icon}" ToolTip="Back to list" Margin="0,0,8,0"
                             t:ThemeAssist.Icon="{StaticResource Icon.ChevronLeft}" Command="{Binding CancelCommand}" />
-                    <TextBlock Text="Create New Customer" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />
                 </StackPanel>
             </DockPanel>
         </Border>

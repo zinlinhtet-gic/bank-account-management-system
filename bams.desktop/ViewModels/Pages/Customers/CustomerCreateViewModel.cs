@@ -46,6 +46,7 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     private string _formError = string.Empty;
 
     private bool _isBusy;
+    private long? _editingCustomerId;
 
     public CustomerCreateViewModel(ICustomerService customerService, IDialogService dialogService)
     {
@@ -69,6 +70,13 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
     /// <summary>Raised after Cancel, or after a successful Save; the host page returns to the customer list.</summary>
     public event EventHandler? Completed;
+
+    /// <summary>True after <see cref="LoadForEdit"/>; Save then updates the customer instead of creating one.</summary>
+    public bool IsEditMode => _editingCustomerId is not null;
+
+    public string Title => IsEditMode ? "Edit Customer" : "Create New Customer";
+
+    public string SaveButtonText => IsEditMode ? "Save Changes" : "Save Customer";
 
     public IReadOnlyList<CustomerTypeOption> CustomerTypeOptions => CustomerTypeOption.All;
 
@@ -428,9 +436,12 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
     public bool IsNotBusy => !IsBusy;
 
-    /// <summary>Resets every field back to its default, so the form starts empty the next time it opens.</summary>
+    /// <summary>Resets every field back to its default, so the form starts empty the next time it opens
+    /// in create mode.</summary>
     public void Reset()
     {
+        _editingCustomerId = null;
+
         SelectedCustomerType = CustomerTypeOptions[0];
         FullName = string.Empty;
         DateOfBirth = null;
@@ -450,13 +461,51 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
         foreach (var document in AllDocuments)
         {
-            document.DocumentNumber = null;
-            document.IssuedDate = null;
-            document.ExpiryDate = null;
+            document.Reset();
         }
+
+        OnPropertyChanged(nameof(IsEditMode));
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(SaveButtonText));
     }
 
-    // Validates locally, confirms with the user, then creates the customer.
+    /// <summary>Fills every field from an existing customer, so Save then updates it instead of creating one.</summary>
+    public void LoadForEdit(CustomerResponse customer)
+    {
+        _editingCustomerId = customer.Id;
+
+        SelectedCustomerType = CustomerTypeOptions.First(option => option.Value == customer.CustomerType);
+        FullName = customer.FullName;
+        DateOfBirth = customer.DateOfBirth.ToDateTime(TimeOnly.MinValue);
+        NrcNumber = customer.NrcNumber ?? string.Empty;
+        PassportNumber = customer.PassportNumber ?? string.Empty;
+        Nationality = customer.Nationality ?? string.Empty;
+        Phone = customer.Phone ?? string.Empty;
+        Email = customer.Email ?? string.Empty;
+        Occupation = customer.Occupation ?? string.Empty;
+        AddressLine1 = customer.AddressLine1 ?? string.Empty;
+        AddressLine2 = customer.AddressLine2 ?? string.Empty;
+        City = customer.City ?? string.Empty;
+        State = customer.State ?? string.Empty;
+        PostalCode = customer.PostalCode ?? string.Empty;
+        Country = customer.Country ?? string.Empty;
+        FormError = string.Empty;
+
+        foreach (var document in AllDocuments)
+        {
+            var existing = customer.Documents.FirstOrDefault(response => response.DocumentType == document.DocumentType);
+            if (existing is not null)
+            {
+                document.LoadExisting(existing);
+            }
+        }
+
+        OnPropertyChanged(nameof(IsEditMode));
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(SaveButtonText));
+    }
+
+    // Validates locally, confirms with the user, then creates or updates the customer.
     private async Task SaveAsync()
     {
         FormError = string.Empty;
@@ -466,10 +515,15 @@ public sealed class CustomerCreateViewModel : ViewModelBase
             return;
         }
 
-        var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
-            Title: "Create this customer?",
-            Message: $"A new {SelectedCustomerType.DisplayName.ToLowerInvariant()} customer record for {FullName.Trim()} will be created.",
-            ConfirmText: "Create customer"));
+        var confirmed = IsEditMode
+            ? _dialogService.Confirm(new ConfirmDialogOptions(
+                Title: "Save changes to this customer?",
+                Message: $"{FullName.Trim()}'s record will be updated.",
+                ConfirmText: "Save changes"))
+            : _dialogService.Confirm(new ConfirmDialogOptions(
+                Title: "Create this customer?",
+                Message: $"A new {SelectedCustomerType.DisplayName.ToLowerInvariant()} customer record for {FullName.Trim()} will be created.",
+                ConfirmText: "Create customer"));
 
         if (!confirmed)
         {
@@ -480,7 +534,14 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         {
             IsBusy = true;
 
-            await _customerService.CreateCustomerAsync(BuildRequest(), CancellationToken.None);
+            if (IsEditMode)
+            {
+                await _customerService.UpdateCustomerAsync(_editingCustomerId!.Value, BuildUpdateRequest(), CancellationToken.None);
+            }
+            else
+            {
+                await _customerService.CreateCustomerAsync(BuildRequest(), CancellationToken.None);
+            }
         }
         catch (AppException exception)
         {
@@ -569,6 +630,34 @@ public sealed class CustomerCreateViewModel : ViewModelBase
             .ToList();
 
         return new CreateCustomerRequest(
+            SelectedCustomerType.Value,
+            FullName.Trim(),
+            DateOnly.FromDateTime(DateOfBirth!.Value.Date),
+            Trimmed(Nationality),
+            Trimmed(NrcNumber),
+            Trimmed(PassportNumber),
+            Trimmed(Phone),
+            Trimmed(Occupation),
+            Trimmed(AddressLine1),
+            Trimmed(AddressLine2),
+            Trimmed(City),
+            Trimmed(State),
+            Trimmed(PostalCode),
+            Trimmed(Country),
+            Trimmed(Email),
+            documents.Count == 0 ? null : documents);
+    }
+
+    private UpdateCustomerRequest BuildUpdateRequest()
+    {
+        // Only a document that already exists, or that just had a new file chosen, is worth sending;
+        // a still-empty optional document is simply left out (nothing to add or edit).
+        var documents = AllDocuments
+            .Where(document => document.ExistingDocumentId is not null || document.FilePath is not null)
+            .Select(document => document.ToUpdateRequest())
+            .ToList();
+
+        return new UpdateCustomerRequest(
             SelectedCustomerType.Value,
             FullName.Trim(),
             DateOnly.FromDateTime(DateOfBirth!.Value.Date),

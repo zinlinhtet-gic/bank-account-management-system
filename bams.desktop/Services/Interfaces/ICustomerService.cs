@@ -31,6 +31,16 @@ public interface ICustomerService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Partially updates a customer and returns the saved record. Only supplied (non-null)
+    /// request fields change; document entries with an Id edit an existing document
+    /// (optionally replacing its file), entries without one add a new document.
+    /// </summary>
+    Task<CustomerResponse> UpdateCustomerAsync(
+        long id,
+        UpdateCustomerRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Downloads one of a customer's documents to a local file path.
     /// </summary>
     Task DownloadCustomerDocumentAsync(

@@ -52,6 +52,7 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
             IsShowingCreateForm = true;
         });
         ShowCustomerDetailsCommand = new AsyncRelayCommand(ShowCustomerDetailsAsync);
+        EditCustomerCommand = new AsyncRelayCommand(EditCustomerAsync);
     }
 
     // Kept for the placeholder view; the header already shows the page name.
@@ -70,6 +71,10 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
 
     /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>.</summary>
     public AsyncRelayCommand ShowCustomerDetailsCommand { get; }
+
+    /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>. Opens the same
+    /// create form, pre-filled and in edit mode (see <see cref="CustomerCreateViewModel.LoadForEdit"/>).</summary>
+    public AsyncRelayCommand EditCustomerCommand { get; }
 
     /// <summary>True while the create-customer form replaces the table.</summary>
     public bool IsShowingCreateForm
@@ -181,6 +186,28 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         image.Freeze();
 
         return image;
+    }
+
+    // Loads the full record and opens it in the create form's edit mode (same view, pre-filled).
+    private async Task EditCustomerAsync(object? parameter)
+    {
+        if (parameter is not CustomerDisplayModel row)
+        {
+            return;
+        }
+
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var customer = await _customerService.GetCustomerByIdAsync(row.Id, CancellationToken.None);
+            CreateForm.LoadForEdit(customer);
+            IsShowingCreateForm = true;
+        }
+        catch (AppException exception)
+        {
+            ErrorMessage = exception.Message;
+        }
     }
 
     // Reloads the table's first page with the current filters. A newer reload cancels one still running,

@@ -70,8 +70,28 @@ public sealed class DocumentFormViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Chosen file name, or a placeholder prompt when none is chosen yet.</summary>
-    public string FileButtonText => FilePath is null ? "Choose File" : Path.GetFileName(FilePath);
+    /// <summary>Set when editing an existing customer: this document's id, or null for a brand-new one.</summary>
+    public long? ExistingDocumentId { get; private set; }
+
+    /// <summary>Set when editing: whether the existing document already has a file on the server.</summary>
+    public bool HasExistingFile { get; private set; }
+
+    /// <summary>A newly chosen file, or (when editing) one already on the server.</summary>
+    public bool HasFile => FilePath is not null || HasExistingFile;
+
+    /// <summary>Chosen file name; "Replace File" when a file already exists but was not replaced; else a prompt.</summary>
+    public string FileButtonText
+    {
+        get
+        {
+            if (FilePath is not null)
+            {
+                return Path.GetFileName(FilePath);
+            }
+
+            return HasExistingFile ? "Replace File" : "Choose File";
+        }
+    }
 
     public string FileError
     {
@@ -97,18 +117,56 @@ public sealed class DocumentFormViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Sets <see cref="FileError"/> when required and no file was chosen; returns whether valid.</summary>
+    /// <summary>Sets <see cref="FileError"/> when required and no file (new or existing) is on record.</summary>
     public bool Validate()
     {
-        FileError = IsRequired && FilePath is null ? "Please attach this document." : string.Empty;
+        FileError = IsRequired && !HasFile ? "Please attach this document." : string.Empty;
 
         return !HasFileError;
+    }
+
+    /// <summary>Clears this card back to a brand-new, empty document, for the create form.</summary>
+    public void Reset()
+    {
+        ExistingDocumentId = null;
+        HasExistingFile = false;
+        DocumentNumber = null;
+        IssuedDate = null;
+        ExpiryDate = null;
+        FilePath = null;
+    }
+
+    /// <summary>Fills this card from an existing customer's document, for the edit form.</summary>
+    public void LoadExisting(CustomerDocumentResponse document)
+    {
+        ExistingDocumentId = document.Id;
+        HasExistingFile = !string.IsNullOrWhiteSpace(document.FileReference);
+        DocumentNumber = document.DocumentNumber;
+        IssuedDate = document.IssuedDate is null ? null : document.IssuedDate.Value.ToDateTime(TimeOnly.MinValue);
+        ExpiryDate = document.ExpiryDate is null ? null : document.ExpiryDate.Value.ToDateTime(TimeOnly.MinValue);
+
+        OnPropertyChanged(nameof(FileButtonText));
     }
 
     /// <summary>Builds the request entry for this document; only called for documents that have a file.</summary>
     public CreateCustomerDocumentRequest ToRequest()
     {
         return new CreateCustomerDocumentRequest(
+            DocumentType,
+            string.IsNullOrWhiteSpace(DocumentNumber) ? null : DocumentNumber.Trim(),
+            FilePath,
+            IssuedDate is null ? null : DateOnly.FromDateTime(IssuedDate.Value.Date),
+            ExpiryDate is null ? null : DateOnly.FromDateTime(ExpiryDate.Value.Date));
+    }
+
+    /// <summary>
+    /// Builds the update request entry for this document; only called for documents that either
+    /// already exist (<see cref="ExistingDocumentId"/> set) or just had a new file chosen.
+    /// </summary>
+    public UpdateCustomerDocumentRequest ToUpdateRequest()
+    {
+        return new UpdateCustomerDocumentRequest(
+            ExistingDocumentId,
             DocumentType,
             string.IsNullOrWhiteSpace(DocumentNumber) ? null : DocumentNumber.Trim(),
             FilePath,
