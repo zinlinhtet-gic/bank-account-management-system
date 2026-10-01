@@ -13,10 +13,14 @@ public sealed record TransactionSummaryResponse(
     decimal Amount,
     DateTime TransactionAt,
     string? Description,
-    string? ReferenceNo);
+    string? ReferenceNo,
+    long InitiatedBy,
+    string InitiatedByUserName,
+    string InitiatedByFullName);
 
 /// <summary>
-/// Full detail of one transaction: header, account entries and the NRC or interbank detail when present.
+/// Complete read-only transaction information used for transaction history
+/// and auditor investigation.
 /// </summary>
 public sealed record TransactionDetailResponse(
     long Id,
@@ -26,27 +30,45 @@ public sealed record TransactionDetailResponse(
     decimal Amount,
     decimal FeeAmount,
     DateTime TransactionAt,
-    DateTime? PostedAt,
     string? Description,
     string? ReferenceNo,
     long InitiatedBy,
+    string InitiatedByUsername,
+    string InitiatedByFullName,
+    long? AuthorizedBy,
+    string? AuthorizedByUsername,
+    string? AuthorizedByFullName,
+    DateTime? AuthorizedAt,
     long? PostedBy,
+    string? PostedByUsername,
+    string? PostedByFullName,
+    DateTime? PostedAt,
     long? ReversalOfTransactionId,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
     IReadOnlyList<AccountEntryResponse> AccountEntries,
+    IReadOnlyList<TransactionAccountingEntryResponse> AccountingEntries,
+    IReadOnlyList<TransactionAuditLogResponse> AuditLogs,
     NrcTransferDetailResponse? NrcTransfer,
     InterbankTransferDetailResponse? InterbankTransfer);
 
 /// <summary>
-/// A debit or credit a transaction posted to a customer account.
+/// A debit or credit posted to a customer account by a transaction.
+/// Includes balances before and after the posting for audit review.
 /// </summary>
 public sealed record AccountEntryResponse(
     long AccountId,
     string AccountNo,
     EntryType EntryType,
     decimal Amount,
+    decimal LedgerBalanceBefore,
     decimal LedgerBalanceAfter,
+    decimal AvailableBalanceBefore,
     decimal AvailableBalanceAfter,
-    DateOnly PostingDate);
+    DateOnly ValueDate,
+    DateOnly PostingDate,
+    string? Description,
+    string? ReferenceNo);
 
 /// <summary>
 /// NRC transfer detail. The pickup code is never returned here.

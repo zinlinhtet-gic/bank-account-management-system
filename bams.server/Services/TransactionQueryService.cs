@@ -47,6 +47,24 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 .Any(entry => entry.TransactionId == transaction.Id && entry.Account!.AccountNo == accountNo));
         }
 
+        // Allows auditors to locate one transaction directly by its stable transaction number.
+        if (TransactionRequestValidator.TrimToNull(query.TransactionNo)
+            is { } transactionNo)
+        {
+            transactions = transactions.Where(
+                transaction =>
+                    transaction.TransactionNo == transactionNo);
+        }
+
+        // Allows auditors to locate transactions using an external or operator-entered reference.
+        if (TransactionRequestValidator.TrimToNull(query.ReferenceNo)
+            is { } referenceNo)
+        {
+            transactions = transactions.Where(
+                transaction =>
+                    transaction.ReferenceNo == referenceNo);
+        }
+
         if (query.Type is { } type)
         {
             transactions = transactions.Where(transaction => transaction.TransactionType == type);
@@ -76,14 +94,21 @@ public sealed class TransactionQueryService : ITransactionQueryService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(transaction => new TransactionSummaryResponse(
-                transaction.Id,
-                transaction.TransactionNo,
-                transaction.TransactionType,
-                transaction.TransactionStatus,
-                transaction.Amount,
-                transaction.TransactionAt,
-                transaction.Description,
-                transaction.ReferenceNo))
+            transaction.Id,
+            transaction.TransactionNo,
+            transaction.TransactionType,
+            transaction.TransactionStatus,
+            transaction.Amount,
+            transaction.TransactionAt,
+            transaction.Description,
+            transaction.ReferenceNo,
+            transaction.InitiatedBy,
+            transaction.InitiatedByUser != null
+                ? transaction.InitiatedByUser.Username
+                : string.Empty,
+            transaction.InitiatedByUser != null
+                ? transaction.InitiatedByUser.FullName
+                : string.Empty))
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<TransactionSummaryResponse>(items, page, pageSize, totalCount);
@@ -123,7 +148,49 @@ public sealed class TransactionQueryService : ITransactionQueryService
     {
         var transaction = await _dbContext.Transactions
             .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+            .Where(item => item.Id == id)
+            .Select(item => new
+            {
+                item.Id,
+                item.TransactionNo,
+                item.TransactionType,
+                item.TransactionStatus,
+                item.Amount,
+                item.FeeAmount,
+                item.TransactionAt,
+                item.Description,
+                item.ReferenceNo,
+
+                item.InitiatedBy,
+                InitiatedByUsername = item.InitiatedByUser != null
+                    ? item.InitiatedByUser.Username
+                    : string.Empty,
+                InitiatedByFullName = item.InitiatedByUser != null
+                    ? item.InitiatedByUser.FullName
+                    : string.Empty,
+
+                item.AuthorizedBy,
+                AuthorizedByUsername = item.AuthorizedByUser != null
+                    ? item.AuthorizedByUser.Username
+                    : null,
+                AuthorizedByFullName = item.AuthorizedByUser != null
+                    ? item.AuthorizedByUser.FullName
+                    : null,
+                item.AuthorizedAt,
+
+                item.PostedBy,
+                PostedByUsername = item.PostedByUser != null
+                    ? item.PostedByUser.Username
+                    : null,
+                PostedByFullName = item.PostedByUser != null
+                    ? item.PostedByUser.FullName
+                    : null,
+                item.PostedAt,
+
+                item.ReversalOfTransactionId,
+                item.CreatedAt,
+                item.UpdatedAt
+            }).FirstOrDefaultAsync(cancellationToken);
         if (transaction is null)
         {
             throw new NotFoundException(MessageCode.TransactionNotFound);
@@ -134,13 +201,64 @@ public sealed class TransactionQueryService : ITransactionQueryService
             .Where(entry => entry.TransactionId == id)
             .OrderBy(entry => entry.Id)
             .Select(entry => new AccountEntryResponse(
-                entry.AccountId,
-                entry.Account!.AccountNo,
+            entry.AccountId,
+            entry.Account!.AccountNo,
+            entry.EntryType,
+            entry.Amount,
+            entry.LedgerBalanceBefore,
+            entry.LedgerBalanceAfter,
+            entry.AvailableBalanceBefore,
+            entry.AvailableBalanceAfter,
+            entry.ValueDate,
+            entry.PostingDate,
+            entry.Description,
+            entry.ReferenceNo))
+            .ToListAsync(cancellationToken);
+        
+        // Loads the complete accounting journal generated by this transaction.
+        var accountingEntries = await _dbContext.TransactionEntries
+            .AsNoTracking()
+            .Where(entry => entry.TransactionId == id)
+            .OrderBy(entry => entry.Id)
+            .Select(entry => new TransactionAccountingEntryResponse(
+                entry.Id,
+                entry.GlAccountId,
+                entry.GlAccount!.Code,
+                entry.GlAccount.Name,
+                entry.CustomerAccountId,
+                entry.CustomerAccount != null
+                    ? entry.CustomerAccount.AccountNo
+                    : null,
                 entry.EntryType,
                 entry.Amount,
-                entry.LedgerBalanceAfter,
-                entry.AvailableBalanceAfter,
-                entry.PostingDate))
+                entry.PostingDate,
+                entry.Description,
+                entry.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        // Loads only audit events belonging to this transaction.
+        // Transaction audit records use TransactionNo as EntityId.
+        var auditLogs = await _dbContext.AuditLogs
+            .AsNoTracking()
+            .Where(log =>
+                log.EntityType == AuditConstants.TransactionEntityType &&
+                log.EntityId == transaction.TransactionNo)
+            .OrderBy(log => log.CreatedAt)
+            .ThenBy(log => log.Id)
+            .Select(log => new TransactionAuditLogResponse(
+                log.Id,
+                log.UserId,
+                log.User != null
+                    ? log.User.Username
+                    : string.Empty,
+                log.User != null
+                    ? log.User.FullName
+                    : string.Empty,
+                log.Action,
+                log.NewValues,
+                log.IpAddress,
+                log.DeviceInfo,
+                log.CreatedAt))
             .ToListAsync(cancellationToken);
 
         // The pickup code hash is never selected. A sender who paid from an account has a debit entry; cash has none.
@@ -188,13 +306,32 @@ public sealed class TransactionQueryService : ITransactionQueryService
             transaction.Amount,
             transaction.FeeAmount,
             transaction.TransactionAt,
-            transaction.PostedAt,
             transaction.Description,
             transaction.ReferenceNo,
+
             transaction.InitiatedBy,
+            transaction.InitiatedByUsername,
+            transaction.InitiatedByFullName,
+
+            transaction.AuthorizedBy,
+            transaction.AuthorizedByUsername,
+            transaction.AuthorizedByFullName,
+            transaction.AuthorizedAt,
+
             transaction.PostedBy,
+            transaction.PostedByUsername,
+            transaction.PostedByFullName,
+            transaction.PostedAt,
+
             transaction.ReversalOfTransactionId,
+
+            transaction.CreatedAt,
+            transaction.UpdatedAt,
+
             accountEntries,
+            accountingEntries,
+            auditLogs,
+
             nrcTransfer,
             interbankTransfer);
     }
