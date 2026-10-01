@@ -1,9 +1,8 @@
 using bams.server.Models.Customers;
-using bams.server.Models.Accounts.Enums;
 
 namespace bams.server.Models.Accounts;
 
-public sealed class AccountHolder : IConcurrencyTracked
+public sealed class AccountHolder
 {
     public long Id { get; set; }
 
@@ -26,6 +25,4 @@ public sealed class AccountHolder : IConcurrencyTracked
     public string Status { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
-
-    public long Version { get; set; } = 1;
 }

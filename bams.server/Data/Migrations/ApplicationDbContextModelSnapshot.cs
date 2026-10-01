@@ -39,7 +39,7 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("SummaryDate")
+                    b.Property<DateOnly>("SummaryDate")
                         .HasColumnType("date");
 
                     b.Property<decimal>("TotalCredit")
@@ -155,9 +155,6 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("AccountTypeId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime?>("ActiveAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<decimal>("AvailableBalance")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -169,9 +166,6 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("DormantAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("FrozenAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("LastActivityAt")
@@ -193,10 +187,6 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
 
                     b.HasIndex("AccountNo")
@@ -205,56 +195,6 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("AccountTypeId");
 
                     b.ToTable("Accounts");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("AccountId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("DocumentNumber")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<int>("DocumentType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FileReference")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("varchar(300)");
-
-                    b.Property<long>("FileSizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId", "DocumentType")
-                        .IsUnique();
-
-                    b.ToTable("AccountDocuments");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
@@ -291,10 +231,6 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
@@ -302,46 +238,6 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("CustomerId");
 
                     b.ToTable("AccountHolders");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountNumberGeneration", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("AccountTypeId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("GenerationPeriod")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<int>("LastSequenceNumber")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountTypeId", "GenerationPeriod")
-                        .IsUnique();
-
-                    b.ToTable("AccountNumberGenerations");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountReferer", b =>
-                {
-                    b.Property<long>("AccountId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("CustomerId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("AccountId", "CustomerId");
-
-                    b.HasIndex("CustomerId");
-
-                    b.ToTable("AccountReferers");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountStatusHistory", b =>
@@ -391,9 +287,6 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)");
 
-                    b.Property<bool>("CalculateFromCurrent")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -404,7 +297,7 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("InterestRateRuleId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("MaturityDate")
+                    b.Property<DateOnly>("MaturityDate")
                         .HasColumnType("date");
 
                     b.Property<decimal>("OriginalPrincipal")
@@ -421,7 +314,7 @@ namespace bams.server.Data.Migrations
                     b.Property<int>("RenewalInstruction")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("StartDate")
+                    b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
                     b.Property<string>("Status")
@@ -438,18 +331,14 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
 
                     b.HasIndex("InterestRateRuleId");
 
                     b.HasIndex("PayoutAccountId");
-
-                    b.HasIndex("AccountId", "StartDate", "MaturityDate")
-                        .IsUnique();
 
                     b.ToTable("FixedDeposits");
                 });
@@ -535,7 +424,7 @@ namespace bams.server.Data.Migrations
                     b.Property<int>("CustomerType")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("DateOfBirth")
+                    b.Property<DateOnly>("DateOfBirth")
                         .HasColumnType("date");
 
                     b.Property<string>("Email")
@@ -613,14 +502,14 @@ namespace bams.server.Data.Migrations
                     b.Property<int>("DocumentType")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ExpiryDate")
+                    b.Property<DateOnly?>("ExpiryDate")
                         .HasColumnType("date");
 
                     b.Property<string>("FileReference")
                         .HasMaxLength(300)
                         .HasColumnType("varchar(300)");
 
-                    b.Property<DateTime?>("IssuedDate")
+                    b.Property<DateOnly?>("IssuedDate")
                         .HasColumnType("date");
 
                     b.Property<DateTime?>("VerifiedAt")
@@ -687,7 +576,7 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("PerformedBy")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("ReconciliationDate")
+                    b.Property<DateOnly>("ReconciliationDate")
                         .HasColumnType("date");
 
                     b.Property<string>("ReconciliationType")
@@ -771,9 +660,6 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("AccountId")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("AccruedTransactionId")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -787,10 +673,10 @@ namespace bams.server.Data.Migrations
                     b.Property<int>("FeeType")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("PeriodEnd")
+                    b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date");
 
-                    b.Property<DateTime>("PeriodStart")
+                    b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("date");
 
                     b.Property<DateTime?>("PostedAt")
@@ -808,14 +694,11 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccruedTransactionId")
-                        .IsUnique();
+                    b.HasIndex("AccountId");
 
                     b.HasIndex("FeeRuleId");
 
-                    b.HasIndex("PostedTransactionId");
-
-                    b.HasIndex("AccountId", "FeeType", "PeriodStart", "PeriodEnd")
+                    b.HasIndex("PostedTransactionId")
                         .IsUnique();
 
                     b.ToTable("FeeAccruals");
@@ -828,9 +711,6 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<long>("AccountId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("AccruedTransactionId")
                         .HasColumnType("bigint");
 
                     b.Property<decimal>("AnnualRate")
@@ -851,10 +731,10 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("InterestRateRuleId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("PeriodEnd")
+                    b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date");
 
-                    b.Property<DateTime>("PeriodStart")
+                    b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("date");
 
                     b.Property<DateTime?>("PostedAt")
@@ -870,160 +750,13 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccruedTransactionId")
-                        .IsUnique();
+                    b.HasIndex("AccountId");
 
                     b.HasIndex("InterestRateRuleId");
 
                     b.HasIndex("PostedTransactionId");
 
-                    b.HasIndex("AccountId", "PeriodStart", "PeriodEnd")
-                        .IsUnique();
-
                     b.ToTable("InterestAccruals");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Organization.Branch", b =>
-            {
-                b.Property<long>("Id")
-                    .ValueGeneratedOnAdd()
-                    .HasColumnType("bigint");
-                b.Property<string>("City")
-                    .HasMaxLength(100)
-                    .HasColumnType("varchar(100)");
-
-                b.Property<string>("Code")
-                    .IsRequired()
-                    .HasMaxLength(20)
-                    .HasColumnType("varchar(20)");
-                b.Property<string>("Name")
-                    .IsRequired()
-                    .HasMaxLength(150)
-                    .HasColumnType("varchar(150)");
-
-                b.Property<string>("Status")
-                    .IsRequired()
-                    .HasMaxLength(20)
-                    .HasColumnType("varchar(20)");
-
-                b.HasKey("Id");
-
-                b.HasIndex("Code")
-                    .IsUnique();
-
-                b.ToTable("Branches");
-            });
-            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("DayOfMonth")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("varchar(160)");
-
-                    b.Property<long?>("IntervalTicks")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("JobKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime?>("LastRunAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("LeaseToken")
-                        .HasMaxLength(36)
-                        .HasColumnType("varchar(36)");
-
-                    b.Property<DateTime?>("LeaseUntilUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<TimeSpan?>("LocalTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<DateTime>("NextRunAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("PendingScheduledAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ScheduleType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)");
-
-                    b.Property<string>("TimeZoneId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JobKey")
-                        .IsUnique();
-
-                    b.HasIndex("IsEnabled", "NextRunAtUtc", "LeaseUntilUtc");
-
-                    b.ToTable("ScheduledJobs");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJobExecution", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("AttemptNumber")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
-
-                    b.Property<DateTime>("ScheduledForUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<long>("ScheduledJobId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("StartedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ScheduledJobId", "ScheduledForUtc", "AttemptNumber")
-                        .IsUnique();
-
-                    b.ToTable("ScheduledJobExecutions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
@@ -1031,16 +764,6 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
-
-                    b.Property<bool>("AllowCitizen")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("AllowForeigner")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
 
                     b.Property<bool>("AllowPartialWithdrawal")
                         .HasColumnType("tinyint(1)");
@@ -1052,14 +775,8 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<int>("CitizenRequiredRefer")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -1069,11 +786,6 @@ namespace bams.server.Data.Migrations
                     b.Property<decimal?>("DailyTransactionLimit")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ForeignRequiredRefer")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
 
                     b.Property<decimal>("MinimumMaintainedBalance")
                         .HasPrecision(18, 2)
@@ -1092,9 +804,6 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
-                    b.Property<long?>("RequiredProductId")
-                        .HasColumnType("bigint");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1105,22 +814,7 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.HasIndex("RequiredProductId");
-
                     b.ToTable("AccountTypes");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
-                {
-                    b.Property<long>("AccountTypeId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("DocumentType")
-                        .HasColumnType("int");
-
-                    b.HasKey("AccountTypeId", "DocumentType");
-
-                    b.ToTable("AccountTypeRequiredDocuments");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
@@ -1136,10 +830,10 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("EffectiveFrom")
+                    b.Property<DateOnly>("EffectiveFrom")
                         .HasColumnType("date");
 
-                    b.Property<DateTime?>("EffectiveTo")
+                    b.Property<DateOnly?>("EffectiveTo")
                         .HasColumnType("date");
 
                     b.Property<int>("FeeType")
@@ -1198,10 +892,10 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)");
 
-                    b.Property<DateTime>("EffectiveFrom")
+                    b.Property<DateOnly>("EffectiveFrom")
                         .HasColumnType("date");
 
-                    b.Property<DateTime?>("EffectiveTo")
+                    b.Property<DateOnly?>("EffectiveTo")
                         .HasColumnType("date");
 
                     b.Property<string>("Status")
@@ -1400,7 +1094,7 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("PostingDate")
+                    b.Property<DateOnly>("PostingDate")
                         .HasColumnType("date");
 
                     b.Property<string>("ReferenceNo")
@@ -1415,7 +1109,7 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("TransactionId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("ValueDate")
+                    b.Property<DateOnly>("ValueDate")
                         .HasColumnType("date");
 
                     b.HasKey("Id");
@@ -1490,16 +1184,8 @@ namespace bams.server.Data.Migrations
                     b.Property<long?>("DestinationAccountId")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("FailedPickupAttempts")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<long?>("PickupBranchId")
-                        .HasColumnType("bigint");
 
                     b.Property<string>("PickupCodeHash")
                         .HasMaxLength(256)
@@ -1507,9 +1193,6 @@ namespace bams.server.Data.Migrations
 
                     b.Property<DateTime?>("PickupExpiresAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<long?>("PickupOtherBankId")
-                        .HasColumnType("bigint");
 
                     b.Property<long?>("PickupVerifiedBy")
                         .HasColumnType("bigint");
@@ -1554,10 +1237,6 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("DestinationAccountId");
 
-                    b.HasIndex("PickupBranchId");
-
-                    b.HasIndex("PickupOtherBankId");
-
                     b.HasIndex("PickupVerifiedBy");
 
                     b.HasIndex("TransactionId")
@@ -1592,10 +1271,6 @@ namespace bams.server.Data.Migrations
                     b.Property<decimal>("FeeAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
 
                     b.Property<long>("InitiatedBy")
                         .HasColumnType("bigint");
@@ -1633,9 +1308,6 @@ namespace bams.server.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorizedBy");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
 
                     b.HasIndex("InitiatedBy");
 
@@ -1675,7 +1347,7 @@ namespace bams.server.Data.Migrations
                     b.Property<long>("GlAccountId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("PostingDate")
+                    b.Property<DateOnly>("PostingDate")
                         .HasColumnType("date");
 
                     b.Property<long>("TransactionId")
@@ -1735,46 +1407,7 @@ namespace bams.server.Data.Migrations
                     b.Navigation("AccountType");
                 });
 
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountDocument", b =>
-                {
-                    b.HasOne("bams.server.Models.Accounts.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-                });
-
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>
-                {
-                    b.HasOne("bams.server.Models.Accounts.Account", "Account")
-                        .WithMany("AccountHolders")
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("bams.server.Models.Customers.Customer", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountNumberGeneration", b =>
-                {
-                    b.HasOne("bams.server.Models.Products.AccountType", null)
-                        .WithMany()
-                        .HasForeignKey("AccountTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("bams.server.Models.Accounts.AccountReferer", b =>
                 {
                     b.HasOne("bams.server.Models.Accounts.Account", "Account")
                         .WithMany()
@@ -1914,11 +1547,6 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("bams.server.Models.Transactions.Transaction", "AccruedTransaction")
-                        .WithMany()
-                        .HasForeignKey("AccruedTransactionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("bams.server.Models.Products.FeeRule", "FeeRule")
                         .WithMany()
                         .HasForeignKey("FeeRuleId")
@@ -1931,8 +1559,6 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Account");
-
-                    b.Navigation("AccruedTransaction");
 
                     b.Navigation("FeeRule");
 
@@ -1947,11 +1573,6 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("bams.server.Models.Transactions.Transaction", "AccruedTransaction")
-                        .WithMany()
-                        .HasForeignKey("AccruedTransactionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("bams.server.Models.Products.InterestRateRule", "InterestRateRule")
                         .WithMany()
                         .HasForeignKey("InterestRateRuleId")
@@ -1965,43 +1586,9 @@ namespace bams.server.Data.Migrations
 
                     b.Navigation("Account");
 
-                    b.Navigation("AccruedTransaction");
-
                     b.Navigation("InterestRateRule");
 
                     b.Navigation("PostedTransaction");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJobExecution", b =>
-                {
-                    b.HasOne("bams.server.Models.Jobs.ScheduledJob", "ScheduledJob")
-                        .WithMany("Executions")
-                        .HasForeignKey("ScheduledJobId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ScheduledJob");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
-                {
-                    b.HasOne("bams.server.Models.Products.AccountType", "RequiredProduct")
-                        .WithMany()
-                        .HasForeignKey("RequiredProductId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("RequiredProduct");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Products.AccountTypeRequiredDocument", b =>
-                {
-                    b.HasOne("bams.server.Models.Products.AccountType", "AccountType")
-                        .WithMany()
-                        .HasForeignKey("AccountTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AccountType");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.FeeRule", b =>
@@ -2109,16 +1696,6 @@ namespace bams.server.Data.Migrations
                         .HasForeignKey("DestinationAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("bams.server.Models.Organization.Branch", "PickupBranch")
-                        .WithMany()
-                        .HasForeignKey("PickupBranchId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("bams.server.Models.External.OtherBank", "PickupOtherBank")
-                        .WithMany()
-                        .HasForeignKey("PickupOtherBankId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("bams.server.Models.Security.User", "PickupVerifiedByUser")
                         .WithMany()
                         .HasForeignKey("PickupVerifiedBy")
@@ -2131,10 +1708,6 @@ namespace bams.server.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("DestinationAccount");
-
-                    b.Navigation("PickupBranch");
-
-                    b.Navigation("PickupOtherBank");
 
                     b.Navigation("PickupVerifiedByUser");
 
@@ -2203,16 +1776,6 @@ namespace bams.server.Data.Migrations
                 {
                     b.Navigation("Documents");
                 });
-            modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
-                {
-                    b.Navigation("AccountHolders");
-                });
-
-            modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
-                {
-                    b.Navigation("Executions");
-                });
-
             modelBuilder.Entity("bams.server.Models.Security.User", b =>
                 {
                     b.Navigation("UserRoles");

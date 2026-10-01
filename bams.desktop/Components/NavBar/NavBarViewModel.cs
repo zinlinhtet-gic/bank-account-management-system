@@ -52,8 +52,7 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanViewTransactions)
             AddNavItem(PageNames.Transactions, "Icon.Transactions", Items.Count == 0);
 
-        // Officers post on the Transactions page and review and finish transfers here; auditors only review.
-        if (flags.CanViewTransactionHistory || flags.CanViewTransactions)
+        if (flags.CanViewTransactionHistory)
             AddNavItem(PageNames.TransactionHistory, "Icon.Reports");
 
         if (flags.CanAccessAccounting)
