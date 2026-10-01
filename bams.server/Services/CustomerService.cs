@@ -56,7 +56,6 @@ public sealed class CustomerService : ICustomerService
             .OrderBy(customer => customer.Id)
             .Skip((pageNumber - 1) * CustomerConstants.CustomersPageSize)
             .Take(CustomerConstants.CustomersPageSize)
-            .Include(customer => customer.Documents)
             .Select(customer => new CustomerSummaryResponse(
                 customer.Id,
                 customer.CustomerNo,
@@ -67,8 +66,7 @@ public sealed class CustomerService : ICustomerService
                 customer.KycStatus,
                 customer.RiskLevel,
                 customer.Status,
-                customer.CreatedAt,
-                customer.Documents.ToList()))
+                customer.CreatedAt))
             .ToListAsync(cancellationToken);
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)CustomerConstants.CustomersPageSize);

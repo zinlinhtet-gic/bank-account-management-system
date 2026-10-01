@@ -29,6 +29,7 @@ public sealed class OtherBankService : IOtherBankService
             .OrderBy(bank => bank.BankName);
 
         var totalCount = await query.CountAsync(cancellationToken);
+        var TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         var banks = await query
             .Skip((page - 1) * PageSize)
             .Take(PageSize)
@@ -40,6 +41,6 @@ public sealed class OtherBankService : IOtherBankService
                 bank.Status))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<OtherBankResponse>(banks, page, PageSize, totalCount);
+        return new PagedResponse<OtherBankResponse>(banks, page, PageSize, totalCount, TotalPages);
     }
 }

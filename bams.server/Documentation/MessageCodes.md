@@ -259,6 +259,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3129 | AccountRefererCountInsufficient               | 400  | The request supplies fewer referrers than required for the selected account holders.                  |
 | 3130 | AccountRefererSelectionInvalid                | 400  | The referrer list contains a blank or duplicate NRC.                                                  |
 | 3131 | AccountRefererMustOwnAccount                  | 400  | At least one selected referrer does not already own an account.                                       |
+| 3132 | AccountHolderKycNotVerified                  | 400  | Every account holder must have verified KYC before an account can be opened.                           |
 
 ## Authentication and authorization
 
@@ -309,7 +310,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4205 | FixedDepositNotFound | 404 | The fixed deposit does not exist. |
 | 4206 | InterestRateRuleNotFound | 404 | The interest-rate rule does not exist. |
 | 4207 | PayoutAccountNotFound | 404 | The supplied payout account is ineligible or absent. |
-| 4208 | RequiredPayoutAccountNotFound | 404 | The primary holder lacks the required payout product. |
+| 4208 | PayoutAccountUnavailable | 404 | The primary holder has no active individual non-fixed-deposit payout account. |
 
 | Code | Name                            | HTTP | Meaning                                                                                  |
 | ---- | ------------------------------- | ---- | ---------------------------------------------------------------------------------------- |
@@ -344,7 +345,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4205 | FixedDepositNotFound            | 404  | The fixed deposit does not exist.                                                        |
 | 4206 | InterestRateRuleNotFound        | 404  | The interest-rate rule does not exist.                                                   |
 | 4207 | PayoutAccountNotFound           | 404  | The supplied payout account is ineligible or absent.                                     |
-| 4208 | RequiredPayoutAccountNotFound   | 404  | The primary holder lacks the required payout product.                                    |
+| 4208 | PayoutAccountUnavailable        | 404  | The primary holder has no active individual non-fixed-deposit payout account.            |
 >>>>>>> origin/feature/customers
 
 ## Success
@@ -374,7 +375,6 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4403 | AccountStatusTransitionNotAllowed | 422 | The account status transition is forbidden. |
 | 4404 | AccountHolderUpdateNotAllowed | 422 | Holder details cannot be updated for this account. |
 | 4405 | InterestRateRuleNotApplicable | 422 | The selected interest-rate rule is inapplicable. |
-| 4406 | RequiredPayoutAccountNotConfigured | 422 | The fixed-deposit product has no required payout product. |
 | 4407 | FixedDepositStatusTransitionNotAllowed | 422 | The fixed-deposit transition or update is forbidden. |
 | 4460 | TransactionMissingAccountingEntries | 422 | End-of-day audit found a posted transaction with no accounting entries. |
 | 4461 | TransactionEntriesUnbalanced | 422 | End-of-day audit found a transaction whose debit and credit entries differ. |
@@ -399,7 +399,6 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4403 | AccountStatusTransitionNotAllowed      | 422  | The account status transition is forbidden.                |
 | 4404 | AccountHolderUpdateNotAllowed          | 422  | Holder details cannot be updated for this account.         |
 | 4405 | InterestRateRuleNotApplicable          | 422  | The selected interest-rate rule is inapplicable.           |
-| 4406 | RequiredPayoutAccountNotConfigured     | 422  | The fixed-deposit product has no required payout product.  |
 | 4407 | FixedDepositStatusTransitionNotAllowed | 422  | The fixed-deposit transition or update is forbidden.       |
 >>>>>>> origin/feature/customers
 

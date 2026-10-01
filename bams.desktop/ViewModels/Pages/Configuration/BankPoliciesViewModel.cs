@@ -127,7 +127,7 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
                 });
             }
 
-            Page = result.Page;
+            Page = result.PageNumber;
             _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }

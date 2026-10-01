@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using System.Collections.ObjectModel;
 
 namespace Bams.Desktop.Components.NavBar;
 

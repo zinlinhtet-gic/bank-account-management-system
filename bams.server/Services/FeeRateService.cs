@@ -35,6 +35,7 @@ public sealed class FeeRateService : IFeeRateService
             .ThenBy(rule => rule.EffectiveFrom);
 
         var totalCount = await query.CountAsync(cancellationToken);
+        var TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         var rules = await query
             .Skip((page - 1) * PageSize)
             .Take(PageSize)
@@ -44,7 +45,7 @@ public sealed class FeeRateService : IFeeRateService
             rules.Select(rule => rule.ToResponse()).ToList(),
             page,
             PageSize,
-            totalCount);
+            totalCount,TotalPages);
     }
 
     /// Gets the account types selectable in the fee rule form.

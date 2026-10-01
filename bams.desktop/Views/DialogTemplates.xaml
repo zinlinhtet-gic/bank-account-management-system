@@ -40,6 +40,7 @@
     <!-- Customer Management -->
     <DataTemplate DataType="{x:Type customers:CustomerDetailsViewModel}">
         <pages:CustomerDetailsDialogView/>
+    </DataTemplate>
     <!-- Transactions -->
     <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
         <transactionviews:TransactionDetailsDialogView/>

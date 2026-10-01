@@ -5,6 +5,7 @@
 - Opening balances must satisfy the selected product's minimum.
 - New accounts start in `AccountStatus.Active`.
 - A customer cannot hold more than one active individual account of the same product.
+- If an account type configures `RequiredProductId`, at least one selected customer must own an active account of that product before the new account can be opened.
 - Account types may allow citizens, foreigners, or both; account creation rejects any holder whose `CustomerType` is disallowed.
 - `CitizenRequiredRefer` and `ForeignRequiredRefer` are nonnegative minimum counts. Joint accounts require the sum of each holder's applicable minimum.
 - Each supplied referrer NRC must resolve to a distinct existing customer with at least one account-holder relationship. Referrer links are stored against the new account in the account-creation transaction.
@@ -34,7 +35,8 @@
 - Normal Deposit, Special Deposit, and Hundred-Days Deposit are fixed-deposit products.
 - Creation requires an applicable interest-rate rule, renewal instruction, and calculation-source flag.
 - The calculation-source flag is immutable after creation.
-- Each fixed-deposit product requires an eligible individual payout account owned by the primary holder.
+- The payout account must be active, individually owned by the primary holder, and not a fixed-deposit account. If omitted, the server selects the first eligible account.
+- `RequiredProductId` controls whether the customer is eligible to open a product; it does not restrict the payout account.
 - Current principal cannot be negative; Closed and Cancelled deposits are terminal.
 - The HTTP update can change only payout account and renewal instruction.
 - Internal workflows may update current principal, status, or both atomically.
@@ -183,6 +185,7 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 - An update request may also add and/or edit documents in the same call: a `Documents` entry with an `Id` edits that existing document (only its supplied fields change, and a supplied file replaces the stored one); an entry without an `Id` adds a new document and must specify `DocumentType` (`MessageCode.CustomerDocumentTypeRequired` otherwise). An `Id` that doesn't belong to the customer fails with `MessageCode.CustomerDocumentNotFound`.
 - When a document's file is replaced during an update, the old file on disk is only deleted after the database save commits successfully, so a failed update never leaves a document pointing at a file that no longer exists.
 - KYC review (`POST /api/customers/{id}/kyc-review`) sets `Customer.KycStatus` to `Verified` or `Rejected` — `Pending` is not a valid review outcome (`MessageCode.InvalidKycReviewStatus`). The reviewing user must exist (`MessageCode.KycReviewerNotFound` otherwise) and must hold the `RoleConstants.Manager` role (`MessageCode.AccessDenied` via `ForbiddenException` otherwise — only a Branch Manager may review KYC). No new fields were added to `Customer` for this: approving (`Verified`) stamps `VerifiedAt`/`VerifiedBy` on every one of the customer's existing `CustomerDocument` records using the already-existing per-document fields; rejecting only changes `Customer.KycStatus` and leaves documents untouched.
+- Account creation requires every individual or joint account holder to have `KycStatus.Verified`. The account-opening NRC lookup returns that status so the desktop can explain and block the action early; `AccountHolderService` validates it again on account creation and rejects pending or rejected KYC with `MessageCode.AccountHolderKycNotVerified`.
 
 ## Security (Users / Roles)
 

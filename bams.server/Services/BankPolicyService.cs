@@ -35,6 +35,7 @@ public sealed class BankPolicyService : IBankPolicyService
             .OrderBy(type => type.Code);
 
         var totalCount = await query.CountAsync(cancellationToken);
+        var TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         var accountTypes = await query
             .Skip((page - 1) * PageSize)
             .Take(PageSize)
@@ -44,7 +45,7 @@ public sealed class BankPolicyService : IBankPolicyService
             accountTypes.Select(type => type.ToResponse()).ToList(),
             page,
             PageSize,
-            totalCount);
+            totalCount,TotalPages);
     }
 
     /// <summary>

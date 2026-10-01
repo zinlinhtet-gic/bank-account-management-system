@@ -17,6 +17,7 @@
         xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting"
         mc:Ignorable="d"
         Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
+        WindowState="Maximized"
         FontFamily="{StaticResource SansFont}"
         FontSize="{StaticResource FontSizeBody}"
         Foreground="{StaticResource ForegroundBrush}"

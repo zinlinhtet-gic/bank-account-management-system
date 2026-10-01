@@ -72,6 +72,7 @@ public enum MessageCode
 
     AccountNotFound = 4201,
     CustomerNotFound = 4202,
+    AccountHolderKycNotVerified = 3132,
     UserNotFound = 4204,
     InterestRateRuleNotFound = 4250,
     FeeRuleNotFound = 4251,

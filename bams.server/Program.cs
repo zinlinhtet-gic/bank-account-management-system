@@ -123,8 +123,7 @@ builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<CustomerNumberGenerator>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 
-// builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
-// builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
+builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
 builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();

@@ -108,8 +108,7 @@ public partial class NavBarViewModel : ObservableObject
         {
             Label = label,
             IconKey = iconKey,
-            IsExpanded = false,
-            Children = new ObservableCollection<NavItem>()
+            IsExpanded = false
         };
 
         foreach (var childLabel in childLabels)

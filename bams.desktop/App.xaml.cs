@@ -12,7 +12,6 @@ using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
 using bams.desktop.ViewModels.Pages.Accounting;
-using System.Windows.Threading;
 
 namespace bams.desktop;
 
@@ -91,6 +90,26 @@ public partial class App : Application
             MessageBoxImage.Error);
 
         e.Handled = true;
+    }
+
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception exception)
+        {
+            AppLog.WriteError($"Unhandled exception. IsTerminating={e.IsTerminating}.", exception);
+        }
+        else
+        {
+            AppLog.WriteError(
+                $"Unhandled non-exception object. IsTerminating={e.IsTerminating}.",
+                new InvalidOperationException(e.ExceptionObject?.ToString() ?? "The runtime supplied a null exception object."));
+        }
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        AppLog.WriteError("An unobserved task exception was raised.", e.Exception);
+        e.SetObserved();
     }
 
     private void ConfigureServices(IServiceCollection services)

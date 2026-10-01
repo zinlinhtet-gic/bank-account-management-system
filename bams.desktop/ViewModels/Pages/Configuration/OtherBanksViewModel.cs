@@ -116,7 +116,7 @@ public sealed class OtherBanksViewModel : ViewModelBase, IAsyncInitializable
                 });
             }
 
-            Page = result.Page;
+            Page = result.PageNumber;
             _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }

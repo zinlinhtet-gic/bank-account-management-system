@@ -91,6 +91,7 @@ public enum MessageCode
     AccountRefererCountInsufficient = 3129,
     AccountRefererSelectionInvalid = 3130,
     AccountRefererMustOwnAccount = 3131,
+    AccountHolderKycNotVerified = 3132,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -118,7 +119,7 @@ public enum MessageCode
     FixedDepositNotFound = 4205,
     // InterestRateRuleNotFound = 4206,
     PayoutAccountNotFound = 4207,
-    RequiredPayoutAccountNotFound = 4208,
+    PayoutAccountUnavailable = 4208,
     KycReviewerNotFound = 4209,
     CustomerDocumentNotFound = 4210,
 
@@ -143,7 +144,6 @@ public enum MessageCode
     AccountStatusTransitionNotAllowed = 4403,
     AccountHolderUpdateNotAllowed = 4404,
     InterestRateRuleNotApplicable = 4405,
-    RequiredPayoutAccountNotConfigured = 4406,
     FixedDepositStatusTransitionNotAllowed = 4407,
 
     // Transactions: 4440 - 4459
@@ -169,14 +169,6 @@ public enum MessageCode
     AuditUserUnavailable = 4463,
     UnsupportedGlAccountClass = 4464,
 
-    // Business Rules: 4400 - 4499
-    AccountTypeIdentifierOutOfRange = 4401,
-    AccountNumberSequenceExhausted = 4402,
-    AccountStatusTransitionNotAllowed = 4403,
-    AccountHolderUpdateNotAllowed = 4404,
-    InterestRateRuleNotApplicable = 4405,
-    RequiredPayoutAccountNotConfigured = 4406,
-    FixedDepositStatusTransitionNotAllowed = 4407,
     // Users: 4480 - 4489
     LastManagerCannotBeRemoved = 4480,
 

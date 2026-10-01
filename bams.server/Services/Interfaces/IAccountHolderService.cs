@@ -55,15 +55,19 @@ public interface IAccountHolderService
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Finds the primary customer's active individual account required by an account type.
+    /// Finds an active individual non-fixed-deposit account for use as a payout destination.
     /// </summary>
-    Task<Account> FindRequiredIndividualAccountAsync(
-        AccountType requestedAccountType,
+    Task<Account> FindEligiblePayoutAccountAsync(
         Customer primaryHolder,
         CancellationToken cancellationToken);
 
-    /// <summary>Gets the primary holder's active individual accounts for payout selection.</summary>
+    /// <summary>Gets all active individual accounts owned by a customer.</summary>
     Task<IReadOnlyList<OwnedAccountOptionResponse>> GetOwnedIndividualAccountsAsync(
+        long customerId,
+        CancellationToken cancellationToken);
+
+    /// <summary>Gets the primary customer's active individual non-fixed-deposit payout accounts.</summary>
+    Task<IReadOnlyList<OwnedAccountOptionResponse>> GetEligiblePayoutAccountsAsync(
         long customerId,
         CancellationToken cancellationToken);
 }

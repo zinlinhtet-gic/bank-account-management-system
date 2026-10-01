@@ -128,7 +128,7 @@ public sealed class FeeRateViewModel : ViewModelBase, IAsyncInitializable
                 });
             }
 
-            Page = result.Page;
+            Page = result.PageNumber;
             _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }

@@ -204,8 +204,10 @@ public sealed class AccountService : IAccountService
         var eligibleTypes = await _accountTypeService.GetAvailableAccountTypesForHoldersAsync(holderIds, cancellationToken);
         var requiredDocuments = await _accountDocumentService.GetRequiredDocumentsAsync(
             eligibleTypes.Select(type => type.Id).ToArray(), cancellationToken);
-        var ownedAccounts = await _accountHolderService.GetOwnedIndividualAccountsAsync(holders[0].Id, cancellationToken);
-        return new AccountOpeningOptionsResponse(eligibleTypes, requiredDocuments, ownedAccounts);
+        var payoutAccounts = await _accountHolderService.GetEligiblePayoutAccountsAsync(
+            holders[0].Id,
+            cancellationToken);
+        return new AccountOpeningOptionsResponse(eligibleTypes, requiredDocuments, payoutAccounts);
     }
 
     /// <summary>Gets calculated interest accrual periods for an account.</summary>
