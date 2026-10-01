@@ -11,6 +11,7 @@ namespace bams.server.Data.Seeders;
 public sealed class ProductSeeder
 {
     private const string ActiveStatus = "Active";
+    private const string NormalSavingProductCode = "NORMAL_SAVING";
 
     private static readonly DocumentType[] RequiredDocumentTypes =
     [
@@ -38,21 +39,21 @@ public sealed class ProductSeeder
     /// </summary>
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        var products = CreateProducts();
-        var existingCodes = await _dbContext.AccountTypes
-            .Select(accountType => accountType.Code)
-            .ToHashSetAsync(cancellationToken);
+        var productSeeds = CreateProducts();
+        var existingProductIdsByCode = await _dbContext.AccountTypes
+            .ToDictionaryAsync(accountType => accountType.Code, accountType => accountType.Id, cancellationToken);
 
-        var missingProducts = products
-            .Where(product => !existingCodes.Contains(product.Code))
+        var missingSeeds = productSeeds
+            .Where(seed => !existingProductIdsByCode.ContainsKey(seed.Product.Code))
             .ToList();
-        if (missingProducts.Count > 0)
+        if (missingSeeds.Count > 0)
         {
-            await _dbContext.AccountTypes.AddRangeAsync(missingProducts, cancellationToken);
+            LinkRequiredProducts(missingSeeds, existingProductIdsByCode);
+            await _dbContext.AccountTypes.AddRangeAsync(missingSeeds.Select(seed => seed.Product), cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var productCodes = products.Select(product => product.Code).ToArray();
+        var productCodes = productSeeds.Select(seed => seed.Product.Code).ToArray();
         var persistedProducts = await _dbContext.AccountTypes
             .Where(accountType => productCodes.Contains(accountType.Code))
             .Select(accountType => new PersistedProduct(accountType.Id, accountType.Code, accountType.Category))
@@ -101,13 +102,13 @@ public sealed class ProductSeeder
     {
         var accounts = new[]
         {
-            new GlAccount { Code = "1101", Name = "Maintenance Fee Receivable", AccountClass = GlAccountClass.Asset, Status = ActiveStatus },
-            new GlAccount { Code = "1102", Name = "Dormant Penalty Receivable", AccountClass = GlAccountClass.Asset, Status = ActiveStatus },
-            new GlAccount { Code = "2001", Name = "Customer Deposit Liabilities", AccountClass = GlAccountClass.Liability, Status = ActiveStatus },
-            new GlAccount { Code = "2101", Name = "Interest Payable", AccountClass = GlAccountClass.Liability, Status = ActiveStatus },
-            new GlAccount { Code = "6001", Name = "Interest Expense", AccountClass = GlAccountClass.Expense, Status = ActiveStatus },
-            new GlAccount { Code = "4001", Name = "Maintenance Fee Income", AccountClass = GlAccountClass.Income, Status = ActiveStatus },
-            new GlAccount { Code = "4002", Name = "Dormant Account Penalty Income", AccountClass = GlAccountClass.Income, Status = ActiveStatus }
+            // Customer Deposits is seeded by ChartOfAccountsSeeder and shared with teller postings.
+            new GlAccount { Code = AccountingConstants.MaintenanceFeeReceivableGlCode, Name = "Maintenance Fee Receivable", AccountClass = GlAccountClass.Asset, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.DormantPenaltyReceivableGlCode, Name = "Dormant Penalty Receivable", AccountClass = GlAccountClass.Asset, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.InterestPayableGlCode, Name = "Interest Payable", AccountClass = GlAccountClass.Liability, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.InterestExpenseGlCode, Name = "Interest Expense", AccountClass = GlAccountClass.Expense, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.MaintenanceFeeIncomeGlCode, Name = "Maintenance Fee Income", AccountClass = GlAccountClass.Income, Status = AccountingConstants.ActiveGlAccountStatus },
+            new GlAccount { Code = AccountingConstants.DormantPenaltyIncomeGlCode, Name = "Dormant Account Penalty Income", AccountClass = GlAccountClass.Income, Status = AccountingConstants.ActiveGlAccountStatus }
         };
         var codes = accounts.Select(account => account.Code).ToArray();
         var existingCodes = await _dbContext.GlAccounts
@@ -125,8 +126,17 @@ public sealed class ProductSeeder
     private async Task SeedScheduledJobActorAsync(CancellationToken cancellationToken)
     {
         var username = ScheduledJobConstants.SystemActorUsername;
-        if (await _dbContext.Users.AnyAsync(user => user.Username == username, cancellationToken))
+        var existingActor = await _dbContext.Users.FirstOrDefaultAsync(user => user.Username == username, cancellationToken);
+        if (existingActor is not null)
         {
+            // Scheduled postings only accept a Disabled actor (it must never sign in), so repair any other status.
+            if (existingActor.Status != UserStatus.Disabled)
+            {
+                existingActor.Status = UserStatus.Disabled;
+                existingActor.UpdatedAt = DateTime.UtcNow;
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
             return;
         }
 
@@ -145,32 +155,56 @@ public sealed class ProductSeeder
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    // Defines the initial account products independently from EF model configuration.
-    private static IReadOnlyList<AccountType> CreateProducts()
+    // Defines the initial account products independently from EF model configuration. Ids are left to the
+    // database so seeding never collides with rows that already exist; prerequisites are linked by product code.
+    private static IReadOnlyList<ProductSeed> CreateProducts()
     {
         return
         [
-            CreateProduct(1, "CURRENT", "Current", AccountTypeCategory.CURRENT, true, null),
-            CreateProduct(2, "NORMAL_SAVING", "Normal Saving", AccountTypeCategory.SAVING, true, null),
-            CreateProduct(3, "SPECIAL_SAVING", "Special Saving", AccountTypeCategory.SAVING, true, null),
-            CreateProduct(4, "NORMAL_DEPOSIT", "Normal Deposit", AccountTypeCategory.FIXED, false, 2),
-            CreateProduct(5, "SPECIAL_DEPOSIT", "Special Deposit", AccountTypeCategory.FIXED, false, 2),
-            CreateProduct(6, "HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", AccountTypeCategory.FIXED, false, 2)
+            new(CreateProduct("CURRENT", "Current", AccountTypeCategory.CURRENT, true), null),
+            new(CreateProduct(NormalSavingProductCode, "Normal Saving", AccountTypeCategory.SAVING, true), null),
+            new(CreateProduct("SPECIAL_SAVING", "Special Saving", AccountTypeCategory.SAVING, true), null),
+            new(CreateProduct("NORMAL_DEPOSIT", "Normal Deposit", AccountTypeCategory.FIXED, false), NormalSavingProductCode),
+            new(CreateProduct("SPECIAL_DEPOSIT", "Special Deposit", AccountTypeCategory.FIXED, false), NormalSavingProductCode),
+            new(CreateProduct("HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", AccountTypeCategory.FIXED, false), NormalSavingProductCode)
         ];
+    }
+
+    // Points each new product at its prerequisite: a product inserted in the same batch is linked through the
+    // navigation (EF orders the inserts), an already persisted one through its database id.
+    private static void LinkRequiredProducts(
+        IReadOnlyList<ProductSeed> missingSeeds,
+        IReadOnlyDictionary<string, long> existingProductIdsByCode)
+    {
+        var newProductsByCode = missingSeeds.ToDictionary(seed => seed.Product.Code, seed => seed.Product);
+
+        foreach (var seed in missingSeeds.Where(seed => seed.RequiredProductCode is not null))
+        {
+            var requiredCode = seed.RequiredProductCode!;
+            if (newProductsByCode.TryGetValue(requiredCode, out var requiredProduct))
+            {
+                seed.Product.RequiredProduct = requiredProduct;
+            }
+            else if (existingProductIdsByCode.TryGetValue(requiredCode, out var requiredProductId))
+            {
+                seed.Product.RequiredProductId = requiredProductId;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Seeded product '{seed.Product.Code}' requires unknown product '{requiredCode}'.");
+            }
+        }
     }
 
     // Creates neutral configuration for a seeded account product.
     private static AccountType CreateProduct(
-        long id,
         string code,
         string name,
         AccountTypeCategory category,
-        bool allowsTransactions,
-        long? requiredProductId)
+        bool allowsTransactions)
     {
         return new AccountType
         {
-            Id = id,
             Code = code,
             Name = name,
             Category = category,
@@ -178,6 +212,7 @@ public sealed class ProductSeeder
             MinimumMaintainedBalance = 0m,
             DailyTransactionLimit = null,
             MonthlyTransactionLimit = null,
+            AllowDeposit = allowsTransactions,
             AllowWithdrawal = allowsTransactions,
             AllowTransfer = allowsTransactions,
             AllowPartialWithdrawal = allowsTransactions,
@@ -185,10 +220,12 @@ public sealed class ProductSeeder
             AllowForeigner = true,
             CitizenRequiredRefer = 0,
             ForeignRequiredRefer = 0,
-            RequiredProductId = requiredProductId,
             Status = ActiveStatus
         };
     }
+
+    // A seeded product and the code of the product a customer must already hold to open it.
+    private sealed record ProductSeed(AccountType Product, string? RequiredProductCode);
 
     private sealed record PersistedProduct(long Id, string Code, AccountTypeCategory Category);
 }

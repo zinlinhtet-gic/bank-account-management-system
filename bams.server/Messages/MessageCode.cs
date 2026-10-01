@@ -21,6 +21,7 @@ public enum MessageCode
     TransactionRefundedSuccessfully = 1202,
     InterbankTransferSettledSuccessfully = 1203,
 
+    NrcPickupCodeReissuedSuccessfully = 1204,
     AccountStatusUpdatedSuccessfully = 1101,
     AccountBalanceUpdatedSuccessfully = 1102,
     AccountHoldersUpdatedSuccessfully = 1103,
@@ -46,6 +47,7 @@ public enum MessageCode
     InterestRateBalanceRangeInvalid = 3400,
     FeeRuleAmountRangeInvalid = 3401,
     BankPolicyBalanceRangeInvalid = 3402,
+    InvalidDate = 3014,
     SameSourceAndDestinationAccount = 3300,
     InvalidPickupCode = 3301,
     HolderAlreadyHasActiveAccount = 3103,
@@ -84,6 +86,7 @@ public enum MessageCode
     PasswordChangedSuccessfully = 4002,
     UserAccountDisabled = 4003,
     UserAccountDeleted = 4004,
+    Forbidden = 4005,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,
@@ -106,13 +109,29 @@ public enum MessageCode
     RequiredPayoutAccountNotFound = 4208,
 
     // Conflict: 4300 - 4399
+    ConcurrentModification = 4304,
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    Conflict = 4300,
+    EndOfDayAuditAlreadyProcessed = 4308,
+    CustomerNrcAlreadyExists = 4307,
+
     IdempotencyKeyReused = 4330,
     AccountTypeCodeAlreadyExists = 4340,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
+
+    // Accounts (incl. fixed deposits): 4401 - 4429
+    AccountTypeIdentifierOutOfRange = 4401,
+    AccountNumberSequenceExhausted = 4402,
+    AccountStatusTransitionNotAllowed = 4403,
+    AccountHolderUpdateNotAllowed = 4404,
+    InterestRateRuleNotApplicable = 4405,
+    RequiredPayoutAccountNotConfigured = 4406,
+    FixedDepositStatusTransitionNotAllowed = 4407,
+
+    // Transactions: 4440 - 4459
     InsufficientBalance = 4440,
     AccountNotOperational = 4441,
     PickupCodeExpired = 4442,
@@ -125,10 +144,15 @@ public enum MessageCode
     PickupAttemptsExceeded = 4449,
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
-    CustomerNrcAlreadyExists = 4307,
+    NrcPickupReceiverMismatch = 4452,
+    DepositNotAllowed = 4453,
 
-    // Conflict: 4300 - 4399
-    ConcurrentModification = 4304,
+    // Accounting / Audit: 4460 - 4479
+    TransactionMissingAccountingEntries = 4460,
+    TransactionEntriesUnbalanced = 4461,
+    DailyAccountingUnbalanced = 4462,
+    AuditUserUnavailable = 4463,
+    UnsupportedGlAccountClass = 4464,
 
     // Business Rules: 4400 - 4499
     AccountTypeIdentifierOutOfRange = 4401,
@@ -138,6 +162,7 @@ public enum MessageCode
     InterestRateRuleNotApplicable = 4405,
     RequiredPayoutAccountNotConfigured = 4406,
     FixedDepositStatusTransitionNotAllowed = 4407,
+    // Users: 4480 - 4489
     LastManagerCannotBeRemoved = 4480,
 
     // System / Infrastructure: 5000 - 5999

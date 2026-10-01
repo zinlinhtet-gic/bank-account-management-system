@@ -17,7 +17,6 @@ namespace bams.desktop.ViewModels.Pages;
 public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly ITransactionService _transactionService;
-    private readonly IAccountService _accountService;
     private readonly IDialogService _dialogService;
     private readonly TransactionDetailsLauncher _detailsLauncher;
 
@@ -26,7 +25,6 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
 
     public TransactionHistoryViewModel(
         ITransactionService transactionService,
-        IAccountService accountService,
         IDialogService dialogService,
         TransactionDetailsLauncher detailsLauncher,
         AuthContext authContext,
@@ -35,7 +33,6 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
     {
         // Constructors only store dependencies and create commands. No server calls here.
         _transactionService = transactionService;
-        _accountService = accountService;
         _dialogService = dialogService;
         _detailsLauncher = detailsLauncher;
         Filter = filter;
@@ -52,6 +49,7 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
         ShowPendingCommand = new RelayCommand(_ => Filter.ShowOnly(null, TransactionStatus.Pending));
         ShowDetailsCommand = new AsyncRelayCommand(ShowDetailsAsync);
         PickUpNrcTransferCommand = new AsyncRelayCommand(PickUpNrcTransferAsync);
+        ReissueNrcPickupCodeCommand = new AsyncRelayCommand(ReissueNrcPickupCodeAsync);
         CancelNrcTransferCommand = new AsyncRelayCommand(row => FinishPendingTransferAsync(row, PendingTransferAction.CancelNrcTransfer));
         CompleteInterbankTransferCommand = new AsyncRelayCommand(row => FinishPendingTransferAsync(row, PendingTransferAction.CompleteInterbankTransfer));
         FailInterbankTransferCommand = new AsyncRelayCommand(row => FinishPendingTransferAsync(row, PendingTransferAction.FailInterbankTransfer));
@@ -80,6 +78,9 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
     /// Row action on a pending NRC transfer: pickup with the code at our branch, or recording the other bank's payout.
     /// </summary>
     public AsyncRelayCommand PickUpNrcTransferCommand { get; }
+
+    /// <summary>Row action on a pending NRC transfer: issue a new pickup code when the sender lost theirs.</summary>
+    public AsyncRelayCommand ReissueNrcPickupCodeCommand { get; }
 
     /// <summary>Row action on a pending NRC transfer.</summary>
     public AsyncRelayCommand CancelNrcTransferCommand { get; }
@@ -196,18 +197,7 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
             return;
         }
 
-        IReadOnlyList<AccountOption> accounts;
-        try
-        {
-            accounts = await AccountOption.LoadUsableAsync(_accountService, CancellationToken.None);
-        }
-        catch (AppException exception)
-        {
-            ErrorMessage = exception.Message;
-            return;
-        }
-
-        var form = new NrcPickupFormViewModel(_transactionService, transfer, accounts);
+        var form = new NrcPickupFormViewModel(_transactionService, transfer);
         var completed = _dialogService.ShowDialog(form);
 
         // Reload even when cancelled: wrong codes may have blocked the transfer meanwhile.
@@ -217,8 +207,57 @@ public sealed class TransactionHistoryViewModel : ViewModelBase, IAsyncInitializ
         {
             SuccessMessage = $"{MessageCatalog.GetMessage(MessageCode.TransactionCompletedSuccessfully)} "
                 + $"{row.TransactionNo} was picked up: {TransactionDisplay.FormatMoney(row.Amount)} "
-                + (form.IsPaidInCash ? "paid out in cash." : $"paid into {form.DestinationAccount!.AccountNo}.");
+                + "paid out in cash.";
         }
+    }
+
+    // Issues a new pickup code for a pending NRC transfer after the officer confirms (the old code stops working),
+    // shows it once in the same dialog as a new transfer, then reloads so the fresh expiry and attempts show.
+    private async Task ReissueNrcPickupCodeAsync(object? parameter)
+    {
+        if (parameter is not TransactionDisplayModel { IsPendingNrcTransfer: true } row)
+        {
+            return;
+        }
+
+        ClearMessages();
+
+        var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
+            Title: $"Issue a new pickup code for {row.TransactionNo}?",
+            Message: "The current code stops working immediately, failed attempts are reset and the new code is "
+                + "valid for 24 hours. Give the new code to the sender only.",
+            ConfirmText: "Issue new code",
+            IconKey: "Icon.Key"));
+        if (!confirmed)
+        {
+            return;
+        }
+
+        // The detail gives the receiver and pickup place shown next to the code.
+        var transfer = await GetTransactionDetailAsync(row.Id);
+        if (transfer?.NrcTransfer is null)
+        {
+            return;
+        }
+
+        TransactionResponse reissued;
+        try
+        {
+            reissued = await _transactionService.ReissueNrcPickupCodeAsync(row.Id, CancellationToken.None);
+        }
+        catch (AppException exception)
+        {
+            ErrorMessage = exception.Message;
+            return;
+        }
+
+        _dialogService.ShowDialog(new NrcPickupCodeViewModel(
+            reissued,
+            transfer.NrcTransfer.ReceiverName,
+            transfer.NrcTransfer.PickupLocation));
+
+        await ReloadAsync(List.Page, CancellationToken.None);
+        SuccessMessage = $"{MessageCatalog.GetMessage(MessageCode.NrcPickupCodeReissuedSuccessfully)} {row.TransactionNo}.";
     }
 
     // Cancels an NRC transfer, records an other-bank payout or an interbank result, then reloads and confirms.

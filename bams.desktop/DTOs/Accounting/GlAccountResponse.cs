@@ -1,0 +1,22 @@
+using System.Text.Json.Serialization;
+
+namespace bams.desktop.DTOs.Accounting;
+
+public sealed record GlAccountResponse(
+    long Id,
+    string Name,
+    string Code,
+    GlAccountClass AccountClass,
+    long? ParentId,
+    string Status
+);
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum GlAccountClass
+{
+    Asset = 1,
+    Liability = 2,
+    Equity = 3,
+    Income = 4,
+    Expense = 5
+}

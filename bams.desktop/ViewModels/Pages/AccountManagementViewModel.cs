@@ -17,6 +17,7 @@ namespace bams.desktop.ViewModels.Pages;
 public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly IAccountManagementService _accountService;
+    private readonly IDialogService _dialogService;
     private CancellationTokenSource? _interestRulesRequest;
     private string _screen = "List";
     private string _searchText = string.Empty;
@@ -65,14 +66,15 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private string? _statusHistoryErrorMessage;
     private string? _interestAccrualsErrorMessage;
 
-    public AccountManagementViewModel(IAccountManagementService accountService)
+    public AccountManagementViewModel(IAccountManagementService accountService, IDialogService dialogService)
     {
         _accountService = accountService;
+        _dialogService = dialogService;
         ListPage = new AccountListPageViewModel(this);
         CreatePage = new AccountCreatePageViewModel(this);
         DetailPage = new AccountDetailPageViewModel(this);
         _currentAccountPage = ListPage;
-        SearchAccountsCommand = new AsyncRelayCommand(() => LoadAccountsAsync(false));
+        SearchAccountsCommand = new AsyncRelayCommand(() => LoadAccountsAsync(false), () => !IsBusy);
         LoadMoreCommand = new AsyncRelayCommand(() => LoadAccountsAsync(true), () => HasMore && !IsBusy);
         PreviousPageCommand = new AsyncRelayCommand(() => ChangePageAsync(-1), () => PageNumber > 1 && !IsBusy);
         NextPageCommand = new AsyncRelayCommand(() => ChangePageAsync(1), () => HasMore && !IsBusy);
@@ -163,8 +165,8 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public bool IsNotStep5 => CreateStep != 5;
     public int PageNumber { get => _pageNumber; private set { if (SetProperty(ref _pageNumber, value)) { PreviousPageCommand.RaiseCanExecuteChanged(); OnPropertyChanged(nameof(PageLabel)); } } }
     public string PageLabel => $"Page {PageNumber}";
-    public CustomerLookupResponse? Holder1 { get => _holder1; private set { if (SetProperty(ref _holder1, value)) UpdateRequiredRefererInputs(); } }
-    public CustomerLookupResponse? Holder2 { get => _holder2; private set { if (SetProperty(ref _holder2, value)) UpdateRequiredRefererInputs(); } }
+    public CustomerLookupResponse? Holder1 { get => _holder1; private set { if (SetProperty(ref _holder1, value)) { UpdateRequiredRefererInputs(); LockStepsAfterCurrent(); } } }
+    public CustomerLookupResponse? Holder2 { get => _holder2; private set { if (SetProperty(ref _holder2, value)) { UpdateRequiredRefererInputs(); LockStepsAfterCurrent(); } } }
     public bool ShowCustomerRegistrationForm { get => _showCustomerRegistrationForm; private set => SetProperty(ref _showCustomerRegistrationForm, value); }
     public string RegistrationFullName { get => _registrationFullName; set => SetProperty(ref _registrationFullName, value); }
     public string RegistrationNrc { get => _registrationNrc; private set => SetProperty(ref _registrationNrc, value); }
@@ -219,6 +221,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                 UpdateRequiredRefererInputs();
                 LoadRequiredDocumentInputs(value?.Id);
                 _ = LoadInterestRateRulesAsync(value?.Id);
+                LockStepsAfterCurrent();
             }
         }
     }
@@ -272,6 +275,24 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         var previous = CreateStep;
         CreateStep = step;
         AppLog.WriteInformation($"Account creation step changed. Source={source}, From={previous}, To={CreateStep}, HighestUnlocked={MaxCreateStepReached}.");
+    }
+
+    // An earlier choice (ownership, holders, account type) changed, so the later steps were validated against
+    // stale data: lock them again so the user has to continue through each one, including the document check.
+    private void LockStepsAfterCurrent()
+    {
+        MaxCreateStepReached = Math.Min(MaxCreateStepReached, CreateStep);
+    }
+
+    // True when two NRC entries name different people (ignores surrounding spaces and letter case).
+    private static bool IsDifferentNrc(string? previous, string? current) =>
+        !string.Equals(previous?.Trim(), current?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    // Hides the "register missing customer" form, which was opened for an NRC that has since changed.
+    private void HideCustomerRegistrationForm()
+    {
+        ShowCustomerRegistrationForm = false;
+        RegistrationNrc = string.Empty;
     }
 
     private void AdvanceCreateStep(int nextStep)
@@ -346,12 +367,38 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public string ToastMessage => !string.IsNullOrWhiteSpace(ErrorMessage) ? ErrorMessage : InfoMessage;
     public bool HasErrorNotification => !string.IsNullOrWhiteSpace(ErrorMessage);
     public string OpeningBalance { get => _openingBalance; set => SetProperty(ref _openingBalance, value); }
-    public string HolderNrc1 { get => _holderNrc1; set => SetProperty(ref _holderNrc1, value); }
-    public string HolderNrc2 { get => _holderNrc2; set => SetProperty(ref _holderNrc2, value); }
+    public string HolderNrc1
+    {
+        get => _holderNrc1;
+        set
+        {
+            var previous = _holderNrc1;
+            if (SetProperty(ref _holderNrc1, value) && IsDifferentNrc(previous, value))
+            {
+                // The looked-up customer belonged to the old NRC; it must be looked up again.
+                Holder1 = null;
+                HideCustomerRegistrationForm();
+            }
+        }
+    }
+    public string HolderNrc2
+    {
+        get => _holderNrc2;
+        set
+        {
+            var previous = _holderNrc2;
+            if (SetProperty(ref _holderNrc2, value) && IsDifferentNrc(previous, value))
+            {
+                // The looked-up customer belonged to the old NRC; it must be looked up again.
+                Holder2 = null;
+                HideCustomerRegistrationForm();
+            }
+        }
+    }
     public string OwnershipPercentage1 { get => _ownershipPercentage1; set => SetProperty(ref _ownershipPercentage1, value); }
     public string OwnershipPercentage2 { get => _ownershipPercentage2; set => SetProperty(ref _ownershipPercentage2, value); }
     public string SigningRule { get => _signingRule; set => SetProperty(ref _signingRule, value); }
-    public bool IsSharedAccount { get => _isSharedAccount; set { if (SetProperty(ref _isSharedAccount, value)) OnPropertyChanged(nameof(IsIndividualAccount)); } }
+    public bool IsSharedAccount { get => _isSharedAccount; set { if (SetProperty(ref _isSharedAccount, value)) { OnPropertyChanged(nameof(IsIndividualAccount)); LockStepsAfterCurrent(); } } }
     public bool IsIndividualAccount { get => !IsSharedAccount; set { if (value) IsSharedAccount = false; } }
     public long? PayoutAccountId { get => _payoutAccountId; set => SetProperty(ref _payoutAccountId, value); }
     public string RenewalInstruction { get => _renewalInstruction; set => SetProperty(ref _renewalInstruction, value); }
@@ -363,6 +410,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         {
             if (SetProperty(ref _isBusy, value))
             {
+                SearchAccountsCommand.RaiseCanExecuteChanged();
                 LoadMoreCommand.RaiseCanExecuteChanged();
                 CreateAccountCommand.RaiseCanExecuteChanged();
                 CreateCustomerCommand.RaiseCanExecuteChanged();
@@ -397,7 +445,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             {
                 AccountTypes.Add(type);
             }
-            await LoadAccountsCoreAsync(false, cancellationToken);
+            await LoadAccountsCoreAsync(false, PageNumber, cancellationToken);
             if (IsDetailScreen && SelectedAccount is not null)
             {
                 await LoadDetailCollectionsAsync(SelectedAccount.Id);
@@ -405,33 +453,34 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         }, "Could not initialize account management.", cancellationToken);
     }
 
+    // A search starts again from page 1; "load more" appends the next page to the current rows.
     private async Task LoadAccountsAsync(bool append)
     {
-        if (!append)
-        {
-            PageNumber = 1;
-            _pageCursors.Clear();
-            _pageCursors.Add(null);
-        }
-        await RunBusyAsync(() => LoadAccountsCoreAsync(append, CancellationToken.None), "Could not load accounts.");
+        await RunBusyAsync(() => LoadAccountsCoreAsync(append, append ? PageNumber : 1, CancellationToken.None), "Could not load accounts.");
     }
 
-    private async Task LoadAccountsCoreAsync(bool append, CancellationToken cancellationToken)
+    // Loads one page of accounts. The page number, cursors and rows change only after the server answers, so a
+    // failed load (or one refused because another is still running) leaves the pager exactly as it was.
+    private async Task LoadAccountsCoreAsync(bool append, int pageNumber, CancellationToken cancellationToken)
     {
         ErrorMessage = string.Empty;
-        if (!append)
-        {
-            _nextCursor = null;
-            HasMore = false;
-        }
 
         var status = SelectedStatus is "All statuses" ? null : SelectedStatus;
+        var cursor = append ? _nextCursor : pageNumber == 1 ? null : _pageCursors[pageNumber - 1];
         var page = await _accountService.GetAccountsAsync(
-            new AccountListCriteria(SearchText, SelectedFilterType?.Id, status, append ? _nextCursor : _pageCursors[PageNumber - 1], 10),
+            new AccountListCriteria(SearchText, SelectedFilterType?.Id, status, cursor, 10),
             cancellationToken);
 
         if (!append)
         {
+            // Page 1 starts a fresh cursor trail (a new search or filter).
+            if (pageNumber == 1)
+            {
+                _pageCursors.Clear();
+                _pageCursors.Add(null);
+            }
+
+            PageNumber = pageNumber;
             Accounts.Clear();
         }
 
@@ -447,11 +496,16 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         NextPageCommand.RaiseCanExecuteChanged();
     }
 
+    // Moves one page back or forward; PageNumber is committed by the load only when it succeeds.
     private async Task ChangePageAsync(int direction)
     {
-        if (direction < 0 && PageNumber > 1) PageNumber--;
-        else if (direction > 0 && HasMore) PageNumber++;
-        await RunBusyAsync(() => LoadAccountsCoreAsync(false, CancellationToken.None), "Could not change account page.");
+        if ((direction < 0 && PageNumber <= 1) || (direction > 0 && !HasMore))
+        {
+            return;
+        }
+
+        var targetPage = PageNumber + Math.Sign(direction);
+        await RunBusyAsync(() => LoadAccountsCoreAsync(false, targetPage, CancellationToken.None), "Could not change account page.");
     }
 
     private void ShowCreate()
@@ -532,6 +586,19 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         if (IsFixedDeposit && (!PayoutAccountId.HasValue || SelectedInterestRateRule is null))
         {
             ShowError("Choose a payout account and an interest rate rule for this fixed deposit.");
+            return;
+        }
+
+        // The account is opened for the looked-up customers, so they must still match the entered NRCs.
+        if (Holder1 is null || (IsSharedAccount && Holder2 is null))
+        {
+            ShowError("Look up each account holder by NRC before continuing.");
+            return;
+        }
+
+        // Re-checked here as well as on step 4: the documents may have been reset after that step was passed.
+        if (!ValidateRequiredDocuments())
+        {
             return;
         }
 
@@ -679,15 +746,27 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             ShowError("Choose an eligible account type.");
             return;
         }
-        if (CreateStep == 4)
+        if (CreateStep == 4 && !ValidateRequiredDocuments())
         {
-            var missing = RequiredDocumentInputs
-                .Where(input => string.IsNullOrWhiteSpace(input.FilePath) || !File.Exists(input.FilePath))
-                .Select(input => input.DocumentType)
-                .ToArray();
-            if (missing.Length > 0) { ShowError($"Upload required documents: {string.Join(", ", missing)}."); return; }
+            return;
         }
         AdvanceCreateStep(Math.Min(5, CreateStep + 1));
+    }
+
+    // Checks every required document has an existing file chosen; shows which are missing and returns false otherwise.
+    private bool ValidateRequiredDocuments()
+    {
+        var missing = RequiredDocumentInputs
+            .Where(input => string.IsNullOrWhiteSpace(input.FilePath) || !File.Exists(input.FilePath))
+            .Select(input => input.DocumentType)
+            .ToArray();
+        if (missing.Length > 0)
+        {
+            ShowError($"Upload required documents: {string.Join(", ", missing)}.");
+            return false;
+        }
+
+        return true;
     }
 
     // Rebuilds the file inputs whenever the selected product changes so uploads always match its requirements.
@@ -869,9 +948,19 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         }, "Could not update the account status.");
     }
 
+    // Suspends the chosen account from the list after the user confirms, since it stops all activity on it.
     private async Task SuspendAccountAsync(object? parameter)
     {
         if (parameter is not AccountSummaryResponse summary) return;
+
+        var confirmed = _dialogService.Confirm(new ConfirmDialogOptions(
+            Title: $"Suspend account {summary.AccountNo}?",
+            Message: "The account will be suspended and cannot be used until its status is changed back to Active.",
+            ConfirmText: "Suspend account",
+            IsDestructive: true,
+            IconKey: "Icon.Lock"));
+        if (!confirmed) return;
+
         await RunBusyAsync(async () =>
         {
             var current = await _accountService.GetAccountAsync(summary.Id, CancellationToken.None);
@@ -1034,9 +1123,9 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         ErrorMessage = message;
     }
 
-    private static void LogException(string operation, Exception exception)
+    private void LogException(string operation, Exception exception)
     {
-        AppLog.WriteError($"{nameof(AccountManagementViewModel)}: {operation} failed.", exception);
+        LogError($"{operation} failed.", exception);
     }
 
     private void NotifyScreenChanged()

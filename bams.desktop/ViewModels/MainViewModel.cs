@@ -94,7 +94,11 @@ public sealed class MainViewModel : ViewModelBase
             _currentPageLabel = pageLabel;
             ActiveItem = pageLabel;
             StartPageInitialization(viewModel);
+            return;
         }
+
+        // No page is mapped to this label: keep the current page and nav highlight instead of showing nothing.
+        AppLog.WriteInformation($"Navigation to page '{pageLabel}' ignored because no page is registered for it.");
     }
 
     /// <summary>Restores the last page known to have been usable after a dispatcher failure.</summary>
@@ -181,6 +185,21 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Stops the shell when the session ends: cancels the current page's loading and background loops (e.g. the
+    /// User Management presence refresh) so they never keep calling the server with the next user's token, and
+    /// detaches the logout and navigation handlers so this shell can no longer act.
+    /// </summary>
+    public void Shutdown()
+    {
+        // StartPageInitialization owns and disposes the source; cancelling ends the page's awaited work.
+        _pageInitializationCancellation?.Cancel();
+        _pageInitializationCancellation = null;
+
+        OnLogoutRequested = null;
+        NavBar.NavigateCommand = null;
+    }
+
+    /// <summary>
     /// Updates user information in the NavBar from AuthContext.
     /// </summary>
     private void UpdateUserInfo()
@@ -212,8 +231,10 @@ public sealed class MainViewModel : ViewModelBase
             return PageNames.AccountManagement;
         if (flags.CanViewTransactions)
             return PageNames.Transactions;
+        if (flags.CanAccessAccounting)
+            return PageNames.GeneralLedger;
         if (flags.CanViewAudit)
-            return PageNames.Audit;
+            return PageNames.TransactionAudit;
         
         // Fall back to the first tab the user is allowed to see, never a page they lack permission for.
         return NavBar.Items.FirstOrDefault()?.Label ?? string.Empty;

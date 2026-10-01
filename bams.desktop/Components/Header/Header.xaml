@@ -4,7 +4,7 @@
              xmlns:t="clr-namespace:bams.desktop.Themes"
              x:Name="Root"
              Height="{StaticResource NavBarHeaderHeight}">
-    <!-- Design: top bar in App.tsx. Page title (DM Serif 18) + date, then Ghost / Secondary / Danger actions. -->
+    <!-- Design: top bar in App.tsx. Page title (DM Serif 18) + date, then the Danger logout action. -->
     <Border Background="{StaticResource CardBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,0,0,1">
@@ -22,12 +22,6 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="Alerts" ToolTip="Alerts" Margin="0,0,12,0"
-                        Style="{StaticResource Button.Ghost}" t:ThemeAssist.Size="Small"
-                        t:ThemeAssist.Icon="{StaticResource Icon.Bell}"/>
-                <Button Content="Search" ToolTip="Search" Margin="0,0,12,0"
-                        Style="{StaticResource Button.Secondary}" t:ThemeAssist.Size="Small"
-                        t:ThemeAssist.Icon="{StaticResource Icon.Search}"/>
                 <Button Content="Logout" ToolTip="Logout"
                         Style="{StaticResource Button.Danger}" t:ThemeAssist.Size="Small"
                         t:ThemeAssist.Icon="{StaticResource Icon.Logout}"

@@ -85,17 +85,21 @@
                                                 SortMemberPath="TransactionAt" ElementStyle="{StaticResource Table.Text.Muted}"/>
 
                             <!-- Officers only: finish pending transfers. -->
-                            <DataGridTemplateColumn Header="Actions" Width="96" CanUserSort="False"
+                            <DataGridTemplateColumn Header="Actions" Width="128" CanUserSort="False"
                                                     Visibility="{Binding Data.CanManagePendingTransfers, Source={StaticResource PageProxy}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Cursor="Arrow">
-                                            <!-- Pending NRC transfer: pay out (pickup here, or the other bank's payout) or cancel -->
+                                            <!-- Pending NRC transfer: pay out (pickup here, or the other bank's payout), reissue the code, or cancel -->
                                             <StackPanel Orientation="Horizontal"
                                                         Visibility="{Binding IsPendingNrcTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <Button Style="{StaticResource Button.Icon}" ToolTip="Pay out: pickup at our branch, or record the other bank's payout"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.UserCheck}" Margin="0,0,4,0"
                                                         Command="{Binding DataContext.PickUpNrcTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource Button.Icon}" ToolTip="Issue a new pickup code (the current code stops working)"
+                                                        t:ThemeAssist.Icon="{StaticResource Icon.Key}" Margin="0,0,4,0"
+                                                        Command="{Binding DataContext.ReissueNrcPickupCodeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource Button.IconDanger}" ToolTip="Cancel and refund the sender"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.Close}"

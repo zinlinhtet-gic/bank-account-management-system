@@ -2074,24 +2074,21 @@ Server-side authorization must still reject unauthorized operations.
 
 # 56. Logging
 
-Use structured logging.
+Desktop diagnostic logging is handled by `Utils/AppLog.cs` and is disabled unless
+`Application.Current.Properties["Debug Log"]` is the Boolean value `true`. Keep
+logging behind this shared writer; do not write diagnostic files directly.
 
-Preferred:
+`ViewModelBase` logs view-model creation and provides `LogInformation` and
+`LogError` helpers that include the concrete view-model type. New view models
+should inherit from this base. View models that cannot inherit from it should
+use `AppLog` directly and include their type in the message.
 
-```csharp
-_logger.LogInformation(
-    "Loaded {AccountCount} accounts from the server",
-    accounts.Count);
-```
-
-For errors:
-
-```csharp
-_logger.LogError(
-    exception,
-    "Account load failed. MessageCode: {MessageCode}",
-    exception.Code);
-```
+The application also logs first-chance exceptions whose call stack includes
+view-model code, including exceptions later caught by a view model. Intentional
+cancellation is excluded. The same exception object is written once even when
+it is also reported by a global unhandled-exception handler. Log files are
+named with the local calendar date and stored under the user's local
+application data.
 
 Never log:
 

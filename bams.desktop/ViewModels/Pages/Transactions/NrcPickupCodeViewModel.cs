@@ -5,7 +5,8 @@ using bams.desktop.Utils;
 namespace bams.desktop.ViewModels.Pages.Transactions;
 
 /// <summary>
-/// Shown once, right after an NRC transfer is created: the pickup code the sender passes to the receiver.
+/// Shown once, right after an NRC transfer is created or its code is reissued: the pickup code the sender passes to
+/// the receiver.
 /// The server keeps only a hash, so this is the only time the code can be read.
 /// </summary>
 public sealed class NrcPickupCodeViewModel : ViewModelBase, IDialogViewModel

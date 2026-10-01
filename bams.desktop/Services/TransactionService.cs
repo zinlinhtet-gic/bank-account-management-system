@@ -121,6 +121,13 @@ public sealed class TransactionService : ITransactionService
             cancellationToken);
     }
 
+    public Task<TransactionResponse> ReissueNrcPickupCodeAsync(long id, CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<TransactionResponse>(
+            $"{ApiConstants.NrcTransferEndpoint}/{id}/{ApiConstants.ReissueCodeSegment}",
+            cancellationToken);
+    }
+
     public Task<TransactionResponse> CancelNrcTransferAsync(long id, NrcCancelRequest request, CancellationToken cancellationToken)
     {
         return _apiClient.PostAsync<NrcCancelRequest, TransactionResponse>(

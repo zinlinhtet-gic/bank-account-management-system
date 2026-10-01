@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels;
 
@@ -8,7 +9,24 @@ namespace bams.desktop.ViewModels;
 /// </summary>
 public abstract class ViewModelBase : INotifyPropertyChanged
 {
+    protected ViewModelBase()
+    {
+        LogInformation("ViewModel created.");
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>Writes an informational entry associated with this view model.</summary>
+    protected void LogInformation(string message)
+    {
+        AppLog.WriteInformation($"{GetType().Name}: {message}");
+    }
+
+    /// <summary>Writes an error entry associated with this view model.</summary>
+    protected void LogError(string message, Exception exception)
+    {
+        AppLog.WriteError($"{GetType().Name}: {message}", exception);
+    }
 
     // Updates a backing field and notifies WPF only when the value actually changes.
     protected bool SetProperty<T>(

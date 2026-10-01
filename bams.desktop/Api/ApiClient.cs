@@ -201,7 +201,6 @@ public sealed class ApiClient
         }
     }
 
-    // Returns the success payload, or throws an ApiException built from the server's error body.
     private static async Task<TResponse> ReadResponseAsync<TResponse>(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

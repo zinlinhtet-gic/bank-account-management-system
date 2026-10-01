@@ -35,7 +35,7 @@ public static class ChartOfAccountsSeeder
                 Code = required.Code,
                 Name = required.Name,
                 AccountClass = required.AccountClass,
-                Status = AccountingConstants.ActiveGlAccountStatus
+                Status = AccountingConstants.ActiveStatus
             })
             .ToList();
 

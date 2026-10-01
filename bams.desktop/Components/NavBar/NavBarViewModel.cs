@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using bams.desktop.Commands;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RelayCommand = bams.desktop.Commands.RelayCommand;
@@ -25,6 +26,7 @@ public partial class NavBarViewModel : ObservableObject
 
     public NavBarViewModel()
     {
+        AppLog.WriteInformation($"{nameof(NavBarViewModel)}: ViewModel created.");
         // Initialize with default items (will be replaced by permission-based items)
         BuildDefaultNavigationItems();
     }
@@ -57,13 +59,17 @@ public partial class NavBarViewModel : ObservableObject
             AddNavItem(PageNames.TransactionHistory, "Icon.Reports");
 
         if (flags.CanAccessAccounting)
-            AddNavItem(PageNames.Accounting, "Icon.Finance");
+        {
+            AddAccountingNavigation();
+        }
 
         if (flags.CanPerformOperations)
             AddNavItem(PageNames.Operations, "Icon.Settings");
 
         if (flags.CanViewAudit)
-            AddNavItem(PageNames.Audit, "Icon.Shield");
+        {
+            AddAuditNavigation();
+        }
 
         if (flags.CanConfigureSystem)
             AddNavGroup(PageNames.Configurations, "Icon.Settings", PageNames.InterestRate, PageNames.FeeRate, PageNames.BankPolicies, PageNames.OtherBanks);
@@ -141,6 +147,8 @@ public partial class NavBarViewModel : ObservableObject
     [RelayCommand]
     private void ToggleCollapsed() => IsCollapsed = !IsCollapsed;
 
+    // Asks the shell to open the item's page. The highlight is not changed here: the shell sets ActiveItem only
+    // when navigation succeeds, and OnActiveItemChanged then moves the highlight.
     private void Select(NavItem item)
     {
         foreach (var navItem in Items)
@@ -156,5 +164,94 @@ public partial class NavBarViewModel : ObservableObject
 
         ActiveItem = item.Label;
         NavigateCommand?.Execute(item.Label);
+    }
+
+    // Keeps the highlighted item (and the expanded parent group of a child page) in step with the page shown.
+    partial void OnActiveItemChanged(string value)
+    {
+        foreach (var item in Items)
+        {
+            item.IsActive = item.Label == value;
+
+            foreach (var child in item.Children)
+            {
+                child.IsActive = child.Label == value;
+
+                if (child.IsActive)
+                {
+                    item.IsActive = true;
+                    item.IsExpanded = true;
+                }
+            }
+        }
+    }
+    /// <summary>
+    /// Adds the Accounting navigation group and its child pages.
+    /// </summary>
+    private void AddAccountingNavigation()
+    {
+        var accounting = new NavItem
+        {
+            Label = PageNames.Accounting,
+            IconKey = "Icon.Finance"
+        };
+
+        accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
+
+        accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
+
+        accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+
+        accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));
+
+        Items.Add(accounting);
+    }
+
+    /// <summary>
+    /// Adds the Audit navigation group and its child pages.
+    /// </summary>
+    private void AddAuditNavigation()
+    {
+        var audit = new NavItem
+        {
+            Label = PageNames.Audit,
+            IconKey = "Icon.Shield"
+        };
+
+        audit.Children.Add(CreateChildNavItem(PageNames.TransactionAudit));
+
+        audit.Command =new RelayCommand(_ => ToggleGroup(audit));
+
+        Items.Add(audit);
+    }
+    /// <summary>
+    /// Creates a navigation item that opens an actual page.
+    /// </summary>
+    private NavItem CreateChildNavItem(string label)
+    {
+        var item = new NavItem
+        {
+            Label = label
+        };
+
+        item.Command =
+            new RelayCommand(_ => SelectPage(item));
+
+        return item;
+    }
+    /// <summary>
+    /// Expands or collapses a parent navigation group.
+    /// </summary>
+    private static void ToggleGroup(NavItem item)
+    {
+        item.IsExpanded = !item.IsExpanded;
+    }
+    /// <summary>
+    /// Sends a child page's label to the main navigation service; the highlight follows only when the page opens
+    /// (see <see cref="OnActiveItemChanged"/>).
+    /// </summary>
+    private void SelectPage(NavItem selectedItem)
+    {
+        NavigateCommand?.Execute(selectedItem.Label);
     }
 }

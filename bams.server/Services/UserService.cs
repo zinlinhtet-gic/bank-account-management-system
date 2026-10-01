@@ -46,7 +46,8 @@ public sealed class UserService : IUserService
 
         var users = _dbContext.Users
             .AsNoTracking()
-            .Where(user => user.Status != UserStatus.Deleted);
+            // The scheduled-jobs system actor is internal: it is never listed or managed as a staff user.
+            .Where(user => user.Status != UserStatus.Deleted && user.Username != ScheduledJobConstants.SystemActorUsername);
 
         // Search: part of the username, full name or email (MySQL collation makes this case-insensitive).
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -116,7 +117,11 @@ public sealed class UserService : IUserService
             .AsNoTracking()
             .Include(user => user.UserRoles)
             .ThenInclude(userRole => userRole.Role)
-            .FirstOrDefaultAsync(user => user.Id == id && user.Status != UserStatus.Deleted, cancellationToken);
+            .FirstOrDefaultAsync(
+                user => user.Id == id &&
+                    user.Status != UserStatus.Deleted &&
+                    user.Username != ScheduledJobConstants.SystemActorUsername,
+                cancellationToken);
 
         if (user is null)
         {
@@ -263,7 +268,11 @@ public sealed class UserService : IUserService
         var user = await _dbContext.Users
             .Include(user => user.UserRoles)
             .ThenInclude(userRole => userRole.Role)
-            .FirstOrDefaultAsync(user => user.Id == id && user.Status != UserStatus.Deleted, cancellationToken);
+            .FirstOrDefaultAsync(
+                user => user.Id == id &&
+                    user.Status != UserStatus.Deleted &&
+                    user.Username != ScheduledJobConstants.SystemActorUsername,
+                cancellationToken);
 
         if (user is null)
         {

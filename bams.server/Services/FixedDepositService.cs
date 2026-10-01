@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using bams.server.Data;
 using bams.server.DTO.Accounts;
 using bams.server.Exceptions;
@@ -39,7 +40,8 @@ public sealed class FixedDepositService : IFixedDepositService
         CancellationToken cancellationToken)
     {
         ValidateFixedDepositCreationRequest(request);
-        var startDate = DateOnly.FromDateTime(createdAt);
+        // The term starts on the Myanmar business date the deposit is opened.
+        var startDate = BusinessTime.ToBusinessDate(createdAt);
         var rateRule = await GetApplicableInterestRateRuleAsync(
             request.InterestRateRuleId.GetValueOrDefault(),
             accountType.Id,
@@ -77,6 +79,7 @@ public sealed class FixedDepositService : IFixedDepositService
         var oldResponse = ToResponse(fixedDeposit);
         var oldStatus = ParseStatus(fixedDeposit.Status);
         ValidateFixedDepositCanBeUpdated(oldStatus);
+        ValidateAccountAllowsFixedDepositChanges(fixedDeposit.Account);
         var updatedAt = DateTime.UtcNow;
         ApplyApiEditableFieldUpdates(fixedDeposit, request);
         await ApplyPayoutAccountUpdateAsync(fixedDeposit, request.PayoutAccountId, cancellationToken);
@@ -220,6 +223,16 @@ public sealed class FixedDepositService : IFixedDepositService
         if (status is FixedDepositStatus.Closed or FixedDepositStatus.Cancelled)
         {
             throw new BusinessRuleException(MessageCode.FixedDepositStatusTransitionNotAllowed);
+        }
+    }
+
+    // Payout and renewal instructions of a frozen, suspended or closed account must not change: redirecting the
+    // payout would effectively move restricted funds at maturity.
+    private static void ValidateAccountAllowsFixedDepositChanges(Account? account)
+    {
+        if (account is null || account.Status != AccountStatus.Active)
+        {
+            throw new BusinessRuleException(MessageCode.AccountNotOperational);
         }
     }
 
@@ -443,7 +456,7 @@ public sealed class FixedDepositService : IFixedDepositService
         var principal = maturedDeposit.CalculateFromCurrent
             ? maturedDeposit.CurrentPrincipal
             : maturedDeposit.OriginalPrincipal;
-        var startDate = DateOnly.FromDateTime(createdAt);
+        var startDate = BusinessTime.ToBusinessDate(createdAt);
         return new FixedDeposit
         {
             AccountId = maturedDeposit.AccountId,

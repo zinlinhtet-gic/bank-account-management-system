@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Transactions;
@@ -33,6 +34,9 @@ public enum TransactionFormKind
 /// </remarks>
 public sealed class TransactionFormViewModel : ViewModelBase
 {
+    // Accepted shapes of a typed amount; see TransactionFieldRules.AmountPattern.
+    private static readonly Regex AmountRegex = new(TransactionFieldRules.AmountPattern, RegexOptions.CultureInvariant);
+
     private readonly ITransactionService _transactionService;
     private readonly string _idempotencyKey = Guid.NewGuid().ToString("N");
 
@@ -447,14 +451,19 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public bool IsNotBusy => !IsBusy;
 
     /// <summary>
-    /// Parses an amount as typed: current-culture or invariant digits, group separators allowed.
-    /// Returns null when the text is not a positive amount with at most two decimals.
+    /// Parses an amount as typed, in invariant form only: a decimal point and correctly grouped thousands
+    /// separators (<see cref="TransactionFieldRules.AmountPattern"/>). Returns null when the text is not a positive
+    /// amount with at most two decimals, so an ambiguous "100,50" is reported as invalid instead of becoming 10050.
     /// </summary>
     public static decimal? ParseAmount(string text)
     {
         var trimmed = text.Trim();
-        var isNumber = decimal.TryParse(trimmed, NumberStyles.Number, CultureInfo.CurrentCulture, out var amount)
-            || decimal.TryParse(trimmed, NumberStyles.Number, CultureInfo.InvariantCulture, out amount);
+        if (!AmountRegex.IsMatch(trimmed))
+        {
+            return null;
+        }
+
+        var isNumber = decimal.TryParse(trimmed, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount);
 
         return isNumber
             && amount > 0m

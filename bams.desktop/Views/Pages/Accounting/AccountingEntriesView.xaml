@@ -1,0 +1,348 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.AccountingEntriesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== Filters ===== -->
+        <Border Grid.Row="0"
+                Style="{StaticResource Card.Compact}">
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="12"/>
+
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="12"/>
+
+                    <ColumnDefinition Width="260"/>
+                    <ColumnDefinition Width="12"/>
+
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="12"/>
+
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- From date -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="FROM DATE"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <DatePicker Style="{StaticResource Input.Date}"
+                                SelectedDate="{Binding FromDate}"/>
+                </StackPanel>
+
+                <!-- To date -->
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="TO DATE"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <DatePicker Style="{StaticResource Input.Date}"
+                                SelectedDate="{Binding ToDate}"/>
+                </StackPanel>
+
+                <!-- GL account -->
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="GL ACCOUNT"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <ComboBox Style="{StaticResource Input.Select}"
+                            ItemsSource="{Binding GlAccountOptions}"
+                            SelectedItem="{Binding SelectedGlAccount}"
+                            DisplayMemberPath="Label"/>
+                </StackPanel>
+
+                <!-- Entry type -->
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="ENTRY TYPE"
+                            Style="{StaticResource Text.FieldLabel}"/>
+
+                    <ComboBox Style="{StaticResource Input.Select}"
+                            ItemsSource="{Binding EntryTypeOptions}"
+                            SelectedItem="{Binding SelectedEntryType}"
+                            DisplayMemberPath="Label"/>
+                </StackPanel>
+
+                <!-- Actions -->
+                <StackPanel Grid.Column="8"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Bottom">
+
+                    <Button Content="Reset"
+                            Style="{StaticResource Button.Ghost}"
+                            Command="{Binding ResetFiltersCommand}"
+                            Margin="0,0,8,0"/>
+
+                    <Button Command="{Binding RefreshCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button"
+                                BasedOn="{StaticResource Button.Secondary}">
+
+                                <Setter Property="Content"
+                                        Value="Refresh"/>
+
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRefreshing}"
+                                                Value="True">
+
+                                        <Setter Property="Content"
+                                                Value="Refreshing..."/>
+
+                                        <Setter Property="IsEnabled"
+                                                Value="False"/>
+
+                                    </DataTrigger>
+                                </Style.Triggers>
+
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                </StackPanel>
+
+            </Grid>
+        </Border>
+        <ContentControl Grid.Row="1"
+                Content="From Date cannot be later than To Date."
+                Margin="0,16,0,0">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl"
+                    BasedOn="{StaticResource Alert.Warning}">
+                    <Setter Property="Visibility"
+                            Value="Collapsed"/>
+
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasInvalidDateRange}"
+                                    Value="True">
+                            <Setter Property="Visibility"
+                                    Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
+        <!-- ===== Error / loading state ===== -->
+        <StackPanel Grid.Row="2" Margin="0,16,0,0">
+
+            <ContentControl Content="{Binding ErrorMessage}">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl"
+                           BasedOn="{StaticResource Alert.Danger}">
+                        <Setter Property="Visibility"
+                                Value="Collapsed"/>
+
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}"
+                                         Value="True">
+                                <Setter Property="Visibility"
+                                        Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
+
+            <ContentControl Content="Loading accounting entries..."
+                            Margin="0,8,0,0">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl"
+                           BasedOn="{StaticResource Alert.Info}">
+                        <Setter Property="Visibility"
+                                Value="Collapsed"/>
+
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLoading}"
+                                         Value="True">
+                                <Setter Property="Visibility"
+                                        Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
+
+        </StackPanel>
+
+        <!-- ===== Accounting Entries table ===== -->
+        <Border Grid.Row="3"
+                Style="{StaticResource Card.Flush}"
+                Margin="0,16,0,0">
+
+            <DockPanel>
+
+                <!-- Table caption -->
+                <Border DockPanel.Dock="Top"
+                        Style="{StaticResource Card.Caption}">
+
+                    <DockPanel>
+
+                        <ContentControl DockPanel.Dock="Right"
+                                        Style="{StaticResource Badge.Neutral}"
+                                        t:ThemeAssist.ShowDot="False"
+                                        Content="{Binding CountText}"/>
+
+                        <TextBlock Text="Accounting Entries"
+                                   Style="{StaticResource Text.Title}"
+                                   VerticalAlignment="Center"/>
+
+                    </DockPanel>
+
+                </Border>
+
+                <Grid>
+
+                    <DataGrid Style="{StaticResource Table}"
+                              BorderThickness="0"
+                              ItemsSource="{Binding Entries}">
+
+                        <DataGrid.Columns>
+
+                            <!-- Posting date -->
+                            <DataGridTextColumn Header="Posting Date"
+                                                Binding="{Binding PostingDate}"
+                                                Width="130"
+                                                SortMemberPath="PostingDate"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+
+                            <!-- Transaction -->
+                            <DataGridTextColumn Header="Transaction ID"
+                                                Binding="{Binding TransactionId}"
+                                                Width="140"
+                                                SortMemberPath="TransactionId"
+                                                ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                            <!-- GL code -->
+                            <DataGridTextColumn Header="GL Code"
+                                                Binding="{Binding GlAccountCode}"
+                                                Width="120"
+                                                SortMemberPath="GlAccountCode"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <!-- GL account -->
+                            <DataGridTextColumn Header="GL Account"
+                                                Binding="{Binding GlAccountName}"
+                                                Width="*"
+                                                MinWidth="200"
+                                                SortMemberPath="GlAccountName"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+
+                            <!-- Entry type -->
+                            <DataGridTemplateColumn Header="Type"
+                                                    Width="110"
+                                                    SortMemberPath="EntryType">
+
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+
+                                        <ContentControl Content="{Binding EntryType}">
+                                            <ContentControl.Style>
+
+                                                <Style TargetType="ContentControl"
+                                                       BasedOn="{StaticResource Badge.Neutral}">
+
+                                                    <Style.Triggers>
+
+                                                        <DataTrigger Binding="{Binding EntryType}"
+                                                                     Value="Debit">
+                                                            <Setter Property="Background"
+                                                                    Value="{StaticResource SecondaryBrush}"/>
+
+                                                            <Setter Property="Foreground"
+                                                                    Value="{StaticResource SecondaryForegroundBrush}"/>
+                                                        </DataTrigger>
+
+                                                        <DataTrigger Binding="{Binding EntryType}"
+                                                                     Value="Credit">
+                                                            <Setter Property="Background"
+                                                                    Value="{StaticResource SuccessSoftBrush}"/>
+
+                                                            <Setter Property="Foreground"
+                                                                    Value="{StaticResource SuccessBrush}"/>
+                                                        </DataTrigger>
+
+                                                    </Style.Triggers>
+
+                                                </Style>
+
+                                            </ContentControl.Style>
+                                        </ContentControl>
+
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+
+                            </DataGridTemplateColumn>
+
+                            <!-- Amount -->
+                            <DataGridTextColumn Header="Amount"
+                                                Binding="{Binding Amount, StringFormat=N2}"
+                                                Width="140"
+                                                SortMemberPath="Amount"
+                                                ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                            <!-- Customer account -->
+                            <DataGridTextColumn Header="Customer Account"
+                                                Binding="{Binding CustomerAccountId}"
+                                                Width="150"
+                                                SortMemberPath="CustomerAccountId"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <!-- Description -->
+                            <DataGridTextColumn Header="Description"
+                                                Binding="{Binding Description}"
+                                                Width="220"
+                                                SortMemberPath="Description"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                        </DataGrid.Columns>
+
+                    </DataGrid>
+
+                    <!-- Empty state -->
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Margin="0,72,0,0"
+                                IsHitTestVisible="False">
+
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility"
+                                        Value="Collapsed"/>
+
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEmpty}"
+                                                 Value="True">
+                                        <Setter Property="Visibility"
+                                                Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <TextBlock Text="No accounting entries found"
+                                   Style="{StaticResource Text.Subheading}"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="No posted accounting entries are currently available."
+                                   Style="{StaticResource Text.BodyMuted}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,4,0,0"/>
+
+                    </StackPanel>
+
+                </Grid>
+
+            </DockPanel>
+
+        </Border>
+
+    </Grid>
+</UserControl>

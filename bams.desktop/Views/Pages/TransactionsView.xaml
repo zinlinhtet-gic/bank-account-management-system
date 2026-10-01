@@ -33,7 +33,7 @@
         <Border Grid.Row="1" Style="{StaticResource Card.Flush}">
             <DockPanel>
                 <Border DockPanel.Dock="Top" Style="{StaticResource Tab.Strip}" Padding="12,4,12,0">
-                    <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl ItemsSource="{Binding Tabs}" IsEnabled="{Binding CanChangeTab}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel/>
