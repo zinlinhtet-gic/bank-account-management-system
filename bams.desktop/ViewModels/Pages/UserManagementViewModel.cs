@@ -124,15 +124,10 @@ public sealed class UserManagementViewModel : ViewModelBase, IAsyncInitializable
 
         while (await timer.WaitForNextTickAsync(cancellationToken))
         {
-            var (filter, error) = Filter.BuildFilter();
-            if (error is not null)
-            {
-                continue;
-            }
-
             try
             {
-                await List.RefreshPresenceAsync(filter!, cancellationToken);
+                // Re-reads the filter the table was last loaded with, not unsubmitted search text.
+                await List.RefreshPresenceAsync(cancellationToken);
             }
             catch (AppException)
             {

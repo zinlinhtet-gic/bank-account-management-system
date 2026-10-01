@@ -39,13 +39,13 @@ public sealed class AccountsController : ControllerBase
     /// </summary>
     [HttpGet]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<CursorPagedResponse<AccountSummaryResponse>>> GetAccountsAsync(
+    public async Task<ActionResult<ApiMessageResponse<CursorPagedResponse<AccountSummaryResponse>>>> GetAccountsAsync(
         [FromQuery] GetAccountsRequest request,
         CancellationToken cancellationToken)
     {
         var accounts = await _accountService.GetAccountsAsync(request, cancellationToken);
 
-        return Ok(ApiMessageResponse<IReadOnlyList<AccountSummaryResponse>>.FromCode(MessageCode.Success, accounts));
+        return Ok(ApiMessageResponse<CursorPagedResponse<AccountSummaryResponse>>.FromCode(MessageCode.Success, accounts));
     }
 
     /// <summary>
@@ -65,33 +65,33 @@ public sealed class AccountsController : ControllerBase
     /// <summary>Looks up an existing customer using their NRC number.</summary>
     [HttpGet("customer-lookup")]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<CustomerLookupResponse>> GetCustomerByNrcAsync([FromQuery] string nrc, CancellationToken cancellationToken)
-        => Ok(await _customerLookUpService.GetCustomerByNrcAsync(nrc, cancellationToken));
+    public async Task<ActionResult<ApiMessageResponse<CustomerLookupResponse>>> GetCustomerByNrcAsync([FromQuery] string nrc, CancellationToken cancellationToken)
+        => Ok(ApiMessageResponse<CustomerLookupResponse>.FromCode(MessageCode.Success, await _customerLookUpService.GetCustomerByNrcAsync(nrc, cancellationToken)));
 
     /// <summary>Gets eligible account types, required documents, and accounts owned by the primary holder.</summary>
     [HttpGet("opening-options")]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<AccountOpeningOptionsResponse>> GetAccountOpeningOptionsAsync(
+    public async Task<ActionResult<ApiMessageResponse<AccountOpeningOptionsResponse>>> GetAccountOpeningOptionsAsync(
         [FromQuery] string holderNrc, [FromQuery] string? secondHolderNrc, CancellationToken cancellationToken)
-        => Ok(await _accountService.GetAccountOpeningOptionsAsync(holderNrc, secondHolderNrc, cancellationToken));
+        => Ok(ApiMessageResponse<AccountOpeningOptionsResponse>.FromCode(MessageCode.Success, await _accountService.GetAccountOpeningOptionsAsync(holderNrc, secondHolderNrc, cancellationToken)));
 
     /// <summary>Gets transaction entries recorded for one account.</summary>
     [HttpGet("{id:long}/transactions")]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<IReadOnlyList<AccountTransactionDetailResponse>>> GetAccountTransactionsAsync(long id, CancellationToken cancellationToken)
-        => Ok(await _accountTransactionService.GetAccountTransactionsAsync(id, cancellationToken));
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<AccountTransactionDetailResponse>>>> GetAccountTransactionsAsync(long id, CancellationToken cancellationToken)
+        => Ok(ApiMessageResponse<IReadOnlyList<AccountTransactionDetailResponse>>.FromCode(MessageCode.Success, await _accountTransactionService.GetAccountTransactionsAsync(id, cancellationToken)));
 
     /// <summary>Gets status changes recorded for one account.</summary>
     [HttpGet("{id:long}/status-history")]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<IReadOnlyList<AccountStatusHistoryResponse>>> GetAccountStatusHistoryAsync(long id, CancellationToken cancellationToken)
-        => Ok(await _accountStatusHistoryService.GetAccountStatusHistoryAsync(id, cancellationToken));
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<AccountStatusHistoryResponse>>>> GetAccountStatusHistoryAsync(long id, CancellationToken cancellationToken)
+        => Ok(ApiMessageResponse<IReadOnlyList<AccountStatusHistoryResponse>>.FromCode(MessageCode.Success, await _accountStatusHistoryService.GetAccountStatusHistoryAsync(id, cancellationToken)));
 
     /// <summary>Gets calculated interest accruals recorded for one account.</summary>
     [HttpGet("{id:long}/interest-accruals")]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<IReadOnlyList<InterestAccrualResponse>>> GetAccountInterestAccrualsAsync(long id, CancellationToken cancellationToken)
-        => Ok(await _accountService.GetAccountInterestAccrualsAsync(id, cancellationToken));
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<InterestAccrualResponse>>>> GetAccountInterestAccrualsAsync(long id, CancellationToken cancellationToken)
+        => Ok(ApiMessageResponse<IReadOnlyList<InterestAccrualResponse>>.FromCode(MessageCode.Success, await _accountService.GetAccountInterestAccrualsAsync(id, cancellationToken)));
 
     /// <summary>
     /// Creates a new account from the supplied API request contract.

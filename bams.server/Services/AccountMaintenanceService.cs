@@ -1,3 +1,4 @@
+using bams.server.Utils;
 using bams.server.Data;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
@@ -85,7 +86,7 @@ public sealed class AccountMaintenanceService
         DateOnly periodEnd,
         CancellationToken cancellationToken)
     {
-        if (DateOnly.FromDateTime(account.OpenedAt) > periodEnd)
+        if (BusinessTime.ToBusinessDate(account.OpenedAt) > periodEnd)
         {
             return;
         }

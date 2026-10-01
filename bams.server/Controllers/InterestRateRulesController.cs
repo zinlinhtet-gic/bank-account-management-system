@@ -1,5 +1,7 @@
 using bams.server.Constants;
+using bams.server.DTO.Common;
 using bams.server.DTO.Products;
+using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +24,7 @@ public sealed class InterestRateRulesController : ControllerBase
     /// </summary>
     [HttpGet]
     [RequirePermission(SecurityConstants.AccountManagement)]
-    public async Task<ActionResult<IReadOnlyList<InterestRateRuleResponse>>> GetAvailableRulesAsync(
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<InterestRateRuleResponse>>>> GetAvailableRulesAsync(
         [FromQuery] long accountTypeId,
         CancellationToken cancellationToken)
     {
@@ -30,6 +32,6 @@ public sealed class InterestRateRulesController : ControllerBase
             accountTypeId,
             cancellationToken);
 
-        return Ok(rules);
+        return Ok(ApiMessageResponse<IReadOnlyList<InterestRateRuleResponse>>.FromCode(MessageCode.Success, rules));
     }
 }

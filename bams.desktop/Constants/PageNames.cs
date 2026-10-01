@@ -12,9 +12,16 @@ public static class PageNames
     public const string AccountManagement = "Account Management";
     public const string Transactions = "Transactions";
     public const string TransactionHistory = "Transaction History";
+    // Parent Navigation groups
     public const string Accounting = "Accounting";
-    public const string Operations = "Operations";
     public const string Audit = "Audit";
+    // Accounting child pages
+    public const string GeneralLedger = "General Ledger";
+    public const string AccountingEntries = "Accounting Entries";
+    public const string Reconciliation = "Reconciliation";
+    // Audit child pages
+    public const string TransactionAudit = "Transaction Audit";
+    public const string Operations = "Operations";
     public const string Configurations = "Configurations";
     public const string CustomerList = "Customer List";
 }

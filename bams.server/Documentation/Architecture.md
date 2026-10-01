@@ -113,7 +113,7 @@ Transactions follow the same layers:
 Branches (`Models/Organization/Branch`, seeded by `Data/Seeders/BranchSeeder` on an empty table) are the pickup
 locations of NRC transfers at this bank; `GET api/transactions/branches` lists the active ones.
 
-`AccountsController` `GET api/accounts` and `GET api/accounts/{id}` return the standard `ApiMessageResponse<T>`
+All successful controller responses return the standard `ApiMessageResponse<T>`
 envelope like every other endpoint, so the WPF `ApiClient` can read them.
 
 ## WPF transaction screens

@@ -4,6 +4,8 @@ The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.
 
 ## Endpoint overview
 
+Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payload in `data`; this includes list and cursor-paginated responses. The desktop client unwraps this envelope through `ApiClient`.
+
 | Method | Route | Authentication | Purpose |
 | --- | --- | --- | --- |
 | GET | `/api/account-types` | Public | List active account products. |
@@ -33,7 +35,7 @@ Account transaction, status-history, and interest-accrual routes return the reco
 
 ## Available interest rules
 
-`GET /api/interest-rate-rules?accountTypeId={id}` returns rules for the selected product whose status is `Active` and whose effective date range includes the current UTC date. A positive unknown account type ID returns `AccountTypeNotFound`; a type with no applicable rules returns an empty array. Current accounts intentionally have no seeded rule.
+`GET /api/interest-rate-rules?accountTypeId={id}` returns rules for the selected product whose status is `Active` and whose effective date range includes the current Myanmar (Asia/Rangoon) business date. A positive unknown account type ID returns `AccountTypeNotFound`; a type with no applicable rules returns an empty array. Current accounts intentionally have no seeded rule.
 
 ## List accounts
 
@@ -104,4 +106,4 @@ The operation cannot add, remove, or replace customers. It requires exactly one 
 
 Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.
 
-Success mutations use `ApiMessageResponse<T>`. Expected failures use `ApiErrorResponse` with `code`, `name`, `message`, and `traceId`. Clients must branch on `code`, not message text.
+All successful responses use `ApiMessageResponse<T>`. Expected failures use `ApiErrorResponse` with `code`, `name`, `message`, and `traceId`. Clients must branch on `code`, not message text.

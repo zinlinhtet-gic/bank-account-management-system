@@ -18,6 +18,7 @@ public enum MessageCode
     TransactionSubmittedSuccessfully = 1201,
     TransactionRefundedSuccessfully = 1202,
     InterbankTransferSettledSuccessfully = 1203,
+    NrcPickupCodeReissuedSuccessfully = 1204,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -83,6 +84,7 @@ public enum MessageCode
     PickupAttemptsExceeded = 4449,
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
+    NrcPickupReceiverMismatch = 4452,
     LastManagerCannotBeRemoved = 4480,
 
     // Server / Infrastructure: 5000 - 5999

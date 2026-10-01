@@ -40,10 +40,12 @@ public sealed class AccountTypeService : IAccountTypeService
                 accountType.MinimumMaintainedBalance,
                 accountType.DailyTransactionLimit,
                 accountType.MonthlyTransactionLimit,
+                accountType.AllowDeposit,
                 accountType.AllowWithdrawal,
                 accountType.AllowTransfer,
                 accountType.AllowPartialWithdrawal,
                 accountType.RequiredProductId,
+                accountType.Category == AccountTypeCategory.FIXED,
                 accountType.AllowForeigner,
                 accountType.AllowCitizen,
                 accountType.CitizenRequiredRefer,
@@ -217,10 +219,12 @@ public sealed class AccountTypeService : IAccountTypeService
                 accountType.MinimumMaintainedBalance,
                 accountType.DailyTransactionLimit,
                 accountType.MonthlyTransactionLimit,
+                accountType.AllowDeposit,
                 accountType.AllowWithdrawal,
                 accountType.AllowTransfer,
                 accountType.AllowPartialWithdrawal,
                 accountType.RequiredProductId,
+                accountType.Category == AccountTypeCategory.FIXED,
                 accountType.AllowForeigner,
                 accountType.AllowCitizen,
                 accountType.CitizenRequiredRefer,
@@ -235,7 +239,10 @@ public sealed class AccountTypeService : IAccountTypeService
     {
         var accountType = await _dbContext.AccountTypes
             .AsNoTracking()
-            .FirstOrDefaultAsync(type => type.Id == accountTypeId, cancellationToken);
+            // Only active products can be opened; retired products are treated as unknown, matching the listings.
+            .FirstOrDefaultAsync(
+                type => type.Id == accountTypeId && type.Status == AvailableAccountTypeStatus,
+                cancellationToken);
 
         if (accountType is null)
         {

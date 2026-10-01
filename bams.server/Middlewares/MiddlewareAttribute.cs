@@ -33,20 +33,27 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
         var dbContext = httpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
         var cancellationToken = httpContext.RequestAborted;
 
-        var userStatus = await dbContext.Users
+        var userState = await dbContext.Users
             .AsNoTracking()
             .Where(user => user.Id == userId)
-            .Select(user => (UserStatus?)user.Status)
+            .Select(user => new { user.Status, user.MustChangePassword })
             .FirstOrDefaultAsync(cancellationToken);
 
         // A valid token for a user that no longer exists is treated as unauthenticated.
-        if (userStatus is null)
+        if (userState is null)
         {
             throw new UnauthorizedException(MessageCode.AuthenticationRequired);
         }
 
         // Disabled or deleted users keep no access even if they still hold an unexpired token.
-        userStatus.Value.EnsureCanSignIn();
+        userState.Status.EnsureCanSignIn();
+
+        // A new or reset user signs in with a published default password, so business endpoints stay closed until
+        // the password is changed. The auth endpoints (change-password, permissions, logout) use [Authorize] only.
+        if (userState.MustChangePassword)
+        {
+            throw new ForbiddenException(MessageCode.PasswordChangeRequired);
+        }
 
         if (!await HasAnyPermissionAsync(dbContext, userId, cancellationToken))
         {

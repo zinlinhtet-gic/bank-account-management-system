@@ -1037,6 +1037,9 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("AllowDeposit")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<bool>("AllowForeigner")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")

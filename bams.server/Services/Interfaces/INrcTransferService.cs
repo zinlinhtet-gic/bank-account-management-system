@@ -26,6 +26,16 @@ public interface INrcTransferService
         RequestActor actor,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Replaces the pickup code of a pending NRC transfer (lost code, or a create response that never arrived).
+    /// The old code stops working, failed attempts reset and the new code gets a fresh validity period.
+    /// The new code is returned once, in <see cref="TransactionResponse.PickupCode"/>, and is never stored.
+    /// </summary>
+    Task<TransactionResponse> ReissuePickupCodeAsync(
+        long transactionId,
+        RequestActor actor,
+        CancellationToken cancellationToken);
+
     Task<TransactionResponse> CancelTransferAsync(
         long transactionId,
         NrcCancelRequest request,

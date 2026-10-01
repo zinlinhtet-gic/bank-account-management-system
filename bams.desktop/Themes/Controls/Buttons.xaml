@@ -92,7 +92,7 @@
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="Background"
-                                    Value="{Binding (t:ThemeAssist.HoverBackground), RelativeSource={RelativeSource TemplatedParent}}"/>
+                                    Value="{Binding (t:ThemeAssist.HoverBackground), RelativeSource={RelativeSource TemplatedParent}, FallbackValue={StaticResource MutedBrush}}"/>
                             <Setter TargetName="Chrome" Property="BorderBrush"
                                     Value="{Binding (t:ThemeAssist.HoverBorderBrush), RelativeSource={RelativeSource TemplatedParent}}"/>
                             <Setter Property="Foreground"
@@ -100,7 +100,7 @@
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Background"
-                                    Value="{Binding (t:ThemeAssist.PressedBackground), RelativeSource={RelativeSource TemplatedParent}}"/>
+                                    Value="{Binding (t:ThemeAssist.PressedBackground), RelativeSource={RelativeSource TemplatedParent}, FallbackValue={StaticResource SecondaryBrush}}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>

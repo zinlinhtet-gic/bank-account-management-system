@@ -364,7 +364,9 @@ public sealed class AccountHolderService : IAccountHolderService
                 holder.CustomerId == customer.Id &&
                 holder.OwnershipType == OwnershipType.Individual &&
                 holder.Account != null &&
-                holder.Account.Status == AccountStatus.Active &&
+                // Frozen, suspended and dormant accounts still count, so a restriction cannot be bypassed by
+                // opening a second account of the same product; only closed accounts free the slot.
+                holder.Account.Status != AccountStatus.Closed &&
                 holder.Account.AccountTypeId == requestedAccountTypeId,
                 cancellationToken);
 

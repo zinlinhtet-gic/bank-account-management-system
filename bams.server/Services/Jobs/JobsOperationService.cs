@@ -223,7 +223,7 @@ public sealed class JobsOperationService : IJobsOperationService
                     .SetProperty(item => item.Status, ScheduledJobStatus.Failed)
                     .SetProperty(item => item.LastRunAtUtc, now)
                     .SetProperty(item => item.PendingScheduledAtUtc, (DateTime?)null)
-                    .SetProperty(item => item.NextRunAtUtc, registration.Schedule.GetNextRunAtUtc(now))
+                    .SetProperty(item => item.NextRunAtUtc, GetFollowingRunAtUtc(registration.Schedule, scheduledForUtc, now))
                     .SetProperty(item => item.LeaseToken, (string?)null)
                     .SetProperty(item => item.LeaseUntilUtc, (DateTime?)null)
                     .SetProperty(item => item.UpdatedAtUtc, now), cancellationToken);
@@ -246,6 +246,16 @@ public sealed class JobsOperationService : IJobsOperationService
         return new JobExecutionClaim(job, execution.Id, scheduledForUtc, execution.AttemptNumber, leaseToken);
     }
 
+    // Chooses the occurrence after a finished one. Calendar schedules advance from the occurrence itself, so every
+    // month missed while the server was down (or after a failed month) still runs in order; each processes its own
+    // period. Interval schedules advance from now so a long outage does not replay every missed tick.
+    private static DateTime GetFollowingRunAtUtc(JobSchedule schedule, DateTime scheduledForUtc, DateTime nowUtc)
+    {
+        return schedule.ScheduleType == ScheduledJobScheduleType.Interval
+            ? schedule.GetNextRunAtUtc(nowUtc)
+            : schedule.GetNextRunAtUtc(scheduledForUtc);
+    }
+
     // Keeps long-running handlers from losing their cross-instance lease.
     private async Task KeepLeaseAliveAsync(long jobId, string leaseToken,
         CancellationTokenSource executionCancellation, CancellationToken stoppingToken)
@@ -257,7 +267,21 @@ public sealed class JobsOperationService : IJobsOperationService
             await Task.Delay(heartbeatInterval, executionCancellation.Token);
             await using var scope = _scopeFactory.CreateAsyncScope();
             var operations = scope.ServiceProvider.GetRequiredService<IJobsOperationService>();
-            if (!await operations.RenewLeaseAsync(jobId, leaseToken, executionCancellation.Token))
+            bool renewed;
+            try
+            {
+                renewed = await operations.RenewLeaseAsync(jobId, leaseToken, executionCancellation.Token);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // A renewal that cannot be confirmed must stop the handler before the lease expires; otherwise
+                // another instance could claim the same occurrence and post it a second time. The exception is
+                // rethrown so the attempt is recorded as failed.
+                executionCancellation.Cancel();
+                throw;
+            }
+
+            if (!renewed)
             {
                 executionCancellation.Cancel();
                 return;
@@ -292,7 +316,7 @@ public sealed class JobsOperationService : IJobsOperationService
             execution.Status = ScheduledJobExecutionStatus.Succeeded;
             job.Status = ScheduledJobStatus.Succeeded;
             job.PendingScheduledAtUtc = null;
-            job.NextRunAtUtc = _registrations[claim.Job.JobKey].Schedule.GetNextRunAtUtc(now);
+            job.NextRunAtUtc = GetFollowingRunAtUtc(_registrations[claim.Job.JobKey].Schedule, claim.ScheduledForUtc, now);
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation("Scheduled job {JobKey} completed successfully.", claim.Job.JobKey);
@@ -310,7 +334,7 @@ public sealed class JobsOperationService : IJobsOperationService
         {
             job.Status = ScheduledJobStatus.Failed;
             job.PendingScheduledAtUtc = null;
-            job.NextRunAtUtc = _registrations[claim.Job.JobKey].Schedule.GetNextRunAtUtc(now);
+            job.NextRunAtUtc = GetFollowingRunAtUtc(_registrations[claim.Job.JobKey].Schedule, claim.ScheduledForUtc, now);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

@@ -2,6 +2,8 @@ using bams.desktop.Constants;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
 using Microsoft.Extensions.DependencyInjection;
+using bams.desktop.ViewModels.Pages.Accounting;
+using System.Printing;
 
 namespace bams.desktop.Services;
 
@@ -31,9 +33,14 @@ public sealed class NavigationService : INavigationService
             PageNames.AccountManagement => _serviceProvider.GetService<AccountManagementViewModel>(),
             PageNames.Transactions => _serviceProvider.GetService<TransactionsViewModel>(),
             PageNames.TransactionHistory => _serviceProvider.GetService<TransactionHistoryViewModel>(),
-            PageNames.Accounting => _serviceProvider.GetService<AccountingViewModel>(),
+            PageNames.GeneralLedger => _serviceProvider.GetService<GeneralLedgerViewModel>(),
+            PageNames.AccountingEntries => _serviceProvider.GetService<AccountingEntriesViewModel>(),
+            // Placeholder until reconciliation is built (shown by the generic page view).
+            PageNames.Reconciliation => _serviceProvider.GetService<ReconciliationViewModel>(),
             PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
             PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
+            // The Audit nav group's only page; shows the audit placeholder until it has its own view.
+            PageNames.TransactionAudit => _serviceProvider.GetService<AuditViewModel>(),
             PageNames.Configurations => _serviceProvider.GetService<ConfigurationsViewModel>(),
             //PageNames.CustomerList => _serviceProvider.GetService<CustomerListViewModel>(),
             _ => null

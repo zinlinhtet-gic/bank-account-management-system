@@ -18,6 +18,8 @@ public sealed class AccountType
 
     public decimal? MonthlyTransactionLimit { get; set; }
 
+    public bool AllowDeposit { get; set; }
+
     public bool AllowWithdrawal { get; set; }
 
     public bool AllowTransfer { get; set; }

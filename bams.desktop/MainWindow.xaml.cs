@@ -17,6 +17,9 @@ public partial class MainWindow : Window
     private readonly IDialogService _dialogService;
     private readonly ISessionService _sessionService;
 
+    // The shell of the signed-in user; shut down when the session ends.
+    private MainViewModel? _mainViewModel;
+
     public MainWindow(IServiceProvider serviceProvider)
     {
         InitializeComponent();
@@ -34,6 +37,9 @@ public partial class MainWindow : Window
 
     private void ShowLoginView()
     {
+        // The previous user's shell must stop its page work before anyone else signs in.
+        ShutdownMainApplication();
+
         var loginViewModel = _serviceProvider.GetRequiredService<LoginViewModel>();
         var loginView = _serviceProvider.GetRequiredService<LoginView>();
         loginView.DataContext = loginViewModel;
@@ -46,6 +52,7 @@ public partial class MainWindow : Window
         
         // Show login view, hide main app
         LoginContentControl.Content = loginView;
+        ChangePasswordContentControl.Content = null;
         ChangePasswordContentControl.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Collapsed;
     }
@@ -72,7 +79,8 @@ public partial class MainWindow : Window
         var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
 
         mainViewModel.OnLogoutRequested += HandleLogoutRequested;
-        
+        _mainViewModel = mainViewModel;
+
         // Set the data context for the main window
         DataContext = mainViewModel;
         
@@ -85,6 +93,21 @@ public partial class MainWindow : Window
 
         // Keep this user shown as online in User Management while the app is open.
         _sessionService.StartSession();
+    }
+
+    // Stops the previous user's shell (page loading, background refresh loops) and drops it as the window's
+    // DataContext, so nothing from that session keeps running once the sign-in screen is shown.
+    private void ShutdownMainApplication()
+    {
+        if (_mainViewModel is null)
+        {
+            return;
+        }
+
+        _mainViewModel.OnLogoutRequested -= HandleLogoutRequested;
+        _mainViewModel.Shutdown();
+        _mainViewModel = null;
+        DataContext = null;
     }
 
     // Asks the user to confirm, then ends the session (SessionEnded shows the sign-in screen).

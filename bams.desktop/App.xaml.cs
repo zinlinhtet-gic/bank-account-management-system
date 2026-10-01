@@ -1,4 +1,5 @@
 ﻿using System.Net.Http;
+using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Threading;
 using bams.desktop.Api;
@@ -9,6 +10,7 @@ using bams.desktop.ViewModels.Pages;
 using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
+using bams.desktop.ViewModels.Pages.Accounting;
 using System.Windows.Threading;
 
 namespace bams.desktop;
@@ -18,12 +20,19 @@ namespace bams.desktop;
 /// </summary>
 public partial class App : Application
 {
+    [ThreadStatic]
+    private static bool _handlingFirstChanceException;
+
     public static IServiceProvider? ServiceProvider { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        // Set true here to enable daily desktop diagnostic logs.
+        Properties["Debug Log"] = true;
+
+        AppDomain.CurrentDomain.FirstChanceException += OnFirstChanceException;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -39,8 +48,39 @@ public partial class App : Application
         mainWindow.Show();
     }
 
-    // Catches any exception a ViewModel or Service did not handle itself. Logs it and shows a
-    // generic message rather than letting the process die with no diagnostic trace.
+    private static void OnFirstChanceException(object? sender, FirstChanceExceptionEventArgs e)
+    {
+        if (_handlingFirstChanceException ||
+            !AppLog.IsEnabled ||
+            e.Exception is OperationCanceledException)
+        {
+            return;
+        }
+
+        var stackTrace = e.Exception.StackTrace;
+        if (stackTrace is null ||
+            (!stackTrace.Contains("bams.desktop.ViewModels.", StringComparison.Ordinal) &&
+             !stackTrace.Contains("Bams.Desktop.Components.NavBar.NavBarViewModel", StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        try
+        {
+            _handlingFirstChanceException = true;
+            AppLog.WriteError("Exception thrown while executing view-model code.", e.Exception);
+        }
+        catch (Exception loggingException)
+        {
+            // Diagnostic exception handling must never replace the application's original exception.
+            System.Diagnostics.Debug.WriteLine($"Could not log a view-model exception: {loggingException}");
+        }
+        finally
+        {
+            _handlingFirstChanceException = false;
+        }
+    }
+
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         MessageBox.Show(
@@ -99,11 +139,13 @@ public partial class App : Application
         services.AddTransient<UserManagementViewModel>();
         // services.AddTransient<CustomerManagementViewModel>();
         services.AddTransient<CustomerKYCViewModel>();
+        services.AddTransient<AccountingEntriesViewModel>();
         // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();
         services.AddTransient<TransactionHistoryViewModel>();
-        services.AddTransient<AccountingViewModel>();
+        services.AddTransient<GeneralLedgerViewModel>();
+        services.AddTransient<ReconciliationViewModel>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();
@@ -115,6 +157,10 @@ public partial class App : Application
 
         // Register main window
         services.AddTransient<MainWindow>();
+
+        // Register Accounting Service
+        services.AddScoped<IAccountingService, AccountingService>();
+
     }
 }
 

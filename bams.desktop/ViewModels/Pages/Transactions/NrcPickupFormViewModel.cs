@@ -2,36 +2,34 @@ using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Transactions;
 using bams.desktop.Exceptions;
-using bams.desktop.Models;
 using bams.desktop.Services;
 using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Transactions;
 
 /// <summary>
-/// NRC pickup at one of our branches: shows who may collect the money so the officer can check their NRC, takes the
-/// six-digit code and pays out in cash or into the receiver's account. Closes itself with <c>true</c> when the pickup
-/// completed. Wrong codes are counted by the server, which blocks the transfer after too many.
+/// NRC pickup at one of our branches: the officer enters the name and NRC from the collector's NRC card and the
+/// six-digit code, and the server pays out in cash only when they match the receiver the sender designated. Closes
+/// itself with <c>true</c> when the pickup completed. Mismatches and wrong codes are counted by the server, which
+/// blocks the transfer after too many.
 /// </summary>
 public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
 {
     private readonly ITransactionService _transactionService;
     private readonly TransactionDetailResponse _transfer;
 
+    private string _receiverName = string.Empty;
+    private string _receiverNrc = string.Empty;
     private string _pickupCode = string.Empty;
-    private bool _isPaidInCash = true;
-    private AccountOption? _destinationAccount;
     private string _formError = string.Empty;
     private bool _isBusy;
 
     public NrcPickupFormViewModel(
         ITransactionService transactionService,
-        TransactionDetailResponse transfer,
-        IReadOnlyList<AccountOption> accounts)
+        TransactionDetailResponse transfer)
     {
         _transactionService = transactionService;
         _transfer = transfer;
-        Accounts = accounts;
 
         SaveCommand = new AsyncRelayCommand(CompletePickupAsync, () => !IsBusy);
         CancelCommand = new RelayCommand(_ => CloseRequested?.Invoke(false), _ => CanCancel);
@@ -49,62 +47,54 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
 
     public string Subtitle => $"{_transfer.TransactionNo} · {TransactionDisplay.FormatMoney(_transfer.Amount)}";
 
-    public string ReceiverName => _transfer.NrcTransfer?.ReceiverName ?? DisplayFormats.EmptyValue;
-
-    public string ReceiverNrc => _transfer.NrcTransfer?.ReceiverNrc ?? DisplayFormats.EmptyValue;
-
     public string SenderText => _transfer.NrcTransfer is { } nrc ? $"{nrc.SenderName} · {nrc.SenderNrc}" : DisplayFormats.EmptyValue;
 
     public string ExpiresText => TransactionDisplay.FormatTimestamp(_transfer.NrcTransfer?.PickupExpiresAt);
 
     public string PickupLocationText => TransactionDisplay.OrDash(_transfer.NrcTransfer?.PickupLocation);
 
-    /// <summary>The receiver's possible accounts with us, for a payout into an account.</summary>
-    public IReadOnlyList<AccountOption> Accounts { get; }
-
-    /// <summary>Pay the receiver in cash over the counter (no account needed).</summary>
-    public bool IsPaidInCash
-    {
-        get => _isPaidInCash;
-        set
-        {
-            if (SetProperty(ref _isPaidInCash, value))
-            {
-                DestinationAccountError.Clear();
-                OnPropertyChanged(nameof(IsPaidIntoAccount));
-            }
-        }
-    }
-
-    /// <summary>Pay the money into the receiver's account with us.</summary>
-    public bool IsPaidIntoAccount
-    {
-        get => !IsPaidInCash;
-        set => IsPaidInCash = !value;
-    }
-
-    public AccountOption? DestinationAccount
-    {
-        get => _destinationAccount;
-        set
-        {
-            if (SetProperty(ref _destinationAccount, value))
-            {
-                DestinationAccountError.Clear();
-            }
-        }
-    }
-
-    public FieldError DestinationAccountError { get; } = new();
-
-    /// <summary>Earlier wrong codes, shown as a warning so the officer knows the transfer is close to being blocked.</summary>
+    /// <summary>Earlier failed pickups, shown as a warning so the officer knows the transfer is close to being blocked.</summary>
     public string AttemptsWarning => _transfer.NrcTransfer is { FailedPickupAttempts: > 0 } nrc
-        ? $"{nrc.FailedPickupAttempts} wrong code{(nrc.FailedPickupAttempts == 1 ? " was" : "s were")} entered before. Too many wrong codes block the transfer."
+        ? $"{nrc.FailedPickupAttempts} failed pickup{(nrc.FailedPickupAttempts == 1 ? " was" : "s were")} recorded before. Too many failed pickups block the transfer."
         : string.Empty;
 
     public bool HasAttemptsWarning => !string.IsNullOrEmpty(AttemptsWarning);
 
+    public int PersonNameMaximumLength => TransactionFieldRules.PersonNameMaximumLength;
+
+    public int NrcMaximumLength => TransactionFieldRules.NrcMaximumLength;
+
     public int PickupCodeLength => TransactionFieldRules.PickupCodeLength;
+
+    /// <summary>Full name as printed on the collector's NRC card.</summary>
+    public string ReceiverName
+    {
+        get => _receiverName;
+        set
+        {
+            if (SetProperty(ref _receiverName, value))
+            {
+                ReceiverNameError.Clear();
+            }
+        }
+    }
+
+    public FieldError ReceiverNameError { get; } = new();
+
+    /// <summary>NRC number as printed on the collector's NRC card.</summary>
+    public string ReceiverNrc
+    {
+        get => _receiverNrc;
+        set
+        {
+            if (SetProperty(ref _receiverNrc, value))
+            {
+                ReceiverNrcError.Clear();
+            }
+        }
+    }
+
+    public FieldError ReceiverNrcError { get; } = new();
 
     public string PickupCode
     {
@@ -120,7 +110,7 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
 
     public FieldError PickupCodeError { get; } = new();
 
-    /// <summary>Error that belongs to no single field (expired, blocked, network...).</summary>
+    /// <summary>Error that belongs to no single field (identity mismatch, expired, blocked, network...).</summary>
     public string FormError
     {
         get => _formError;
@@ -151,20 +141,21 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
 
     public bool IsNotBusy => !IsBusy;
 
-    // Checks the code and payout choice, then asks the server to verify the code and pay out.
+    // Checks the collector's identity fields and the code, then asks the server to verify them and pay out in cash.
     private async Task CompletePickupAsync()
     {
         FormError = string.Empty;
 
+        var name = ReceiverName.Trim();
+        var nrc = ReceiverNrc.Trim();
         var code = PickupCode.Trim();
+        ReceiverNameError.Set(name.Length == 0 ? "Enter the name on the collector's NRC card." : string.Empty);
+        ReceiverNrcError.Set(nrc.Length == 0 ? "Enter the NRC number on the collector's NRC card." : string.Empty);
         PickupCodeError.Set(code.Length != TransactionFieldRules.PickupCodeLength || !code.All(char.IsAsciiDigit)
             ? $"Enter the {TransactionFieldRules.PickupCodeLength}-digit code the sender received."
             : string.Empty);
-        DestinationAccountError.Set(IsPaidIntoAccount && DestinationAccount is null
-            ? "Please choose the receiver's account."
-            : string.Empty);
 
-        if (PickupCodeError.HasError || DestinationAccountError.HasError)
+        if (ReceiverNameError.HasError || ReceiverNrcError.HasError || PickupCodeError.HasError)
         {
             return;
         }
@@ -173,7 +164,7 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
         {
             IsBusy = true;
             await _transactionService.CompleteNrcPickupAsync(
-                new NrcPickupRequest(_transfer.Id, code, IsPaidIntoAccount ? DestinationAccount!.Id : null),
+                new NrcPickupRequest(_transfer.Id, code, name, nrc),
                 CancellationToken.None);
         }
         catch (AppException exception)

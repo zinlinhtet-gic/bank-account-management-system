@@ -62,34 +62,6 @@ public sealed class ApiClient
     }
 
     /// <summary>
-    /// Gets a raw JSON response for endpoints that do not use the standard success envelope.
-    /// </summary>
-    public async Task<TResponse> GetRawAsync<TResponse>(
-        string endpoint,
-        CancellationToken cancellationToken)
-    {
-        using var response = await SendRequestAsync(
-            () => _httpClient.GetAsync(endpoint, cancellationToken),
-            cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw CreateApiException(content);
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<TResponse>(content, SerializerOptions)
-                ?? throw new ApiException(MessageCode.InvalidServerResponse);
-        }
-        catch (JsonException)
-        {
-            throw new ApiException(MessageCode.InvalidServerResponse);
-        }
-    }
-
-    /// <summary>
     /// Posts multipart form data and returns the standard success envelope's data payload.
     /// </summary>
     public async Task<TResponse> PostMultipartAsync<TResponse>(
@@ -220,7 +192,7 @@ public sealed class ApiClient
     }
 
     /// <summary>
-    /// Sends a DELETE request. Succeeds on any 2xx status; the response body is not required.
+    /// Sends a DELETE request and validates the standard success envelope.
     /// </summary>
     /// <exception cref="ApiException">The server rejected the request.</exception>
     /// <exception cref="NetworkException">The server could not be reached or timed out.</exception>
@@ -228,15 +200,9 @@ public sealed class ApiClient
         string endpoint,
         CancellationToken cancellationToken)
     {
-        using var response = await SendRequestAsync(
+        _ = await SendAsync<bool>(
             () => _httpClient.DeleteAsync(endpoint, cancellationToken),
             cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw CreateApiException(content);
-        }
     }
 
     /// <summary>
@@ -318,7 +284,6 @@ public sealed class ApiClient
         }
     }
 
-    // Returns the success payload, or throws an ApiException built from the server's error body.
     private static async Task<TResponse> ReadResponseAsync<TResponse>(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

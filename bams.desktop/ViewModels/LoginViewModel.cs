@@ -118,13 +118,19 @@ public sealed class LoginViewModel : ViewModelBase
         return !IsBusy;
     }
 
-    // Authenticates the user through the service layer and sets up the auth context.
+    // Authenticates the user through the service layer and sets up the auth context. The next screen is opened only
+    // after the login attempt has fully finished, so a failure while building that screen is not reported as a
+    // failed login (and is left to the application's unhandled-exception handling).
     private async Task LoginAsync(CancellationToken cancellationToken)
     {
         if (IsBusy)
         {
             return;
         }
+
+        // Set once the server accepted the credentials; a later failure must undo the half-signed-in state.
+        var isTokenSet = false;
+        Action? openNextScreen = null;
 
         try
         {
@@ -150,6 +156,7 @@ public sealed class LoginViewModel : ViewModelBase
 
             // Set auth token for subsequent requests
             _authenticationService.SetAuthToken(response.Token);
+            isTokenSet = true;
 
             // Check if password change is required
             RequiresPasswordChange = response.RequiresPasswordChange;
@@ -166,43 +173,65 @@ public sealed class LoginViewModel : ViewModelBase
                     response.Token,
                     response.Expiration);
 
+                AppLog.WriteInformation("Login succeeded; password change is required before continuing.");
                 StatusMessage = "You must change your password before continuing.";
-                OnPasswordChangeRequired?.Invoke();
-                return;
+                openNextScreen = OnPasswordChangeRequired;
             }
+            else
+            {
+                // Fetch user permissions
+                var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
 
-            // Fetch user permissions
-            var permissionsResponse = await _authenticationService.GetPermissionsAsync(cancellationToken);
+                // Set up the auth context with user session
+                _authContext.SetSession(
+                    response.Username,
+                    response.FullName,
+                    response.Role,
+                    permissionsResponse.Permissions.ToList(),
+                    response.Token,
+                    response.Expiration);
+                _authContext.UserId = permissionsResponse.UserId;
 
-            // Set up the auth context with user session
-            _authContext.SetSession(
-                response.Username,
-                response.FullName,
-                response.Role,
-                permissionsResponse.Permissions.ToList(),
-                response.Token,
-                response.Expiration);
-            _authContext.UserId = permissionsResponse.UserId;
+                AppLog.WriteInformation("Login succeeded and user permissions were loaded.");
+                StatusMessage = $"Welcome, {response.FullName}! Logged in as {response.Role}";
 
-            StatusMessage = $"Welcome, {response.FullName}! Logged in as {response.Role}";
-
-            // Navigate to main application
-            OnLoginSuccess?.Invoke();
+                // Navigate to main application once the attempt has finished (below).
+                openNextScreen = OnLoginSuccess;
+            }
         }
         catch (AppException exception)
         {
             // Server and network failures already carry a user-facing message for their MessageCode
             // (e.g. InvalidCredentials, UserAccountDisabled, NetworkUnavailable).
+            AppLog.WriteError("Login failed because of an application or service error.", exception);
+            ClearSignedInStateIfSet(isTokenSet);
             ErrorMessage = exception.Message;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            LogError("Login failed unexpectedly.", exception);
+            ClearSignedInStateIfSet(isTokenSet);
             ErrorMessage = MessageCatalog.GetMessage(MessageCode.ClientError);
         }
         finally
         {
             IsBusy = false;
         }
+
+        openNextScreen?.Invoke();
+    }
+
+    // A step after the token was accepted failed (e.g. loading permissions), so the user is not signed in:
+    // drop the bearer token and any session state so no later request runs as this user.
+    private void ClearSignedInStateIfSet(bool isTokenSet)
+    {
+        if (!isTokenSet)
+        {
+            return;
+        }
+
+        _authenticationService.ClearAuthToken();
+        _authContext.ClearSession();
     }
 
     // Event raised when login is successful for navigation purposes

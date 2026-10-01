@@ -9,10 +9,15 @@ public interface IAccountTransactionService
     /// <summary>Gets transaction entries for an account, newest first.</summary>
     Task<IReadOnlyList<AccountTransactionDetailResponse>> GetAccountTransactionsAsync(long accountId, CancellationToken cancellationToken);
 
-    /// <summary>Records the opening transaction for a newly created account.</summary>
+    /// <summary>
+    /// Posts the opening deposit of a newly created (already saved) account as a completed cash deposit:
+    /// debit Cash on Hand, credit Customer Deposits and the account. Nothing is posted for a zero balance.
+    /// The caller saves and commits.
+    /// </summary>
     Task RecordAccountOpeningTransactionAsync(
         Account account,
         decimal openingBalance,
+        long initiatedByUserId,
         DateTime currentDateTime,
         CancellationToken cancellationToken);
 
