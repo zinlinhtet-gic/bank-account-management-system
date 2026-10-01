@@ -9,61 +9,61 @@
         xmlns:local="clr-namespace:bams.desktop"
         xmlns:viewmodels="clr-namespace:bams.desktop.ViewModels"
         xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages"
+        xmlns:configviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Configuration"
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
+        xmlns:configpages="clr-namespace:bams.desktop.Views.Pages.Configuration"
         xmlns:accountingViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Accounting"
         xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting"
         mc:Ignorable="d"
         Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
+        WindowState="Maximized"
         FontFamily="{StaticResource SansFont}"
         FontSize="{StaticResource FontSizeBody}"
         Foreground="{StaticResource ForegroundBrush}"
         Background="{StaticResource BackgroundBrush}">
     <Grid>
         <!-- Login View -->
-        <ContentControl x:Name="LoginContentControl" Content="{Binding LoginView}"/>
-        
+        <ContentControl x:Name="LoginContentControl" Content="{Binding LoginView}" />
         <!-- Change Password View -->
-        <ContentControl x:Name="ChangePasswordContentControl" Visibility="Collapsed"/>
-        
+        <ContentControl x:Name="ChangePasswordContentControl" Visibility="Collapsed" />
         <!-- Main Application Shell -->
         <!-- Opaque so pages never need their own background and nothing underneath can show through. -->
         <Grid x:Name="MainAppGrid" Visibility="Collapsed" Background="{StaticResource BackgroundBrush}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="{StaticResource NavBarHeaderRowHeight}"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="{StaticResource NavBarHeaderRowHeight}" />
+                <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-
-            <nav:NavBar x:Name="Nav" Grid.RowSpan="2" DataContext="{Binding NavBar}"/>
-
-            <header:Header Grid.Row="0"
-                       Grid.Column="1"
-                       SelectedTitle="{Binding ActiveItem}"/>
+            <nav:NavBar x:Name="Nav" Grid.RowSpan="2" DataContext="{Binding NavBar}" />
+            <header:Header Grid.Row="0" Grid.Column="1" SelectedTitle="{Binding ActiveItem}" />
             <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}">
                 <!-- WPF picks the template whose DataType is the most specific match for CurrentPage. -->
                 <ContentControl.Resources>
                     <!-- Fallback placeholder for pages that do not have their own view yet. -->
                     <DataTemplate DataType="{x:Type viewmodels:ViewModelBase}">
-                        <pages:GenericPageView/>
+                        <pages:GenericPageView />
                     </DataTemplate>
-
                     <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">
-                        <pages:AccountManagementView/>
+                        <pages:AccountManagementView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type pageviewmodels:UserManagementViewModel}">
-                        <pages:UserManagementView/>
+                        <pages:UserManagementView />
                     </DataTemplate>
-
+                    <DataTemplate DataType="{x:Type pageviewmodels:CustomerListViewModel}">
+                        <pages:CustomerListView />
+                    </DataTemplate>
+                    <!-- <DataTemplate DataType="{x:Type pageviewmodels:CustomerListViewModel}">
+                        <pages:CustomerListView/>
+                    </DataTemplate> -->
                     <DataTemplate DataType="{x:Type pageviewmodels:TransactionsViewModel}">
-                        <pages:TransactionsView/>
+                        <pages:TransactionsView />
                     </DataTemplate>
-
                     <DataTemplate DataType="{x:Type pageviewmodels:TransactionHistoryViewModel}">
-                        <pages:TransactionHistoryView/>
+                        <pages:TransactionHistoryView />
                     </DataTemplate>
 
                     <DataTemplate DataType="{x:Type accountingViewModels:GeneralLedgerViewModel}">
@@ -79,10 +79,24 @@
                     </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:
-                    <DataTemplate DataType="{x:Type pageviewmodels:CustomerManagementViewModel}">
-                        <pages:CustomerManagementView/>
+                    <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">
+                        <pages:AccountManagementView/>
                     </DataTemplate>
                     -->
+
+                    <!-- Configuration sub-pages -->
+                    <DataTemplate DataType="{x:Type configviewmodels:InterestRateViewModel}">
+                        <configpages:InterestRateView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:FeeRateViewModel}">
+                        <configpages:FeeRateView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:BankPoliciesViewModel}">
+                        <configpages:BankPoliciesView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:OtherBanksViewModel}">
+                        <configpages:OtherBanksView/>
+                    </DataTemplate>
                 </ContentControl.Resources>
             </ContentControl>
         </Grid>

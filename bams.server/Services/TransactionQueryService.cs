@@ -70,6 +70,7 @@ public sealed class TransactionQueryService : ITransactionQueryService
         }
 
         var totalCount = await transactions.CountAsync(cancellationToken);
+        var TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
         var items = await transactions
             .OrderByDescending(transaction => transaction.TransactionAt)
             .ThenByDescending(transaction => transaction.Id)
@@ -86,7 +87,7 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 transaction.ReferenceNo))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<TransactionSummaryResponse>(items, page, pageSize, totalCount);
+        return new PagedResponse<TransactionSummaryResponse>(items, page, pageSize, totalCount, TotalPages);
     }
 
     /// <summary>
@@ -235,6 +236,7 @@ public sealed class TransactionQueryService : ITransactionQueryService
         }
 
         var totalCount = await entries.CountAsync(cancellationToken);
+        var TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
         var items = await entries
             .OrderByDescending(entry => entry.CreatedAt)
             .ThenByDescending(entry => entry.Id)
@@ -254,6 +256,6 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 entry.ReferenceNo))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<AccountStatementLineResponse>(items, page, pageSize, totalCount);
+        return new PagedResponse<AccountStatementLineResponse>(items, page, pageSize, totalCount, TotalPages);
     }
 }

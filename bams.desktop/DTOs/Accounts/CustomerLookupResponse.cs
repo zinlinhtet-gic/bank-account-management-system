@@ -1,5 +1,5 @@
 namespace bams.desktop.DTOs.Accounts;
-
+using bams.desktop.DTOs.Customers;
 public sealed record CustomerLookupResponse(
     long Id,
     string CustomerNo,
@@ -9,4 +9,5 @@ public sealed record CustomerLookupResponse(
     string? Phone,
     string? Email,
     string Status,
-    CustomerType CustomerType);
+    CustomerType CustomerType,
+    KycStatus KycStatus);

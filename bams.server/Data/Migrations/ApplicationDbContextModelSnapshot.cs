@@ -623,11 +623,6 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime?>("IssuedDate")
                         .HasColumnType("date");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
                     b.Property<DateTime?>("VerifiedAt")
                         .HasColumnType("datetime(6)");
 
@@ -890,33 +885,33 @@ namespace bams.server.Data.Migrations
 
             modelBuilder.Entity("bams.server.Models.Organization.Branch", b =>
             {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-                    b.Property<string>("City")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                b.Property<long>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("bigint");
+                b.Property<string>("City")
+                    .HasMaxLength(100)
+                    .HasColumnType("varchar(100)");
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar(150)");
+                b.Property<string>("Code")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("varchar(20)");
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasMaxLength(150)
+                    .HasColumnType("varchar(150)");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("varchar(20)");
 
-                    b.HasKey("Id");
+                b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
+                b.HasIndex("Code")
+                    .IsUnique();
 
-                    b.ToTable("Branches");
+                b.ToTable("Branches");
             });
             modelBuilder.Entity("bams.server.Models.Jobs.ScheduledJob", b =>
                 {
@@ -1861,7 +1856,7 @@ namespace bams.server.Data.Migrations
             modelBuilder.Entity("bams.server.Models.Customers.CustomerDocument", b =>
                 {
                     b.HasOne("bams.server.Models.Customers.Customer", "Customer")
-                        .WithMany()
+                        .WithMany("Documents")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2207,6 +2202,10 @@ namespace bams.server.Data.Migrations
                     b.Navigation("Transaction");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Customers.Customer", b =>
+                {
+                    b.Navigation("Documents");
+                });
             modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
                 {
                     b.Navigation("AccountHolders");

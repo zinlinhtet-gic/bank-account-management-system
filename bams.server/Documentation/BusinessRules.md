@@ -5,6 +5,7 @@
 - Opening balances must satisfy the selected product's minimum.
 - New accounts start in `AccountStatus.Active`.
 - A customer cannot hold more than one active individual account of the same product.
+- If an account type configures `RequiredProductId`, at least one selected customer must own an active account of that product before the new account can be opened.
 - Account types may allow citizens, foreigners, or both; account creation rejects any holder whose `CustomerType` is disallowed.
 - `CitizenRequiredRefer` and `ForeignRequiredRefer` are nonnegative minimum counts. Joint accounts require the sum of each holder's applicable minimum.
 - Each supplied referrer NRC must resolve to a distinct existing customer with at least one account-holder relationship. Referrer links are stored against the new account in the account-creation transaction.
@@ -34,7 +35,8 @@
 - Normal Deposit, Special Deposit, and Hundred-Days Deposit are fixed-deposit products.
 - Creation requires an applicable interest-rate rule, renewal instruction, and calculation-source flag.
 - The calculation-source flag is immutable after creation.
-- Each fixed-deposit product requires an eligible individual payout account owned by the primary holder.
+- The payout account must be active, individually owned by the primary holder, and not a fixed-deposit account. If omitted, the server selects the first eligible account.
+- `RequiredProductId` controls whether the customer is eligible to open a product; it does not restrict the payout account.
 - Current principal cannot be negative; Closed and Cancelled deposits are terminal.
 - The HTTP update can change only payout account and renewal instruction.
 - Internal workflows may update current principal, status, or both atomically.
@@ -166,6 +168,30 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 | NRC pickup at our branch, in cash | NRC Transfers Payable | Cash on Hand |
 | NRC paid out by another bank | NRC Transfers Payable | Due from Other Banks |
 | NRC cancelled (refund) | NRC Transfers Payable | Cash on Hand, or Customer Deposits (sender) |
+
+## Customers
+
+- Full name is required (leading/trailing whitespace is trimmed before saving).
+- Date of birth cannot be in the future and the customer must be at least `CustomerConstants.MinimumAgeYears` old.
+- Citizen customers (`CustomerType.Citizen`) require an NRC number; foreigner customers (`CustomerType.Foreigner`) require a passport number.
+- When supplied, the customer email must match `CustomerConstants.CustomerEmailRegexPattern`.
+- A new customer cannot share an NRC number, passport number, or email with an existing customer.
+- New customers are created with `RiskLevel.Low`, `KycStatus.Pending`, and status `CustomerConstants.DefaultStatus` ("Inactive" until KYC is verified).
+- Customer numbers are sequential, formatted as `CustomerConstants.CustomerNumberPrefix` + an 8-digit running sequence (e.g. `CUS00000001`), computed by `CustomerNumberGenerator` from the highest existing customer number.
+- A create-customer request may include zero or more `CustomerDocument` entries (NRC, passport, proof of address, etc.), each with an optional uploaded file. Documents no longer track their own verification status — a document is considered verified once `VerifiedAt`/`VerifiedBy` are set (see `CustomerDocument`); until then it is implicitly pending.
+- Customer creation, its documents, and the database save all happen inside one database transaction (`CustomerService.CreateCustomerAsync`). Uploaded files are written to disk before the transaction commits; if the transaction fails for any reason, any files already written are deleted so storage does not accumulate orphaned uploads.
+- Uploaded document files must be non-empty (`IFileStorageService.SaveAsync` rejects empty files with `MessageCode.CustomerDocumentFileEmpty`).
+- Updating a customer (`PATCH /api/customers/{id}`) is a partial/merge update: only properties supplied (non-null) in the request are changed; omitted properties keep their current value. The same field validation and NRC/passport/email uniqueness rules as creation apply to the merged (existing + supplied) values, and the uniqueness check excludes the customer being updated.
+- An update request may also add and/or edit documents in the same call: a `Documents` entry with an `Id` edits that existing document (only its supplied fields change, and a supplied file replaces the stored one); an entry without an `Id` adds a new document and must specify `DocumentType` (`MessageCode.CustomerDocumentTypeRequired` otherwise). An `Id` that doesn't belong to the customer fails with `MessageCode.CustomerDocumentNotFound`.
+- When a document's file is replaced during an update, the old file on disk is only deleted after the database save commits successfully, so a failed update never leaves a document pointing at a file that no longer exists.
+- KYC review (`POST /api/customers/{id}/kyc-review`) sets `Customer.KycStatus` to `Verified` or `Rejected` — `Pending` is not a valid review outcome (`MessageCode.InvalidKycReviewStatus`). The reviewing user must exist (`MessageCode.KycReviewerNotFound` otherwise) and must hold the `RoleConstants.Manager` role (`MessageCode.AccessDenied` via `ForbiddenException` otherwise — only a Branch Manager may review KYC). No new fields were added to `Customer` for this: approving (`Verified`) stamps `VerifiedAt`/`VerifiedBy` on every one of the customer's existing `CustomerDocument` records using the already-existing per-document fields; rejecting only changes `Customer.KycStatus` and leaves documents untouched.
+- Account creation requires every individual or joint account holder to have `KycStatus.Verified`. The account-opening NRC lookup returns that status so the desktop can explain and block the action early; `AccountHolderService` validates it again on account creation and rejects pending or rejected KYC with `MessageCode.AccountHolderKycNotVerified`.
+
+## Security (Users / Roles)
+
+- Three roles exist: `RoleConstants.Manager` ("Branch Manager"), `RoleConstants.Officer`, `RoleConstants.Auditor`.
+- In Development only, `SecuritySeeder` seeds these three roles and one example user per role (`manager1`, `officer1`, `auditor1`) with a placeholder (non-real) password hash, if the `Roles`/`Users` tables are empty. It never runs, and never overwrites existing data, outside `IsDevelopment()`.
+- No authentication is implemented yet, so role-restricted endpoints (like KYC review) take the acting user's Id directly in the request body rather than reading it from an authenticated session.
 
 ## Users
 
