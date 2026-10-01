@@ -2,6 +2,9 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using bams.server.Constants;
+using bams.server.Configuration;
 using bams.server.Data;
 using bams.server.Data.Seeders;
 using bams.server.DTO.Common;
@@ -9,7 +12,10 @@ using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services;
 using bams.server.Services.Interfaces;
+using bams.server.Services.Jobs;
+using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +31,15 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySQL(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.Configure<FileUploadOptions>(
+    builder.Configuration.GetSection(FileUploadOptions.SectionName));
+var maximumUploadRequestSize = builder.Configuration.GetValue<long?>(
+    $"{FileUploadOptions.SectionName}:MaximumRequestSizeBytes")
+    ?? FileUploadOptions.DefaultMaximumRequestSizeBytes;
+builder.Services.Configure<FormOptions>(options =>
+    options.MultipartBodyLengthLimit = maximumUploadRequestSize);
+builder.WebHost.ConfigureKestrel(options =>
+    options.Limits.MaxRequestBodySize = maximumUploadRequestSize);
 
 // Configure JWT authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not found in configuration");
@@ -88,10 +103,70 @@ builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<CustomerNumberGenerator>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 
+// builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
+// builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
+builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<LedgerPostingService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
+builder.Services.AddScoped<INrcTransferService, NrcTransferService>();
+builder.Services.AddScoped<ITransactionQueryService, TransactionQueryService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
+builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
+builder.Services.AddScoped<IAccountRefererService, AccountRefererService>();
+builder.Services.AddScoped<IInterestRateRuleService, InterestRateRuleService>();
+builder.Services.AddScoped<IFixedDepositService, FixedDepositService>();
+builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IAccountTransactionService, AccountTransactionService>();
+builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
+builder.Services.AddScoped<IScheduledTransactionService, ScheduledTransactionService>();
+builder.Services.AddScoped<IGeneralLedgerPostingService, GeneralLedgerPostingService>();
+builder.Services.AddScoped<ScheduledFinancialPostingService>();
+builder.Services.AddScoped<AccountMaintenanceService>();
+builder.Services.AddScoped<InterestAccumulationService>();
+builder.Services.AddScoped<ProductSeeder>();
+builder.Services.AddScoped<InterestRateRuleSeeder>();
+builder.Services.AddScoped<FeeRuleSeeder>();
+builder.Services.AddScoped<TestDataSeeder>();
+builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
+{
+    var monthlyAtMyanmarMidnight = JobSchedule.Monthly(5, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
+    jobs.Add<AccountMaintenanceService>(
+        "account-maintenance",
+        "Account Maintenance",
+        monthlyAtMyanmarMidnight,
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+    jobs.Add<InterestAccumulationService>(
+        "interest-accumulation",
+        "Interest Accumulation",
+        monthlyAtMyanmarMidnight,
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+});
 
 var app = builder.Build();
+
+// Apply schema changes before idempotently populating product reference data.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+
+    var productSeeder = scope.ServiceProvider.GetRequiredService<ProductSeeder>();
+    await productSeeder.SeedAsync();
+
+    // Populate deterministic sample customers and accounts only in development environments.
+    if (app.Environment.IsDevelopment())
+    {
+        var testDataSeeder = scope.ServiceProvider.GetRequiredService<TestDataSeeder>();
+        await testDataSeeder.SeedAsync();
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -120,6 +195,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
+    await BranchSeeder.SeedBranchesAsync(dbContext);
 }
 
 app.Run();

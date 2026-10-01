@@ -8,6 +8,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <!-- Shared design system: colours, fonts, icons and control styles. -->
                 <ResourceDictionary Source="Themes/Theme.xaml"/>
+                <!-- Transaction status / entry badges (after the theme they build on). -->
+                <ResourceDictionary Source="Views/Pages/Transactions/TransactionStyles.xaml"/>
                 <!-- Dialog ViewModel → View templates for IDialogService.ShowDialog (after the theme they use). -->
                 <ResourceDictionary Source="Views/DialogTemplates.xaml"/>
             </ResourceDictionary.MergedDictionaries>
