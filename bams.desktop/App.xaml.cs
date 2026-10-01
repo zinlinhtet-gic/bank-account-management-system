@@ -92,6 +92,17 @@ public partial class App : Application
         e.Handled = true;
     }
 
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        var exception = e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString());
+        AppLog.WriteError($"Unhandled application exception. IsTerminating={e.IsTerminating}.", exception);
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        AppLog.WriteError("Unobserved task exception.", e.Exception);
+    }
+
     private void ConfigureServices(IServiceCollection services)
     {
         // Register AuthContext instance (singleton pattern)
