@@ -117,10 +117,13 @@ builder.Services.AddHttpContextAccessor();
 // -------------------------
 // Services define here
 // -------------------------
-
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<CustomerNumberGenerator>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+
 builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
-builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
 builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
@@ -153,6 +156,10 @@ builder.Services.AddScoped<FeeRuleSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOtherBankService, OtherBankService>();
+builder.Services.AddScoped<IInterestRateService, InterestRateService>();
+builder.Services.AddScoped<IFeeRateService, FeeRateService>();
+builder.Services.AddScoped<IBankPolicyService, BankPolicyService>();
 builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
 {
     var monthlyAtMyanmarMidnight = JobSchedule.Monthly(5, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
@@ -197,6 +204,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
+
 }
 else
 {
@@ -213,5 +221,15 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapStaticAssets();
+
+// Seed security data on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await OtherBankSeeder.SeedAsync(dbContext);
+    await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
+    await BranchSeeder.SeedBranchesAsync(dbContext);
+}
 
 app.Run();

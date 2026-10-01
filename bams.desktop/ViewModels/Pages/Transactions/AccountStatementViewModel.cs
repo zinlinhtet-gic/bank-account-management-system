@@ -207,7 +207,7 @@ public sealed class AccountStatementViewModel : ViewModelBase, IDialogViewModel
                 Lines.Add(StatementLineDisplayModel.FromResponse(line));
             }
 
-            Page = result.Page;
+            Page = result.PageNumber;
             _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));
         }

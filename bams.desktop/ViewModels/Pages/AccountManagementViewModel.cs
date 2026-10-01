@@ -47,13 +47,6 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private int _maxCreateStepReached = 1;
     private CustomerLookupResponse? _holder1;
     private CustomerLookupResponse? _holder2;
-    private bool _showCustomerRegistrationForm;
-    private string _registrationFullName = string.Empty;
-    private string _registrationNrc = string.Empty;
-    private string _registrationDateOfBirth = string.Empty;
-    private string _registrationPhone = string.Empty;
-    private string _registrationEmail = string.Empty;
-    private CustomerType _registrationCustomerType = CustomerType.Citizen;
     private bool _showStatusDialog;
     private string? _statusToApply;
     private string _statusReason = string.Empty;
@@ -84,13 +77,12 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             parameter => OpenAccountAsync(parameter),
             parameter => parameter is AccountSummaryResponse && !IsBusy);
         CreateAccountCommand = new AsyncRelayCommand(CreateAccountAsync, () => !IsBusy);
-        ContinueCreateStepCommand = new AsyncRelayCommand(ContinueCreateStepAsync);
+        ContinueCreateStepCommand = new AsyncRelayCommand(ContinueCreateStepAsync, CanContinueCreateStep);
         BackCreateStepCommand = new RelayCommand(_ => MoveToCreateStep(Math.Max(1, CreateStep - 1), "Previous step button"));
         GoToCreateStepCommand = new RelayCommand(NavigateToCreateStep, CanNavigateToCreateStep);
         AddRefererInputCommand = new RelayCommand(_ => RefererInputs.Add(new AccountRefererInputViewModel()));
         RemoveRefererInputCommand = new RelayCommand(RemoveRefererInput);
         LookupCustomersCommand = new AsyncRelayCommand(LookupCustomersAsync);
-        CreateCustomerCommand = new AsyncRelayCommand(CreateCustomerAsync, () => !IsBusy);
         OpenStatusDialogCommand = new AsyncRelayCommand(OpenStatusDialogAsync, parameter => !IsBusy && IsStatusActionAvailable(parameter));
         CancelStatusDialogCommand = new RelayCommand(_ => ShowStatusDialog = false);
         ApplyStatusCommand = new AsyncRelayCommand(ApplyStatusAsync);
@@ -112,7 +104,6 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public AsyncRelayCommand ContinueCreateStepCommand { get; }
     public RelayCommand BackCreateStepCommand { get; }
     public AsyncRelayCommand LookupCustomersCommand { get; }
-    public AsyncRelayCommand CreateCustomerCommand { get; }
     public AsyncRelayCommand OpenStatusDialogCommand { get; }
     public RelayCommand CancelStatusDialogCommand { get; }
     public AsyncRelayCommand ApplyStatusCommand { get; }
@@ -128,7 +119,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public bool IsListScreen => Screen == "List";
     public bool IsCreateScreen => Screen == "Create";
     public bool IsDetailScreen => Screen == "Detail";
-    public int CreateStep { get => _createStep; private set { if (SetProperty(ref _createStep, value)) { OnPropertyChanged(nameof(CreateStepTitle)); OnPropertyChanged(nameof(IsStep1)); OnPropertyChanged(nameof(IsStep2)); OnPropertyChanged(nameof(IsStep3)); OnPropertyChanged(nameof(IsStep4)); OnPropertyChanged(nameof(IsStep5)); OnPropertyChanged(nameof(IsNotStep5)); NotifyStepperState(); } } }
+    public int CreateStep { get => _createStep; private set { if (SetProperty(ref _createStep, value)) { OnPropertyChanged(nameof(CreateStepTitle)); OnPropertyChanged(nameof(IsStep1)); OnPropertyChanged(nameof(IsStep2)); OnPropertyChanged(nameof(IsStep3)); OnPropertyChanged(nameof(IsStep4)); OnPropertyChanged(nameof(IsStep5)); OnPropertyChanged(nameof(IsNotStep5)); NotifyStepperState(); ContinueCreateStepCommand.RaiseCanExecuteChanged(); } } }
     public int MaxCreateStepReached
     {
         get => _maxCreateStepReached;
@@ -165,18 +156,10 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public bool IsNotStep5 => CreateStep != 5;
     public int PageNumber { get => _pageNumber; private set { if (SetProperty(ref _pageNumber, value)) { PreviousPageCommand.RaiseCanExecuteChanged(); OnPropertyChanged(nameof(PageLabel)); } } }
     public string PageLabel => $"Page {PageNumber}";
-    public CustomerLookupResponse? Holder1 { get => _holder1; private set { if (SetProperty(ref _holder1, value)) { UpdateRequiredRefererInputs(); LockStepsAfterCurrent(); } } }
-    public CustomerLookupResponse? Holder2 { get => _holder2; private set { if (SetProperty(ref _holder2, value)) { UpdateRequiredRefererInputs(); LockStepsAfterCurrent(); } } }
-    public bool ShowCustomerRegistrationForm { get => _showCustomerRegistrationForm; private set => SetProperty(ref _showCustomerRegistrationForm, value); }
-    public string RegistrationFullName { get => _registrationFullName; set => SetProperty(ref _registrationFullName, value); }
-    public string RegistrationNrc { get => _registrationNrc; private set => SetProperty(ref _registrationNrc, value); }
-    public string RegistrationDateOfBirth { get => _registrationDateOfBirth; set => SetProperty(ref _registrationDateOfBirth, value); }
-    public string RegistrationPhone { get => _registrationPhone; set => SetProperty(ref _registrationPhone, value); }
-    public string RegistrationEmail { get => _registrationEmail; set => SetProperty(ref _registrationEmail, value); }
-    public CustomerType RegistrationCustomerType { get => _registrationCustomerType; set => SetProperty(ref _registrationCustomerType, value); }
-    public IReadOnlyList<CustomerType> CustomerTypes { get; } = [CustomerType.Citizen, CustomerType.Foreigner];
+    public CustomerLookupResponse? Holder1 { get => _holder1; private set { if (SetProperty(ref _holder1, value)) { UpdateRequiredRefererInputs(); LockStepsAfterCurrent(); PayoutAccounts.Clear(); PayoutAccountId = null; ContinueCreateStepCommand.RaiseCanExecuteChanged(); } } }
+    public CustomerLookupResponse? Holder2 { get => _holder2; private set { if (SetProperty(ref _holder2, value)) { UpdateRequiredRefererInputs(); LockStepsAfterCurrent(); ContinueCreateStepCommand.RaiseCanExecuteChanged(); } } }
     public ObservableCollection<AccountTypeResponse> EligibleAccountTypes { get; } = [];
-    public ObservableCollection<OwnedAccountOptionResponse> OwnedAccounts { get; } = [];
+    public ObservableCollection<OwnedAccountOptionResponse> PayoutAccounts { get; } = [];
     public ObservableCollection<AccountTypeRequiredDocumentResponse> RequiredDocuments { get; } = [];
     public ObservableCollection<AccountTransactionDetailResponse> AccountTransactions { get; } = [];
     public ObservableCollection<AccountStatusHistoryResponse> AccountStatusHistory { get; } = [];
@@ -220,8 +203,10 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                 OnPropertyChanged(nameof(RequiredRefererCount));
                 UpdateRequiredRefererInputs();
                 LoadRequiredDocumentInputs(value?.Id);
+                PayoutAccountId = null;
                 _ = LoadInterestRateRulesAsync(value?.Id);
                 LockStepsAfterCurrent();
+                ContinueCreateStepCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -230,7 +215,13 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     public InterestRateRuleResponse? SelectedInterestRateRule
     {
         get => _selectedInterestRateRule;
-        set => SetProperty(ref _selectedInterestRateRule, value);
+        set
+        {
+            if (SetProperty(ref _selectedInterestRateRule, value))
+            {
+                ContinueCreateStepCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public AccountListPageViewModel ListPage { get; }
@@ -287,13 +278,6 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     // True when two NRC entries name different people (ignores surrounding spaces and letter case).
     private static bool IsDifferentNrc(string? previous, string? current) =>
         !string.Equals(previous?.Trim(), current?.Trim(), StringComparison.OrdinalIgnoreCase);
-
-    // Hides the "register missing customer" form, which was opened for an NRC that has since changed.
-    private void HideCustomerRegistrationForm()
-    {
-        ShowCustomerRegistrationForm = false;
-        RegistrationNrc = string.Empty;
-    }
 
     private void AdvanceCreateStep(int nextStep)
     {
@@ -377,7 +361,6 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             {
                 // The looked-up customer belonged to the old NRC; it must be looked up again.
                 Holder1 = null;
-                HideCustomerRegistrationForm();
             }
         }
     }
@@ -391,16 +374,25 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             {
                 // The looked-up customer belonged to the old NRC; it must be looked up again.
                 Holder2 = null;
-                HideCustomerRegistrationForm();
             }
         }
     }
     public string OwnershipPercentage1 { get => _ownershipPercentage1; set => SetProperty(ref _ownershipPercentage1, value); }
     public string OwnershipPercentage2 { get => _ownershipPercentage2; set => SetProperty(ref _ownershipPercentage2, value); }
     public string SigningRule { get => _signingRule; set => SetProperty(ref _signingRule, value); }
-    public bool IsSharedAccount { get => _isSharedAccount; set { if (SetProperty(ref _isSharedAccount, value)) { OnPropertyChanged(nameof(IsIndividualAccount)); LockStepsAfterCurrent(); } } }
+    public bool IsSharedAccount { get => _isSharedAccount; set { if (SetProperty(ref _isSharedAccount, value)) { OnPropertyChanged(nameof(IsIndividualAccount)); LockStepsAfterCurrent(); ContinueCreateStepCommand.RaiseCanExecuteChanged(); } } }
     public bool IsIndividualAccount { get => !IsSharedAccount; set { if (value) IsSharedAccount = false; } }
-    public long? PayoutAccountId { get => _payoutAccountId; set => SetProperty(ref _payoutAccountId, value); }
+    public long? PayoutAccountId
+    {
+        get => _payoutAccountId;
+        set
+        {
+            if (SetProperty(ref _payoutAccountId, value))
+            {
+                ContinueCreateStepCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
     public string RenewalInstruction { get => _renewalInstruction; set => SetProperty(ref _renewalInstruction, value); }
     public bool CalculateFromCurrent { get => _calculateFromCurrent; set => SetProperty(ref _calculateFromCurrent, value); }
     public bool IsBusy
@@ -413,12 +405,12 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                 SearchAccountsCommand.RaiseCanExecuteChanged();
                 LoadMoreCommand.RaiseCanExecuteChanged();
                 CreateAccountCommand.RaiseCanExecuteChanged();
-                CreateCustomerCommand.RaiseCanExecuteChanged();
                 OpenAccountCommand.RaiseCanExecuteChanged();
                 PreviousPageCommand.RaiseCanExecuteChanged();
                 NextPageCommand.RaiseCanExecuteChanged();
                 OpenStatusDialogCommand.RaiseCanExecuteChanged();
                 SuspendAccountCommand.RaiseCanExecuteChanged();
+                ContinueCreateStepCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -595,6 +587,11 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             ShowError("Look up each account holder by NRC before continuing.");
             return;
         }
+        if (!AreHoldersKycVerified())
+        {
+            ShowError("Each account holder must have verified KYC. Use Customer Management to complete KYC, then look them up again.");
+            return;
+        }
 
         // Re-checked here as well as on step 4: the documents may have been reset after that step was passed.
         if (!ValidateRequiredDocuments())
@@ -646,16 +643,9 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     {
         Holder1 = null;
         Holder2 = null;
-        ShowCustomerRegistrationForm = false;
-        RegistrationFullName = string.Empty;
-        RegistrationNrc = string.Empty;
-        RegistrationDateOfBirth = string.Empty;
-        RegistrationPhone = string.Empty;
-        RegistrationEmail = string.Empty;
-        RegistrationCustomerType = CustomerType.Citizen;
         _openingOptions = null;
         EligibleAccountTypes.Clear();
-        OwnedAccounts.Clear();
+        PayoutAccounts.Clear();
         RequiredDocuments.Clear();
         SelectedCreateType = null;
         OpeningBalance = "0";
@@ -728,7 +718,12 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         {
             if (Holder1 is null || (IsSharedAccount && Holder2 is null))
             {
-                ShowError("Look up each account holder by NRC before continuing.");
+                ShowError("Look up each account holder by NRC. Customers must be registered before continuing.");
+                return;
+            }
+            if (!AreHoldersKycVerified())
+            {
+                ShowError("Each account holder must have verified KYC. Use Customer Management to complete KYC, then look them up again.");
                 return;
             }
             await RunBusyAsync(async () =>
@@ -736,7 +731,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                 _openingOptions = await _accountService.GetAccountOpeningOptionsAsync(HolderNrc1, IsSharedAccount ? HolderNrc2 : null, CancellationToken.None);
                 ReplaceItems(EligibleAccountTypes, _openingOptions.AccountTypes);
                 ReplaceItems(RequiredDocuments, _openingOptions.RequiredDocuments);
-                ReplaceItems(OwnedAccounts, _openingOptions.OwnedAccounts);
+                ReplaceItems(PayoutAccounts, _openingOptions.PayoutAccounts);
                 AdvanceCreateStep(3);
             }, "Could not load account-opening options.");
             return;
@@ -750,7 +745,34 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         {
             return;
         }
+        if (CreateStep == 4 && IsFixedDeposit &&
+            (!PayoutAccountId.HasValue || SelectedInterestRateRule is null))
+        {
+            ShowError("Choose an eligible payout account and an interest rate rule for this fixed deposit.");
+            return;
+        }
         AdvanceCreateStep(Math.Min(5, CreateStep + 1));
+    }
+
+    private bool CanContinueCreateStep()
+    {
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        return CreateStep switch
+        {
+            1 => true,
+            2 => Holder1 is not null &&
+                 (!IsSharedAccount || Holder2 is not null) &&
+                 AreHoldersKycVerified(),
+            3 => SelectedCreateType is not null,
+            4 => RequiredDocumentInputs.All(input =>
+                     !string.IsNullOrWhiteSpace(input.FilePath) && File.Exists(input.FilePath)) &&
+                 (!IsFixedDeposit || (PayoutAccountId.HasValue && SelectedInterestRateRule is not null)),
+            _ => false
+        };
     }
 
     // Checks every required document has an existing file chosen; shows which are missing and returns false otherwise.
@@ -782,8 +804,11 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                      .Where(item => item.AccountTypeId == accountTypeId.Value)
                      .OrderBy(item => item.DocumentType, StringComparer.OrdinalIgnoreCase))
         {
-            RequiredDocumentInputs.Add(new AccountDocumentInputViewModel(requirement.DocumentType));
+            var input = new AccountDocumentInputViewModel(requirement.DocumentType);
+            input.PropertyChanged += (_, _) => ContinueCreateStepCommand.RaiseCanExecuteChanged();
+            RequiredDocumentInputs.Add(input);
         }
+        ContinueCreateStepCommand.RaiseCanExecuteChanged();
     }
 
     // Adds rows up to the selected holders' required minimum without discarding entered extra rows.
@@ -814,8 +839,6 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private async Task LookupCustomersAsync()
     {
         ErrorMessage = string.Empty;
-        ShowCustomerRegistrationForm = false;
-        RegistrationNrc = string.Empty;
         Holder1 = null;
         Holder2 = null;
         if (string.IsNullOrWhiteSpace(HolderNrc1) || (IsSharedAccount && string.IsNullOrWhiteSpace(HolderNrc2)))
@@ -823,7 +846,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             ShowError("Enter NRC numbers for all account holders.");
             return;
         }
-        string? missingCustomerNrc = null;
+        var missingCustomerNrcs = new List<string>();
         await RunBusyAsync(async () =>
         {
             try
@@ -832,7 +855,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             }
             catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
             {
-                missingCustomerNrc = HolderNrc1.Trim();
+                missingCustomerNrcs.Add(HolderNrc1.Trim());
             }
 
             if (IsSharedAccount)
@@ -843,78 +866,24 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                 }
                 catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
                 {
-                    missingCustomerNrc ??= HolderNrc2.Trim();
+                    missingCustomerNrcs.Add(HolderNrc2.Trim());
                 }
             }
         }, "Could not look up the account holders.");
-        if (missingCustomerNrc is not null)
+        if (missingCustomerNrcs.Count > 0)
         {
-            ShowCustomerRegistrationForm = true;
-            RegistrationNrc = missingCustomerNrc;
-            ShowError("A customer was not found. Register the customer to continue.");
-        }
-    }
-
-    /// <summary>Creates the missing customer through the backend and selects the persisted profile as a holder.</summary>
-    private async Task CreateCustomerAsync()
-    {
-        ErrorMessage = string.Empty;
-        if (string.IsNullOrWhiteSpace(RegistrationFullName) ||
-            !DateOnly.TryParse(RegistrationDateOfBirth, CultureInfo.InvariantCulture, out var dateOfBirth) ||
-            string.IsNullOrWhiteSpace(RegistrationNrc))
-        {
-            ShowError("Enter the customer's full name and a valid date of birth.");
+            ShowError($"Customer(s) not found: {string.Join(", ", missingCustomerNrcs)}. Register them in Customer Management, then look them up again.");
             return;
         }
-
-        await RunBusyAsync(async () =>
+        if (!AreHoldersKycVerified())
         {
-            var customer = await _accountService.CreateCustomerAsync(
-                new CreateCustomerRequest(
-                    RegistrationFullName.Trim(),
-                    dateOfBirth,
-                    RegistrationNrc,
-                    NullIfBlank(RegistrationPhone),
-                    NullIfBlank(RegistrationEmail),
-                    RegistrationCustomerType),
-                CancellationToken.None);
-
-            var registeredPrimaryHolder = string.Equals(
-                RegistrationNrc,
-                HolderNrc1.Trim(),
-                StringComparison.OrdinalIgnoreCase);
-            if (registeredPrimaryHolder)
-            {
-                Holder1 = customer;
-            }
-            else
-            {
-                Holder2 = customer;
-            }
-
-            ErrorMessage = string.Empty;
-            var nextMissingNrc = IsSharedAccount
-                ? Holder1 is null ? HolderNrc1.Trim() : Holder2 is null ? HolderNrc2.Trim() : null
-                : null;
-
-            if (!string.IsNullOrWhiteSpace(nextMissingNrc))
-            {
-                RegistrationFullName = string.Empty;
-                RegistrationDateOfBirth = string.Empty;
-                RegistrationPhone = string.Empty;
-                RegistrationEmail = string.Empty;
-                RegistrationCustomerType = CustomerType.Citizen;
-                RegistrationNrc = nextMissingNrc;
-                ShowCustomerRegistrationForm = true;
-                InfoMessage = $"Customer {customer.FullName} was created. Register the other account holder to continue.";
-            }
-            else
-            {
-                ShowCustomerRegistrationForm = false;
-                InfoMessage = $"Customer {customer.FullName} ({customer.CustomerNo}) was created and selected as an account holder.";
-            }
-        }, "Could not create the customer.");
+            ShowError("Each account holder must have verified KYC. Use Customer Management to complete KYC, then look them up again.");
+        }
     }
+
+    private bool AreHoldersKycVerified() =>
+        Holder1?.KycStatus == KycStatus.Verified &&
+        (!IsSharedAccount || Holder2?.KycStatus == KycStatus.Verified);
 
     private async Task OpenStatusDialogAsync(object? parameter)
     {
@@ -1035,10 +1004,18 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         OnPropertyChanged(nameof(ShowInterestAccrualsSectionMessage));
     }
 
-    private static void ReplaceItems<T>(ObservableCollection<T> target, IEnumerable<T> values)
+    private static void ReplaceItems<T>(ObservableCollection<T> target, IEnumerable<T>? values)
     {
         target.Clear();
-        foreach (var item in values) target.Add(item);
+        if (values is null)
+        {
+            return;
+        }
+
+        foreach (var item in values)
+        {
+            target.Add(item);
+        }
     }
 
     private async Task LoadInterestRateRulesAsync(long? accountTypeId)

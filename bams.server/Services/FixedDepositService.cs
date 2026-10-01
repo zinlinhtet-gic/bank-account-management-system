@@ -50,7 +50,6 @@ public sealed class FixedDepositService : IFixedDepositService
             cancellationToken);
         var payoutAccount = await ResolvePayoutAccountAsync(
             request.PayoutAccountId,
-            accountType,
             primaryHolder,
             cancellationToken);
         var fixedDeposit = BuildFixedDeposit(
@@ -313,7 +312,6 @@ public sealed class FixedDepositService : IFixedDepositService
         var primaryCustomer = await GetPrimaryCustomerAsync(fixedDeposit.AccountId, cancellationToken);
         var payoutAccount = await ResolvePayoutAccountAsync(
             payoutAccountId,
-            fixedDeposit.Account!.AccountType!,
             primaryCustomer,
             cancellationToken);
         fixedDeposit.PayoutAccountId = payoutAccount.Id;
@@ -387,23 +385,18 @@ public sealed class FixedDepositService : IFixedDepositService
         return rule;
     }
 
-    private async Task<Account> ResolvePayoutAccountAsync(long? payoutAccountId, AccountType requestedType, Customer primaryHolder, CancellationToken cancellationToken)
+    private async Task<Account> ResolvePayoutAccountAsync(long? payoutAccountId, Customer primaryHolder, CancellationToken cancellationToken)
     {
         if (!payoutAccountId.HasValue)
         {
-            return await _accountHolderService.FindRequiredIndividualAccountAsync(requestedType, primaryHolder, cancellationToken);
-        }
-
-        if (!requestedType.RequiredProductId.HasValue)
-        {
-            throw new BusinessRuleException(MessageCode.RequiredPayoutAccountNotConfigured);
+            return await _accountHolderService.FindEligiblePayoutAccountAsync(primaryHolder, cancellationToken);
         }
 
         var payoutAccount = await _dbContext.AccountHolders.AsNoTracking()
             .Where(holder => holder.AccountId == payoutAccountId.Value &&
                 holder.CustomerId == primaryHolder.Id && holder.OwnershipType == OwnershipType.Individual &&
                 holder.Account != null && holder.Account.Status == AccountStatus.Active &&
-                holder.Account.AccountTypeId == requestedType.RequiredProductId.Value)
+                holder.Account.AccountType!.Category != AccountTypeCategory.FIXED)
             .Select(holder => holder.Account!)
             .FirstOrDefaultAsync(cancellationToken);
         if (payoutAccount is null)

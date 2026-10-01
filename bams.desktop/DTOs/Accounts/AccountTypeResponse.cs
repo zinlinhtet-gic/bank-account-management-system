@@ -9,6 +9,7 @@ public sealed record AccountTypeResponse(
     decimal MinimumMaintainedBalance,
     decimal? DailyTransactionLimit,
     decimal? MonthlyTransactionLimit,
+    bool AllowDeposit,
     bool AllowWithdrawal,
     bool AllowTransfer,
     bool AllowPartialWithdrawal,

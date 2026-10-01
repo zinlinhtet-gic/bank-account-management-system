@@ -79,17 +79,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
 
-        // MySql.EntityFrameworkCore writes DateOnly but cannot read it back (InvalidCastException from DateTime),
-        // so DateOnly values travel as DateTime while the column stays a plain SQL date.
+        // MySql.EntityFrameworkCore's ADO.NET reader cannot materialize DateOnly directly
+        // (it throws InvalidCastException reading a `date` column), so every DateOnly
+        // property round-trips through DateTime instead, while keeping the `date` column type.
         configurationBuilder.Properties<DateOnly>()
-            .HaveConversion<DateOnlyToDateTimeConverter>()
-            .HaveColumnType(DateColumnType);
-        // MySQL materializes DATE columns as DateTime, so convert them explicitly to DateOnly.
-        configurationBuilder.Properties<DateOnly>()
-            .HaveConversion<DateOnlyValueConverter>()
+            .HaveConversion<DateOnlyConverter>()
             .HaveColumnType("date");
+
         configurationBuilder.Properties<DateOnly?>()
-            .HaveConversion<NullableDateOnlyValueConverter>()
+            .HaveConversion<NullableDateOnlyConverter>()
             .HaveColumnType("date");
     }
 
@@ -106,36 +104,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }
 
-    /// <summary>
-    /// Saves changes after advancing application-managed concurrency versions.
-    /// </summary>
-    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    // Converts DateOnly <-> DateTime so the MySQL provider never has to read a `date`
+    // column as DateOnly directly.
+    private sealed class DateOnlyConverter : ValueConverter<DateOnly, DateTime>
     {
-        AdvanceConcurrencyVersions();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
-    }
-
-    /// <summary>
-    /// Asynchronously saves changes after advancing application-managed concurrency versions.
-    /// </summary>
-    public override Task<int> SaveChangesAsync(
-        bool acceptAllChangesOnSuccess,
-        CancellationToken cancellationToken = default)
-    {
-        AdvanceConcurrencyVersions();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-    }
-
-    // Advances only modified entities so newly inserted rows retain their initial version of one.
-    private void AdvanceConcurrencyVersions()
-    {
-        ChangeTracker.DetectChanges();
-
-        foreach (var entry in ChangeTracker.Entries<IConcurrencyTracked>()
-                     .Where(entry => entry.State == EntityState.Modified))
+        public DateOnlyConverter()
+            : base(
+                dateOnly => dateOnly.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
         {
-            var versionProperty = entry.Property(entity => entity.Version);
-            versionProperty.CurrentValue = checked(versionProperty.OriginalValue + 1);
+        }
+    }
+
+    // Nullable counterpart of DateOnlyConverter for optional DateOnly columns.
+    private sealed class NullableDateOnlyConverter : ValueConverter<DateOnly?, DateTime?>
+    {
+        public NullableDateOnlyConverter()
+            : base(
+                dateOnly => dateOnly.HasValue ? dateOnly.Value.ToDateTime(TimeOnly.MinValue) : null,
+                dateTime => dateTime.HasValue ? DateOnly.FromDateTime(dateTime.Value) : null)
+        {
         }
     }
 }

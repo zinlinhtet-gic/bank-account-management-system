@@ -2,6 +2,10 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:users="clr-namespace:bams.desktop.ViewModels.Pages.Users"
                     xmlns:userviews="clr-namespace:bams.desktop.Views.Pages.Users"
+                    xmlns:config="clr-namespace:bams.desktop.ViewModels.Pages.Configuration"
+                    xmlns:configviews="clr-namespace:bams.desktop.Views.Pages.Configuration"
+                    xmlns:customers="clr-namespace:bams.desktop.ViewModels.Pages.Customers"
+                    xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
                     xmlns:transactions="clr-namespace:bams.desktop.ViewModels.Pages.Transactions"
                     xmlns:transactionviews="clr-namespace:bams.desktop.Views.Pages.Transactions">
 
@@ -18,6 +22,25 @@
         <userviews:UserDetailsDialogView/>
     </DataTemplate>
 
+    <!-- Configuration: Interest Rate -->
+    <DataTemplate DataType="{x:Type config:InterestRateFormViewModel}">
+        <configviews:InterestRateFormDialogView/>
+    </DataTemplate>
+
+    <!-- Configuration: Fee Rate -->
+    <DataTemplate DataType="{x:Type config:FeeRateFormViewModel}">
+        <configviews:FeeRateFormDialogView/>
+    </DataTemplate>
+
+    <!-- Configuration: Bank Policies -->
+    <DataTemplate DataType="{x:Type config:BankPolicyFormViewModel}">
+        <configviews:BankPolicyFormDialogView/>
+    </DataTemplate>
+
+    <!-- Customer Management -->
+    <DataTemplate DataType="{x:Type customers:CustomerDetailsViewModel}">
+        <pages:CustomerDetailsDialogView/>
+    </DataTemplate>
     <!-- Transactions -->
     <DataTemplate DataType="{x:Type transactions:TransactionDetailsViewModel}">
         <transactionviews:TransactionDetailsDialogView/>

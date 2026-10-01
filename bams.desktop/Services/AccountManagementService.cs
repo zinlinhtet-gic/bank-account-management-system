@@ -7,7 +7,6 @@ using bams.desktop.Api;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounts;
 using bams.desktop.DTOs.Common;
-using bams.desktop.DTOs.Customers;
 
 namespace bams.desktop.Services;
 
@@ -81,17 +80,6 @@ public sealed class AccountManagementService : IAccountManagementService
     {
         return _apiClient.GetAsync<CustomerLookupResponse>(
             $"{ApiConstants.AccountCustomerLookupEndpoint}?nrc={Uri.EscapeDataString(nrc.Trim())}", cancellationToken);
-    }
-
-    /// <summary>Creates a persisted customer and returns the server's saved profile.</summary>
-    public Task<CustomerLookupResponse> CreateCustomerAsync(
-        CreateCustomerRequest request,
-        CancellationToken cancellationToken)
-    {
-        return _apiClient.PostAsync<CreateCustomerRequest, CustomerLookupResponse>(
-            ApiConstants.CustomersEndpoint,
-            request,
-            cancellationToken);
     }
 
     public Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken)

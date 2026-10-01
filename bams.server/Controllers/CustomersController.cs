@@ -1,11 +1,11 @@
 using bams.server.Constants;
-using bams.server.DTO.Accounts;
 using bams.server.DTO.Common;
 using bams.server.DTO.Customers;
 using bams.server.Messages;
 using bams.server.Middlewares;
 using bams.server.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace bams.server.Controllers;
 
@@ -13,22 +13,120 @@ namespace bams.server.Controllers;
 [Route("api/customers")]
 public sealed class CustomersController : ControllerBase
 {
-    private readonly ICustomerCreationService _customerCreationService;
+    private const string GetCustomerByIdRouteName = "GetCustomerById";
 
-    public CustomersController(ICustomerCreationService customerCreationService)
+    private readonly ICustomerService _customerService;
+
+    public CustomersController(ICustomerService customerService)
     {
-        _customerCreationService = customerCreationService;
+        _customerService = customerService;
     }
 
-    /// <summary>Creates and persists a customer record for account opening.</summary>
-    [HttpPost]
-    [RequirePermission(SecurityConstants.CustomerManagement)]
-    public async Task<ActionResult<ApiMessageResponse<CustomerLookupResponse>>> CreateCustomerAsync(
-        CreateCustomerRequest request,
+    /// <summary>
+    /// Gets a page of customer summaries (10 per page), optionally filtered by customer
+    /// number, name, KYC status, status, or risk level.
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<CustomerSummaryResponse>>>> GetCustomersAsync(
+        [FromQuery] GetCustomersRequest request,
         CancellationToken cancellationToken)
     {
-        var customer = await _customerCreationService.CreateCustomerAsync(request, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created,
-            ApiMessageResponse<CustomerLookupResponse>.FromCode(MessageCode.CustomerCreatedSuccessfully, customer));
+        var customers = await _customerService.GetCustomersAsync(request, cancellationToken);
+
+        return Ok(ApiMessageResponse<PagedResponse<CustomerSummaryResponse>>.FromCode(MessageCode.Success, customers));
+    }
+
+    /// <summary>
+    /// Gets a single customer, including its documents, by its unique identifier.
+    /// </summary>
+    [HttpGet("{id:long}", Name = GetCustomerByIdRouteName)]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> GetCustomerByIdAsync(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _customerService.GetCustomerByIdAsync(id, cancellationToken);
+
+        return Ok(ApiMessageResponse<CustomerResponse>.FromCode(MessageCode.Success, customer));
+    }
+
+    /// <summary>
+    /// Downloads one of a customer's documents by its unique identifier.
+    /// </summary>
+    [HttpGet("{id:long}/documents/{documentId:long}/file")]
+    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    public async Task<IActionResult> DownloadCustomerDocumentAsync(
+        long id,
+        long documentId,
+        CancellationToken cancellationToken)
+    {
+        var (physicalPath, fileName) = await _customerService.GetCustomerDocumentFileAsync(id, documentId, cancellationToken);
+
+        if (!new FileExtensionContentTypeProvider().TryGetContentType(fileName, out var contentType))
+        {
+            contentType = "application/octet-stream";
+        }
+
+        return PhysicalFile(physicalPath, contentType, fileName);
+    }
+
+    /// <summary>
+    /// Creates a new customer from the supplied API request contract.
+    /// </summary>
+    [HttpPost]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> CreateCustomerAsync(
+        [FromForm] CreateCustomerRequest request,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _customerService.CreateCustomerAsync(request, cancellationToken);
+        var response = ApiMessageResponse<CustomerResponse>.FromCode(
+            MessageCode.CustomerCreatedSuccessfully,
+            customer);
+
+        return CreatedAtRoute(
+            GetCustomerByIdRouteName,
+            new { id = customer.Id },
+            response);
+    }
+
+    /// <summary>
+    /// Partially updates a customer's fields and documents. Only supplied properties change;
+    /// document entries with an Id edit an existing document (optionally replacing its file),
+    /// entries without one add a new document. Multipart form data, so new files can be attached.
+    /// </summary>
+    [HttpPatch("{id:long}")]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> UpdateCustomerAsync(
+        long id,
+        [FromForm] UpdateCustomerRequest request,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _customerService.UpdateCustomerAsync(id, request, cancellationToken);
+        var response = ApiMessageResponse<CustomerResponse>.FromCode(
+            MessageCode.CustomerUpdatedSuccessfully,
+            customer);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Records a KYC review decision for a customer. Approving (Verified) stamps every one
+    /// of the customer's documents as verified; rejecting only changes the customer's KycStatus.
+    /// </summary>
+    [HttpPost("{id:long}/kyc-review")]
+    [RequirePermission(SecurityConstants.CustomerKyc)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> ReviewCustomerKycAsync(
+        long id,
+        [FromBody] ReviewCustomerKycRequest request,
+        CancellationToken cancellationToken)
+    {
+        var customer = await _customerService.ReviewCustomerKycAsync(id, request, cancellationToken);
+        var response = ApiMessageResponse<CustomerResponse>.FromCode(
+            MessageCode.CustomerKycReviewedSuccessfully,
+            customer);
+
+        return Ok(response);
     }
 }

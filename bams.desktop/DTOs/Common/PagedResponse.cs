@@ -1,10 +1,11 @@
 namespace bams.desktop.DTOs.Common;
 
 /// <summary>
-/// One page of a server list, with the total number of matching items (server: <c>DTO/Common/PagedResponse</c>).
+/// Mirrors the server's paged list envelope (e.g. GET /api/customers).
 /// </summary>
 public sealed record PagedResponse<T>(
     IReadOnlyList<T> Items,
-    int Page,
+    int PageNumber,
     int PageSize,
-    int TotalCount);
+    int TotalCount,
+    int TotalPages);

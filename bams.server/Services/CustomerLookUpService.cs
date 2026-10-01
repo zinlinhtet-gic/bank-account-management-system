@@ -28,7 +28,8 @@ public sealed class CustomerLookUpService : ICustomerLookUpService
 
         var customer = await FindRegisteredCustomerByNrcAsync(nrc, cancellationToken);
         return new CustomerLookupResponse(customer.Id, customer.CustomerNo, customer.FullName,
-            customer.DateOfBirth, customer.NrcNumber, customer.Phone, customer.Email, customer.Status, customer.CustomerType);
+            customer.DateOfBirth, customer.NrcNumber, customer.Phone, customer.Email, customer.Status,
+            customer.CustomerType, customer.KycStatus);
     }
 
     /// <inheritdoc />
