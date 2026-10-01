@@ -38,10 +38,9 @@ public sealed class CustomerDocumentConfiguration : IEntityTypeConfiguration<Cus
 
         builder.Property(d => d.DocumentNumber).HasMaxLength(64);
         builder.Property(d => d.FileReference).HasMaxLength(300);
-        builder.Property(d => d.Status).IsRequired().HasMaxLength(20);
 
         builder.HasOne(d => d.Customer)
-            .WithMany()
+            .WithMany(customer => customer.Documents)
             .HasForeignKey(d => d.CustomerId)
             .OnDelete(DeleteBehavior.Cascade);
 

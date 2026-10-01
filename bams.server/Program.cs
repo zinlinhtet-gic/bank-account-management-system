@@ -117,10 +117,14 @@ builder.Services.AddHttpContextAccessor();
 // -------------------------
 // Services define here
 // -------------------------
-
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
-builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<CustomerNumberGenerator>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+
+// builder.Services.AddScoped<ICustomerLookUpService, CustomerLookUpService>();
+// builder.Services.AddScoped<ICustomerCreationService, CustomerCreationService>();
 builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistoryService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
@@ -201,6 +205,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
+
 }
 else
 {

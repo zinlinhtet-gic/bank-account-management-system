@@ -19,6 +19,7 @@ public enum MessageCode
     FeeRuleUpdatedSuccessfully = 1403,
     BankPolicyCreatedSuccessfully = 1404,
     BankPolicyUpdatedSuccessfully = 1405,
+    CustomerCreatedSuccessfully = 1300,
     TransactionCompletedSuccessfully = 1200,
     TransactionSubmittedSuccessfully = 1201,
     TransactionRefundedSuccessfully = 1202,
@@ -44,6 +45,13 @@ public enum MessageCode
     FeeRuleAmountRangeInvalid = 3401,
     BankPolicyBalanceRangeInvalid = 3402,
 
+    CustomerFullNameRequired = 3200,
+    CustomerDateOfBirthInvalid = 3201,
+    CustomerBelowMinimumAge = 3202,
+    NrcNumberRequired = 3203,
+    PassportNumberRequired = 3204,
+    CustomerDocumentFileEmpty = 3205,
+    CustomerEmailInvalid = 3206,
     SameSourceAndDestinationAccount = 3300,
     InvalidPickupCode = 3301,
 
@@ -75,6 +83,7 @@ public enum MessageCode
     // Conflict: 4300 - 4399
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
+    CustomerAlreadyExists = 4307,
     IdempotencyKeyReused = 4330,
     AccountTypeCodeAlreadyExists = 4340,
 

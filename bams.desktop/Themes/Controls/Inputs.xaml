@@ -440,5 +440,12 @@
         <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
         <Setter Property="Padding" Value="8,0"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Style.Triggers>
+            <!-- No custom ControlTemplate here, so a Style trigger on the same BorderBrush the default
+                 DatePicker chrome already reads is enough; matches Input.Text/Input.Select's red border. -->
+            <Trigger Property="t:ThemeAssist.HasError" Value="True">
+                <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 </ResourceDictionary>

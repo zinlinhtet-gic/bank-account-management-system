@@ -16,6 +16,9 @@ public enum MessageCode
     BankPolicyCreatedSuccessfully = 1404,
     BankPolicyUpdatedSuccessfully = 1405,
 
+    CustomerCreatedSuccessfully = 1300,
+    CustomerUpdatedSuccessfully = 1301,
+    CustomerKycReviewedSuccessfully = 1302,
     TransactionCompletedSuccessfully = 1200,
     TransactionSubmittedSuccessfully = 1201,
     TransactionRefundedSuccessfully = 1202,
@@ -26,7 +29,6 @@ public enum MessageCode
     AccountBalanceUpdatedSuccessfully = 1102,
     AccountHoldersUpdatedSuccessfully = 1103,
     FixedDepositUpdatedSuccessfully = 1104,
-    CustomerCreatedSuccessfully = 1300,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -48,6 +50,16 @@ public enum MessageCode
     FeeRuleAmountRangeInvalid = 3401,
     BankPolicyBalanceRangeInvalid = 3402,
     InvalidDate = 3014,
+    CustomerFullNameRequired = 3200,
+    CustomerDateOfBirthInvalid = 3201,
+    CustomerBelowMinimumAge = 3202,
+    NrcNumberRequired = 3203,
+    PassportNumberRequired = 3204,
+    CustomerDocumentFileEmpty = 3205,
+
+    CustomerEmailInvalid = 3206,
+    CustomerDocumentTypeRequired = 3207,
+    InvalidKycReviewStatus = 3208,
     SameSourceAndDestinationAccount = 3300,
     InvalidPickupCode = 3301,
     HolderAlreadyHasActiveAccount = 3103,
@@ -107,6 +119,8 @@ public enum MessageCode
     // InterestRateRuleNotFound = 4206,
     PayoutAccountNotFound = 4207,
     RequiredPayoutAccountNotFound = 4208,
+    KycReviewerNotFound = 4209,
+    CustomerDocumentNotFound = 4210,
 
     // Conflict: 4300 - 4399
     ConcurrentModification = 4304,
@@ -116,6 +130,7 @@ public enum MessageCode
     EndOfDayAuditAlreadyProcessed = 4308,
     CustomerNrcAlreadyExists = 4307,
 
+    CustomerAlreadyExists = 4309,
     IdempotencyKeyReused = 4330,
     AccountTypeCodeAlreadyExists = 4340,
 

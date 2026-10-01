@@ -1,3 +1,5 @@
+using bams.desktop.Constants;
+
 namespace bams.desktop.Utils;
 
 /// <summary>
@@ -20,6 +22,7 @@ public static class MessageCatalog
             [MessageCode.FeeRuleUpdatedSuccessfully] = "Fee rule updated successfully.",
             [MessageCode.BankPolicyCreatedSuccessfully] = "Bank policy created successfully.",
             [MessageCode.BankPolicyUpdatedSuccessfully] = "Bank policy updated successfully.",
+            [MessageCode.CustomerCreatedSuccessfully] = "Customer created successfully.",
             [MessageCode.ValidationFailed] = "One or more validation errors occurred.",
             [MessageCode.TransactionCompletedSuccessfully] = "Transaction completed successfully.",
             [MessageCode.TransactionSubmittedSuccessfully] = "Transfer submitted and is pending completion.",
@@ -64,6 +67,14 @@ public static class MessageCatalog
             [MessageCode.InterestRateBalanceRangeInvalid] = "Minimum balance must be less than or equal to maximum balance.",
             [MessageCode.FeeRuleAmountRangeInvalid] = "Minimum fee must be less than or equal to maximum fee.",
             [MessageCode.BankPolicyBalanceRangeInvalid] = "Minimum maintained balance must be less than or equal to the minimum opening balance.",
+            [MessageCode.CustomerFullNameRequired] = "Please enter the full name.",
+            [MessageCode.CustomerDateOfBirthInvalid] = "Date of birth cannot be in the future.",
+            [MessageCode.CustomerBelowMinimumAge] = $"The customer must be at least {CustomerFieldRules.MinimumAgeYears} years old.",
+            [MessageCode.NrcNumberRequired] = "Please enter the NRC number.",
+            [MessageCode.PassportNumberRequired] = "Please enter the passport number.",
+            [MessageCode.CustomerDocumentFileEmpty] = "The selected file is empty.",
+            [MessageCode.CustomerEmailInvalid] = "Please enter a valid email address.",
+            [MessageCode.CustomerAlreadyExists] = "A customer with the same NRC number, passport number, or email already exists.",
             [MessageCode.UserAccountDeleted] = "This user account has been deleted. Please contact your administrator.",
             [MessageCode.LastManagerCannotBeRemoved] = "This is the only active manager. Add another manager first.",
             [MessageCode.AuthenticationRequired] = "Your session has expired. Please log in again.",
