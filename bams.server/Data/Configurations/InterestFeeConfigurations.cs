@@ -9,9 +9,11 @@ public sealed class InterestAccrualConfiguration : IEntityTypeConfiguration<Inte
     public void Configure(EntityTypeBuilder<InterestAccrual> builder)
     {
         builder.HasKey(a => a.Id);
+        builder.HasIndex(a => new { a.AccountId, a.PeriodStart, a.PeriodEnd }).IsUnique();
 
         builder.Property(a => a.AnnualRate).HasPrecision(9, 4);
         builder.Property(a => a.Status).IsRequired().HasMaxLength(20);
+        builder.HasIndex(a => a.AccruedTransactionId).IsUnique();
 
         builder.HasOne(a => a.Account)
             .WithMany()
@@ -27,6 +29,11 @@ public sealed class InterestAccrualConfiguration : IEntityTypeConfiguration<Inte
             .WithMany()
             .HasForeignKey(a => a.PostedTransactionId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(a => a.AccruedTransaction)
+            .WithMany()
+            .HasForeignKey(a => a.AccruedTransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -36,7 +43,8 @@ public sealed class FeeAccrualConfiguration : IEntityTypeConfiguration<FeeAccrua
     {
         builder.HasKey(a => a.Id);
 
-        builder.HasIndex(a => a.PostedTransactionId).IsUnique();
+        builder.HasIndex(a => new { a.AccountId, a.FeeType, a.PeriodStart, a.PeriodEnd }).IsUnique();
+        builder.HasIndex(a => a.AccruedTransactionId).IsUnique();
 
         builder.HasOne(a => a.Account)
             .WithMany()
@@ -51,6 +59,11 @@ public sealed class FeeAccrualConfiguration : IEntityTypeConfiguration<FeeAccrua
         builder.HasOne(a => a.PostedTransaction)
             .WithMany()
             .HasForeignKey(a => a.PostedTransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(a => a.AccruedTransaction)
+            .WithMany()
+            .HasForeignKey(a => a.AccruedTransactionId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

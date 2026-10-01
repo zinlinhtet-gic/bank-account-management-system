@@ -126,7 +126,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- Presence: green "Online" while the user's app is open, grey "Offline" otherwise.
-                                 Hover shows when they were last seen. Refreshed every 30 s while this page is open. -->
+                                 Hover shows when they were last seen. Refreshed every 10 s while this page is open (PresenceConstants). -->
                             <DataGridTemplateColumn Header="Status" Width="110" SortMemberPath="IsOnline">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

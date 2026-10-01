@@ -4,9 +4,13 @@ using bams.server.Models.Audit;
 using bams.server.Models.Customers;
 using bams.server.Models.External;
 using bams.server.Models.InterestFees;
+using bams.server.Models.Organization;
+using bams.server.Models.Jobs;
+using bams.server.Models;
 using bams.server.Models.Products;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
+using bams.server.Data.Converters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -21,20 +25,27 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
+    // Organization
+    public DbSet<Branch> Branches => Set<Branch>();
+
     // Customer / KYC
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerDocument> CustomerDocuments => Set<CustomerDocument>();
 
     // Product configuration
     public DbSet<AccountType> AccountTypes => Set<AccountType>();
+    public DbSet<AccountTypeRequiredDocument> AccountTypeRequiredDocuments => Set<AccountTypeRequiredDocument>();
     public DbSet<InterestRateRule> InterestRateRules => Set<InterestRateRule>();
     public DbSet<FeeRule> FeeRules => Set<FeeRule>();
 
     // Customer accounts
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<AccountHolder> AccountHolders => Set<AccountHolder>();
+    public DbSet<AccountReferer> AccountReferers => Set<AccountReferer>();
     public DbSet<FixedDeposit> FixedDeposits => Set<FixedDeposit>();
     public DbSet<AccountStatusHistory> AccountStatusHistories => Set<AccountStatusHistory>();
+    public DbSet<AccountNumberGeneration> AccountNumberGenerations => Set<AccountNumberGeneration>();
+    public DbSet<AccountDocument> AccountDocuments => Set<AccountDocument>();
 
     // Transactions
     public DbSet<Transaction> Transactions => Set<Transaction>();
@@ -46,6 +57,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Interest / fees
     public DbSet<InterestAccrual> InterestAccruals => Set<InterestAccrual>();
     public DbSet<FeeAccrual> FeeAccruals => Set<FeeAccrual>();
+
+    // Scheduled jobs
+    public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
+    public DbSet<ScheduledJobExecution> ScheduledJobExecutions => Set<ScheduledJobExecution>();
 
     // External banking
     public DbSet<OtherBank> OtherBanks => Set<OtherBank>();
@@ -75,6 +90,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HaveConversion<NullableDateOnlyConverter>()
             .HaveColumnType("date");
     }
+
+    private const string DateColumnType = "date";
+
+    // Converts DateOnly to midnight DateTime for the database and back.
+    private sealed class DateOnlyToDateTimeConverter()
+        : ValueConverter<DateOnly, DateTime>(
+            date => date.ToDateTime(TimeOnly.MinValue),
+            dateTime => DateOnly.FromDateTime(dateTime));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

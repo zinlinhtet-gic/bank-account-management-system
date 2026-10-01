@@ -17,6 +17,7 @@ public static class AccountMappings
             account.AvailableBalance,
             account.LedgerBalance,
             account.OpenedAt,
-            account.CreatedAt);
+            account.CreatedAt,
+            account.Version);
     }
 }
