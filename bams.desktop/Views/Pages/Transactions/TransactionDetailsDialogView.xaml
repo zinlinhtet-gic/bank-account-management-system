@@ -46,24 +46,53 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="DATE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TransactionAtText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
 
-                    <TextBlock Grid.Row="1" Text="POSTED" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PostedAtText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="1" Text="FEE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"
+                               Visibility="{Binding HasFee, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FeeAmountText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"
+                               Visibility="{Binding HasFee, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                    <TextBlock Grid.Row="2" Text="REFERENCE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ReferenceText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="2" Text="POSTED" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PostedAtText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
 
-                    <TextBlock Grid.Row="3" Text="DESCRIPTION" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
-                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DescriptionText}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="3" Text="REFERENCE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ReferenceText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
 
-                    <TextBlock Grid.Row="4" Text="REFUND" Style="{StaticResource Text.Label}" Margin="0,2,0,0"
+                    <TextBlock Grid.Row="4" Text="DESCRIPTION" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DescriptionText}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                    <TextBlock Grid.Row="5" Text="REFUND" Style="{StaticResource Text.Label}" Margin="0,2,0,0"
                                Visibility="{Binding IsRefund, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RefundOfText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"
+                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding RefundOfText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"
                                Visibility="{Binding IsRefund, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                    <TextBlock Grid.Row="6" Text="BUSINESS DATE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding BusinessDateText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="7" Text="INITIATED BY" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding InitiatedByText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="8" Text="AUTHORIZED BY" Style="{StaticResource Text.Label}" Margin="0,2,0,0"
+                               Visibility="{Binding HasAuthorizedBy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding AuthorizedByDisplayText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"
+                               Visibility="{Binding HasAuthorizedBy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Grid.Row="9" Text="POSTED BY" Style="{StaticResource Text.Label}" Margin="0,2,0,0"
+                               Visibility="{Binding HasPostedBy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding PostedByDisplayText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"
+                               Visibility="{Binding HasPostedBy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Grid.Row="10" Text="CREATED" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding CreatedAtText}" Style="{StaticResource Text.Body}" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="11" Text="UPDATED" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding UpdatedAtText}" Style="{StaticResource Text.Body}"/>
                 </Grid>
 
                 <!-- NRC transfer -->
@@ -135,10 +164,12 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="{Binding AccountNo}" Style="{StaticResource Text.Mono}"/>
-                                        <TextBlock Style="{StaticResource Text.Caption}">
-                                            <Run Text="Balance after"/>
-                                            <Run Text="{Binding BalanceAfterText, Mode=OneWay}"/>
-                                        </TextBlock>
+                                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                                                   Text="{Binding BalanceSummaryText}"/>
+                                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                                                   Text="{Binding EntryDatesText}"/>
+                                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                                                   Text="{Binding DescriptionSummaryText}"/>
                                     </StackPanel>
                                     <ContentControl Grid.Column="1" Style="{StaticResource Badge.EntryType}" Content="{Binding EntryTypeText}"
                                                     VerticalAlignment="Top" HorizontalAlignment="Left"/>
@@ -150,6 +181,49 @@
                                             Command="{Binding DataContext.ShowStatementCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"/>
                                 </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- General ledger journal -->
+                <StackPanel Margin="0,8,0,0" Visibility="{Binding HasAccountingEntries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="ACCOUNTING ENTRIES" Style="{StaticResource Text.Label}" Margin="0,4,0,8"/>
+                    <ItemsControl ItemsSource="{Binding AccountingEntries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,8">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" Style="{StaticResource Text.Mono}" Margin="12,0,0,0"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding AccountCode}" Style="{StaticResource Text.Mono}"/>
+                                            <TextBlock Text="{Binding AccountName}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding EntrySummaryText}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Audit trail -->
+                <StackPanel Margin="0,8,0,0" Visibility="{Binding HasAuditLogs, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="AUDIT HISTORY" Style="{StaticResource Text.Label}" Margin="0,4,0,8"/>
+                    <ItemsControl ItemsSource="{Binding AuditLogs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding TimestampText}" Style="{StaticResource Text.Caption}" Margin="12,0,0,0"/>
+                                            <TextBlock Text="{Binding Action}" Style="{StaticResource Text.Title}"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding UserText}" Style="{StaticResource Text.Body}"/>
+                                        <TextBlock Text="{Binding DetailsText}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding SourceText}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

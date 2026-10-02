@@ -12,9 +12,22 @@ public sealed record AccountEntryDisplayModel(
     string AccountNo,
     bool IsCredit,
     string AmountText,
-    string BalanceAfterText)
+    string BalanceBeforeText,
+    string BalanceAfterText,
+    string AvailableBalanceBeforeText,
+    string AvailableBalanceAfterText,
+    string ValueDateText,
+    string PostingDateText,
+    string DescriptionText,
+    string ReferenceText)
 {
     public string EntryTypeText => IsCredit ? "Credit" : "Debit";
+
+    public string BalanceSummaryText => $"Ledger {BalanceBeforeText} → {BalanceAfterText} · available {AvailableBalanceBeforeText} → {AvailableBalanceAfterText}";
+
+    public string EntryDatesText => $"Value {ValueDateText} · posted {PostingDateText}";
+
+    public string DescriptionSummaryText => $"{DescriptionText} · {ReferenceText}";
 
     /// <summary>Builds a line from the server entry.</summary>
     public static AccountEntryDisplayModel FromResponse(AccountEntryResponse entry)
@@ -24,8 +37,57 @@ public sealed record AccountEntryDisplayModel(
             entry.AccountNo,
             entry.EntryType == EntryType.Credit,
             TransactionDisplay.FormatAmount(entry.Amount),
-            TransactionDisplay.FormatAmount(entry.LedgerBalanceAfter));
+            TransactionDisplay.FormatAmount(entry.LedgerBalanceBefore),
+            TransactionDisplay.FormatAmount(entry.LedgerBalanceAfter),
+            TransactionDisplay.FormatAmount(entry.AvailableBalanceBefore),
+            TransactionDisplay.FormatAmount(entry.AvailableBalanceAfter),
+            entry.ValueDate.ToString(Constants.DisplayFormats.Date),
+            entry.PostingDate.ToString(Constants.DisplayFormats.Date),
+            TransactionDisplay.OrDash(entry.Description),
+            TransactionDisplay.OrDash(entry.ReferenceNo));
     }
+}
+
+public sealed record AccountingEntryDisplayModel(
+    string AccountCode,
+    string AccountName,
+    string? CustomerAccountNo,
+    string EntryTypeText,
+    string AmountText,
+    string PostingDateText,
+    string CreatedAtText,
+    string DescriptionText)
+{
+    public string EntrySummaryText => $"{EntryTypeText} · {PostingDateText} · {CreatedAtText} · {TransactionDisplay.OrDash(CustomerAccountNo)} · {DescriptionText}";
+
+    public static AccountingEntryDisplayModel FromResponse(TransactionAccountingEntryResponse entry) => new(
+        entry.GlAccountCode,
+        entry.GlAccountName,
+        entry.CustomerAccountNo,
+        entry.EntryType.ToString(),
+        TransactionDisplay.FormatAmount(entry.Amount),
+        entry.PostingDate.ToString(Constants.DisplayFormats.Date),
+        TransactionDisplay.FormatTimestamp(entry.CreatedAt),
+        TransactionDisplay.OrDash(entry.Description));
+}
+
+public sealed record AuditLogDisplayModel(
+    string Action,
+    string UserText,
+    string DetailsText,
+    string TimestampText,
+    string SourceText)
+{
+    public static AuditLogDisplayModel FromResponse(TransactionAuditLogResponse log) => new(
+        log.Action,
+        FormatActor(log.FullName, log.Username),
+        TransactionDisplay.OrDash(log.Details),
+        TransactionDisplay.FormatTimestamp(log.CreatedAt),
+        TransactionDisplay.OrDash(string.Join(" · ", new[] { log.IpAddress, log.DeviceInfo }
+            .OfType<string>().Where(value => !string.IsNullOrWhiteSpace(value)))));
+
+    private static string FormatActor(string fullName, string? username) =>
+        string.IsNullOrWhiteSpace(username) ? fullName : $"{fullName} ({username})";
 }
 
 /// <summary>
@@ -39,6 +101,8 @@ public sealed class TransactionDetailsViewModel : ViewModelBase, IDialogViewMode
     {
         Transaction = transaction;
         Entries = transaction.AccountEntries.Select(AccountEntryDisplayModel.FromResponse).ToList();
+        AccountingEntries = transaction.AccountingEntries.Select(AccountingEntryDisplayModel.FromResponse).ToList();
+        AuditLogs = transaction.AuditLogs.Select(AuditLogDisplayModel.FromResponse).ToList();
 
         CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(false));
         ShowStatementCommand = new RelayCommand(RequestStatement);
@@ -54,6 +118,10 @@ public sealed class TransactionDetailsViewModel : ViewModelBase, IDialogViewMode
     public TransactionDetailResponse Transaction { get; }
 
     public IReadOnlyList<AccountEntryDisplayModel> Entries { get; }
+
+    public IReadOnlyList<AccountingEntryDisplayModel> AccountingEntries { get; }
+
+    public IReadOnlyList<AuditLogDisplayModel> AuditLogs { get; }
 
     public RelayCommand CloseCommand { get; }
 
@@ -71,15 +139,48 @@ public sealed class TransactionDetailsViewModel : ViewModelBase, IDialogViewMode
 
     public string AmountText => TransactionDisplay.FormatMoney(Transaction.Amount);
 
+    public string FeeAmountText => TransactionDisplay.FormatMoney(Transaction.FeeAmount);
+
+    public bool HasFee => Transaction.FeeAmount != 0m;
+
     public string TransactionAtText => TransactionDisplay.FormatTimestamp(Transaction.TransactionAt);
 
     public string PostedAtText => TransactionDisplay.FormatTimestamp(Transaction.PostedAt);
+
+    public string CreatedAtText => TransactionDisplay.FormatTimestamp(Transaction.CreatedAt);
+
+    public string UpdatedAtText => TransactionDisplay.FormatTimestamp(Transaction.UpdatedAt);
+
+    public string BusinessDateText => Transaction.BusinessDate?.ToString(Constants.DisplayFormats.Date)
+        ?? Constants.DisplayFormats.EmptyValue;
+
+    public string InitiatedByText => FormatActor(Transaction.InitiatedByFullName, Transaction.InitiatedByUsername);
+
+    public string AuthorizedByText => FormatActor(Transaction.AuthorizedByFullName, Transaction.AuthorizedByUsername);
+
+    public string AuthorizedByDisplayText => Transaction.AuthorizedAt is { } authorizedAt
+        ? $"{AuthorizedByText} · {TransactionDisplay.FormatTimestamp(authorizedAt)}"
+        : AuthorizedByText;
+
+    public string PostedByText => FormatActor(Transaction.PostedByFullName, Transaction.PostedByUsername);
+
+    public string PostedByDisplayText => Transaction.PostedAt is { } postedAt
+        ? $"{PostedByText} · {TransactionDisplay.FormatTimestamp(postedAt)}"
+        : PostedByText;
 
     public string ReferenceText => TransactionDisplay.OrDash(Transaction.ReferenceNo);
 
     public string DescriptionText => TransactionDisplay.OrDash(Transaction.Description);
 
     public bool HasEntries => Entries.Count > 0;
+
+    public bool HasAccountingEntries => AccountingEntries.Count > 0;
+
+    public bool HasAuditLogs => AuditLogs.Count > 0;
+
+    public bool HasAuthorizedBy => Transaction.AuthorizedBy is not null;
+
+    public bool HasPostedBy => Transaction.PostedBy is not null;
 
     /// <summary>Refunds point back to the transfer they reversed.</summary>
     public bool IsRefund => Transaction.ReversalOfTransactionId is not null;
@@ -167,5 +268,15 @@ public sealed class TransactionDetailsViewModel : ViewModelBase, IDialogViewMode
     private static string ReferenceSuffix(string? reference)
     {
         return string.IsNullOrWhiteSpace(reference) ? string.Empty : $" · ref {reference}";
+    }
+
+    private static string FormatActor(string? fullName, string? username)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            return TransactionDisplay.OrDash(username);
+        }
+
+        return string.IsNullOrWhiteSpace(username) ? fullName : $"{fullName} ({username})";
     }
 }

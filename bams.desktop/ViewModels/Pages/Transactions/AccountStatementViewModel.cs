@@ -13,11 +13,13 @@ namespace bams.desktop.ViewModels.Pages.Transactions;
 /// </summary>
 public sealed record StatementLineDisplayModel(
     string DateText,
+    string PostingDateText,
     string TransactionNo,
     string TypeText,
     bool IsCredit,
     string AmountText,
     string BalanceAfterText,
+    string AvailableBalanceAfterText,
     string DescriptionText)
 {
     public string EntryTypeText => IsCredit ? "Credit" : "Debit";
@@ -29,11 +31,13 @@ public sealed record StatementLineDisplayModel(
 
         return new StatementLineDisplayModel(
             TransactionDisplay.FormatTimestamp(line.CreatedAt),
+            line.PostingDate.ToString(Constants.DisplayFormats.Date),
             line.TransactionNo,
             TransactionDisplay.ToDisplayName(line.TransactionType),
             isCredit,
             (isCredit ? "+" : "−") + TransactionDisplay.FormatAmount(line.Amount),
             TransactionDisplay.FormatAmount(line.LedgerBalanceAfter),
+            TransactionDisplay.FormatAmount(line.AvailableBalanceAfter),
             TransactionDisplay.OrDash(line.Description ?? line.ReferenceNo));
     }
 }

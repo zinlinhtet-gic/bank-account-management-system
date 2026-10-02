@@ -67,6 +67,9 @@
                             <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="160"
                                                 ElementStyle="{StaticResource Table.Text}"/>
 
+                            <DataGridTextColumn Header="Initiated by" Binding="{Binding InitiatedByText}" Width="150"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
                             <DataGridTemplateColumn Header="Status" Width="125" SortMemberPath="Status">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -81,8 +84,14 @@
                             <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceText}" Width="*" MinWidth="80"
                                                 ElementStyle="{StaticResource Table.Text.Muted}"/>
 
+                            <DataGridTextColumn Header="Description" Binding="{Binding DescriptionText}" Width="180"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
                             <DataGridTextColumn Header="Date" Binding="{Binding TransactionAtText}" Width="160"
                                                 SortMemberPath="TransactionAt" ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTextColumn Header="Business date" Binding="{Binding BusinessDateText}" Width="105"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
 
                             <!-- Officers only: finish pending transfers. -->
                             <DataGridTemplateColumn Header="Actions" Width="128" CanUserSort="False"
