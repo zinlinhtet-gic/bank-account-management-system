@@ -12,7 +12,6 @@
                     <DataGridTextColumn Header="ID" Binding="{Binding Id}"/>
                     <DataGridTextColumn Header="Type / Source" Binding="{Binding Type}"/>
                     <DataGridTextColumn Header="Date" Binding="{Binding BusinessDate}"/>
-                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchId}"/>
                     <DataGridTextColumn Header="Expected" Binding="{Binding ExpectedAmount, StringFormat=N2}"/>
                     <DataGridTextColumn Header="Actual" Binding="{Binding ActualAmount, StringFormat=N2}"/>
                     <DataGridTextColumn Header="Difference" Binding="{Binding Difference, StringFormat=N2}"/>

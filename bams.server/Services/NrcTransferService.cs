@@ -85,8 +85,6 @@ public sealed class NrcTransferService : INrcTransferService
                 }
                 else
                 {
-                    if (!request.CashSessionId.HasValue)
-                        throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
                     await _ledger.PostGlEntryAsync(
                         entity,
                         AccountingConstants.CashOnHandGlCode,
@@ -97,7 +95,7 @@ public sealed class NrcTransferService : INrcTransferService
                 }
 
                 if (request.SourceAccountId is null)
-                    await _cashOperations.AddTransactionMovementAsync(request.CashSessionId!.Value, entity, true, actor.UserId, request.Amount, cancellationToken);
+                    await _cashOperations.AddTransactionMovementAsync(entity, true, actor.UserId, request.Amount, cancellationToken);
 
                 await _ledger.PostGlEntryAsync(
                     entity,
@@ -221,9 +219,7 @@ public sealed class NrcTransferService : INrcTransferService
                 now,
                 cancellationToken);
 
-            if (!request.CashSessionId.HasValue)
-                throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
-            await _cashOperations.AddTransactionMovementAsync(request.CashSessionId.Value, entity, false, actor.UserId, entity.Amount, cancellationToken, detail.PickupBranchId);
+            await _cashOperations.AddTransactionMovementAsync(entity, false, actor.UserId, entity.Amount, cancellationToken);
 
             CompleteTransfer(entity, detail, actor, now);
             _ledger.AddAuditLog(
@@ -366,9 +362,7 @@ public sealed class NrcTransferService : INrcTransferService
                 .AnyAsync(entry => entry.TransactionId == entity.Id && entry.EntryType == EntryType.Debit, cancellationToken);
             if (wasCashFunded)
             {
-                if (!request.CashSessionId.HasValue)
-                    throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
-                await _cashOperations.AddTransactionMovementAsync(request.CashSessionId.Value, refund, true, actor.UserId, refund.Amount, cancellationToken);
+                await _cashOperations.AddTransactionMovementAsync(refund, true, actor.UserId, refund.Amount, cancellationToken);
             }
 
             entity.TransactionStatus = TransactionStatus.Cancelled;

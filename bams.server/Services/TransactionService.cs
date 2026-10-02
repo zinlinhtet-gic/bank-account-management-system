@@ -65,8 +65,7 @@ public sealed class TransactionService : ITransactionService
                     key,
                     actor.UserId,
                     now);
-                if (!request.CashSessionId.HasValue) throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
-                await _cashOperations.AddTransactionMovementAsync(request.CashSessionId.Value, entity, true, actor.UserId, request.Amount, cancellationToken);
+                await _cashOperations.AddTransactionMovementAsync(entity, true, actor.UserId, request.Amount, cancellationToken);
                 await _ledger.PostGlEntryAsync(
                     entity,
                     AccountingConstants.CashOnHandGlCode,
@@ -131,8 +130,7 @@ public sealed class TransactionService : ITransactionService
                     key,
                     actor.UserId,
                     now);
-                if (!request.CashSessionId.HasValue) throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
-                await _cashOperations.AddTransactionMovementAsync(request.CashSessionId.Value, entity, false, actor.UserId, request.Amount, cancellationToken);
+                await _cashOperations.AddTransactionMovementAsync(entity, false, actor.UserId, request.Amount, cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, account, EntryType.Debit, now, cancellationToken);
                 await _ledger.PostGlEntryAsync(
                     entity,

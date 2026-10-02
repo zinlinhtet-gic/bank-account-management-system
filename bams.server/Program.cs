@@ -153,6 +153,8 @@ builder.Services.AddScoped<IScheduledTransactionService, ScheduledTransactionSer
 builder.Services.AddScoped<IGeneralLedgerPostingService, GeneralLedgerPostingService>();
 builder.Services.AddScoped<ScheduledFinancialPostingService>();
 builder.Services.AddScoped<ScheduledAccountReconciliationService>();
+builder.Services.AddScoped<MonthlySummaryGenerationService>();
+builder.Services.AddScoped<MonthlyAccountingCloseService>();
 builder.Services.AddScoped<AccountMaintenanceService>();
 builder.Services.AddScoped<InterestAccumulationService>();
 builder.Services.AddScoped<ProductSeeder>();
@@ -177,17 +179,13 @@ builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
             (service, execution, cancellationToken) => service.ExecuteAsync(execution, cancellationToken));
     }
 
-    var monthlyAtMyanmarMidnight = JobSchedule.Monthly(5, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
-    jobs.Add<AccountMaintenanceService>(
-        "account-maintenance",
-        "Account Maintenance",
+    var monthlyAtMyanmarMidnight = JobSchedule.Monthly(2, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
+    jobs.Add<MonthlyAccountingCloseService>(
+        ScheduledJobConstants.MonthlyAccountingCloseJobKey,
+        "Monthly Accounting Close",
         monthlyAtMyanmarMidnight,
-        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
-    jobs.Add<InterestAccumulationService>(
-        "interest-accumulation",
-        "Interest Accumulation",
-        monthlyAtMyanmarMidnight,
-        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken));
+        (service, context, cancellationToken) => service.ExecuteAsync(context, cancellationToken),
+        (service, occurrenceUtc, cancellationToken) => service.ValidateRetryAsync(occurrenceUtc, cancellationToken));
 });
 
 var app = builder.Build();

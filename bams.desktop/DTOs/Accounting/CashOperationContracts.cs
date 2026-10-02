@@ -1,9 +1,9 @@
 namespace bams.desktop.DTOs.Accounting;
 
-public sealed record OpenCashSessionRequest(long BranchId, string PositionType, decimal OpeningCash);
+public sealed record OpenCashSessionRequest(string PositionType, decimal OpeningCash);
 public sealed record TransferCashRequest(long DestinationSessionId, decimal Amount, string? Note);
 public sealed record SubmitCashCountRequest(decimal ActualAmount, string? Notes);
-public sealed record CashPositionSessionResponse(long Id, long BranchId, string PositionType, long? TellerId,
+public sealed record CashPositionSessionResponse(long Id, string PositionType, long? TellerId,
     DateOnly BusinessDate, decimal OpeningCash, decimal ExpectedClosingCash, string Status);
 public sealed record CashCountResponse(long Id, long SessionId, decimal ExpectedAmount, decimal ActualAmount,
     decimal Difference, string Status, DateTime CountedAtUtc);

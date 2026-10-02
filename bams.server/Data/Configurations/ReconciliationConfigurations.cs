@@ -54,7 +54,6 @@ public sealed class ReconciliationExceptionConfiguration : IEntityTypeConfigurat
         builder.Property(item => item.Notes).HasMaxLength(2000);
         builder.HasIndex(item => new { item.BusinessDate, item.Status, item.Severity });
         builder.HasIndex(item => new { item.AccountId, item.BusinessDate, item.Status });
-        builder.HasOne(item => item.Branch).WithMany().HasForeignKey(item => item.BranchId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Account).WithMany().HasForeignKey(item => item.AccountId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.AssignedUser).WithMany().HasForeignKey(item => item.AssignedTo).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.RelatedTransaction).WithMany().HasForeignKey(item => item.RelatedTransactionId).OnDelete(DeleteBehavior.Restrict);
@@ -87,10 +86,8 @@ public sealed class CashPositionSessionConfiguration : IEntityTypeConfiguration<
         builder.HasKey(item => item.Id);
         builder.Property(item => item.PositionType).IsRequired().HasMaxLength(20);
         builder.Property(item => item.Status).IsRequired().HasMaxLength(20);
-        builder.HasIndex(item => new { item.BranchId, item.BusinessDate, item.Status });
         builder.HasIndex(item => new { item.BusinessDate, item.Status });
         builder.HasIndex(item => new { item.TellerId, item.BusinessDate, item.Status });
-        builder.HasOne(item => item.Branch).WithMany().HasForeignKey(item => item.BranchId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Teller).WithMany().HasForeignKey(item => item.TellerId).OnDelete(DeleteBehavior.Restrict);
     }
 }

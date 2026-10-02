@@ -116,6 +116,10 @@ public enum MessageCode
     ReconciliationBlocked = 4470,
     EndOfDayApprovalRequired = 4471,
     CashAdjustmentApprovalRequired = 4472,
+    MonthlyAccountingPeriodNotClosed = 4473,
+    ScheduledJobRetryUnavailable = 4474,
+    CashSessionAlreadyExists = 4475,
+    InsufficientCashPositionBalance = 4476,
     LastManagerCannotBeRemoved = 4480,
 
     // Server / Infrastructure: 5000 - 5999
@@ -126,5 +130,6 @@ public enum MessageCode
     NetworkUnavailable = 6001,
     RequestTimeout = 6002,
     InvalidServerResponse = 6003,
+    ScheduledJobAlertsUnavailable = 6020,
     CurrentPasswordIncorrect = 6010
 }

@@ -399,24 +399,7 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         decimal totalDebit,
         decimal totalCredit)
     {
-        return accountClass switch
-        {
-            GlAccountClass.Asset or
-            GlAccountClass.Expense
-                => openingBalance
-                    + totalDebit
-                    - totalCredit,
-
-            GlAccountClass.Liability or
-            GlAccountClass.Equity or
-            GlAccountClass.Income
-                => openingBalance
-                    + totalCredit
-                    - totalDebit,
-
-            _ => throw new BusinessRuleException(
-                MessageCode.UnsupportedGlAccountClass)
-        };
+        return GlAccountBalanceCalculator.ApplyPeriodTotals(accountClass, openingBalance, totalDebit, totalCredit);
     }
 
     // Generates DailySummary records for all affected GL accounts.

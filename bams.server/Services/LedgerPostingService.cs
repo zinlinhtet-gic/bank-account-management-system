@@ -11,6 +11,7 @@ using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Audit;
 using bams.server.Models.Transactions;
+using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
@@ -51,13 +52,15 @@ public sealed class LedgerPostingService
     private static readonly JsonSerializerOptions AuditJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ApplicationDbContext _dbContext;
+    private readonly IBusinessDateService _businessDates;
 
     // General-ledger ids do not change at runtime, so each is looked up at most once per request.
     private readonly Dictionary<string, long> _glAccountIdsByCode = new();
 
-    public LedgerPostingService(ApplicationDbContext dbContext)
+    public LedgerPostingService(ApplicationDbContext dbContext, IBusinessDateService businessDates)
     {
         _dbContext = dbContext;
+        _businessDates = businessDates;
     }
 
     /// <summary>
@@ -594,17 +597,8 @@ public sealed class LedgerPostingService
 
     private async Task<DateOnly> GetPostingBusinessDateAsync(DateTime now, CancellationToken cancellationToken)
     {
-        // Posting holds the same business-date row lock as EOD close, closing the race between pre-close and commit.
-        var openDates = await _dbContext.BusinessDates
-            .FromSql($"SELECT * FROM BusinessDates WHERE Status = {OperationsConstants.BusinessDateOpen} ORDER BY Date DESC LIMIT 1 FOR UPDATE")
-            .ToListAsync(cancellationToken);
-        if (openDates.Count > 0) return openDates[0].Date;
-
-        var currentDate = BusinessTime.ToBusinessDate(now);
-        var currentDateClosed = await _dbContext.BusinessDates.AsNoTracking()
-            .AnyAsync(item => item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (currentDateClosed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);
-        return currentDate;
+        // Posting and EOD share the same locked business-date row and rollover validation.
+        return await _businessDates.GetPostingBusinessDateValueAsync(now, cancellationToken);
     }
 
     /// <summary>

@@ -4,15 +4,13 @@ public sealed record DepositRequest(
     long AccountId,
     decimal Amount,
     string? Description,
-    string? ReferenceNo,
-    long? CashSessionId = null);
+    string? ReferenceNo);
 
 public sealed record WithdrawalRequest(
     long AccountId,
     decimal Amount,
     string? Description,
-    string? ReferenceNo,
-    long? CashSessionId = null);
+    string? ReferenceNo);
 
 public sealed record InternalTransferRequest(
     long SourceAccountId,
@@ -28,8 +26,7 @@ public sealed record InterbankTransferRequest(
     string BeneficiaryName,
     decimal Amount,
     string? Description,
-    string? ReferenceNo,
-    long? CashSessionId = null);
+    string? ReferenceNo);
 
 /// <summary>
 /// Creates an NRC transfer. The sender pays from <paramref name="SourceAccountId"/>, or in cash when it is null.
@@ -49,8 +46,7 @@ public sealed record NrcTransferRequest(
     long? PickupOtherBankId,
     decimal Amount,
     string? Description,
-    string? ReferenceNo,
-    long? CashSessionId = null);
+    string? ReferenceNo);
 
 /// <summary>
 /// Pays out an NRC transfer in cash at one of our branches. <paramref name="ReceiverName"/> and
@@ -61,8 +57,7 @@ public sealed record NrcPickupRequest(
     long TransactionId,
     string PickupCode,
     string ReceiverName,
-    string ReceiverNrc,
-    long? CashSessionId = null);
+    string ReceiverNrc);
 
 /// <summary>
 /// Records that the other bank paid out an NRC transfer to the receiver.
@@ -73,9 +68,7 @@ public sealed record NrcPayoutRequest(
 /// <summary>
 /// Cancels a pending NRC transfer and refunds the sender. The reason is stored on the refund transaction.
 /// </summary>
-public sealed record NrcCancelRequest(
-    string? Reason,
-    long? CashSessionId = null);
+public sealed record NrcCancelRequest(string? Reason);
 
 /// <summary>
 /// Records that the payment gateway settled an interbank transfer.

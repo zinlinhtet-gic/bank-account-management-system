@@ -32,7 +32,6 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
     private string _gatewayReference = string.Empty;
     private string _settlementReference = string.Empty;
     private string _reason = string.Empty;
-    private string _cashSessionIdText = string.Empty;
     private string _formError = string.Empty;
     private bool _isBusy;
 
@@ -130,12 +129,6 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
         set => SetProperty(ref _reason, value);
     }
 
-    public string CashSessionIdText
-    {
-        get => _cashSessionIdText;
-        set => SetProperty(ref _cashSessionIdText, value);
-    }
-
     public string FormError
     {
         get => _formError;
@@ -186,7 +179,7 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
             {
                 PendingTransferAction.CancelNrcTransfer => await _transactionService.CancelNrcTransferAsync(
                     _transfer.Id,
-                    new NrcCancelRequest(TrimToNull(Reason), long.TryParse(CashSessionIdText, out var cashSessionId) ? cashSessionId : null),
+                    new NrcCancelRequest(TrimToNull(Reason)),
                     CancellationToken.None),
                 PendingTransferAction.RecordNrcPayout => await _transactionService.RecordNrcPayoutAsync(
                     _transfer.Id,

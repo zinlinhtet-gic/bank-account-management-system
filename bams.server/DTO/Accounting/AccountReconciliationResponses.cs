@@ -22,7 +22,6 @@ public sealed record ReconciliationExceptionResponse(
     string Type,
     string Source,
     DateOnly BusinessDate,
-    long? BranchId,
     long? AccountId,
     long? PositionSessionId,
     decimal ExpectedAmount,

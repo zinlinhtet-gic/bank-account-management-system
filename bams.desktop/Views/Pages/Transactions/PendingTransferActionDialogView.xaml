@@ -47,8 +47,9 @@
                          Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"/>
             </StackPanel>
             <StackPanel Margin="0,16,0,0" Visibility="{Binding ShowsCashSession, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="CASH SESSION ID (REQUIRED FOR CASH REFUNDS)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" Text="{Binding CashSessionIdText, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="CASH REFUND" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBlock Text="If the sender paid in cash, the refund is recorded in your current open teller session automatically."
+                           Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
             </StackPanel>
         </StackPanel>
 

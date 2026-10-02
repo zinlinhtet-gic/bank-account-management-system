@@ -5,11 +5,10 @@ namespace bams.desktop.Services;
 
 public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOperationsClientService
 {
-    public Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? date, long? branchId, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? date, CancellationToken cancellationToken)
     {
         var endpoint = "/api/cash-operations/sessions";
         if (date.HasValue) endpoint += $"?businessDate={date:yyyy-MM-dd}";
-        if (branchId.HasValue) endpoint += $"{(date.HasValue ? "&" : "?")}branchId={branchId.Value}";
         return apiClient.GetAsync<IReadOnlyList<CashPositionSessionResponse>>(endpoint, cancellationToken);
     }
 
@@ -25,11 +24,10 @@ public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOper
     public Task<CashCountResponse> SubmitCountAsync(long sessionId, SubmitCashCountRequest request, CancellationToken cancellationToken) =>
         apiClient.PostAsync<SubmitCashCountRequest, CashCountResponse>($"/api/cash-operations/sessions/{sessionId}/count", request, cancellationToken);
 
-    public Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? date, long? branchId, string? status, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? date, string? status, CancellationToken cancellationToken)
     {
         var query = new List<string>();
         if (date.HasValue) query.Add($"businessDate={date.Value:yyyy-MM-dd}");
-        if (branchId.HasValue) query.Add($"branchId={branchId.Value}");
         if (!string.IsNullOrWhiteSpace(status)) query.Add($"status={Uri.EscapeDataString(status)}");
         var suffix = query.Count == 0 ? string.Empty : "?" + string.Join("&", query);
         return apiClient.GetAsync<IReadOnlyList<CashAdjustmentResponse>>("/api/cash-operations/adjustments" + suffix, cancellationToken);

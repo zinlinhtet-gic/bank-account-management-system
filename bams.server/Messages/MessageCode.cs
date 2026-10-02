@@ -179,6 +179,10 @@ public enum MessageCode
     ReconciliationBlocked = 4470,
     EndOfDayApprovalRequired = 4471,
     CashAdjustmentApprovalRequired = 4472,
+    MonthlyAccountingPeriodNotClosed = 4473,
+    ScheduledJobRetryUnavailable = 4474,
+    CashSessionAlreadyExists = 4475,
+    InsufficientCashPositionBalance = 4476,
 
     // Users: 4480 - 4489
     LastManagerCannotBeRemoved = 4480,

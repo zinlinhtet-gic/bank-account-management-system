@@ -60,7 +60,7 @@ public partial class NavBarViewModel : ObservableObject
 
         if (flags.CanAccessAccounting)
         {
-            AddAccountingNavigation();
+            AddAccountingNavigation(flags);
         }
 
         if (flags.CanManageCashOperations && !flags.CanAccessAccounting)
@@ -190,7 +190,7 @@ public partial class NavBarViewModel : ObservableObject
     /// <summary>
     /// Adds the Accounting navigation group and its child pages.
     /// </summary>
-    private void AddAccountingNavigation()
+    private void AddAccountingNavigation(PermissionFlags flags)
     {
         var accounting = new NavItem
         {
@@ -203,7 +203,8 @@ public partial class NavBarViewModel : ObservableObject
         accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
 
         accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
-        accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
+        if (flags.CanManageCashOperations)
+            accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
         accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));
 
         accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));

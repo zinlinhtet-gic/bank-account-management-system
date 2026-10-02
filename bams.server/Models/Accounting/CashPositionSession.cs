@@ -1,14 +1,11 @@
-using bams.server.Models.Organization;
 using bams.server.Models.Security;
 
 namespace bams.server.Models.Accounting;
 
-/// <summary>Business-date cash position for a branch teller or vault.</summary>
+/// <summary>Business-date cash position for a teller or vault.</summary>
 public sealed class CashPositionSession
 {
     public long Id { get; set; }
-    public long BranchId { get; set; }
-    public Branch? Branch { get; set; }
     public string PositionType { get; set; } = "Teller";
     public long? TellerId { get; set; }
     public User? Teller { get; set; }

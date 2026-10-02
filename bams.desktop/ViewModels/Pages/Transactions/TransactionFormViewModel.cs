@@ -46,7 +46,6 @@ public sealed class TransactionFormViewModel : ViewModelBase
     private string _amountText = string.Empty;
     private string _description = string.Empty;
     private string _referenceNo = string.Empty;
-    private string _cashSessionIdText = string.Empty;
     private string _destinationAccountNo = string.Empty;
     private string _beneficiaryName = string.Empty;
     private string _senderName = string.Empty;
@@ -316,15 +315,6 @@ public sealed class TransactionFormViewModel : ViewModelBase
         set => SetProperty(ref _referenceNo, value);
     }
 
-    public string CashSessionIdText
-    {
-        get => _cashSessionIdText;
-        set
-        {
-            if (SetProperty(ref _cashSessionIdText, value)) CashSessionError.Clear();
-        }
-    }
-
     public string DestinationAccountNo
     {
         get => _destinationAccountNo;
@@ -524,11 +514,11 @@ public sealed class TransactionFormViewModel : ViewModelBase
         return Kind switch
         {
             TransactionFormKind.Deposit => _transactionService.DepositAsync(
-                new DepositRequest(DestinationAccount!.Id, amount, description, referenceNo, ParseCashSessionId()),
+                new DepositRequest(DestinationAccount!.Id, amount, description, referenceNo),
                 _idempotencyKey,
                 CancellationToken.None),
             TransactionFormKind.Withdrawal => _transactionService.WithdrawAsync(
-                new WithdrawalRequest(SourceAccount!.Id, amount, description, referenceNo, ParseCashSessionId()),
+                new WithdrawalRequest(SourceAccount!.Id, amount, description, referenceNo),
                 _idempotencyKey,
                 CancellationToken.None),
             TransactionFormKind.InternalTransfer => _transactionService.TransferInternallyAsync(
@@ -560,8 +550,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
                     IsCollectedAtBranch ? null : PickupBank!.Id,
                     amount,
                     description,
-                    referenceNo,
-                    IsPaidInCash ? ParseCashSessionId() : null),
+                    referenceNo),
                 _idempotencyKey,
                 CancellationToken.None)
         };
@@ -574,10 +563,6 @@ public sealed class TransactionFormViewModel : ViewModelBase
         AmountError.Set(AmountText.Trim().Length == 0
             ? "Please enter the amount."
             : amount is null ? MessageCatalog.GetMessage(MessageCode.InvalidAmount) : string.Empty);
-
-        CashSessionError.Set(ShowsCashSession && (!long.TryParse(CashSessionIdText, out var cashSessionId) || cashSessionId <= 0)
-            ? "Enter an open teller session ID from Cash Reconciliation."
-            : string.Empty);
 
         SourceAccountError.Set(ShowsSourceAccount && SourceAccount is null ? "Please choose the account." : string.Empty);
 
@@ -623,14 +608,12 @@ public sealed class TransactionFormViewModel : ViewModelBase
 
         var hasFieldError = new[]
         {
-            AmountError, CashSessionError, SourceAccountError, DestinationAccountError, BankError, DestinationAccountNoError,
+            AmountError, SourceAccountError, DestinationAccountError, BankError, DestinationAccountNoError,
             BeneficiaryNameError, SenderNameError, SenderNrcError, ReceiverNameError, ReceiverNrcError, PickupLocationError
         }.Any(error => error.HasError);
 
         return hasFieldError || HasFormError ? null : amount;
     }
-
-    private long? ParseCashSessionId() => long.TryParse(CashSessionIdText, out var sessionId) ? sessionId : null;
 
     // Puts a server rejection next to the field it is about; anything else goes to the banner.
     private void ShowServerError(AppException exception)
@@ -639,6 +622,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
         {
             case MessageCode.InvalidAmount:
             case MessageCode.InsufficientBalance:
+            case MessageCode.InsufficientCashPositionBalance:
             case MessageCode.MinimumBalanceRequired:
             case MessageCode.DailyTransactionLimitExceeded:
             case MessageCode.MonthlyTransactionLimitExceeded:
@@ -647,6 +631,9 @@ public sealed class TransactionFormViewModel : ViewModelBase
             case MessageCode.WithdrawalNotAllowed:
             case MessageCode.TransferNotAllowed:
                 SourceAccountError.Set(exception.Message);
+                break;
+            case MessageCode.CashSessionNotOpen:
+                CashSessionError.Set(exception.Message);
                 break;
             case MessageCode.SameSourceAndDestinationAccount:
                 DestinationAccountError.Set(exception.Message);

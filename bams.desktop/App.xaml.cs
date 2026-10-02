@@ -184,6 +184,8 @@ public partial class App : Application
         services.AddSingleton<Services.ICashOperationsClientService, Services.CashOperationsClientService>();
         services.AddTransient<EndOfDayViewModel>();
         services.AddSingleton<Services.IEndOfDayClientService, Services.EndOfDayClientService>();
+        services.AddSingleton<Services.IScheduledJobClientService, Services.ScheduledJobClientService>();
+        services.AddTransient<ViewModels.ScheduledJobFailuresViewModel>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();

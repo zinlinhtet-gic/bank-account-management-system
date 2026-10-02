@@ -17,6 +17,7 @@ public sealed class MainViewModel : ViewModelBase
 {
     private readonly AuthContext _authContext;
     private readonly INavigationService _navigationService;
+    private readonly ScheduledJobFailuresViewModel _scheduledJobFailures;
     private object? _currentPage;
     private object? _previousPage;
     private string _activeItem = string.Empty;
@@ -24,11 +25,16 @@ public sealed class MainViewModel : ViewModelBase
     private string _previousPageLabel = string.Empty;
     private CancellationTokenSource? _pageInitializationCancellation;
 
-    public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel)
+    public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel,
+        ScheduledJobFailuresViewModel scheduledJobFailures)
     {
         _authContext = authContext;
         _navigationService = navigationService;
         NavBar = navBarViewModel;
+        _scheduledJobFailures = scheduledJobFailures;
+        _scheduledJobFailures.EndOfDayRequested += OpenEndOfDay;
+        if (_authContext.HasPermission(PermissionCodes.ScheduledJobManagement))
+            _scheduledJobFailures.Start();
         
         // Wire up navigation from NavBar
         NavBar.NavigateCommand = new RelayCommand(NavigateToPage);
@@ -42,6 +48,8 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public NavBarViewModel NavBar { get; }
+    public ScheduledJobFailuresViewModel ScheduledJobFailures => _scheduledJobFailures;
+    public bool CanManageScheduledJobs => _authContext.HasPermission(PermissionCodes.ScheduledJobManagement);
 
     public RelayCommand LogoutCommand { get; }
 
@@ -232,12 +240,16 @@ public sealed class MainViewModel : ViewModelBase
         _pageInitializationCancellation = null;
 
         OnLogoutRequested = null;
+        _scheduledJobFailures.EndOfDayRequested -= OpenEndOfDay;
+        _scheduledJobFailures.Dispose();
         NavBar.NavigateCommand = null;
         if (CurrentPage is GLAccountDetailViewModel detailViewModel)
         {
             detailViewModel.BackRequested -= ReturnFromGlAccountDetail;
         }
     }
+
+    private void OpenEndOfDay() => NavigateToPage(PageNames.EndOfDay);
 
     /// <summary>
     /// Updates user information in the NavBar from AuthContext.

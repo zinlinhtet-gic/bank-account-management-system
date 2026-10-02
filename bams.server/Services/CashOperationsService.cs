@@ -11,35 +11,33 @@ using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
-/// <summary>Owns branch teller/vault cash sessions, inter-position transfers, and physical counts.</summary>
-public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserService currentUser) : ICashOperationsService
+/// <summary>Owns teller/vault cash sessions, inter-position transfers, and physical counts.</summary>
+public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserService currentUser,
+    IBusinessDateService businessDates) : ICashOperationsService
 {
     public async Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, CancellationToken cancellationToken)
     {
         if (request.OpeningCash < 0m || decimal.Round(request.OpeningCash, 2) != request.OpeningCash)
             throw new ValidationException(MessageCode.InvalidAmount);
-        if (request.BranchId <= 0 || request.PositionType is not ("Teller" or "Vault"))
+        if (request.PositionType is not ("Teller" or "Vault"))
             throw new ValidationException(MessageCode.InvalidRequest);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var branch = (await db.Branches.FromSql($"SELECT * FROM Branches WHERE Id = {request.BranchId} FOR UPDATE")
-            .ToListAsync(cancellationToken)).SingleOrDefault();
-        if (branch is null)
-            throw new NotFoundException(MessageCode.BranchNotFound);
-        if (branch.Status != BranchConstants.ActiveStatus)
-            throw new ValidationException(MessageCode.InvalidRequest);
         var actorId = currentUser.GetCurrentUserId();
         if (request.PositionType == OperationsConstants.CashPositionVault)
             await EnsureVaultPermissionAsync(actorId, cancellationToken);
-        var date = await GetLockedOpenBusinessDateAsync(cancellationToken);
-        var tellerId = request.PositionType == "Teller" ? actorId : (long?)null;
-        var activeSessionExists = await db.CashPositionSessions.AnyAsync(session => session.BranchId == request.BranchId &&
-            session.BusinessDate == date && session.PositionType == request.PositionType && session.TellerId == tellerId && session.Status == "Open", cancellationToken);
-        if (activeSessionExists)
-            throw new ConflictException(MessageCode.Conflict);
+        var date = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
+        // Business-date row locking serializes session openings for this date, so this invariant
+        // remains safe when two operators attempt to open a session concurrently.
+        var sessionExistsForDate = await db.CashPositionSessions.AnyAsync(
+            session => session.BusinessDate == date, cancellationToken);
+        if (sessionExistsForDate)
+            throw new ConflictException(MessageCode.CashSessionAlreadyExists);
         var now = DateTime.UtcNow;
         var session = new CashPositionSession
         {
-            BranchId = request.BranchId, PositionType = request.PositionType, TellerId = tellerId, BusinessDate = date,
+            PositionType = request.PositionType,
+            TellerId = request.PositionType == OperationsConstants.CashPositionTeller ? actorId : null,
+            BusinessDate = date,
             OpeningCash = request.OpeningCash, ExpectedClosingCash = request.OpeningCash, Status = "Open",
             OpenedAtUtc = now, OpenedBy = actorId
         };
@@ -49,20 +47,17 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         return ToResponse(session);
     }
 
-    public async Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? businessDate, long? branchId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? businessDate, CancellationToken cancellationToken)
     {
-        if (branchId is <= 0)
-            throw new ValidationException(MessageCode.InvalidRequest);
         var date = businessDate ?? await GetOpenBusinessDateAsync(cancellationToken);
         var actorId = currentUser.GetCurrentUserId();
         var query = db.CashPositionSessions.AsNoTracking().Where(session => session.BusinessDate == date);
-        if (branchId.HasValue) query = query.Where(session => session.BranchId == branchId.Value);
         var canManageCash = await HasVaultPermissionAsync(actorId, cancellationToken);
         var sessions = await query.Where(session =>
                 (canManageCash && session.PositionType == OperationsConstants.CashPositionVault) ||
                 (canManageCash && session.PositionType == OperationsConstants.CashPositionTeller) ||
                 (session.PositionType == OperationsConstants.CashPositionTeller && session.TellerId == actorId))
-            .OrderBy(session => session.BranchId).ThenBy(session => session.Id).ToListAsync(cancellationToken);
+            .OrderBy(session => session.Id).ToListAsync(cancellationToken);
         return sessions.Select(ToResponse).ToList();
     }
 
@@ -101,7 +96,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         EnsureOpenForActor(source, actorId);
         if (source.PositionType == OperationsConstants.CashPositionVault || destination.PositionType == OperationsConstants.CashPositionVault)
             await EnsureVaultPermissionAsync(actorId, cancellationToken);
-        if (destination.Status != "Open" || source.Id == destination.Id || source.BranchId != destination.BranchId || source.BusinessDate != destination.BusinessDate)
+        if (destination.Status != "Open" || source.Id == destination.Id || source.BusinessDate != destination.BusinessDate)
             throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
         if (source.ExpectedClosingCash < request.Amount)
             throw new BusinessRuleException(MessageCode.InsufficientBalance);
@@ -159,7 +154,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         {
             var exception = new ReconciliationException
             {
-                Type = "CashBalance", Source = "PhysicalCount", BusinessDate = session.BusinessDate, BranchId = session.BranchId,
+                Type = "CashBalance", Source = "PhysicalCount", BusinessDate = session.BusinessDate,
                 PositionSession = session, ExpectedAmount = session.ExpectedClosingCash, ActualAmount = request.ActualAmount,
                 Difference = difference, Severity = "Critical", Status = "Open", CreatedBy = actorId,
                 CreatedAtUtc = now, UpdatedAtUtc = now, Notes = request.Notes
@@ -270,6 +265,9 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
             throw new BusinessRuleException(MessageCode.CashAdjustmentApprovalRequired);
         if (signedAmount == 0m || signedAmount != (signedAmount > 0m ? movement.Amount : -movement.Amount))
             throw new BusinessRuleException(MessageCode.CashAdjustmentApprovalRequired);
+        // A posted correction must not reduce the operational cash position below zero.
+        if (session.ExpectedClosingCash + signedAmount < 0m)
+            throw new BusinessRuleException(MessageCode.InsufficientCashPositionBalance);
         movement.Status = OperationsConstants.CashMovementApproved;
         movement.ApprovedBy = actorId;
         movement.ApprovedAtUtc = DateTime.UtcNow;
@@ -280,10 +278,8 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
     }
 
     /// <summary>Lists posted adjustment requests for approval review.</summary>
-    public async Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? businessDate, long? branchId, string? status, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? businessDate, string? status, CancellationToken cancellationToken)
     {
-        if (branchId is <= 0)
-            throw new ValidationException(MessageCode.InvalidRequest);
         if (!string.IsNullOrWhiteSpace(status) && status is not (OperationsConstants.CashMovementPendingApproval or OperationsConstants.CashMovementApproved))
             throw new ValidationException(MessageCode.InvalidRequest);
         var query = from movement in db.CashMovements.AsNoTracking()
@@ -291,7 +287,6 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
                     where movement.Type == OperationsConstants.CashMovementAdjustment
                     select new { movement, session };
         if (businessDate.HasValue) query = query.Where(item => item.session.BusinessDate == businessDate.Value);
-        if (branchId.HasValue) query = query.Where(item => item.session.BranchId == branchId.Value);
         if (!string.IsNullOrWhiteSpace(status)) query = query.Where(item => item.movement.Status == status);
         var items = await query.OrderByDescending(item => item.movement.CreatedAtUtc)
             .Select(item => new CashAdjustmentResponse(item.movement.Id, item.movement.SessionId,
@@ -306,19 +301,22 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         return items;
     }
 
-    /// <summary>Adds the physical cash side of an already balanced deposit or withdrawal in the same posting transaction.</summary>
-    public async Task AddTransactionMovementAsync(long sessionId, bams.server.Models.Transactions.Transaction transaction, bool isDeposit, long actorId, decimal amount, CancellationToken cancellationToken, long? expectedBranchId = null)
+    /// <summary>Records a transaction's cash effect against the actor's open teller session for the posting date.</summary>
+    public async Task AddTransactionMovementAsync(bams.server.Models.Transactions.Transaction transaction, bool isDeposit, long actorId, decimal amount, CancellationToken cancellationToken)
     {
-        var session = await LockSessionAsync(sessionId, cancellationToken);
-        EnsureOpenForActor(session, actorId);
-        if (session.PositionType == OperationsConstants.CashPositionVault)
-            await EnsureVaultPermissionAsync(actorId, cancellationToken);
-        if (expectedBranchId.HasValue && session.BranchId != expectedBranchId.Value)
-            throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
+        var postingDate = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
+        var currentSessions = await db.CashPositionSessions
+            .FromSql($"SELECT * FROM CashPositionSessions WHERE TellerId = {actorId} AND PositionType = {OperationsConstants.CashPositionTeller} AND BusinessDate = {postingDate} AND Status = {OperationsConstants.CashSessionOpen} FOR UPDATE")
+            .ToListAsync(cancellationToken);
+        var session = currentSessions.SingleOrDefault()
+            ?? throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
+        // Reject a withdrawal before recording its movement if it would make expected physical cash negative.
+        if (!isDeposit && session.ExpectedClosingCash < amount)
+            throw new BusinessRuleException(MessageCode.InsufficientCashPositionBalance);
         session.ExpectedClosingCash += isDeposit ? amount : -amount;
         db.CashMovements.Add(new CashMovement
         {
-            SessionId = sessionId, Type = isDeposit ? "Deposit" : "Withdrawal", Amount = amount,
+            SessionId = session.Id, Type = isDeposit ? "Deposit" : "Withdrawal", Amount = amount,
             Transaction = transaction, ActorId = actorId, CreatedAtUtc = DateTime.UtcNow
         });
     }
@@ -328,15 +326,6 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         var open = await db.BusinessDates.AsNoTracking().Where(item => item.Status == "Open")
             .OrderByDescending(item => item.Date).Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken);
         return open ?? BusinessTime.Today;
-    }
-
-    // Serializes opening positions with EOD so no session can be created on a date as it closes.
-    private async Task<DateOnly> GetLockedOpenBusinessDateAsync(CancellationToken cancellationToken)
-    {
-        var openDates = await db.BusinessDates
-            .FromSql($"SELECT * FROM BusinessDates WHERE Status = {OperationsConstants.BusinessDateOpen} ORDER BY Date DESC LIMIT 1 FOR UPDATE")
-            .ToListAsync(cancellationToken);
-        return openDates.FirstOrDefault()?.Date ?? BusinessTime.Today;
     }
 
     private async Task<CashPositionSession> LockSessionAsync(long id, CancellationToken cancellationToken) =>
@@ -397,6 +386,6 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         });
 
     private static CashPositionSessionResponse ToResponse(CashPositionSession session) => new(
-        session.Id, session.BranchId, session.PositionType, session.TellerId, session.BusinessDate,
+        session.Id, session.PositionType, session.TellerId, session.BusinessDate,
         session.OpeningCash, session.ExpectedClosingCash, session.Status);
 }

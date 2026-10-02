@@ -22,6 +22,34 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
     public async Task<DateOnly> GetOpenBusinessDateValueAsync(CancellationToken cancellationToken) =>
         (await GetOrCreateOpenDateAsync(cancellationToken)).Date;
 
+    /// <summary>Returns the active date for a financial posting and prevents posting into yesterday after midnight until EOD closes it.</summary>
+    public async Task<DateOnly> GetPostingBusinessDateValueAsync(DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var currentDate = BusinessTime.ToBusinessDate(nowUtc);
+        var openDates = await db.BusinessDates
+            .FromSql($"SELECT * FROM BusinessDates WHERE Status = {OperationsConstants.BusinessDateOpen} ORDER BY Date DESC FOR UPDATE")
+            .ToListAsync(cancellationToken);
+        var openDate = openDates.FirstOrDefault();
+        if (openDate is not null && (openDate.Date == currentDate || openDate.Date > currentDate))
+            return openDate.Date;
+
+        var currentDateIsOpen = openDates.Any(item => item.Date == currentDate);
+        var yesterdayIsNotClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
+            item.Date == currentDate.AddDays(-1) && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (yesterdayIsNotClosed && !currentDateIsOpen)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
+        if (openDate is not null)
+            return openDate.Date;
+
+        var currentDateIsClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
+            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (currentDateIsClosed)
+            throw new BusinessRuleException(MessageCode.BusinessDateClosed);
+
+        return currentDate;
+    }
+
     private async Task<Models.Accounting.BusinessDate> GetOrCreateOpenDateAsync(CancellationToken cancellationToken)
     {
         var open = await db.BusinessDates.Where(item => item.Status == OperationsConstants.BusinessDateOpen)

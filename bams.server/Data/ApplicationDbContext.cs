@@ -61,6 +61,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Scheduled jobs
     public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
     public DbSet<ScheduledJobExecution> ScheduledJobExecutions => Set<ScheduledJobExecution>();
+    public DbSet<ScheduledJobRetryRequest> ScheduledJobRetryRequests => Set<ScheduledJobRetryRequest>();
 
     // External banking
     public DbSet<OtherBank> OtherBanks => Set<OtherBank>();

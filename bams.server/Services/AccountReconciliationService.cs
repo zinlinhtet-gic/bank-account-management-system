@@ -203,7 +203,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         var items = await query.OrderByDescending(item => item.BusinessDate).ThenByDescending(item => item.Id)
             .Skip((resolvedPage - 1) * resolvedSize).Take(resolvedSize)
             .Select(item => new ReconciliationExceptionResponse(item.Id, item.Type, item.Source, item.BusinessDate,
-                item.BranchId, item.AccountId, item.PositionSessionId, item.ExpectedAmount, item.ActualAmount, item.Difference, item.Severity,
+                item.AccountId, item.PositionSessionId, item.ExpectedAmount, item.ActualAmount, item.Difference, item.Severity,
                 item.Status, item.AssignedTo, item.RelatedTransactionId, item.CorrectionTransactionId,
                 item.Notes, item.CreatedAtUtc, item.UpdatedAtUtc)).ToListAsync(cancellationToken);
         return new PagedResponse<ReconciliationExceptionResponse>(items, resolvedPage, resolvedSize, count,
@@ -216,7 +216,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         var exception = await _db.ReconciliationExceptions.AsNoTracking()
             .Where(item => item.Id == exceptionId)
             .Select(item => new ReconciliationExceptionResponse(item.Id, item.Type, item.Source, item.BusinessDate,
-                item.BranchId, item.AccountId, item.PositionSessionId, item.ExpectedAmount, item.ActualAmount, item.Difference,
+                item.AccountId, item.PositionSessionId, item.ExpectedAmount, item.ActualAmount, item.Difference,
                 item.Severity, item.Status, item.AssignedTo, item.RelatedTransactionId, item.CorrectionTransactionId,
                 item.Notes, item.CreatedAtUtc, item.UpdatedAtUtc))
             .SingleOrDefaultAsync(cancellationToken)
@@ -272,7 +272,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         exception.UpdatedAtUtc = now;
         await _db.SaveChangesAsync(cancellationToken);
         return new ReconciliationExceptionResponse(exception.Id, exception.Type, exception.Source, exception.BusinessDate,
-            exception.BranchId, exception.AccountId, exception.PositionSessionId, exception.ExpectedAmount, exception.ActualAmount, exception.Difference,
+            exception.AccountId, exception.PositionSessionId, exception.ExpectedAmount, exception.ActualAmount, exception.Difference,
             exception.Severity, exception.Status, exception.AssignedTo, exception.RelatedTransactionId,
             exception.CorrectionTransactionId, exception.Notes, exception.CreatedAtUtc, exception.UpdatedAtUtc);
     }

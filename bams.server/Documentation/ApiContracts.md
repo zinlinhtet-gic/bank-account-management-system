@@ -31,7 +31,7 @@ Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payl
 | GET | `/api/cash-operations/sessions` | `cash_operations` | List teller/vault sessions for a business date. |
 | GET | `/api/cash-operations/sessions/{id}` | `cash_operations` | Read an authorized cash session with its movement and physical-count history and linked transaction references. |
 | POST | `/api/cash-operations/sessions` | `cash_operations` | Open a teller or vault cash position. |
-| POST | `/api/cash-operations/sessions/{id}/transfers` | `cash_operations` | Transfer expected cash between same-branch positions. |
+| POST | `/api/cash-operations/sessions/{id}/transfers` | `cash_operations` | Transfer expected cash between positions on the same business date. Cash positions are not branch-scoped. |
 | POST | `/api/cash-operations/sessions/{id}/count` | `cash_operations` | Record physical cash count and create a mismatch exception. |
 | POST | `/api/cash-operations/sessions/{id}/adjustments` | `cash_operations` | Submit a signed adjustment linked to the exact posted Cash on Hand journal effect. |
 | GET | `/api/cash-operations/adjustments` | `cash_operations` and `end_of_day_approval` | List cash adjustment requests for approval review. |
@@ -51,7 +51,7 @@ Account transaction, status-history, and interest-accrual routes return the reco
 
 Transaction summaries, detail, and posting responses include `businessDate` separately from the UTC `transactionAt` timestamp.
 
-Cash funded deposit, withdrawal, NRC transfer, NRC pickup, and cash refund requests include `cashSessionId`; the physical movement is saved atomically with posting. A physical count is immutable and never overwrites expected cash. Cash adjustments require a signed amount equal to a posted transaction's Cash on Hand journal effect and independent approval. Account reconciliation preserves run/result snapshots and exception history; mismatches are resolved only after a matched rerun. EOD initiation is manual; scheduled reconciliation and financial postings use the existing scheduled-job mechanism.
+Cash funded deposit, withdrawal, NRC transfer, NRC pickup, and cash refund requests are associated server-side with the actor's open teller session for the active posting business date. Transaction request DTOs do not require or accept a cash-session identifier; the physical movement is saved atomically with posting. If no current teller session exists, the server returns `CashSessionNotOpen`. A physical count is immutable and never overwrites expected cash. Cash adjustments require a signed amount equal to a posted transaction's Cash on Hand journal effect and independent approval. Account reconciliation preserves run/result snapshots and exception history; mismatches are resolved only after a matched rerun. EOD initiation is manual; scheduled reconciliation and financial postings use the existing scheduled-job mechanism.
 
 ## Available interest rules
 
@@ -131,3 +131,14 @@ The operation cannot add, remove, or replace customers. It requires exactly one 
 Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.
 
 All successful responses use `ApiMessageResponse<T>`. Expected failures use `ApiErrorResponse` with `code`, `name`, `message`, and `traceId`. Clients must branch on `code`, not message text.
+
+## Scheduled accounting-close recovery
+
+The manager permission `scheduled_job_management` protects these endpoints:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/operations/scheduled-jobs/failures` | Lists occurrences that exhausted automatic attempts and remain unresolved. Includes the stable failure code and a safe cause summary. |
+| POST | `/api/operations/scheduled-jobs/executions/{executionId}/retry` | Queues another attempt for the same occurrence and period; records the requesting user and timestamp. |
+
+For an open previous-month business date, the response includes `BusinessDateToClose`; close it through the existing `/api/operations/business-date` pre-close, approval, and close workflow before retrying. The retry endpoint does not close dates or bypass EOD gates. A retry rejection uses `ScheduledJobRetryUnavailable`; an unclosed month uses `MonthlyAccountingPeriodNotClosed`.

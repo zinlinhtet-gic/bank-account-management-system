@@ -1,5 +1,4 @@
 using bams.server.Models.Accounts;
-using bams.server.Models.Organization;
 using bams.server.Models.Security;
 using bams.server.Models.Transactions;
 
@@ -12,8 +11,6 @@ public sealed class ReconciliationException
     public string Type { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public DateOnly BusinessDate { get; set; }
-    public long? BranchId { get; set; }
-    public Branch? Branch { get; set; }
     public long? AccountId { get; set; }
     public Account? Account { get; set; }
     public long? PositionSessionId { get; set; }

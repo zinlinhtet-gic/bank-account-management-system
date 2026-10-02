@@ -15,9 +15,9 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
 {
     [HttpGet("sessions")]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashPositionSessionResponse>>>> GetSessionsAsync(
-        [FromQuery] DateOnly? businessDate, [FromQuery] long? branchId, CancellationToken cancellationToken)
+        [FromQuery] DateOnly? businessDate, CancellationToken cancellationToken)
     {
-        var sessions = await cashOperations.GetSessionsAsync(businessDate, branchId, cancellationToken);
+        var sessions = await cashOperations.GetSessionsAsync(businessDate, cancellationToken);
         return Ok(ApiMessageResponse<IReadOnlyList<CashPositionSessionResponse>>.FromCode(MessageCode.Success, sessions));
     }
 
@@ -56,9 +56,9 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     [HttpGet("adjustments")]
     [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashAdjustmentResponse>>>> GetAdjustmentsAsync(
-        [FromQuery] DateOnly? businessDate, [FromQuery] long? branchId, [FromQuery] string? status, CancellationToken cancellationToken)
+        [FromQuery] DateOnly? businessDate, [FromQuery] string? status, CancellationToken cancellationToken)
     {
-        var adjustments = await cashOperations.GetAdjustmentsAsync(businessDate, branchId, status, cancellationToken);
+        var adjustments = await cashOperations.GetAdjustmentsAsync(businessDate, status, cancellationToken);
         return Ok(ApiMessageResponse<IReadOnlyList<CashAdjustmentResponse>>.FromCode(MessageCode.Success, adjustments));
     }
 

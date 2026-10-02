@@ -624,7 +624,6 @@ paths:
         - bearerAuth: []
       parameters:
         - { name: businessDate, in: query, schema: { type: string, format: date } }
-        - { name: branchId, in: query, schema: { type: integer, format: int64 } }
       responses:
         '200':
           description: Visible sessions for the selected or current business date.
@@ -644,9 +643,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [branchId, positionType, openingCash]
+              required: [positionType, openingCash]
               properties:
-                branchId: { type: integer, format: int64 }
                 positionType: { type: string, enum: [Teller, Vault] }
                 openingCash: { type: number, format: decimal, minimum: 0 }
       responses:
@@ -678,7 +676,7 @@ paths:
     post:
       tags: [Cash Operations]
       operationId: transferCashBetweenSessions
-      summary: Transfer cash between same-branch positions
+      summary: Transfer cash between teller and vault positions on the same business date
       security:
         - bearerAuth: []
       parameters:
@@ -770,7 +768,6 @@ paths:
         - bearerAuth: []
       parameters:
         - { name: businessDate, in: query, schema: { type: string, format: date } }
-        - { name: branchId, in: query, schema: { type: integer, format: int64 } }
         - { name: status, in: query, schema: { type: string } }
       responses:
         '200':

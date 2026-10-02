@@ -79,9 +79,9 @@
             <TextBlock Text="{Binding PickupCodeError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
                        Visibility="{Binding PickupCodeError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-            <TextBlock Text="OPEN TELLER SESSION ID" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
-            <TextBox Style="{StaticResource Input.Text}" Text="{Binding CashSessionIdText, UpdateSourceTrigger=PropertyChanged}"
-                     t:ThemeAssist.HasError="{Binding CashSessionError.HasError}"/>
+            <TextBlock Text="CASH POSITION" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+            <TextBlock Text="Payout will be recorded in your current open teller session automatically."
+                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding CashSessionError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
                        Visibility="{Binding CashSessionError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
