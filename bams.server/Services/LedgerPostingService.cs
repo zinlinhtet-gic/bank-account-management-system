@@ -69,6 +69,10 @@ public sealed class LedgerPostingService
     /// the same accounts, so a key reused for another account is rejected instead of silently returning the first.
     /// </param>
     /// <param name="postAsync">Posts and saves the transaction; receives the normalized idempotency key to store.</param>
+    /// <param name="debitedAccountId">
+    /// For postings that touch several customer accounts, the account that is debited. A replay must debit the same
+    /// account, so a key reused for the reverse transfer is rejected instead of returning the original direction.
+    /// </param>
     public async Task<TransactionResponse> RunIdempotentPostingAsync(
         string? idempotencyKey,
         TransactionType transactionType,
@@ -76,7 +80,8 @@ public sealed class LedgerPostingService
         long userId,
         IReadOnlyCollection<long> customerAccountIds,
         Func<string?, Task<TransactionResponse>> postAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? debitedAccountId = null)
     {
         var normalizedKey = NormalizeIdempotencyKey(idempotencyKey);
         var replay = await FindIdempotentReplayAsync(
@@ -85,6 +90,7 @@ public sealed class LedgerPostingService
             amount,
             userId,
             customerAccountIds,
+            debitedAccountId,
             cancellationToken);
         if (replay is not null)
         {
@@ -95,10 +101,12 @@ public sealed class LedgerPostingService
         {
             return await RunInTransactionAsync(() => postAsync(normalizedKey), cancellationToken);
         }
-        catch (DbUpdateException) when (normalizedKey is not null)
+        catch (Exception exception) when (
+            normalizedKey is not null && exception is DbUpdateException or BusinessRuleException)
         {
-            // A parallel request with the same key committed first and the unique index rejected this one.
-            // The rollback already happened; forget the rejected changes and return the committed result.
+            // A parallel request with the same key committed first. Either the unique index rejected this one, or it
+            // waited on the account lock and then failed a business rule (e.g. the balance the original already
+            // spent). The rollback already happened; forget the rejected changes and return the committed result.
             _dbContext.ChangeTracker.Clear();
             var concurrentReplay = await FindIdempotentReplayAsync(
                 normalizedKey,
@@ -106,6 +114,7 @@ public sealed class LedgerPostingService
                 amount,
                 userId,
                 customerAccountIds,
+                debitedAccountId,
                 cancellationToken);
             if (concurrentReplay is null)
             {
@@ -193,10 +202,17 @@ public sealed class LedgerPostingService
         var accountType = account.AccountType
             ?? throw new InvalidOperationException("The account type must be loaded before checking debit rules.");
 
-        if (purpose == DebitPurpose.Deposit && !accountType.AllowDeposit)
+        if (purpose == DebitPurpose.Deposit)
         {
-            throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+            // A deposit adds money, so balance, minimum-balance and debit-limit checks do not apply.
+            if (!accountType.AllowDeposit)
+            {
+                throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+            }
+
+            return;
         }
+
         if (purpose == DebitPurpose.Withdrawal && !accountType.AllowWithdrawal)
         {
             throw new BusinessRuleException(MessageCode.WithdrawalNotAllowed);
@@ -537,6 +553,7 @@ public sealed class LedgerPostingService
         decimal amount,
         long userId,
         IReadOnlyCollection<long> customerAccountIds,
+        long? debitedAccountId,
         CancellationToken cancellationToken)
     {
         if (idempotencyKey is null)
@@ -569,13 +586,19 @@ public sealed class LedgerPostingService
         }
 
         // Compare the accounts the original posting touched with the accounts this request names.
-        var postedAccountIds = await _dbContext.AccountTransactions
+        var postedEntries = await _dbContext.AccountTransactions
             .AsNoTracking()
             .Where(entry => entry.TransactionId == existing.Id)
-            .Select(entry => entry.AccountId)
-            .Distinct()
+            .Select(entry => new { entry.AccountId, entry.EntryType })
             .ToListAsync(cancellationToken);
-        if (!postedAccountIds.ToHashSet().SetEquals(customerAccountIds))
+        if (!postedEntries.Select(entry => entry.AccountId).ToHashSet().SetEquals(customerAccountIds))
+        {
+            throw new ConflictException(MessageCode.IdempotencyKeyReused);
+        }
+
+        if (debitedAccountId is { } expectedDebitedAccountId
+            && !postedEntries.Any(entry =>
+                entry.AccountId == expectedDebitedAccountId && entry.EntryType == EntryType.Debit))
         {
             throw new ConflictException(MessageCode.IdempotencyKeyReused);
         }

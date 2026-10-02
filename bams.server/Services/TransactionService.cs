@@ -208,6 +208,7 @@ public sealed class TransactionService : ITransactionService
 
                 return LedgerPostingService.ToResponse(entity, source.Id, destination.Id);
             },
-            cancellationToken);
+            cancellationToken,
+            debitedAccountId: request.SourceAccountId);
     }
 }
