@@ -46,6 +46,10 @@
                 <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Saved on the refund"
                          Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"/>
             </StackPanel>
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding ShowsCashSession, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="CASH SESSION ID (REQUIRED FOR CASH REFUNDS)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" Text="{Binding CashSessionIdText, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
         </StackPanel>
 
         <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,20,0,0" Content="{Binding FormError}"

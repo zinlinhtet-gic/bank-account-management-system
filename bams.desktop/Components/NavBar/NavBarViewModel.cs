@@ -63,6 +63,9 @@ public partial class NavBarViewModel : ObservableObject
             AddAccountingNavigation();
         }
 
+        if (flags.CanManageCashOperations && !flags.CanAccessAccounting)
+            AddNavItem(PageNames.CashReconciliation, "Icon.Finance", Items.Count == 0);
+
         if (flags.CanPerformOperations)
             AddNavItem(PageNames.Operations, "Icon.Settings");
 
@@ -200,6 +203,8 @@ public partial class NavBarViewModel : ObservableObject
         accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
 
         accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+        accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
+        accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));
 
         accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));
 

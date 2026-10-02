@@ -77,6 +77,15 @@
                     <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
                         <accountingViews:AccountingEntriesView/>
                     </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationViewModel}">
+                        <accountingViews:ReconciliationView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashReconciliationViewModel}">
+                        <accountingViews:CashReconciliationView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:EndOfDayViewModel}">
+                        <accountingViews:EndOfDayView/>
+                    </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:
                     <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">

@@ -59,7 +59,7 @@ public sealed class GLAccountDetailViewModel : ViewModelBase, IAsyncInitializabl
             TransactionGroups.Clear();
             foreach (var group in detail.Entries.Items.GroupBy(entry => entry.TransactionId).OrderByDescending(group => group.First().TransactionAt).ThenByDescending(group => group.Key))
                 TransactionGroups.Add(new AccountingTransactionGroupDisplayModel(group.OrderBy(entry => entry.Id).ToList()));
-            _page = detail.Entries.Page;
+            _page = detail.Entries.PageNumber;
             _totalCount = detail.Entries.TotalCount;
             OnPropertyChanged(nameof(Page)); OnPropertyChanged(nameof(TotalPages)); OnPropertyChanged(nameof(PageInfo));
             OnPropertyChanged(nameof(CountText)); OnPropertyChanged(nameof(IsEmpty));

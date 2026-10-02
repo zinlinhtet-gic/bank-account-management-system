@@ -3,8 +3,8 @@ info:
   title: Bank Account Management API
   version: 1.0.0
   description: |
-    OpenAPI contract for account, customer, account type, and interest-rate endpoints.
-    Account operations require account_management; customer-management operations require customer_management.
+    OpenAPI contract for account, customer, accounting, reconciliation, cash-operations, business-date, and interest-rate endpoints.
+    Operations use the permission requirements described by their controller attributes and the companion ApiContracts.md table.
     Version fields provide optimistic locking.
 servers:
   - url: https://localhost:7018
@@ -20,6 +20,12 @@ tags:
     description: Active rate rules available for account products.
   - name: Customers
     description: Customer registration used during account opening.
+  - name: Reconciliation
+    description: Account and ledger comparisons, discrepancy records, and investigation history.
+  - name: Cash Operations
+    description: Teller/vault positions, cash movements, counts, and adjustments.
+  - name: End of Day
+    description: Business-date pre-close, review, approval, and close lifecycle.
 
 paths:
   /api/accounts:
@@ -509,6 +515,358 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /api/accounting/reconciliation/accounts:
+    post:
+      tags: [Reconciliation]
+      operationId: reconcileAccounts
+      summary: Compare account and customer-liability ledger balances
+      description: Returns one daily balance result per eligible account for every date in the inclusive range. Does not edit account balances.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromDate, toDate]
+              properties:
+                fromDate: { type: string, format: date }
+                toDate: { type: string, format: date }
+                accountId: { type: integer, format: int64, nullable: true }
+      responses:
+        '200':
+          description: Persisted reconciliation run and daily account results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataMessageResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/accounting/reconciliation/exceptions:
+    get:
+      tags: [Reconciliation]
+      operationId: getReconciliationExceptions
+      summary: List reconciliation exceptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: fromDate, in: query, schema: { type: string, format: date } }
+        - { name: toDate, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string } }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200':
+          description: Paged exceptions filtered by business date and status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/accounting/reconciliation/exceptions/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+    get:
+      tags: [Reconciliation]
+      operationId: getReconciliationException
+      summary: Get an exception and its audit timeline
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Discrepancy details and append-only investigation timeline.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Reconciliation]
+      operationId: updateReconciliationException
+      summary: Update exception assignment and investigation
+      description: Requires accounting and reconciliation_investigation. Direct resolution is rejected; a valid correction must be followed by reconciliation.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [Open, UnderInvestigation, AdjustmentRequired] }
+                notes: { type: string, nullable: true }
+                assignedTo: { type: integer, format: int64, nullable: true }
+                correctionTransactionId: { type: integer, format: int64, nullable: true }
+      responses:
+        '200':
+          description: Updated exception.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
+  /api/cash-operations/sessions:
+    get:
+      tags: [Cash Operations]
+      operationId: getCashSessions
+      summary: List visible teller and vault sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: businessDate, in: query, schema: { type: string, format: date } }
+        - { name: branchId, in: query, schema: { type: integer, format: int64 } }
+      responses:
+        '200':
+          description: Visible sessions for the selected or current business date.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Cash Operations]
+      operationId: openCashSession
+      summary: Open a teller or vault session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [branchId, positionType, openingCash]
+              properties:
+                branchId: { type: integer, format: int64 }
+                positionType: { type: string, enum: [Teller, Vault] }
+                openingCash: { type: number, format: decimal, minimum: 0 }
+      responses:
+        '200':
+          description: Opened cash session.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+  /api/cash-operations/sessions/{id}:
+    get:
+      tags: [Cash Operations]
+      operationId: getCashSessionDetail
+      summary: Get a cash session with movement and count history
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      responses:
+        '200':
+          description: Session, movement rows, counts, and linked transaction references.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/cash-operations/sessions/{id}/transfers:
+    post:
+      tags: [Cash Operations]
+      operationId: transferCashBetweenSessions
+      summary: Transfer cash between same-branch positions
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destinationSessionId, amount]
+              properties:
+                destinationSessionId: { type: integer, format: int64 }
+                amount: { type: number, format: decimal, minimum: 0.01 }
+                note: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Transfer recorded against both positions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+  /api/cash-operations/sessions/{id}/count:
+    post:
+      tags: [Cash Operations]
+      operationId: submitCashCount
+      summary: Submit a physical cash count and close the session
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actualAmount]
+              properties:
+                actualAmount: { type: number, format: decimal, minimum: 0 }
+                notes: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Immutable count result; a mismatch creates or updates an exception.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+  /api/cash-operations/sessions/{id}/adjustments:
+    post:
+      tags: [Cash Operations]
+      operationId: requestCashAdjustment
+      summary: Request an independently approved cash adjustment
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signedAmount, correctionTransactionId]
+              properties:
+                signedAmount:
+                  type: number
+                  format: decimal
+                  not: { enum: [0] }
+                correctionTransactionId: { type: integer, format: int64 }
+                note: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Pending adjustment linked to a posted Cash on Hand journal effect.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+  /api/cash-operations/adjustments:
+    get:
+      tags: [Cash Operations]
+      operationId: getCashAdjustments
+      summary: List cash adjustment requests for approval
+      description: Requires cash_operations and end_of_day_approval.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: businessDate, in: query, schema: { type: string, format: date } }
+        - { name: branchId, in: query, schema: { type: integer, format: int64 } }
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Cash adjustments matching the selected filters.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/cash-operations/adjustments/{id}/approve:
+    post:
+      tags: [Cash Operations]
+      operationId: approveCashAdjustment
+      summary: Approve another user's cash adjustment
+      description: Requires cash_operations and end_of_day_approval; the approver must differ from the requester.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      responses:
+        '200':
+          description: Approved adjustment and updated expected cash position.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
+  /api/operations/business-date:
+    get:
+      tags: [End of Day]
+      operationId: getCurrentBusinessDate
+      summary: Get the open bank business date
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current open date and lifecycle metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/operations/business-date/{date}/pre-close:
+    post:
+      tags: [End of Day]
+      operationId: runBusinessDatePreClose
+      summary: Run pre-close checks and reconcile accounts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Persisted EOD run with stage statuses and blocker counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+  /api/operations/business-date/runs/{id}/approve:
+    post:
+      tags: [End of Day]
+      operationId: approveEndOfDayRun
+      summary: Approve an EOD run using dual control
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      responses:
+        '200':
+          description: Approved run. Approver must differ from preparer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+  /api/operations/business-date/runs/{id}/close:
+    post:
+      tags: [End of Day]
+      operationId: closeBusinessDate
+      summary: Recheck blockers, close the date, and open the next date
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      responses:
+        '200':
+          description: Closed business date and newly opened next date.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -531,6 +889,15 @@ components:
       in: path
       required: true
       description: Fixed-deposit row identifier, not the account identifier.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      description: Resource identifier.
       schema:
         type: integer
         format: int64
@@ -630,6 +997,14 @@ components:
             $ref: '#/components/schemas/ApiErrorResponse'
 
   schemas:
+    DataMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiMessageResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              description: Endpoint-specific result described in the operation response.
     AccountStatus:
       type: string
       enum: [Active, Dormant, Suspended, Closed, Frozen]

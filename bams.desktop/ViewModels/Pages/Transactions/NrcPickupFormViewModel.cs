@@ -21,6 +21,7 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
     private string _receiverName = string.Empty;
     private string _receiverNrc = string.Empty;
     private string _pickupCode = string.Empty;
+    private string _cashSessionIdText = string.Empty;
     private string _formError = string.Empty;
     private bool _isBusy;
 
@@ -109,6 +110,13 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
     }
 
     public FieldError PickupCodeError { get; } = new();
+    public FieldError CashSessionError { get; } = new();
+
+    public string CashSessionIdText
+    {
+        get => _cashSessionIdText;
+        set { if (SetProperty(ref _cashSessionIdText, value)) CashSessionError.Clear(); }
+    }
 
     /// <summary>Error that belongs to no single field (identity mismatch, expired, blocked, network...).</summary>
     public string FormError
@@ -154,8 +162,11 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
         PickupCodeError.Set(code.Length != TransactionFieldRules.PickupCodeLength || !code.All(char.IsAsciiDigit)
             ? $"Enter the {TransactionFieldRules.PickupCodeLength}-digit code the sender received."
             : string.Empty);
+        CashSessionError.Set(!long.TryParse(CashSessionIdText, out var cashSessionId) || cashSessionId <= 0
+            ? "Enter an open teller session ID for this branch."
+            : string.Empty);
 
-        if (ReceiverNameError.HasError || ReceiverNrcError.HasError || PickupCodeError.HasError)
+        if (ReceiverNameError.HasError || ReceiverNrcError.HasError || PickupCodeError.HasError || CashSessionError.HasError)
         {
             return;
         }
@@ -164,7 +175,7 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
         {
             IsBusy = true;
             await _transactionService.CompleteNrcPickupAsync(
-                new NrcPickupRequest(_transfer.Id, code, name, nrc),
+                new NrcPickupRequest(_transfer.Id, code, name, nrc, long.Parse(CashSessionIdText)),
                 CancellationToken.None);
         }
         catch (AppException exception)

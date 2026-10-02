@@ -38,7 +38,11 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
          * If reconciliation or DailySummary creation fails,
          * nothing should remain partially saved.
          */
-        await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        // Reuse the caller's transaction when EOD owns the date lock, otherwise own a standalone audit transaction.
+        var ownsTransaction = _dbContext.Database.CurrentTransaction is null;
+        await using var dbTransaction = ownsTransaction
+            ? await _dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         // 1. Retrieve transactions occurring on the requested date.
         var transactions =await GetTransactionsForAuditDateAsync(auditDate,cancellationToken);
 
@@ -124,7 +128,8 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         // 16. Everything succeeded.
-        await dbTransaction.CommitAsync(cancellationToken);
+        if (dbTransaction is not null)
+            await dbTransaction.CommitAsync(cancellationToken);
 
         return new EndOfDayAuditResult(
             auditDate,

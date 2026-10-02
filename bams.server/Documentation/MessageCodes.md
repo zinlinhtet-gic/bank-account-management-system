@@ -63,6 +63,9 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3011 | InvalidDateRange | 400 | A "from" date is after the "to" date in a list filter. |
 | 3012 | NewPasswordSameAsCurrent | 400 | Change password: the new password equals the current one. |
 | 3013 | DefaultPasswordNotAllowed | 400 | Change password: the new password is one of the role default passwords. |
+| 3015 | ReconciliationDateRangeTooLong | 400 | A reconciliation request spans more than 366 inclusive business dates. |
+| 3016 | InvalidReconciliationExceptionStatus | 400 | The supplied reconciliation exception status is not supported. |
+| 3017 | ReconciliationStatusTransitionInvalid | 400 | The exception cannot move from its current status to the requested status. |
 | 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the account type's minimum. |
 
 | 3400 | InterestRateBalanceRangeInvalid | 400 | Minimum balance is greater than maximum balance on an interest rate rule. |
@@ -381,6 +384,14 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4462 | DailyAccountingUnbalanced | 422 | The day's total debits and credits are not equal. |
 | 4463 | AuditUserUnavailable | 422 | No user is available to record the end-of-day reconciliation. |
 | 4464 | UnsupportedGlAccountClass | 422 | A GL account has an account class the reports cannot classify. |
+| 4465 | TransactionAccountingEntriesIncomplete | 422 | A transaction journal is missing required lines, contains duplicate lines, or has non-positive amounts. |
+| 4466 | ReconciliationExceptionNotResolvable | 422 | Reconciliation must confirm the difference is cleared before the exception can be resolved. |
+| 4467 | CashSessionNotOpen | 422 | An open cash session for the teller or vault and business date is required. |
+| 4468 | BusinessDateClosed | 422 | Normal financial posting is not allowed to a closed business date. |
+| 4469 | BusinessDateTransitionConflict | 409 | The requested business-date transition is not valid for the current lifecycle state. |
+| 4470 | ReconciliationBlocked | 422 | The business date cannot advance while blocking reconciliation or pre-close conditions remain. |
+| 4471 | EndOfDayApprovalRequired | 422 | A distinct authorized reviewer must approve the EOD run before it can close. |
+| 4472 | CashAdjustmentApprovalRequired | 422 | Cash adjustment approval requires a distinct authorized reviewer and a matching posted correction transaction. |
 
 | Code | Name                     | HTTP | Meaning                                                 |
 | ---- | ------------------------ | ---- | ------------------------------------------------------- |

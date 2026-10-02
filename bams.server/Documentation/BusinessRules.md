@@ -99,6 +99,12 @@
   ascending id order), so concurrent postings cannot overdraw an account, break a limit, or deadlock each other.
 - Each posting writes one `AccountTransactions` row per customer account with the balances before and after, and
   balanced general-ledger lines in `TransactionEntries` (see the ledger table below).
+- An internal transfer is balanced by two customer-deposit journal lines: a debit to the source account and a credit
+  to the destination account. Interbank and NRC transfers begin with two funding lines and receive two more
+  settlement/payout lines when completed.
+- Before commit, the posting validator checks the expected GL account and debit/credit direction for the transaction
+  type and lifecycle state, verifies every journal line equals the transaction amount, and rejects duplicate or
+  missing lines.
 - Every posting, pickup (including failed attempts), cancellation and settlement writes an `AuditLogs` row:
   `Action` from `AuditConstants`, `EntityId` = transaction number, `NewValues` = JSON details, plus the user, IP and
   User-Agent. Pickup codes are never logged.
@@ -245,4 +251,15 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 ## Business dates
 
 - Timestamps are stored in UTC; every business date uses Myanmar time (Asia/Rangoon, UTC+06:30) through `Utils/BusinessTime`: posting and value dates, daily/monthly limits, fixed-deposit start dates, product effective dates, date-of-birth checks, account-number periods and scheduled-job run dates.
+- A persisted `BusinessDate` is the bank-wide financial posting date and is separate from `CreatedAtUtc` and `TransactionAt`. Each transaction captures the open date when its first journal entry is posted; individual journal entries retain their own posting dates for later settlements. A closed date rejects normal posting. EOD closes the selected date and opens the next calendar date atomically.
+- Reconciliation schema index and foreign-key identifiers use compact names within the configured MySQL 64-character identifier limit.
+- Financial posting validates journal completeness and debit/credit equality before commit. Account reconciliation stores run/result snapshots comparing each day's last operational balance snapshot with customer-linked liability journal entries across the inclusive selected date range. It selects snapshots by posting date and then posting sequence, records and updates exceptions without changing account balances, and resolves the date's exception with history after a matched rerun.
+- First detection of an account, ledger, or physical-cash discrepancy appends an initial `None` → `Open` event to the exception timeline. Subsequent investigation, recount, correction-reference, and resolution events are appended; prior history is preserved.
+- Teller/vault cash positions record opening cash, posted cash movements, transfers, and physical counts. Count differences create investigation exceptions and cannot overwrite expected cash. Corrective changes must go through transaction posting and a subsequent reconciliation/count.
+- A teller may inspect only their own cash session; a user with `end_of_day_approval` can inspect teller and vault session histories for close review. Session detail exposes immutable movement/count rows and linked transaction references.
+- Cash adjustments require a posted transaction with a non-zero Cash on Hand journal effect, a signed request amount exactly equal to that effect, and approval by a distinct user with `end_of_day_approval`. Only approval applies the effect to expected cash; requester and approver are retained on the movement.
+- Cash-operation inputs reject invalid IDs, negative opening/count amounts, nonpositive transfers, zero adjustments, and amounts with more than two decimal places. Transfer and adjustment notes are limited to 500 characters; count notes are limited to 2,000. Request validation errors return HTTP 400.
+- Account reconciliation accepts an inclusive range of at most 366 business dates. Exception status filters accept only `Open`, `UnderInvestigation`, `AdjustmentRequired`, or `Resolved`; status updates must follow allowed investigation transitions. Invalid ranges/statuses/transition requests return HTTP 400. Reconciliation does not update `Account.Balance`.
+- `ScheduledAccountReconciliationService` invokes the same reconciliation service used by the API under the existing scheduled-job lease/retry mechanism and the disabled system actor. `AccountingReconciliation:IntervalMinutes` configures the interval (default 1440; `0` disables it).
+- EOD blocks on pending/failed transactions, missing or unbalanced journals, open cash sessions, unresolved critical exceptions, or unmatched account balances. Pre-close runs account reconciliation; close reruns it once while holding the BusinessDate lock so postings cannot race final checks. Approval requires the run's business date to remain open and a reviewer distinct from the preparer. No automatic EOD time is hard-coded.
 - End-of-day for a date covers transactions made during that Myanmar day plus transactions whose ledger lines carry that posting date. Every entry of those transactions is checked for completeness and balance; only lines posted on the audit date enter the day's totals, reconciliation and daily summaries. Accrual transactions (`Accrued`) are included.

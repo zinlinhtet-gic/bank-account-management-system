@@ -32,6 +32,7 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
     private string _gatewayReference = string.Empty;
     private string _settlementReference = string.Empty;
     private string _reason = string.Empty;
+    private string _cashSessionIdText = string.Empty;
     private string _formError = string.Empty;
     private bool _isBusy;
 
@@ -108,6 +109,7 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
     public bool ShowsSettlementReference => Action == PendingTransferAction.CompleteInterbankTransfer;
 
     public bool ShowsReason => IsDestructive;
+    public bool ShowsCashSession => Action == PendingTransferAction.CancelNrcTransfer;
 
     public string GatewayReference
     {
@@ -126,6 +128,12 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
     {
         get => _reason;
         set => SetProperty(ref _reason, value);
+    }
+
+    public string CashSessionIdText
+    {
+        get => _cashSessionIdText;
+        set => SetProperty(ref _cashSessionIdText, value);
     }
 
     public string FormError
@@ -178,7 +186,7 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
             {
                 PendingTransferAction.CancelNrcTransfer => await _transactionService.CancelNrcTransferAsync(
                     _transfer.Id,
-                    new NrcCancelRequest(TrimToNull(Reason)),
+                    new NrcCancelRequest(TrimToNull(Reason), long.TryParse(CashSessionIdText, out var cashSessionId) ? cashSessionId : null),
                     CancellationToken.None),
                 PendingTransferAction.RecordNrcPayout => await _transactionService.RecordNrcPayoutAsync(
                     _transfer.Id,

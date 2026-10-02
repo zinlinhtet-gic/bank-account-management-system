@@ -179,6 +179,11 @@ public partial class App : Application
         services.AddTransient<GeneralLedgerViewModel>();
         services.AddTransient<GLAccountDetailViewModel>();
         services.AddTransient<ReconciliationViewModel>();
+        services.AddSingleton<Services.IReconciliationService, Services.ReconciliationService>();
+        services.AddTransient<CashReconciliationViewModel>();
+        services.AddSingleton<Services.ICashOperationsClientService, Services.CashOperationsClientService>();
+        services.AddTransient<EndOfDayViewModel>();
+        services.AddSingleton<Services.IEndOfDayClientService, Services.EndOfDayClientService>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();

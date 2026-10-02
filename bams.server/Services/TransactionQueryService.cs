@@ -84,7 +84,10 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 transaction.Amount,
                 transaction.TransactionAt,
                 transaction.Description,
-                transaction.ReferenceNo))
+                transaction.ReferenceNo)
+            {
+                BusinessDate = transaction.BusinessDate
+            })
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<TransactionSummaryResponse>(items, page, pageSize, totalCount, TotalPages);
@@ -197,7 +200,10 @@ public sealed class TransactionQueryService : ITransactionQueryService
             transaction.ReversalOfTransactionId,
             accountEntries,
             nrcTransfer,
-            interbankTransfer);
+            interbankTransfer)
+        {
+            BusinessDate = transaction.BusinessDate
+        };
     }
 
     /// <summary>

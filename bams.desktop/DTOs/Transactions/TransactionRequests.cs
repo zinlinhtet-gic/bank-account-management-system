@@ -7,14 +7,16 @@ public sealed record DepositRequest(
     long AccountId,
     decimal Amount,
     string? Description,
-    string? ReferenceNo);
+    string? ReferenceNo,
+    long? CashSessionId = null);
 
 /// <summary>Body of <c>POST api/transactions/withdrawal</c>.</summary>
 public sealed record WithdrawalRequest(
     long AccountId,
     decimal Amount,
     string? Description,
-    string? ReferenceNo);
+    string? ReferenceNo,
+    long? CashSessionId = null);
 
 /// <summary>Body of <c>POST api/transactions/transfer/internal</c>.</summary>
 public sealed record InternalTransferRequest(
@@ -52,7 +54,8 @@ public sealed record NrcTransferRequest(
     long? PickupOtherBankId,
     decimal Amount,
     string? Description,
-    string? ReferenceNo);
+    string? ReferenceNo,
+    long? CashSessionId = null);
 
 /// <summary>
 /// Body of <c>POST api/transactions/nrc-pickup</c>: paid out in cash to the designated receiver, whose name and NRC
@@ -62,7 +65,8 @@ public sealed record NrcPickupRequest(
     long TransactionId,
     string PickupCode,
     string ReceiverName,
-    string ReceiverNrc);
+    string ReceiverNrc,
+    long? CashSessionId = null);
 
 /// <summary>Body of <c>POST api/transactions/transfer/nrc/{id}/paid-out</c> (the other bank paid the receiver).</summary>
 public sealed record NrcPayoutRequest(
@@ -70,7 +74,8 @@ public sealed record NrcPayoutRequest(
 
 /// <summary>Body of <c>POST api/transactions/transfer/nrc/{id}/cancel</c>.</summary>
 public sealed record NrcCancelRequest(
-    string? Reason);
+    string? Reason,
+    long? CashSessionId = null);
 
 /// <summary>Body of <c>POST api/transactions/transfer/interbank/{id}/complete</c>.</summary>
 public sealed record InterbankSettlementRequest(

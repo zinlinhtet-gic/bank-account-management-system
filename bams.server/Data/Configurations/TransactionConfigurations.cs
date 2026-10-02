@@ -13,11 +13,13 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.Property(t => t.TransactionNo).IsRequired().HasMaxLength(40);
         builder.Property(t => t.Description).HasMaxLength(300);
         builder.Property(t => t.ReferenceNo).HasMaxLength(100);
+        builder.Property(t => t.BusinessDate).HasColumnType("date");
 
         builder.Property(t => t.IdempotencyKey).HasMaxLength(64);
 
         builder.HasIndex(t => t.TransactionNo).IsUnique();
         builder.HasIndex(t => t.IdempotencyKey).IsUnique();
+        builder.HasIndex(t => new { t.BusinessDate, t.TransactionStatus });
 
         builder.HasOne(t => t.InitiatedByUser)
             .WithMany()
@@ -46,6 +48,7 @@ public sealed class TransactionEntryConfiguration : IEntityTypeConfiguration<Tra
     public void Configure(EntityTypeBuilder<TransactionEntry> builder)
     {
         builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.CustomerAccountId, e.PostingDate, e.GlAccountId });
         builder.Property(e => e.Description).HasMaxLength(300);
         // MySQL DATE <-> .NET DateOnly
         builder.Property(e => e.PostingDate)
@@ -73,6 +76,7 @@ public sealed class AccountTransactionConfiguration : IEntityTypeConfiguration<A
     public void Configure(EntityTypeBuilder<AccountTransaction> builder)
     {
         builder.HasKey(t => t.Id);
+        builder.HasIndex(t => new { t.AccountId, t.PostingDate, t.Id });
 
         builder.Property(t => t.Description).HasMaxLength(300);
         builder.Property(t => t.ReferenceNo).HasMaxLength(100);

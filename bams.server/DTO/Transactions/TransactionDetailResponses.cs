@@ -13,7 +13,10 @@ public sealed record TransactionSummaryResponse(
     decimal Amount,
     DateTime TransactionAt,
     string? Description,
-    string? ReferenceNo);
+    string? ReferenceNo)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
 
 /// <summary>
 /// Full detail of one transaction: header, account entries and the NRC or interbank detail when present.
@@ -34,7 +37,10 @@ public sealed record TransactionDetailResponse(
     long? ReversalOfTransactionId,
     IReadOnlyList<AccountEntryResponse> AccountEntries,
     NrcTransferDetailResponse? NrcTransfer,
-    InterbankTransferDetailResponse? InterbankTransfer);
+    InterbankTransferDetailResponse? InterbankTransfer)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
 
 /// <summary>
 /// A debit or credit a transaction posted to a customer account.

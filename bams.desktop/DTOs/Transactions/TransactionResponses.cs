@@ -16,7 +16,10 @@ public sealed record TransactionResponse(
     string? ReferenceNo,
     long? SourceAccountId,
     long? DestinationAccountId,
-    string? PickupCode);
+    string? PickupCode)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
 
 /// <summary>One row of <c>GET api/transactions</c>.</summary>
 public sealed record TransactionSummaryResponse(
@@ -27,7 +30,10 @@ public sealed record TransactionSummaryResponse(
     decimal Amount,
     DateTime TransactionAt,
     string? Description,
-    string? ReferenceNo);
+    string? ReferenceNo)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
 
 /// <summary>Full detail from <c>GET api/transactions/{id}</c>.</summary>
 public sealed record TransactionDetailResponse(
@@ -46,7 +52,10 @@ public sealed record TransactionDetailResponse(
     long? ReversalOfTransactionId,
     IReadOnlyList<AccountEntryResponse> AccountEntries,
     NrcTransferDetailResponse? NrcTransfer,
-    InterbankTransferDetailResponse? InterbankTransfer);
+    InterbankTransferDetailResponse? InterbankTransfer)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
 
 /// <summary>A debit or credit a transaction posted to a customer account.</summary>
 public sealed record AccountEntryResponse(

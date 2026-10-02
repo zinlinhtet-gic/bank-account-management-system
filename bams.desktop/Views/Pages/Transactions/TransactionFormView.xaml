@@ -223,6 +223,15 @@
                     <Separator Style="{StaticResource Divider}" Margin="0,20,0,0"/>
                 </StackPanel>
 
+                <StackPanel Margin="0,0,0,16" Visibility="{Binding ShowsCashSession, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="OPEN CASH SESSION ID" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Choose/open a teller session in Cash Reconciliation"
+                             Text="{Binding CashSessionIdText, UpdateSourceTrigger=PropertyChanged}"
+                             t:ThemeAssist.HasError="{Binding CashSessionError.HasError}"/>
+                    <TextBlock Text="{Binding CashSessionError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                               Visibility="{Binding CashSessionError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </StackPanel>
+
                 <!-- Amount + reference -->
                 <Grid>
                     <Grid.ColumnDefinitions>

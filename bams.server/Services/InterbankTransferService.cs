@@ -173,6 +173,7 @@ public sealed class InterbankTransferService : IInterbankTransferService
                 now);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _ledger.ValidateTransactionAccountingEntriesAsync(entity.Id, cancellationToken);
             return entity.Id;
         }, cancellationToken);
 
@@ -220,6 +221,7 @@ public sealed class InterbankTransferService : IInterbankTransferService
                 now);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _ledger.ValidateTransactionAccountingEntriesAsync(refund.Id, cancellationToken);
             return refund.Id;
         }, cancellationToken);
 
