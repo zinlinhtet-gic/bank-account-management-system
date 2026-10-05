@@ -151,7 +151,7 @@
               <TextBlock Text="{Binding Workflow.Holder2.FullName}" />
               <TextBlock Text="{Binding Workflow.SelectedCreateType.Name}" Style="{StaticResource Text.Title}" Margin="0,8,0,0" />
               <TextBlock Text="{Binding Workflow.OpeningBalance}" />
-              <Button Content="Create account" Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True" Command="{Binding Workflow.CreateAccountCommand}" Margin="0,16,0,0" HorizontalAlignment="Left" />
+              <Button Content="Create account" Style="{StaticResource Button.Primary}" Command="{Binding Workflow.CreateAccountCommand}" Margin="0,16,0,0" HorizontalAlignment="Left" />
             </StackPanel>
             <TextBlock Text="{Binding Workflow.ErrorMessage}" Style="{StaticResource Text.Error}" Margin="0,12,0,0" />
             <DockPanel Margin="0,18,0,0">

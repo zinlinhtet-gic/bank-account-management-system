@@ -85,13 +85,13 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         OpenSessionCommand = new AsyncRelayCommand(OpenSessionAsync, () => HasCashOperationsPermission);
         CountCashCommand = new AsyncRelayCommand(SubmitCountAsync, () => HasCashOperationsPermission);
         TransferCashCommand = new AsyncRelayCommand(TransferCashAsync, () => HasCashOperationsPermission);
-        RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => HasCashOperationsPermission);
+        RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => CanViewCashSessions);
         RequestAdjustmentCommand = new AsyncRelayCommand(RequestAdjustmentAsync, () => HasCashOperationsPermission);
         ApproveAdjustmentCommand = new AsyncRelayCommand(ApproveAdjustmentAsync, () => CanApproveAdjustments);
-        ViewSessionHistoryCommand = new AsyncRelayCommand(LoadSessionHistoryAsync, () => HasCashOperationsPermission);
-        AcceptHandoffCommand = new AsyncRelayCommand(AcceptHandoffAsync, () => HasCashOperationsPermission && SelectedHandoff?.Status == "PendingAcceptance");
-        DeclineHandoffCommand = new AsyncRelayCommand(DeclineHandoffAsync, () => HasCashOperationsPermission && SelectedHandoff?.Status == "PendingAcceptance");
-        ReassignHandoffCommand = new AsyncRelayCommand(ReassignHandoffAsync, () => HasCashOperationsPermission && SelectedHandoff is not null && SelectedHandoff.Status != "Accepted" && SelectedHandoffRecipient is not null);
+        ViewSessionHistoryCommand = new AsyncRelayCommand(LoadSessionHistoryAsync, () => CanViewCashSessions);
+        AcceptHandoffCommand = new AsyncRelayCommand(AcceptHandoffAsync, () => CanReviewHandoffs && SelectedHandoff?.Status == "PendingAcceptance");
+        DeclineHandoffCommand = new AsyncRelayCommand(DeclineHandoffAsync, () => CanReviewHandoffs && SelectedHandoff?.Status == "PendingAcceptance");
+        ReassignHandoffCommand = new AsyncRelayCommand(ReassignHandoffAsync, () => CanReviewHandoffs && SelectedHandoff is not null && SelectedHandoff.Status != "Accepted" && SelectedHandoffRecipient is not null);
     }
 
     // Selects the active cash-operation tab and notifies the four themed tab buttons of the new selection.
@@ -113,6 +113,9 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
     public bool HasCashOperationsPermission => _authContext.HasPermission(PermissionCodes.CashOperations);
+    public bool CanViewCashSessions => HasCashOperationsPermission || _authContext.HasPermission(PermissionCodes.Audit) ||
+        _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public bool CanReviewHandoffs => CanViewCashSessions;
     public bool CanApproveAdjustments => HasCashOperationsPermission && _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
     public string AdjustmentAmountText { get => _adjustmentAmountText; set { if (SetProperty(ref _adjustmentAmountText, value)) AdjustmentAmountError = string.Empty; } }
     public string CorrectionTransactionIdText { get => _correctionTransactionIdText; set { if (SetProperty(ref _correctionTransactionIdText, value)) CorrectionTransactionIdError = string.Empty; } }
@@ -165,7 +168,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        if (!HasCashOperationsPermission) return;
+        if (!CanViewCashSessions) return;
         try
         {
             var activeBusinessDate = await _businessDateService.GetCurrentBusinessDateAsync(cancellationToken);
@@ -184,14 +187,14 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     /// <summary>Loads cash sessions for the business date selected by the parent End of Day workflow.</summary>
     public Task InitializeForBusinessDateAsync(DateOnly businessDate, CancellationToken cancellationToken)
     {
-        if (!HasCashOperationsPermission) return Task.CompletedTask;
+        if (!CanViewCashSessions) return Task.CompletedTask;
         SelectedBusinessDate = businessDate.ToDateTime(TimeOnly.MinValue);
         return RefreshAsync(cancellationToken);
     }
 
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        if (!HasCashOperationsPermission) return;
+        if (!CanViewCashSessions) return;
         try
         {
             IsBusy = true;
@@ -288,14 +291,14 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
 
     private async Task AcceptHandoffAsync()
     {
-        if (!HasCashOperationsPermission || SelectedHandoff is null) return;
+        if (!CanReviewHandoffs || SelectedHandoff is null) return;
         try { await _service.AcceptCashHandoffAsync(SelectedHandoff.Id, new CashHandoffActionRequest(HandoffNote, SelectedHandoff.Version), CancellationToken.None); await RefreshAsync(); ErrorMessage = "Cash receipt acknowledged."; }
         catch (AppException exception) { ErrorMessage = exception.Message; }
     }
 
     private async Task DeclineHandoffAsync()
     {
-        if (!HasCashOperationsPermission || SelectedHandoff is null) return;
+        if (!CanReviewHandoffs || SelectedHandoff is null) return;
         if (string.IsNullOrWhiteSpace(HandoffNote)) { ErrorMessage = "Enter a note to decline the cash handoff."; return; }
         try { await _service.DeclineCashHandoffAsync(SelectedHandoff.Id, new CashHandoffActionRequest(HandoffNote, SelectedHandoff.Version), CancellationToken.None); await RefreshAsync(); ErrorMessage = "Handoff declined; it remains an End of Day blocker."; }
         catch (AppException exception) { ErrorMessage = exception.Message; }
@@ -303,7 +306,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
 
     private async Task ReassignHandoffAsync()
     {
-        if (!HasCashOperationsPermission || SelectedHandoff is null || SelectedHandoffRecipient is null) return;
+        if (!CanReviewHandoffs || SelectedHandoff is null || SelectedHandoffRecipient is null) return;
         try { await _service.ReassignCashHandoffAsync(SelectedHandoff.Id, new ReassignCashHandoffRequest(SelectedHandoffRecipient.UserId, HandoffNote, SelectedHandoff.Version), CancellationToken.None); await RefreshAsync(); ErrorMessage = "Handoff reassigned and awaiting recipient acknowledgement."; }
         catch (AppException exception) { ErrorMessage = exception.Message; }
     }
@@ -326,7 +329,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
 
     private async Task LoadSessionHistoryAsync()
     {
-        if (!HasCashOperationsPermission) return;
+        if (!CanViewCashSessions) return;
         var sessionId = SelectedSession?.Id ?? 0;
         if (sessionId <= 0) { ErrorMessage = "Select a cash session to view its history."; return; }
         try

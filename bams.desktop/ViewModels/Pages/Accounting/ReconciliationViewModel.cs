@@ -10,6 +10,7 @@ namespace bams.desktop.ViewModels.Pages.Accounting;
 public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly IReconciliationService _service;
+    private readonly IEndOfDayClientService _businessDateService;
     private DateTime _fromDate = DateTime.Today;
     private DateTime _toDate = DateTime.Today;
     private string? _accountIdText;
@@ -31,9 +32,10 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
     private string? _assignedToError;
     private string? _correctionTransactionIdError;
 
-    public ReconciliationViewModel(IReconciliationService service)
+    public ReconciliationViewModel(IReconciliationService service, IEndOfDayClientService businessDateService)
     {
         _service = service;
+        _businessDateService = businessDateService;
         RunCommand = new AsyncRelayCommand(async _ => await RunAsync());
         RefreshExceptionsCommand = new AsyncRelayCommand(async _ => await LoadExceptionsAsync());
         UpdateExceptionCommand = new AsyncRelayCommand(async () => await UpdateSelectedExceptionAsync(), () => CanUpdateSelectedException);
@@ -70,7 +72,23 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
     public string? AssignedToError { get => _assignedToError; private set => SetProperty(ref _assignedToError, value); }
     public string? CorrectionTransactionIdError { get => _correctionTransactionIdError; private set => SetProperty(ref _correctionTransactionIdError, value); }
 
-    public async Task InitializeAsync(CancellationToken cancellationToken) => await LoadExceptionsAsync(cancellationToken);
+    public async Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var current = await _businessDateService.GetCurrentBusinessDateAsync(cancellationToken);
+            await InitializeForBusinessDateAsync(current.Date, cancellationToken);
+        }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+    }
+
+    /// <summary>Uses the parent workflow's date and loads its exception list without running reconciliation.</summary>
+    public async Task InitializeForBusinessDateAsync(DateOnly businessDate, CancellationToken cancellationToken)
+    {
+        FromDate = businessDate.ToDateTime(TimeOnly.MinValue);
+        ToDate = businessDate.ToDateTime(TimeOnly.MinValue);
+        await LoadExceptionsAsync(cancellationToken);
+    }
 
     private async Task RunAsync()
     {

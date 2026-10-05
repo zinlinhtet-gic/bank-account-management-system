@@ -28,14 +28,14 @@ Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payl
 | GET | `/api/accounting/reconciliation/exceptions` | `accounting` | List reconciliation exceptions with date/status filters and paging. |
 | GET | `/api/accounting/reconciliation/exceptions/{id}` | `accounting` | Get an exception and its append-only status/notes audit timeline. |
 | PATCH | `/api/accounting/reconciliation/exceptions/{id}` | `accounting` and `reconciliation_investigation` | Update assignment, investigation status, notes, and correction reference; cannot resolve directly. |
-| GET | `/api/cash-operations/sessions` | `cash_operations` | List teller/vault sessions for a business date. |
-| GET | `/api/cash-operations/sessions/{id}` | `cash_operations` | Read an authorized cash session with its movement and physical-count history and linked transaction references. |
+| GET | `/api/cash-operations/sessions` | `cash_operations`, `audit`, or `end_of_day_approval` | List teller/vault sessions for a business date; auditors and EOD approvers can review all positions. |
+| GET | `/api/cash-operations/sessions/{id}` | `cash_operations`, `audit`, or `end_of_day_approval` | Read an authorized cash session with its movement and physical-count history and linked transaction references. |
 | POST | `/api/cash-operations/sessions` | `cash_operations` | Open a teller or vault cash position. |
 | POST | `/api/cash-operations/sessions/{id}/transfers` | `cash_operations` | Transfer expected cash between positions on the same business date. Cash positions are not branch-scoped. |
 | POST | `/api/cash-operations/sessions/{id}/count` | `cash_operations` | Record physical cash count and create a mismatch exception. |
 | POST | `/api/cash-operations/sessions/{id}/adjustments` | `cash_operations` | Submit a signed adjustment linked to the exact posted Cash on Hand journal effect. |
-| GET | `/api/cash-operations/adjustments` | `cash_operations` and `end_of_day_approval` | List cash adjustment requests for approval review. |
-| POST | `/api/cash-operations/adjustments/{id}/approve` | `cash_operations` and `end_of_day_approval` | Approve another user's valid adjustment and apply it to the expected position. |
+| GET | `/api/cash-operations/adjustments` | `cash_operations`, `end_of_day_approval`, or `audit` | List cash adjustment requests for review. |
+| POST | `/api/cash-operations/adjustments/{id}/approve` | `end_of_day_approval` | Approve another user's valid adjustment and apply it to the expected position. |
 | GET | `/api/operations/business-date` | `accounting`, `audit`, or `cash_operations` | Read or initialize the persisted open business date. |
 | POST | `/api/operations/business-date/{date}/pre-close` | `accounting` or `audit` | Run and persist EOD pre-close stages. |
 | POST | `/api/operations/business-date/runs/{id}/approve` | `end_of_day_approval` | Approve a run as a different user than the preparer. |
@@ -53,7 +53,7 @@ Transaction summaries, detail, and posting responses include `businessDate` sepa
 
 Cash funded deposit, withdrawal, NRC transfer, NRC pickup, and cash refund requests are associated server-side with the actor's open teller session for the active posting business date. Transaction request DTOs do not require or accept a cash-session identifier; the physical movement is saved atomically with posting. If no current teller session exists, the server returns `CashSessionNotOpen`. A physical count is immutable and never overwrites expected cash. Cash adjustments require a signed amount equal to a posted transaction's Cash on Hand journal effect and independent approval. Account reconciliation preserves run/result snapshots and exception history; mismatches are resolved only after a matched rerun. EOD initiation is manual; scheduled reconciliation and financial postings use the existing scheduled-job mechanism.
 
-All officer-authorized write requests require the signed-in officer's open teller session for the active posting business date. `POST /api/cash-operations/sessions` is exempt so the officer can open that session; read-only requests and manager/other-role authorization are unaffected. A missing session returns `CashSessionNotOpen`.
+Officer writes to `/api/transactions`, `/api/cash-operations`, and `/api/cash-handoffs` require the signed-in officer's open teller session for the active posting business date. `POST /api/cash-operations/sessions` is exempt so the officer can open that session. Account/customer maintenance, reconciliation, EOD workflow actions, and authentication endpoints such as self-service password change do not require a teller session and remain governed by their own authentication and permission rules. A missing session for a teller business operation returns `CashSessionNotOpen`.
 
 ## Available interest rules
 

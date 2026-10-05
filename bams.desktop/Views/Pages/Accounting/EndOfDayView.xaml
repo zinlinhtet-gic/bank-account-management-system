@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:accounting="clr-namespace:bams.desktop.Views.Pages.Accounting"
              xmlns:t="clr-namespace:bams.desktop.Themes">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <TextBlock Text="End of Day" Style="{StaticResource Text.Title}"/>
             <TextBlock Text="Review the open business date, clear close blockers, and complete the approval workflow."
@@ -29,13 +29,13 @@
                         <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
                         <Button Content="Run Pre-Close Checks" Command="{Binding RunPreCloseCommand}"
                                 IsEnabled="{Binding CanRunPreClose}" Visibility="{Binding CanRunPreClosePermission, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True" Margin="0,0,8,0"/>
+                                Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/>
                         <Button Content="Approve" Command="{Binding ApproveCommand}"
                                 IsEnabled="{Binding CanApprove}" Visibility="{Binding HasEndOfDayApprovalPermission, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Secondary}" t:ThemeAssist.RequiresOpenCashSession="True" Margin="0,0,8,0"/>
+                                Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
                         <Button Content="Close Business Date" Command="{Binding CloseCommand}"
                                 IsEnabled="{Binding CanClose}" Visibility="{Binding HasEndOfDayApprovalPermission, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True"/>
+                                Style="{StaticResource Button.Primary}"/>
                     </WrapPanel>
                 </Grid>
             </Border>
@@ -110,7 +110,10 @@
                             <Button DockPanel.Dock="Right" Content="Open exceptions" Command="{Binding NavigateToStageCommand}"
                                     CommandParameter="5" Style="{StaticResource Button.Secondary}"/>
                         </DockPanel>
-                        <DataGrid ItemsSource="{Binding PreCloseChecks.Stages}" AutoGenerateColumns="False" IsReadOnly="True"
+                        <Border Style="{StaticResource Card.Flush}">
+                        <DockPanel>
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Pre-close stage status" Style="{StaticResource Text.FieldLabel}"/></Border>
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" AutoGenerateColumns="False" IsReadOnly="True"
                                   MinHeight="190" MaxHeight="280">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Stage" Binding="{Binding Name}" Width="*"/>
@@ -119,6 +122,8 @@
                                 <DataGridTextColumn Header="Message Code" Binding="{Binding MessageCode}" Width="190"/>
                             </DataGrid.Columns>
                         </DataGrid>
+                        </DockPanel>
+                        </Border>
                         <TextBlock Text="Cash and reconciliation mismatches remain investigation items. Correct them through the authorized transaction or adjustment workflow, then rerun the checks."
                                    TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,10,0,0"/>
                     </StackPanel>
@@ -129,7 +134,10 @@
                         <TextBlock Text="Pre-Close Checks" Style="{StaticResource Text.Subheading}"/>
                         <TextBlock Text="The server checks transaction states, accounting entries, ledger balance, cash sessions, pending approvals, and critical exceptions. A blocked stage must be resolved before approval."
                                    TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,12"/>
-                        <DataGrid ItemsSource="{Binding PreCloseChecks.Stages}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="300">
+                        <Border Style="{StaticResource Card.Flush}">
+                        <DockPanel>
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Pre-close checks" Style="{StaticResource Text.FieldLabel}"/></Border>
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" MinHeight="300">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Stage" Binding="{Binding Name}" Width="*"/>
                                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160"/>
@@ -137,10 +145,12 @@
                                 <DataGridTextColumn Header="Message Code" Binding="{Binding MessageCode}" Width="190"/>
                             </DataGrid.Columns>
                         </DataGrid>
+                        </DockPanel>
+                        </Border>
                     </StackPanel>
                 </TabItem>
 
-                <TabItem Header="Cash Reconciliation" Visibility="{Binding CashReconciliation.HasCashOperationsPermission, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Header="Cash Reconciliation" Visibility="{Binding CanViewCashSessions, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <accounting:CashReconciliationView DataContext="{Binding CashReconciliation}"/>
                 </TabItem>
 
@@ -192,13 +202,18 @@
                                 </StackPanel>
                             </Grid>
                         </Border>
-                        <DataGrid ItemsSource="{Binding PreCloseChecks.Stages}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="210">
+                        <Border Style="{StaticResource Card.Flush}">
+                        <DockPanel>
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Final review checklist" Style="{StaticResource Text.FieldLabel}"/></Border>
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" MinHeight="210">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Review Area" Binding="{Binding Name}" Width="*"/>
                                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160"/>
                                 <DataGridTextColumn Header="Outstanding" Binding="{Binding IssueCount}" Width="120"/>
                             </DataGrid.Columns>
                         </DataGrid>
+                        </DockPanel>
+                        </Border>
                         <WrapPanel Margin="0,12,0,0">
                             <TextBlock Text="Prepared by user " Style="{StaticResource Text.BodyMuted}"/>
                             <TextBlock Text="{Binding FinalReview.Run.PreparedBy, TargetNullValue=—}" Style="{StaticResource Text.Body}" Margin="0,0,18,0"/>
@@ -215,13 +230,18 @@
                         <TextBlock Text="Cash Handoff Acknowledgements" Style="{StaticResource Text.Subheading}"/>
                         <TextBlock Text="Recipients must acknowledge physical cash custody. Declined or pending handoffs block business-date closing; reassigning sends the handoff to another eligible active user." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
                         <Button Content="Refresh Handoffs" Command="{Binding CashHandoffs.RefreshCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
-                        <DataGrid ItemsSource="{Binding CashHandoffs.Handoffs}" SelectedItem="{Binding CashHandoffs.SelectedHandoff}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="220">
+                        <Border Style="{StaticResource Card.Flush}">
+                        <DockPanel>
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Handoff register" Style="{StaticResource Text.FieldLabel}"/></Border>
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding CashHandoffs.Handoffs}" SelectedItem="{Binding CashHandoffs.SelectedHandoff}" MinHeight="220">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Handoff" Binding="{Binding Id}"/><DataGridTextColumn Header="Session" Binding="{Binding SessionId}"/>
                                 <DataGridTextColumn Header="Sender" Binding="{Binding SenderName}"/><DataGridTextColumn Header="Recipient" Binding="{Binding RecipientName}"/>
                                 <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=N2}"/><DataGridTextColumn Header="Status" Binding="{Binding Status}"/>
                             </DataGrid.Columns>
                         </DataGrid>
+                        </DockPanel>
+                        </Border>
                         <WrapPanel Margin="0,10,0,0">
                             <StackPanel Width="300" Margin="0,0,12,0"><TextBlock Text="NOTE (REQUIRED FOR DECLINE)" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding CashHandoffs.Note, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
                             <StackPanel Width="300"><TextBlock Text="REASSIGN RECIPIENT" Style="{StaticResource Text.FieldLabel}"/>
@@ -237,9 +257,14 @@
                         </WrapPanel>
                         <TextBlock Text="{Binding CashHandoffs.Message}" Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                         <Button Content="Load Selected Handoff Audit Timeline" Command="{Binding CashHandoffs.LoadHistoryCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,8,0,6"/>
-                        <DataGrid ItemsSource="{Binding CashHandoffs.History}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="130">
+                        <Border Style="{StaticResource Card.Flush}" Margin="0,0,0,8">
+                        <DockPanel>
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Handoff audit timeline" Style="{StaticResource Text.FieldLabel}"/></Border>
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding CashHandoffs.History}" MinHeight="130">
                             <DataGrid.Columns><DataGridTextColumn Header="Time (UTC)" Binding="{Binding CreatedAtUtc}"/><DataGridTextColumn Header="Status change" Binding="{Binding OldStatus}"/><DataGridTextColumn Header="To" Binding="{Binding NewStatus}"/><DataGridTextColumn Header="Previous recipient" Binding="{Binding PreviousRecipientUserId}"/><DataGridTextColumn Header="Recipient" Binding="{Binding RecipientUserId}"/><DataGridTextColumn Header="Actor" Binding="{Binding ActorUserId}"/><DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*"/></DataGrid.Columns>
                         </DataGrid>
+                        </DockPanel>
+                        </Border>
                     </StackPanel>
                 </TabItem>
             </TabControl>

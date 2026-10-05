@@ -376,10 +376,9 @@ public sealed class LedgerPostingService
     }
 
     /// <summary>
-    /// Applies the account type's deposit or debit rules. Deposits check deposit permission; debits also check
-    /// available balance, minimum maintained balance, and daily and monthly limits. The account must be locked by
-    /// <see cref="LockAccountsAsync"/>,
-    /// which also keeps the limit totals stable until the posting commits.
+    /// Applies the account type's deposit or debit rules. Deposits check deposit permission only; withdrawals and
+    /// transfers also check available balance, minimum maintained balance, and configured debit limits. The account
+    /// must be locked by <see cref="LockAccountsAsync"/>, which keeps balances and limit totals stable until commit.
     /// </summary>
     public async Task EnsureCanDebitAsync(
         Account account,
@@ -391,9 +390,14 @@ public sealed class LedgerPostingService
         var accountType = account.AccountType
             ?? throw new InvalidOperationException("The account type must be loaded before checking debit rules.");
 
-        if (purpose == DebitPurpose.Deposit && !accountType.AllowDeposit)
+        if (purpose == DebitPurpose.Deposit)
         {
-            throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+            if (!accountType.AllowDeposit)
+            {
+                throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+            }
+
+            return;
         }
         if (purpose == DebitPurpose.Withdrawal && !accountType.AllowWithdrawal)
         {

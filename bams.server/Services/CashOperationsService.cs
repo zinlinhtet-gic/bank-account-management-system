@@ -72,9 +72,10 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         var actorId = currentUser.GetCurrentUserId();
         var query = db.CashPositionSessions.AsNoTracking().Where(session => session.BusinessDate == date);
         var canManageCash = await HasVaultPermissionAsync(actorId, cancellationToken);
+        var canReviewAllCash = canManageCash || await HasAuditPermissionAsync(actorId, cancellationToken);
         var sessions = await query.Where(session =>
-                (canManageCash && session.PositionType == OperationsConstants.CashPositionVault) ||
-                (canManageCash && session.PositionType == OperationsConstants.CashPositionTeller) ||
+                (canReviewAllCash && session.PositionType == OperationsConstants.CashPositionVault) ||
+                (canReviewAllCash && session.PositionType == OperationsConstants.CashPositionTeller) ||
                 (session.PositionType == OperationsConstants.CashPositionTeller && session.TellerId == actorId))
             .OrderBy(session => session.Id).ToListAsync(cancellationToken);
         return sessions.Select(ToResponse).ToList();
@@ -85,8 +86,8 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         var session = await db.CashPositionSessions.AsNoTracking().SingleOrDefaultAsync(item => item.Id == sessionId, cancellationToken)
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         var actorId = currentUser.GetCurrentUserId();
-        var canManageCash = await HasVaultPermissionAsync(actorId, cancellationToken);
-        if ((session.PositionType == OperationsConstants.CashPositionVault || session.TellerId != actorId) && !canManageCash)
+        var canReviewAllCash = await HasVaultPermissionAsync(actorId, cancellationToken) || await HasAuditPermissionAsync(actorId, cancellationToken);
+        if ((session.PositionType == OperationsConstants.CashPositionVault || session.TellerId != actorId) && !canReviewAllCash)
             throw new ForbiddenException(MessageCode.InsufficientPermission);
 
         var movements = await db.CashMovements.AsNoTracking().Where(item => item.SessionId == sessionId)
@@ -569,6 +570,13 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
             join rolePermission in db.RolePermissions on userRole.RoleId equals rolePermission.RoleId
             join permission in db.Permissions on rolePermission.PermissionId equals permission.Id
             where userRole.UserId == actorId && permission.Code == SecurityConstants.EndOfDayApproval
+            select permission.Id).AnyAsync(cancellationToken);
+
+    private async Task<bool> HasAuditPermissionAsync(long actorId, CancellationToken cancellationToken) =>
+        await (from userRole in db.UserRoles
+            join rolePermission in db.RolePermissions on userRole.RoleId equals rolePermission.RoleId
+            join permission in db.Permissions on rolePermission.PermissionId equals permission.Id
+            where userRole.UserId == actorId && permission.Code == SecurityConstants.Audit
             select permission.Id).AnyAsync(cancellationToken);
 
     private async Task<decimal> GetCashEffectAsync(long transactionId, DateOnly businessDate, CancellationToken cancellationToken) =>

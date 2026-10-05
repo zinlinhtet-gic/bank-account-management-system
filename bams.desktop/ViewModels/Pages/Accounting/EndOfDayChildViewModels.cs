@@ -29,9 +29,9 @@ public sealed class LedgerReconciliationViewModel : ViewModelBase
 public sealed class AccountReconciliationViewModel : ViewModelBase
 {
     private string _status = "Locked";
-    public AccountReconciliationViewModel(IReconciliationService service)
+    public AccountReconciliationViewModel(IReconciliationService service, IEndOfDayClientService businessDateService)
     {
-        Results = new ReconciliationViewModel(service);
+        Results = new ReconciliationViewModel(service, businessDateService);
     }
     public ReconciliationViewModel Results { get; }
     public string Status { get => _status; set => SetProperty(ref _status, value); }
@@ -40,9 +40,9 @@ public sealed class AccountReconciliationViewModel : ViewModelBase
 public sealed class ExceptionCenterViewModel : ViewModelBase
 {
     private int _unresolvedCount;
-    public ExceptionCenterViewModel(IReconciliationService service)
+    public ExceptionCenterViewModel(IReconciliationService service, IEndOfDayClientService businessDateService)
     {
-        Investigation = new ReconciliationViewModel(service);
+        Investigation = new ReconciliationViewModel(service, businessDateService);
     }
     public int UnresolvedCount { get => _unresolvedCount; set => SetProperty(ref _unresolvedCount, value); }
     public ReconciliationViewModel Investigation { get; }

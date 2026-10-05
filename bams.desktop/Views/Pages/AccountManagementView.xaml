@@ -22,7 +22,7 @@
                     <TextBox Style="{StaticResource Input.Text}" Text="{Binding StatusReason}" t:ThemeAssist.Placeholder="Reason (optional)" Margin="0,10,0,0" />
                     <DockPanel Margin="0,16,0,0">
                         <Button Content="Cancel" Style="{StaticResource Button.Ghost}" Command="{Binding CancelStatusDialogCommand}" />
-                        <Button Content="Apply status" DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True" Command="{Binding ApplyStatusCommand}" />
+                    <Button Content="Apply status" DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Command="{Binding ApplyStatusCommand}" />
                     </DockPanel>
                 </StackPanel>
             </Border>

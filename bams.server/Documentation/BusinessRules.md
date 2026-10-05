@@ -83,11 +83,11 @@
   refund) moves it back to `Active` with a status-history row (`AccountConstants.DormantReactivationReason`,
   changed by the posting user). Scheduled interest, fee and dormant-penalty postings do not reactivate an account.
   Refunds only need the account to be not closed.
-- Debits follow the account type (`AccountType`), all 422:
-  - deposits need `AllowDeposit` (`DepositNotAllowed`);
+- Account postings follow the account type (`AccountType`), all 422:
+  - deposits need `AllowDeposit` (`DepositNotAllowed`) and do not require an existing available balance or minimum maintained balance;
   - withdrawals need `AllowWithdrawal` (`WithdrawalNotAllowed`);
   - internal, interbank and NRC transfers need `AllowTransfer` on the source (`TransferNotAllowed`);
-  - the debit may not exceed the available balance (`InsufficientBalance`) or leave less than
+  - withdrawals and transfers may not exceed the available balance (`InsufficientBalance`) or leave less than
     `MinimumMaintainedBalance` (`MinimumBalanceRequired`);
   - customer debits (withdrawals and the three transfer types) on the same Myanmar business day / calendar month may not exceed
     `DailyTransactionLimit` / `MonthlyTransactionLimit` (`DailyTransactionLimitExceeded` /

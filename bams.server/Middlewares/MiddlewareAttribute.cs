@@ -64,9 +64,9 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
             throw new ForbiddenException(MessageCode.InsufficientPermission);
         }
 
-        // Officer writes require an open teller session for the current posting business date. The session-opening
-        // action is explicitly exempt so an officer can satisfy this requirement after signing in.
+        // Only teller business writes require an open session; unrelated maintenance writes remain available.
         if (IsWriteRequest(httpContext.Request.Method) &&
+            RequiresTellerSession(httpContext.Request.Path) &&
             !AllowsWriteWithoutSession(context) &&
             await IsOfficerAsync(dbContext, userId, cancellationToken))
         {
@@ -86,6 +86,12 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
     // Treats HTTP methods that can change server state as writes; reads remain available without a cash session.
     private static bool IsWriteRequest(string method) =>
         HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsPatch(method) || HttpMethods.IsDelete(method);
+
+    // Financial postings and cash-custody operations use the teller session; account/customer administration does not.
+    private static bool RequiresTellerSession(PathString path) =>
+        path.StartsWithSegments("/api/transactions", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/api/cash-operations", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/api/cash-handoffs", StringComparison.OrdinalIgnoreCase);
 
     // Resolves the exemption from both endpoint metadata and MVC method metadata for consistent routing behavior.
     private static bool AllowsWriteWithoutSession(ActionExecutingContext context) =>

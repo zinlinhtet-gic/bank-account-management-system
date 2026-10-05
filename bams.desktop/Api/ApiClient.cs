@@ -219,20 +219,33 @@ public sealed class ApiClient
             cancellationToken);
     }
 
-    // Stops officer write requests locally until the shell has confirmed an open session; the server applies the same rule.
+    // Require an open teller session only for teller business writes, not account/customer maintenance or authentication.
     private void EnsureWriteAllowed(string endpoint)
     {
         if (!string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase) ||
-            _cashSessionContext.HasOpenSession || IsOpeningCashSessionEndpoint(endpoint))
+            _cashSessionContext.HasOpenSession || !RequiresTellerSession(endpoint) || IsOpeningCashSessionEndpoint(endpoint))
             return;
 
         throw new ApiException(MessageCode.CashSessionNotOpen,
             "If no opened session, no write can be done.", null);
     }
 
-    // Allows only the session-creation request; other cash-operation mutations still require the open session.
+    // Identifies financial transaction and cash-custody operations that require the officer's open teller session.
+    private static bool RequiresTellerSession(string endpoint) =>
+        IsEndpointOrChild(endpoint, ApiConstants.TransactionsEndpoint) ||
+        IsEndpointOrChild(endpoint, ApiConstants.CashOperationsEndpoint) ||
+        IsEndpointOrChild(endpoint, ApiConstants.CashHandoffsEndpoint);
+
+    private static bool IsEndpointOrChild(string endpoint, string endpointRoot)
+    {
+        var path = endpoint.TrimStart('/').Split('?', 2)[0];
+        return path.Equals(endpointRoot, StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWith(endpointRoot + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Allows session creation so an officer can satisfy the session requirement after signing in.
     private static bool IsOpeningCashSessionEndpoint(string endpoint) =>
-        endpoint.TrimStart('/').Split('?', 2)[0].Equals("api/cash-operations/sessions", StringComparison.OrdinalIgnoreCase);
+        endpoint.TrimStart('/').Split('?', 2)[0].Equals(ApiConstants.CashOperationsEndpoint + "/sessions", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Downloads a file response (not the JSON envelope) to a local path.

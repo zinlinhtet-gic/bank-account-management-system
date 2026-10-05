@@ -23,11 +23,11 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         _service = service;
         _authContext = authContext;
         CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext, officerCashSessionContext);
-        AccountReconciliation = new AccountReconciliationViewModel(reconciliationService);
+        AccountReconciliation = new AccountReconciliationViewModel(reconciliationService, service);
         LedgerReconciliation = new LedgerReconciliationViewModel();
         PreCloseChecks = new PreCloseChecksViewModel();
         Summary = new EndOfDaySummaryViewModel();
-        ExceptionCenter = new ExceptionCenterViewModel(reconciliationService);
+        ExceptionCenter = new ExceptionCenterViewModel(reconciliationService, service);
         FinalReview = new FinalReviewViewModel();
         CashHandoffs = new CashHandoffCenterViewModel(cashOperations, authContext);
         RunPreCloseCommand = new AsyncRelayCommand(RunPreCloseAsync, () => CanRunPreClose);
@@ -81,6 +81,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public int SelectedStageIndex { get => _selectedStageIndex; set => SetProperty(ref _selectedStageIndex, value); }
     public bool CanRunPreClosePermission => _authContext.HasPermission(PermissionCodes.Accounting) || _authContext.HasPermission(PermissionCodes.Audit);
     public bool HasEndOfDayApprovalPermission => _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public bool CanViewCashSessions => CashReconciliation.CanViewCashSessions;
     public bool CanRunPreClose => !IsBusy && Summary.BusinessDate?.Status == "Open" && CanRunPreClosePermission;
     public string BusinessDateStatus => Summary.BusinessDate?.Status ?? "Loading";
     public string CurrentRunStatus => FinalReview.Run?.Status ?? "Not started";
@@ -106,10 +107,11 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             OnPropertyChanged(nameof(BusinessDateStatus));
             OnPropertyChanged(nameof(CanRunPreClose));
             RunPreCloseCommand.RaiseCanExecuteChanged();
-            if (CashReconciliation.HasCashOperationsPermission)
+            await AccountReconciliation.Results.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
+            if (CashReconciliation.CanViewCashSessions)
                 await CashReconciliation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
             await CashHandoffs.LoadForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
-            await ExceptionCenter.Investigation.InitializeAsync(cancellationToken);
+            await ExceptionCenter.Investigation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
     }
@@ -151,9 +153,11 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             OnPropertyChanged(nameof(BusinessDateStatus));
             OnPropertyChanged(nameof(CanRunPreClose));
             RunPreCloseCommand.RaiseCanExecuteChanged();
-            if (CashReconciliation.HasCashOperationsPermission)
+            await AccountReconciliation.Results.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
+            if (CashReconciliation.CanViewCashSessions)
                 await CashReconciliation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
             await CashHandoffs.LoadForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
+            await ExceptionCenter.Investigation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }
@@ -168,7 +172,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         var ledgerStage = run.Stages.FirstOrDefault(stage => stage.Name == EndOfDayStageNames.LedgerReconciliation);
         LedgerReconciliation.Status = ledgerStage?.Status ?? "Locked";
         ExceptionCenter.UnresolvedCount = run.Stages.Sum(stage => stage.IssueCount);
-        _ = ExceptionCenter.Investigation.InitializeAsync(CancellationToken.None);
+        _ = ExceptionCenter.Investigation.InitializeForBusinessDateAsync(run.BusinessDate, CancellationToken.None);
         ApproveCommand.RaiseCanExecuteChanged();
         CloseCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(CanApprove));

@@ -8,7 +8,10 @@
                 <TextBlock Text="Reconciliation Exceptions" Style="{StaticResource Text.Subheading}"/>
                 <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshExceptionsCommand}" Style="{StaticResource Button.Secondary}"/>
             </DockPanel>
-            <DataGrid ItemsSource="{Binding Exceptions}" SelectedItem="{Binding SelectedException}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="180">
+            <Border Style="{StaticResource Card.Flush}">
+            <DockPanel>
+            <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Exception register" Style="{StaticResource Text.FieldLabel}"/></Border>
+            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Exceptions}" SelectedItem="{Binding SelectedException}" MinHeight="180">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="ID" Binding="{Binding Id}"/>
                     <DataGridTextColumn Header="Type / Source" Binding="{Binding Type}"/>
@@ -23,15 +26,20 @@
                     <DataGridTextColumn Header="Correction Txn" Binding="{Binding CorrectionTransactionId}"/>
                 </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
+            </Border>
             <WrapPanel Margin="0,8,0,0">
                 <Button Content="Load audit timeline" Command="{Binding LoadExceptionTimelineCommand}" Style="{StaticResource Button.Secondary}"/>
                 <ComboBox Width="210" ItemsSource="{Binding InvestigationStatuses}" SelectedItem="{Binding InvestigationStatus}" Style="{StaticResource Input.Select}" Margin="8,0,0,0"/>
                 <TextBox Width="130" ToolTip="Assigned user ID" Text="{Binding AssignedToText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="8,0,0,0"/>
                 <TextBox Width="180" ToolTip="Correction transaction ID" Text="{Binding CorrectionTransactionIdText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="8,0,0,0"/>
-                <Button Content="Save Investigation" Command="{Binding UpdateExceptionCommand}" Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True" Margin="8,0,0,0"/>
+                <Button Content="Save Investigation" Command="{Binding UpdateExceptionCommand}" Style="{StaticResource Button.Primary}" Margin="8,0,0,0"/>
             </WrapPanel>
             <TextBox Text="{Binding InvestigationNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" MinHeight="56" TextWrapping="Wrap" Margin="0,8,0,0"/>
-            <DataGrid ItemsSource="{Binding ExceptionDetail.Timeline}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="120" Margin="0,8,0,0">
+            <Border Style="{StaticResource Card.Flush}" Margin="0,8,0,0">
+            <DockPanel>
+            <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Investigation timeline" Style="{StaticResource Text.FieldLabel}"/></Border>
+            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding ExceptionDetail.Timeline}" MinHeight="120">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Time (UTC)" Binding="{Binding CreatedAtUtc}"/>
                     <DataGridTextColumn Header="Actor" Binding="{Binding ActorId}"/>
@@ -40,6 +48,8 @@
                     <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*"/>
                 </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
+            </Border>
             <TextBlock Text="Resolution is recorded only after the source is corrected and reconciliation is rerun." TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,8,0,0"/>
         </StackPanel>
     </ScrollViewer>

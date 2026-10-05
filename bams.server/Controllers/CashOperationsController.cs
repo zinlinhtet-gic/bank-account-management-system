@@ -10,10 +10,10 @@ namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/cash-operations")]
-[RequirePermission(SecurityConstants.CashOperations)]
 public sealed class CashOperationsController(ICashOperationsService cashOperations) : ControllerBase
 {
     [HttpGet("sessions")]
+    [RequirePermission(SecurityConstants.CashOperations, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashPositionSessionResponse>>>> GetSessionsAsync(
         [FromQuery] DateOnly? businessDate, CancellationToken cancellationToken)
     {
@@ -22,6 +22,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpGet("sessions/{id:long}")]
+    [RequirePermission(SecurityConstants.CashOperations, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<CashPositionSessionDetailResponse>>> GetSessionDetailAsync(
         long id, CancellationToken cancellationToken)
     {
@@ -30,6 +31,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("sessions")]
+    [RequirePermission(SecurityConstants.CashOperations)]
     [AllowWithoutOpenCashSession]
     public async Task<ActionResult<ApiMessageResponse<CashPositionSessionResponse>>> OpenSessionAsync(
         OpenCashSessionRequest request, [FromHeader(Name = TransactionConstants.IdempotencyKeyHeaderName)] string? idempotencyKey,
@@ -40,6 +42,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("sessions/{id:long}/transfers")]
+    [RequirePermission(SecurityConstants.CashOperations)]
     public async Task<ActionResult<ApiMessageResponse<CashPositionSessionResponse>>> TransferCashAsync(
         long id, TransferCashRequest request, CancellationToken cancellationToken)
     {
@@ -48,6 +51,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("sessions/{id:long}/count")]
+    [RequirePermission(SecurityConstants.CashOperations)]
     public async Task<ActionResult<ApiMessageResponse<CashCountResponse>>> SubmitCountAsync(
         long id, SubmitCashCountRequest request, [FromHeader(Name = TransactionConstants.IdempotencyKeyHeaderName)] string? idempotencyKey,
         CancellationToken cancellationToken)
@@ -57,7 +61,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpGet("adjustments")]
-    [RequirePermission(SecurityConstants.EndOfDayApproval)]
+    [RequirePermission(SecurityConstants.CashOperations, SecurityConstants.EndOfDayApproval, SecurityConstants.Audit)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashAdjustmentResponse>>>> GetAdjustmentsAsync(
         [FromQuery] DateOnly? businessDate, [FromQuery] string? status, CancellationToken cancellationToken)
     {
@@ -66,6 +70,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("sessions/{id:long}/adjustments")]
+    [RequirePermission(SecurityConstants.CashOperations)]
     public async Task<ActionResult<ApiMessageResponse<CashAdjustmentResponse>>> RequestAdjustmentAsync(
         long id, RequestCashAdjustmentRequest request, CancellationToken cancellationToken)
     {
