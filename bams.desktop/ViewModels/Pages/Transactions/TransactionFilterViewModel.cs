@@ -16,6 +16,8 @@ public sealed class TransactionFilterViewModel : ViewModelBase
     private static readonly FilterOption<TransactionStatus> AllStatuses = new(null, "All statuses");
 
     private string _accountNo = string.Empty;
+    private string _transactionNo = string.Empty;
+    private string _referenceNo = string.Empty;
     private FilterOption<TransactionType> _selectedType = AllTypes;
     private FilterOption<TransactionStatus> _selectedStatus = AllStatuses;
     private DateTime? _dateFrom;
@@ -75,6 +77,18 @@ public sealed class TransactionFilterViewModel : ViewModelBase
     {
         get => _accountNo;
         set => SetProperty(ref _accountNo, value);
+    }
+
+    public string TransactionNo
+    {
+        get => _transactionNo;
+        set => SetProperty(ref _transactionNo, value);
+    }
+
+    public string ReferenceNo
+    {
+        get => _referenceNo;
+        set => SetProperty(ref _referenceNo, value);
     }
 
     public FilterOption<TransactionType> SelectedType
@@ -159,7 +173,9 @@ public sealed class TransactionFilterViewModel : ViewModelBase
 
         // "To" is inclusive on screen, so send the start of the following day as the exclusive bound.
         var filter = new TransactionListFilter(
-            AccountNo,
+            string.IsNullOrWhiteSpace(AccountNo)? null : AccountNo.Trim(),
+            string.IsNullOrWhiteSpace(TransactionNo)? null : TransactionNo.Trim(),
+            string.IsNullOrWhiteSpace(ReferenceNo)? null : ReferenceNo.Trim(),
             SelectedType.Value,
             SelectedStatus.Value,
             DateFrom is null ? null : DateTimeDisplay.StartOfLocalDay(DateFrom.Value),
@@ -175,6 +191,8 @@ public sealed class TransactionFilterViewModel : ViewModelBase
         try
         {
             AccountNo = string.Empty;
+            TransactionNo = string.Empty;
+            ReferenceNo = string.Empty;
             SelectedType = AllTypes;
             SelectedStatus = AllStatuses;
             DateFrom = null;

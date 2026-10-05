@@ -1,0 +1,571 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Audit.TransactionAuditDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+
+    <!--
+        Full read-only detail for one audited transaction.
+        DataContext: TransactionAuditDetailViewModel.
+    -->
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+
+        <StackPanel Margin="{StaticResource CardPadding}">
+
+            <!-- ===== Header ===== -->
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="{Binding TransactionNo}"
+                               Style="{StaticResource Text.Mono}"
+                               FontSize="{StaticResource FontSizeSubheading}"/>
+
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0,8,0,0">
+
+                        <ContentControl Style="{StaticResource Badge.Info}"
+                                        Content="{Binding TypeText}"/>
+
+                        <ContentControl Style="{StaticResource Badge.TransactionStatus}"
+                                        Content="{Binding StatusText}"
+                                        Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            HorizontalAlignment="Right">
+
+                    <TextBlock Text="{Binding AmountText}"
+                               Style="{StaticResource Text.MonoLarge}"
+                               HorizontalAlignment="Right"/>
+
+                    <TextBlock Text="{Binding FeeAmountText}"
+                               Style="{StaticResource Text.BodyMuted}"
+                               HorizontalAlignment="Right"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Separator Style="{StaticResource Divider}"
+                       Margin="0,20"/>
+
+            <!-- ===== General information ===== -->
+
+            <TextBlock Text="TRANSACTION"
+                       Style="{StaticResource Text.Label}"
+                       Margin="0,0,0,12"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="32"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Transaction time"
+                           Style="{StaticResource Text.BodyMuted}"/>
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="1"
+                           Text="{Binding TransactionAtText}"
+                           Style="{StaticResource Text.Body}"/>
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="3"
+                           Text="Reference"
+                           Style="{StaticResource Text.BodyMuted}"/>
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="4"
+                           Text="{Binding ReferenceText}"
+                           Style="{StaticResource Text.Body}"/>
+
+                <TextBlock Grid.Row="1"
+                           Text="Description"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="1"
+                           Grid.ColumnSpan="4"
+                           Text="{Binding DescriptionText}"
+                           TextWrapping="Wrap"
+                           Style="{StaticResource Text.Body}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="2"
+                           Text="Reversal of"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"
+                           Visibility="{Binding HasReversalRelationship,
+                               Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <TextBlock Grid.Row="2"
+                           Grid.Column="1"
+                           Text="{Binding ReversalOfText}"
+                           Style="{StaticResource Text.Body}"
+                           Margin="0,10,0,0"
+                           Visibility="{Binding HasReversalRelationship,
+                               Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </Grid>
+
+            <Separator Style="{StaticResource Divider}"
+                       Margin="0,20"/>
+
+            <!-- ===== Lifecycle ===== -->
+
+            <TextBlock Text="LIFECYCLE"
+                       Style="{StaticResource Text.Label}"
+                       Margin="0,0,0,12"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="180"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Initiated"
+                           Style="{StaticResource Text.BodyMuted}"/>
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="1"
+                           Text="{Binding InitiatedByText}"
+                           Style="{StaticResource Text.Body}"/>
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="2"
+                           Text="{Binding TransactionAtText}"
+                           Style="{StaticResource Text.BodyMuted}"/>
+
+                <TextBlock Grid.Row="1"
+                           Text="Authorized"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="1"
+                           Text="{Binding AuthorizedByText}"
+                           Style="{StaticResource Text.Body}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="2"
+                           Text="{Binding AuthorizedAtText}"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="2"
+                           Text="Posted"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="2"
+                           Grid.Column="1"
+                           Text="{Binding PostedByText}"
+                           Style="{StaticResource Text.Body}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="2"
+                           Grid.Column="2"
+                           Text="{Binding PostedAtText}"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="3"
+                           Text="Created"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="3"
+                           Grid.Column="1"
+                           Grid.ColumnSpan="2"
+                           Text="{Binding CreatedAtText}"
+                           Style="{StaticResource Text.Body}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="4"
+                           Text="Updated"
+                           Style="{StaticResource Text.BodyMuted}"
+                           Margin="0,10,0,0"/>
+
+                <TextBlock Grid.Row="4"
+                           Grid.Column="1"
+                           Grid.ColumnSpan="2"
+                           Text="{Binding UpdatedAtText}"
+                           Style="{StaticResource Text.Body}"
+                           Margin="0,10,0,0"/>
+            </Grid>
+
+            <!-- ===== NRC ===== -->
+
+            <Border Style="{StaticResource Card.Compact}"
+                    Margin="0,20,0,0"
+                    Visibility="{Binding HasNrcTransfer,
+                        Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                <StackPanel>
+
+                    <TextBlock Text="NRC TRANSFER"
+                               Style="{StaticResource Text.Label}"
+                               Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Sender"
+                               Style="{StaticResource Text.BodyMuted}"/>
+
+                    <TextBlock Text="{Binding SenderText}"
+                               Style="{StaticResource Text.Body}"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Receiver"
+                               Style="{StaticResource Text.BodyMuted}"
+                               Margin="0,10,0,0"/>
+
+                    <TextBlock Text="{Binding ReceiverText}"
+                               Style="{StaticResource Text.Body}"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Pickup location"
+                               Style="{StaticResource Text.BodyMuted}"
+                               Margin="0,10,0,0"/>
+
+                    <TextBlock Text="{Binding PickupLocationText}"
+                               Style="{StaticResource Text.Body}"/>
+
+                    <TextBlock Text="Pickup status"
+                               Style="{StaticResource Text.BodyMuted}"
+                               Margin="0,10,0,0"/>
+
+                    <TextBlock Text="{Binding PickupText}"
+                               Style="{StaticResource Text.Body}"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Payment"
+                               Style="{StaticResource Text.BodyMuted}"
+                               Margin="0,10,0,0"/>
+
+                    <TextBlock Text="{Binding PaymentText}"
+                               Style="{StaticResource Text.Body}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== Interbank ===== -->
+
+            <Border Style="{StaticResource Card.Compact}"
+                    Margin="0,20,0,0"
+                    Visibility="{Binding HasInterbankTransfer,
+                        Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                <StackPanel>
+
+                    <TextBlock Text="INTERBANK TRANSFER"
+                               Style="{StaticResource Text.Label}"
+                               Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Beneficiary"
+                               Style="{StaticResource Text.BodyMuted}"/>
+
+                    <TextBlock Text="{Binding BeneficiaryText}"
+                               Style="{StaticResource Text.Body}"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Gateway"
+                               Style="{StaticResource Text.BodyMuted}"
+                               Margin="0,10,0,0"/>
+
+                    <TextBlock Text="{Binding GatewayText}"
+                               Style="{StaticResource Text.Body}"/>
+
+                    <TextBlock Text="Settlement reference"
+                               Style="{StaticResource Text.BodyMuted}"
+                               Margin="0,10,0,0"/>
+
+                    <TextBlock Text="{Binding SettlementText}"
+                               Style="{StaticResource Text.Body}"/>
+                </StackPanel>
+            </Border>
+
+            <Separator Style="{StaticResource Divider}"
+                       Margin="0,20"/>
+
+            <!-- ===== Customer account movements ===== -->
+
+            <TextBlock Text="ACCOUNT MOVEMENTS"
+                       Style="{StaticResource Text.Label}"
+                       Margin="0,0,0,12"/>
+
+            <DataGrid ItemsSource="{Binding AccountEntries}"
+                      Style="{StaticResource Table}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False">
+
+                <DataGrid.Columns>
+
+                    <DataGridTextColumn Header="Account"
+                                        Binding="{Binding AccountNo}"
+                                        Width="150"
+                                        ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                    <DataGridTextColumn Header="Entry"
+                                        Binding="{Binding EntryTypeText}"
+                                        Width="80"
+                                        ElementStyle="{StaticResource Table.Text}"/>
+
+                    <DataGridTextColumn Header="Amount"
+                                        Binding="{Binding AmountText}"
+                                        Width="110"
+                                        ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                    <DataGridTextColumn Header="Ledger before"
+                                        Binding="{Binding LedgerBalanceBeforeText}"
+                                        Width="120"
+                                        ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                    <DataGridTextColumn Header="Ledger after"
+                                        Binding="{Binding LedgerBalanceAfterText}"
+                                        Width="120"
+                                        ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                    <DataGridTextColumn Header="Available before"
+                                        Binding="{Binding AvailableBalanceBeforeText}"
+                                        Width="130"
+                                        ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                    <DataGridTextColumn Header="Available after"
+                                        Binding="{Binding AvailableBalanceAfterText}"
+                                        Width="130"
+                                        ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                    <DataGridTextColumn Header="Posting date"
+                                        Binding="{Binding PostingDateText}"
+                                        Width="115"
+                                        ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Missing customer movement is valid for some GL-only transactions. -->
+
+            <TextBlock Text="No customer account movements were recorded for this transaction."
+                       Style="{StaticResource Text.BodyMuted}"
+                       Margin="0,8,0,0"
+                       Visibility="{Binding HasAccountEntries,
+                           Converter={StaticResource BoolToCollapsedVisibility}}"/>
+
+            <Separator Style="{StaticResource Divider}"
+                       Margin="0,20"/>
+
+            <!-- ===== Accounting ===== -->
+
+            <DockPanel Margin="0,0,0,12">
+
+                <StackPanel DockPanel.Dock="Right"
+                            Orientation="Horizontal">
+
+                    <TextBlock Text="Status:"
+                               Style="{StaticResource Text.BodyMuted}"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock Text="{Binding AccountingStatusText}"
+                               Style="{StaticResource Text.Body}"
+                               FontWeight="SemiBold"
+                               Margin="6,0,0,0"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <TextBlock Text="ACCOUNTING POSTING"
+                           Style="{StaticResource Text.Label}"
+                           VerticalAlignment="Center"/>
+            </DockPanel>
+
+            <DataGrid ItemsSource="{Binding AccountingEntries}"
+                      Style="{StaticResource Table}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False">
+
+                <DataGrid.Columns>
+
+                    <DataGridTextColumn Header="GL code"
+                                        Binding="{Binding GlAccountCode}"
+                                        Width="100"
+                                        ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                    <DataGridTextColumn Header="GL account"
+                                        Binding="{Binding GlAccountName}"
+                                        Width="*"
+                                        MinWidth="160"
+                                        ElementStyle="{StaticResource Table.Text}"/>
+
+                    <DataGridTextColumn Header="Customer account"
+                                        Binding="{Binding CustomerAccountText}"
+                                        Width="150"
+                                        ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                    <DataGridTextColumn Header="Entry"
+                                        Binding="{Binding EntryTypeText}"
+                                        Width="80"
+                                        ElementStyle="{StaticResource Table.Text}"/>
+
+                    <DataGridTextColumn Header="Amount"
+                                        Binding="{Binding AmountText}"
+                                        Width="115"
+                                        ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                    <DataGridTextColumn Header="Posting date"
+                                        Binding="{Binding PostingDateText}"
+                                        Width="115"
+                                        ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Accounting totals -->
+
+            <Grid Margin="0,12,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="130"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="1"
+                           Text="TOTAL DEBIT"
+                           Style="{StaticResource Text.Label}"
+                           HorizontalAlignment="Right"/>
+
+                <TextBlock Grid.Column="2"
+                           Text="TOTAL CREDIT"
+                           Style="{StaticResource Text.Label}"
+                           HorizontalAlignment="Right"/>
+
+                <TextBlock Grid.Column="3"
+                           Text="DIFFERENCE"
+                           Style="{StaticResource Text.Label}"
+                           HorizontalAlignment="Right"/>
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="1"
+                           Text="{Binding TotalDebitText}"
+                           Style="{StaticResource Text.Mono}"
+                           HorizontalAlignment="Right"/>
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="2"
+                           Text="{Binding TotalCreditText}"
+                           Style="{StaticResource Text.Mono}"
+                           HorizontalAlignment="Right"/>
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="3"
+                           Text="{Binding AccountingDifferenceText}"
+                           Style="{StaticResource Text.Mono}"
+                           HorizontalAlignment="Right"/>
+            </Grid>
+
+            <ContentControl Style="{StaticResource Alert.Danger}"
+                            Content="No accounting entries were recorded for this transaction."
+                            Margin="0,12,0,0"
+                            Visibility="{Binding HasMissingAccountingEntries,
+                                Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <ContentControl Style="{StaticResource Alert.Danger}"
+                            Content="Accounting entries are not balanced. Total debits and credits do not match."
+                            Margin="0,12,0,0"
+                            Visibility="{Binding HasAccountingMismatch,
+                                Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <Separator Style="{StaticResource Divider}"
+                       Margin="0,20"/>
+
+            <!-- ===== Audit trail ===== -->
+
+            <TextBlock Text="AUDIT TRAIL"
+                       Style="{StaticResource Text.Label}"
+                       Margin="0,0,0,12"/>
+
+            <DataGrid ItemsSource="{Binding AuditLogs}"
+                      Style="{StaticResource Table}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False">
+
+                <DataGrid.Columns>
+
+                    <DataGridTextColumn Header="Time"
+                                        Binding="{Binding CreatedAtText}"
+                                        Width="155"
+                                        ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                    <DataGridTextColumn Header="User"
+                                        Binding="{Binding UserText}"
+                                        Width="180"
+                                        ElementStyle="{StaticResource Table.Text}"/>
+
+                    <DataGridTextColumn Header="Action"
+                                        Binding="{Binding Action}"
+                                        Width="180"
+                                        ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                    <DataGridTextColumn Header="IP address"
+                                        Binding="{Binding IpAddressText}"
+                                        Width="120"
+                                        ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                    <DataGridTextColumn Header="Device"
+                                        Binding="{Binding DeviceInfoText}"
+                                        Width="160"
+                                        ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                    <DataGridTextColumn Header="Details"
+                                        Binding="{Binding DetailsText}"
+                                        Width="*"
+                                        MinWidth="180"
+                                        ElementStyle="{StaticResource Table.Text}"/>
+
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <TextBlock Text="No audit events were recorded for this transaction."
+                       Style="{StaticResource Text.BodyMuted}"
+                       Margin="0,8,0,0"
+                       Visibility="{Binding HasAuditLogs,
+                           Converter={StaticResource BoolToCollapsedVisibility}}"/>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

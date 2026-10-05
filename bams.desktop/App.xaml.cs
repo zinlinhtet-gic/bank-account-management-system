@@ -12,6 +12,7 @@ using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
 using bams.desktop.ViewModels.Pages.Accounting;
+using bams.desktop.ViewModels.Pages.Audit;
 
 namespace bams.desktop;
 
@@ -177,6 +178,7 @@ public partial class App : Application
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();
         services.AddTransient<TransactionHistoryViewModel>();
+        services.AddTransient<TransactionAuditViewModel>();
         services.AddTransient<GeneralLedgerViewModel>();
         services.AddTransient<GLAccountDetailViewModel>();
         services.AddTransient<ReconciliationViewModel>();
