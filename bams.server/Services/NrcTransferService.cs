@@ -21,11 +21,13 @@ public sealed class NrcTransferService : INrcTransferService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly LedgerPostingService _ledger;
+    private readonly ICashOperationsService _cashOperations;
 
-    public NrcTransferService(ApplicationDbContext dbContext, LedgerPostingService ledger)
+    public NrcTransferService(ApplicationDbContext dbContext, LedgerPostingService ledger, ICashOperationsService cashOperations)
     {
         _dbContext = dbContext;
         _ledger = ledger;
+        _cashOperations = cashOperations;
     }
 
     /// <summary>
@@ -91,6 +93,9 @@ public sealed class NrcTransferService : INrcTransferService
                         now,
                         cancellationToken);
                 }
+
+                if (request.SourceAccountId is null)
+                    await _cashOperations.AddTransactionMovementAsync(entity, true, actor.UserId, request.Amount, cancellationToken);
 
                 await _ledger.PostGlEntryAsync(
                     entity,
@@ -214,6 +219,8 @@ public sealed class NrcTransferService : INrcTransferService
                 now,
                 cancellationToken);
 
+            await _cashOperations.AddTransactionMovementAsync(entity, false, actor.UserId, entity.Amount, cancellationToken);
+
             CompleteTransfer(entity, detail, actor, now);
             _ledger.AddAuditLog(
                 AuditConstants.NrcPickupAction,
@@ -223,6 +230,7 @@ public sealed class NrcTransferService : INrcTransferService
                 now);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _ledger.ValidateTransactionAccountingEntriesAsync(entity.Id, cancellationToken);
             await dbTransaction.CommitAsync(cancellationToken);
         }
 
@@ -283,6 +291,7 @@ public sealed class NrcTransferService : INrcTransferService
                 now);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _ledger.ValidateTransactionAccountingEntriesAsync(entity.Id, cancellationToken);
             return entity.Id;
         }, cancellationToken);
 
@@ -349,6 +358,13 @@ public sealed class NrcTransferService : INrcTransferService
                 now,
                 cancellationToken);
 
+            var wasCashFunded = !await _dbContext.AccountTransactions.AsNoTracking()
+                .AnyAsync(entry => entry.TransactionId == entity.Id && entry.EntryType == EntryType.Debit, cancellationToken);
+            if (wasCashFunded)
+            {
+                await _cashOperations.AddTransactionMovementAsync(refund, true, actor.UserId, refund.Amount, cancellationToken);
+            }
+
             entity.TransactionStatus = TransactionStatus.Cancelled;
             entity.UpdatedAt = now;
             detail.Status = TransactionConstants.PickupCancelledStatus;
@@ -361,6 +377,7 @@ public sealed class NrcTransferService : INrcTransferService
                 now);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _ledger.ValidateTransactionAccountingEntriesAsync(refund.Id, cancellationToken);
             return refund.Id;
         }, cancellationToken);
 

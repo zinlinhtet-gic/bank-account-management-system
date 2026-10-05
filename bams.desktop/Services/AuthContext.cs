@@ -145,7 +145,8 @@ public sealed class AuthContext : INotifyPropertyChanged
             CanConfigureSystem = HasPermission(PermissionCodes.Configuration),
             CanPerformOperations = HasPermission(PermissionCodes.Operation),
             CanViewAudit = HasPermission(PermissionCodes.Audit),
-            CanViewCustomerList = HasPermission(PermissionCodes.CustomerList)
+            CanViewCustomerList = HasPermission(PermissionCodes.CustomerList),
+            CanManageCashOperations = HasPermission(PermissionCodes.CashOperations)
         };
     }
 
@@ -227,4 +228,5 @@ public sealed class PermissionFlags
     public bool CanPerformOperations { get; set; }
     public bool CanViewAudit { get; set; }
     public bool CanViewCustomerList { get; set; }
+    public bool CanManageCashOperations { get; set; }
 }

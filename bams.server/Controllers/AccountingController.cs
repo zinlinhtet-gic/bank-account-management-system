@@ -17,11 +17,51 @@ namespace bams.server.Controllers;
 public sealed class AccountingController : ControllerBase
 {
     private readonly IAccountingReportService _accountingReportService;
+    private readonly IAccountReconciliationService _reconciliationService;
 
     public AccountingController(
-        IAccountingReportService accountingReportService)
+        IAccountingReportService accountingReportService,
+        IAccountReconciliationService reconciliationService)
     {
         _accountingReportService = accountingReportService;
+        _reconciliationService = reconciliationService;
+    }
+
+    /// <summary>Runs account versus customer-ledger reconciliation for a date cutoff.</summary>
+    [HttpPost("reconciliation/accounts")]
+    public async Task<ActionResult<ApiMessageResponse<AccountReconciliationRunResponse>>> ReconcileAccountsAsync(
+        AccountReconciliationRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.ReconcileAccountsAsync(request, cancellationToken);
+        return Ok(ApiMessageResponse<AccountReconciliationRunResponse>.FromCode(MessageCode.Success, result));
+    }
+
+    /// <summary>Lists durable reconciliation exceptions.</summary>
+    [HttpGet("reconciliation/exceptions")]
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<ReconciliationExceptionResponse>>>> GetReconciliationExceptionsAsync(
+        [FromQuery] DateOnly? fromDate, [FromQuery] DateOnly? toDate, [FromQuery] string? status,
+        [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.GetExceptionsAsync(fromDate, toDate, status, page, pageSize, cancellationToken);
+        return Ok(ApiMessageResponse<PagedResponse<ReconciliationExceptionResponse>>.FromCode(MessageCode.Success, result));
+    }
+
+    [HttpGet("reconciliation/exceptions/{id:long}")]
+    public async Task<ActionResult<ApiMessageResponse<ReconciliationExceptionDetailResponse>>> GetReconciliationExceptionByIdAsync(
+        long id, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.GetExceptionByIdAsync(id, cancellationToken);
+        return Ok(ApiMessageResponse<ReconciliationExceptionDetailResponse>.FromCode(MessageCode.Success, result));
+    }
+
+    /// <summary>Updates exception assignment and investigation notes; resolution is driven by a successful rerun.</summary>
+    [HttpPatch("reconciliation/exceptions/{id:long}")]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    public async Task<ActionResult<ApiMessageResponse<ReconciliationExceptionResponse>>> UpdateReconciliationExceptionAsync(
+        long id, UpdateReconciliationExceptionRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.UpdateExceptionAsync(id, request, cancellationToken);
+        return Ok(ApiMessageResponse<ReconciliationExceptionResponse>.FromCode(MessageCode.Success, result));
     }
 
     // Returns all general-ledger accounts.

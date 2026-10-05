@@ -1,6 +1,10 @@
 using bams.server.Configuration;
 using bams.server.Data;
 using bams.server.Models.Jobs;
+using bams.server.Exceptions;
+using bams.server.Services.Interfaces;
+using bams.server.Messages;
+using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -10,25 +14,29 @@ namespace bams.server.Services.Jobs;
 public sealed class JobsOperationService : IJobsOperationService
 {
     private const int ErrorMessageMaximumLength = 4000;
+    private const int FailureSummaryMaximumLength = 500;
     private const int MinimumHeartbeatIntervalSeconds = 1;
     private readonly ApplicationDbContext _dbContext;
     private readonly IReadOnlyDictionary<string, ScheduledJobRegistration> _registrations;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly JobsOptions _options;
     private readonly ILogger<JobsOperationService> _logger;
+    private readonly ICurrentUserService _currentUserService;
 
     public JobsOperationService(
         ApplicationDbContext dbContext,
         IReadOnlyList<ScheduledJobRegistration> registrations,
         IServiceScopeFactory scopeFactory,
         IOptions<JobsOptions> options,
-        ILogger<JobsOperationService> logger)
+        ILogger<JobsOperationService> logger,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _registrations = registrations.ToDictionary(registration => registration.JobKey, StringComparer.OrdinalIgnoreCase);
         _scopeFactory = scopeFactory;
         _options = options.Value;
         _logger = logger;
+        _currentUserService = currentUserService;
         ValidateOptions(_options);
     }
 
@@ -123,6 +131,115 @@ public sealed class JobsOperationService : IJobsOperationService
         return updated > 0;
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<bams.server.DTO.Jobs.FailedScheduledJobResponse>> GetFinalFailuresAsync(
+        CancellationToken cancellationToken)
+    {
+        var failures = await _dbContext.ScheduledJobExecutions.AsNoTracking()
+            .Where(execution => execution.FinalFailureAtUtc.HasValue &&
+                !execution.FailureResolvedAtUtc.HasValue && !execution.FailureRetryRequestedAtUtc.HasValue)
+            .OrderByDescending(execution => execution.FinalFailureAtUtc)
+            .Select(execution => new
+            {
+                execution.Id,
+                execution.ScheduledForUtc,
+                execution.AttemptNumber,
+                FailedAt = execution.FinalFailureAtUtc!.Value,
+                FailureCode = execution.FailureCode.HasValue ? (int?)execution.FailureCode.Value : null,
+                execution.FailureSummary,
+                ScheduledJobId = execution.ScheduledJobId,
+                JobKey = execution.ScheduledJob!.JobKey,
+                DisplayName = execution.ScheduledJob.DisplayName,
+                TimeZoneId = execution.ScheduledJob.TimeZoneId
+            })
+            .ToListAsync(cancellationToken);
+
+        return failures.GroupBy(item => new { item.ScheduledJobId, item.ScheduledForUtc })
+            .Select(group => group.OrderByDescending(item => item.FailedAt).First())
+            .Select(item => new bams.server.DTO.Jobs.FailedScheduledJobResponse(
+            item.Id, item.JobKey, item.DisplayName, item.ScheduledForUtc, item.TimeZoneId,
+            item.AttemptNumber, item.FailedAt, item.FailureCode,
+            item.FailureSummary ?? "The scheduled operation failed after automatic retries.",
+            item.FailureCode == (int)MessageCode.MonthlyAccountingPeriodNotClosed
+                ? ScheduledJobPeriod.GetPreviousCalendarMonth(BusinessTime.ToBusinessDate(item.ScheduledForUtc)).End
+                : null)).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<bams.server.DTO.Jobs.ScheduledJobRetryResponse> RequestManualRetryAsync(
+        long failedExecutionId, CancellationToken cancellationToken)
+    {
+        var failed = await _dbContext.ScheduledJobExecutions.AsNoTracking()
+            .Include(item => item.ScheduledJob)
+            .SingleOrDefaultAsync(item => item.Id == failedExecutionId, cancellationToken);
+        if (failed is null || !failed.FinalFailureAtUtc.HasValue || failed.FailureResolvedAtUtc.HasValue ||
+            failed.FailureRetryRequestedAtUtc.HasValue || failed.ScheduledJob is null ||
+            !_registrations.TryGetValue(failed.ScheduledJob.JobKey, out var registration))
+        {
+            throw new BusinessRuleException(MessageCode.ScheduledJobRetryUnavailable);
+        }
+
+        if (registration.ValidateManualRetryAsync is not null)
+        {
+            await using var validationScope = _scopeFactory.CreateAsyncScope();
+            await registration.ValidateManualRetryAsync(validationScope.ServiceProvider, failed.ScheduledForUtc,
+                cancellationToken);
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        var job = (await _dbContext.ScheduledJobs
+            .FromSql($"SELECT * FROM ScheduledJobs WHERE Id = {failed.ScheduledJobId} FOR UPDATE")
+            .ToListAsync(cancellationToken)).SingleOrDefault();
+        var execution = await _dbContext.ScheduledJobExecutions.SingleOrDefaultAsync(item => item.Id == failedExecutionId,
+            cancellationToken);
+        var retryActive = await _dbContext.ScheduledJobRetryRequests.AnyAsync(item =>
+            item.ScheduledJobId == failed.ScheduledJobId &&
+            (item.Status == ScheduledJobRetryRequestStatus.Pending || item.Status == ScheduledJobRetryRequestStatus.Running),
+            cancellationToken);
+        if (job is null || execution is null || !job.IsEnabled ||
+            (job.LeaseUntilUtc.HasValue && job.LeaseUntilUtc.Value > now) || retryActive ||
+            execution.FailureResolvedAtUtc.HasValue || execution.FailureRetryRequestedAtUtc.HasValue ||
+            !execution.FinalFailureAtUtc.HasValue)
+        {
+            throw new BusinessRuleException(MessageCode.ScheduledJobRetryUnavailable);
+        }
+
+        var requestedBy = _currentUserService.GetCurrentUserId();
+        // Claim the one-time retry slot conditionally so two managers cannot queue the same failed attempt
+        // concurrently. The transaction rolls the reservation back if any following write fails.
+        var retrySlotClaimed = await _dbContext.ScheduledJobExecutions
+            .Where(item => item.Id == execution.Id && item.FinalFailureAtUtc.HasValue &&
+                !item.FailureResolvedAtUtc.HasValue && !item.FailureRetryRequestedAtUtc.HasValue)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(item => item.FailureRetryRequestedAtUtc, now)
+                .SetProperty(item => item.FailureRetryRequestedBy, requestedBy), cancellationToken);
+        if (retrySlotClaimed == 0)
+            throw new BusinessRuleException(MessageCode.ScheduledJobRetryUnavailable);
+
+        var request = new ScheduledJobRetryRequest
+        {
+            ScheduledJobId = job.Id,
+            FailedExecutionId = execution.Id,
+            ScheduledForUtc = execution.ScheduledForUtc,
+            ResumeNextRunAtUtc = job.NextRunAtUtc,
+            RequestedBy = requestedBy,
+            RequestedAtUtc = now,
+            Status = ScheduledJobRetryRequestStatus.Pending
+        };
+        _dbContext.ScheduledJobRetryRequests.Add(request);
+        execution.FailureRetryRequestedAtUtc = now;
+        execution.FailureRetryRequestedBy = requestedBy;
+        job.PendingScheduledAtUtc = execution.ScheduledForUtc;
+        job.NextRunAtUtc = now;
+        job.Status = ScheduledJobStatus.Pending;
+        job.UpdatedAtUtc = now;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new bams.server.DTO.Jobs.ScheduledJobRetryResponse(request.Id, execution.Id,
+            request.ScheduledForUtc, request.Status.ToString(), request.RequestedAtUtc);
+    }
+
     // Claims one occurrence atomically, then executes it outside the database transaction.
     private async Task ClaimAndExecuteJobAsync(long jobId, CancellationToken stoppingToken)
     {
@@ -203,6 +320,15 @@ public sealed class JobsOperationService : IJobsOperationService
         var job = await _dbContext.ScheduledJobs.AsNoTracking()
             .SingleAsync(item => item.Id == jobId, cancellationToken);
         var scheduledForUtc = job.PendingScheduledAtUtc ?? job.NextRunAtUtc;
+        var retryRequest = await _dbContext.ScheduledJobRetryRequests
+            .Where(item => item.ScheduledJobId == jobId && item.ScheduledForUtc == scheduledForUtc &&
+                (item.Status == ScheduledJobRetryRequestStatus.Pending || item.Status == ScheduledJobRetryRequestStatus.Running))
+            .OrderBy(item => item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (retryRequest is not null)
+        {
+            retryRequest.Status = ScheduledJobRetryRequestStatus.Running;
+        }
         await _dbContext.ScheduledJobExecutions
             .Where(execution => execution.ScheduledJobId == jobId &&
                 execution.ScheduledForUtc == scheduledForUtc && execution.Status == ScheduledJobExecutionStatus.Running)
@@ -215,18 +341,43 @@ public sealed class JobsOperationService : IJobsOperationService
             .Where(execution => execution.ScheduledJobId == jobId && execution.ScheduledForUtc == scheduledForUtc)
             .Select(execution => (int?)execution.AttemptNumber)
             .MaxAsync(cancellationToken) ?? 0;
-        if (previousAttempts >= _options.MaximumAttempts)
+        var retryAttempts = retryRequest is null ? previousAttempts : await _dbContext.ScheduledJobExecutions.AsNoTracking()
+            .CountAsync(item => item.RetryRequestId == retryRequest.Id, cancellationToken);
+        if (retryAttempts >= _options.MaximumAttempts)
         {
             var registration = _registrations[job.JobKey];
+            if (retryRequest is not null)
+            {
+                retryRequest.Status = ScheduledJobRetryRequestStatus.Failed;
+                retryRequest.CompletedAtUtc = now;
+                var failedExecution = await _dbContext.ScheduledJobExecutions
+                    .SingleOrDefaultAsync(item => item.Id == retryRequest.FailedExecutionId, cancellationToken);
+                if (failedExecution is not null)
+                {
+                    failedExecution.FailureResolvedAtUtc = null;
+                    failedExecution.FailureRetryRequestedAtUtc = null;
+                }
+            }
+            var lastExecution = await _dbContext.ScheduledJobExecutions
+                .Where(item => item.ScheduledJobId == jobId && item.ScheduledForUtc == scheduledForUtc)
+                .OrderByDescending(item => item.AttemptNumber).FirstOrDefaultAsync(cancellationToken);
+            if (lastExecution is not null)
+            {
+                lastExecution.FinalFailureAtUtc = now;
+                lastExecution.FailureSummary ??= "The previous worker stopped before completing this scheduled occurrence.";
+            }
             await _dbContext.ScheduledJobs.Where(item => item.Id == jobId && item.LeaseToken == leaseToken)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(item => item.Status, ScheduledJobStatus.Failed)
                     .SetProperty(item => item.LastRunAtUtc, now)
                     .SetProperty(item => item.PendingScheduledAtUtc, (DateTime?)null)
-                    .SetProperty(item => item.NextRunAtUtc, GetFollowingRunAtUtc(registration.Schedule, scheduledForUtc, now))
+                    .SetProperty(item => item.NextRunAtUtc, retryRequest is null
+                        ? GetFollowingRunAtUtc(registration.Schedule, scheduledForUtc, now)
+                        : retryRequest.ResumeNextRunAtUtc)
                     .SetProperty(item => item.LeaseToken, (string?)null)
                     .SetProperty(item => item.LeaseUntilUtc, (DateTime?)null)
                     .SetProperty(item => item.UpdatedAtUtc, now), cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             _logger.LogError("Scheduled job {JobKey} exhausted its attempts after a worker lease expired.", job.JobKey);
             return null;
@@ -237,13 +388,15 @@ public sealed class JobsOperationService : IJobsOperationService
             ScheduledJobId = jobId,
             ScheduledForUtc = scheduledForUtc,
             AttemptNumber = previousAttempts + 1,
+            RetryRequestId = retryRequest?.Id,
             Status = ScheduledJobExecutionStatus.Running,
             StartedAtUtc = now
         };
         _dbContext.ScheduledJobExecutions.Add(execution);
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new JobExecutionClaim(job, execution.Id, scheduledForUtc, execution.AttemptNumber, leaseToken);
+        return new JobExecutionClaim(job, execution.Id, scheduledForUtc, execution.AttemptNumber, leaseToken,
+            retryRequest?.Id);
     }
 
     // Chooses the occurrence after a finished one. Calendar schedules advance from the occurrence itself, so every
@@ -304,6 +457,10 @@ public sealed class JobsOperationService : IJobsOperationService
 
         var execution = await _dbContext.ScheduledJobExecutions
             .SingleAsync(item => item.Id == claim.ExecutionId, cancellationToken);
+        var retryRequest = claim.RetryRequestId.HasValue
+            ? await _dbContext.ScheduledJobRetryRequests.SingleAsync(item => item.Id == claim.RetryRequestId.Value,
+                cancellationToken)
+            : null;
         var now = DateTime.UtcNow;
         execution.CompletedAtUtc = now;
         job.LastRunAtUtc = now;
@@ -314,9 +471,22 @@ public sealed class JobsOperationService : IJobsOperationService
         if (failure is null && !cancelled)
         {
             execution.Status = ScheduledJobExecutionStatus.Succeeded;
+            if (retryRequest is not null)
+            {
+                retryRequest.Status = ScheduledJobRetryRequestStatus.Succeeded;
+                retryRequest.CompletedAtUtc = now;
+                await _dbContext.ScheduledJobExecutions
+                    .Where(item => item.ScheduledJobId == retryRequest.ScheduledJobId &&
+                        item.ScheduledForUtc == retryRequest.ScheduledForUtc && item.FinalFailureAtUtc.HasValue &&
+                        !item.FailureResolvedAtUtc.HasValue)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.FailureResolvedAtUtc, now),
+                        cancellationToken);
+            }
             job.Status = ScheduledJobStatus.Succeeded;
             job.PendingScheduledAtUtc = null;
-            job.NextRunAtUtc = GetFollowingRunAtUtc(_registrations[claim.Job.JobKey].Schedule, claim.ScheduledForUtc, now);
+            job.NextRunAtUtc = retryRequest is null
+                ? GetFollowingRunAtUtc(_registrations[claim.Job.JobKey].Schedule, claim.ScheduledForUtc, now)
+                : retryRequest.ResumeNextRunAtUtc;
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation("Scheduled job {JobKey} completed successfully.", claim.Job.JobKey);
@@ -325,16 +495,33 @@ public sealed class JobsOperationService : IJobsOperationService
 
         execution.Status = cancelled ? ScheduledJobExecutionStatus.Cancelled : ScheduledJobExecutionStatus.Failed;
         execution.ErrorMessage = FormatFailure(failure, cancelled);
-        if (cancelled || claim.AttemptNumber < _options.MaximumAttempts)
+        execution.FailureCode = (failure as AppException)?.Code;
+        execution.FailureSummary = FormatFailureSummary(failure, cancelled);
+        var attemptsForRequest = retryRequest is null ? claim.AttemptNumber
+            : await _dbContext.ScheduledJobExecutions.CountAsync(item => item.RetryRequestId == retryRequest.Id,
+                cancellationToken);
+        if (cancelled || attemptsForRequest < _options.MaximumAttempts)
         {
             job.Status = ScheduledJobStatus.RetryScheduled;
             job.NextRunAtUtc = now.Add(GetRetryDelay(claim.AttemptNumber));
         }
         else
         {
+            execution.FinalFailureAtUtc = now;
             job.Status = ScheduledJobStatus.Failed;
             job.PendingScheduledAtUtc = null;
-            job.NextRunAtUtc = GetFollowingRunAtUtc(_registrations[claim.Job.JobKey].Schedule, claim.ScheduledForUtc, now);
+            job.NextRunAtUtc = retryRequest is null
+                ? GetFollowingRunAtUtc(_registrations[claim.Job.JobKey].Schedule, claim.ScheduledForUtc, now)
+                : retryRequest.ResumeNextRunAtUtc;
+            if (retryRequest is not null)
+            {
+                retryRequest.Status = ScheduledJobRetryRequestStatus.Failed;
+                retryRequest.CompletedAtUtc = now;
+                var originalFailure = await _dbContext.ScheduledJobExecutions
+                    .SingleAsync(item => item.Id == retryRequest.FailedExecutionId, cancellationToken);
+                originalFailure.FailureRetryRequestedAtUtc = null;
+                originalFailure.FailureRetryRequestedBy = null;
+            }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -354,6 +541,17 @@ public sealed class JobsOperationService : IJobsOperationService
         return message.Length <= ErrorMessageMaximumLength
             ? message
             : message[..ErrorMessageMaximumLength];
+    }
+
+    // Keeps a readable cause in manager alerts without exposing stack traces or full exception details.
+    private static string FormatFailureSummary(Exception? exception, bool cancelled)
+    {
+        var summary = cancelled ? "The scheduled operation was cancelled before completion."
+            : exception is AppException ? exception.Message
+            : exception?.GetBaseException().Message ?? "The scheduled operation was interrupted.";
+        return summary.Length <= FailureSummaryMaximumLength
+            ? summary
+            : summary[..FailureSummaryMaximumLength];
     }
 
     // Doubles the configured base delay after each failed attempt.
@@ -381,7 +579,8 @@ public sealed class JobsOperationService : IJobsOperationService
         long ExecutionId,
         DateTime ScheduledForUtc,
         int AttemptNumber,
-        string LeaseToken)
+        string LeaseToken,
+        long? RetryRequestId)
     {
         public ScheduledJobExecutionContext ExecutionContext =>
             new(Job.Id, ExecutionId, ScheduledForUtc, AttemptNumber);

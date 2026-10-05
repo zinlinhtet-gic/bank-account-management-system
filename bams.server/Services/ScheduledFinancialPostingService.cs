@@ -17,19 +17,22 @@ public sealed class ScheduledFinancialPostingService
     private readonly IGeneralLedgerPostingService _generalLedger;
     private readonly IAccountTransactionService _accountTransactions;
     private readonly IAuditLogService _auditLogs;
+    private readonly LedgerPostingService _ledgerPosting;
 
     public ScheduledFinancialPostingService(
         ApplicationDbContext dbContext,
         IScheduledTransactionService transactions,
         IGeneralLedgerPostingService generalLedger,
         IAccountTransactionService accountTransactions,
-        IAuditLogService auditLogs)
+        IAuditLogService auditLogs,
+        LedgerPostingService ledgerPosting)
     {
         _dbContext = dbContext;
         _transactions = transactions;
         _generalLedger = generalLedger;
         _accountTransactions = accountTransactions;
         _auditLogs = auditLogs;
+        _ledgerPosting = ledgerPosting;
     }
 
     public async Task<long> RecordAccrualAsync(
@@ -60,6 +63,7 @@ public sealed class ScheduledFinancialPostingService
             isAccrual: true, cancellationToken: cancellationToken);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _ledgerPosting.ValidateTransactionAccountingEntriesAsync(transaction.Id, cancellationToken);
         await databaseTransaction.CommitAsync(cancellationToken);
         return transaction.Id;
     }
@@ -103,6 +107,7 @@ public sealed class ScheduledFinancialPostingService
             description, now, isAccrual: false, cancellationToken: cancellationToken);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _ledgerPosting.ValidateTransactionAccountingEntriesAsync(transaction.Id, cancellationToken);
         await databaseTransaction.CommitAsync(cancellationToken);
         return transaction.Id;
     }

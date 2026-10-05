@@ -1,0 +1,29 @@
+# Accounting and End-of-Day Workflows
+
+The Accounting navigation contains General Ledger, Journal Entries, Reconciliation, Cash Reconciliation, and End of Day. Pages use the existing MVVM flow: views bind to page ViewModels, ViewModels call typed client services, and services use the shared `ApiClient`.
+
+## Reconciliation
+
+The account reconciliation page is tab based: Account Results shows operational and ledger balances, differences, and statuses for the selected business-date range; Exceptions and Investigation lists matching exceptions and provides assignment, status, notes, correction references, and the append-only audit timeline. Both tabs share the date range and run through the existing reconciliation ViewModel and typed client service. Investigators cannot resolve exceptions directly. Reconciliation does not edit account or ledger balances. Server exceptions are translated through the shared typed API exception path.
+
+## Cash reconciliation
+
+The cash session page and its commands require `cash_operations`; vault opening requires `end_of_day_approval`. End of Day hides session operations without cash-operation permission, pre-close without accounting/audit permission, approval/close without end-of-day approval permission, and handoff review without audit or EOD-approval permission.
+
+The cash session date filter defaults to the current server business date, selects an open session automatically when one exists, and can be changed to load another business date's sessions. The session-opening request contains no date: the server assigns the active current business date. If an old open-date record exists from legacy data, the server does not use it for today's operations; it opens today's date unless yesterday is still unclosed, in which case the existing transition conflict is returned. Once a session is opened, the list filter returns to the active business date so the new session is visible.
+
+After officer login, the shell checks the current business date for that officer's open teller session and directs officers without one to the Sessions tab. Leaving that page without opening a session shows the themed dialog: “If no opened session, no write can be done.” Officer writes are blocked locally by the shared API client and independently enforced by the server; opening the teller session remains available. Read-only navigation remains available, and managers and other roles retain their existing behavior.
+
+Cash-session operations use the shared `Input.Text`, `Input.Select`, `Input.Date`, `Card`, and `Tab` theme resources. The session tabs follow the same radio-tab strip used on the Transactions page. Officer write buttons marked as session-dependent visibly disable until the session check confirms an open teller session; session creation stays available.
+
+Cash reconciliation is tab based: Sessions opens and lists positions; Close Session records a physical count and closes that one session; Session History shows movements and count rows. Multiple tellers may each have one open session on the same business date. A nonzero count requires selection of an eligible recipient and creates a pending custody handoff atomically with the count; a zero count needs no recipient. Teller expected cash is server-owned. Cash transactions automatically affect the actor's open teller session; transaction forms do not ask for a session ID. A mismatch creates an exception and never changes expected cash. Inter-session transfers and approved corrections remain server-side operational workflows and are not part of this session-lifecycle screen. EOD's Cash Handoffs tab supports acknowledgement, decline with note, and reassignment. Pending or declined handoffs block business-date close until accepted. NRC pickup branch remains a separate transaction delivery location. The Sessions tab separates the business-date filter and load action from the session-opening controls so they align as distinct operations. The Close Session form uses the full section width, with count and recipient inputs side by side and full-width notes. Session, movement, count, and handoff registers use the shared `Table` DataGrid style and `Card.Flush` / `Card.Caption` components for consistent headers, row states, and spacing.
+
+Opening and count-close commands keep an `Idempotency-Key` across retries and issue a fresh key after success or input changes. Session and handoff mutation commands send the displayed `version`; the server rejects stale edits so the operator can refresh and review the new state.
+
+## End of Day
+
+The parent `EndOfDayViewModel` composes child ViewModels for summary, pre-close, cash sessions, cash handoffs, ledger/account reconciliation, the Exception Center, and final review. Pre-close stages expose blockers; approval and close controls require the corresponding permission and server-side state. Approval is dual control. The server rechecks blockers and generates the GL close audit while holding the business-date lock, then makes the next business date available. EOD is manually initiated; scheduled financial work and scheduled account reconciliation use the server's existing scheduler.
+
+## Monthly accounting close alerts
+
+The second day of each month at 00:00 Asia/Rangoon runs prior-month account maintenance and interest accumulation before generating `MonthlySummary` rows. If the month's final business date is still open, the scheduler fails with a readable cause after automatic retry attempts are exhausted. Managers with `scheduled_job_management` see the alert in the application header, navigate to the normal End of Day flow to close the date, then retry the same scheduled occurrence. Each request and attempt is retained by the server; the alert clears after a successful retry. Monthly totals use raw accounting entries, while previous-period openings prefer `MonthlySummary`, then later `DailySummary`, and then raw accounting history where no snapshots exist.

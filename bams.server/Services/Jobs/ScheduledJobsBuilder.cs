@@ -14,7 +14,8 @@ public sealed class ScheduledJobsBuilder
     public ScheduledJobsBuilder Add<TService>(
         string jobKey,
         JobSchedule schedule,
-        Func<TService, CancellationToken, Task> executeAsync)
+        Func<TService, CancellationToken, Task> executeAsync,
+        Func<TService, DateTime, CancellationToken, Task>? validateManualRetryAsync = null)
         where TService : class
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jobKey);
@@ -27,7 +28,9 @@ public sealed class ScheduledJobsBuilder
             jobKey,
             schedule,
             (serviceProvider, _, cancellationToken) =>
-                executeAsync(serviceProvider.GetRequiredService<TService>(), cancellationToken)));
+                executeAsync(serviceProvider.GetRequiredService<TService>(), cancellationToken),
+            validateManualRetryAsync is null ? null : (serviceProvider, occurrenceUtc, cancellationToken) =>
+                validateManualRetryAsync(serviceProvider.GetRequiredService<TService>(), occurrenceUtc, cancellationToken)));
         return this;
     }
 
@@ -36,7 +39,8 @@ public sealed class ScheduledJobsBuilder
         string jobKey,
         string displayName,
         JobSchedule schedule,
-        Func<TService, ScheduledJobExecutionContext, CancellationToken, Task> executeAsync)
+        Func<TService, ScheduledJobExecutionContext, CancellationToken, Task> executeAsync,
+        Func<TService, DateTime, CancellationToken, Task>? validateManualRetryAsync = null)
         where TService : class
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jobKey);
@@ -51,7 +55,9 @@ public sealed class ScheduledJobsBuilder
             displayName,
             schedule,
             (serviceProvider, executionContext, cancellationToken) =>
-                executeAsync(serviceProvider.GetRequiredService<TService>(), executionContext, cancellationToken)));
+                executeAsync(serviceProvider.GetRequiredService<TService>(), executionContext, cancellationToken),
+            validateManualRetryAsync is null ? null : (serviceProvider, occurrenceUtc, cancellationToken) =>
+                validateManualRetryAsync(serviceProvider.GetRequiredService<TService>(), occurrenceUtc, cancellationToken)));
         return this;
     }
 

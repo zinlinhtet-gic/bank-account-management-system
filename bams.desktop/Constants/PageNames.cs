@@ -20,6 +20,8 @@ public static class PageNames
     public const string GLAccountDetail = "GL Account Detail";
     public const string AccountingEntries = "Accounting Entries";
     public const string Reconciliation = "Reconciliation";
+    public const string CashReconciliation = "Cash Reconciliation";
+    public const string EndOfDay = "End of Day";
     // Audit child pages
     public const string TransactionAudit = "Transaction Audit";
     public const string Operations = "Operations";

@@ -1,0 +1,235 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.CashReconciliationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             Visibility="{Binding HasCashOperationsPermission, Converter={StaticResource BooleanToVisibilityConverter}}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <TextBlock Text="Teller and Vault Sessions" Style="{StaticResource Text.Title}" />
+            <TextBlock Text="Open and close individual teller or vault sessions. A positive closing count requires a recipient to acknowledge custody. This screen does not close the business date."
+                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,16" />
+
+            <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,14">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}"
+                            Style="{StaticResource Button.Secondary}" t:ThemeAssist.Size="Small" Margin="12,0,0,0" />
+                    <StackPanel>
+                        <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" />
+                        <TextBlock Text="Session actions are recorded against the selected business date. Cash counts never overwrite expected cash."
+                                   Style="{StaticResource Text.Caption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <Border Style="{StaticResource Tab.Strip}" Margin="0,0,0,14">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Sessions" Style="{StaticResource Tab}" GroupName="CashSessionTabs"
+                                 IsChecked="{Binding IsSessionsTabSelected, Mode=TwoWay}" />
+                    <RadioButton Content="Close Session" Style="{StaticResource Tab}" GroupName="CashSessionTabs"
+                                 IsChecked="{Binding IsCloseSessionTabSelected, Mode=TwoWay}" />
+                    <RadioButton Content="Session History" Style="{StaticResource Tab}" GroupName="CashSessionTabs"
+                                 IsChecked="{Binding IsSessionHistoryTabSelected, Mode=TwoWay}" />
+                    <RadioButton Content="Cash Handoffs" Style="{StaticResource Tab}" GroupName="CashSessionTabs"
+                                 IsChecked="{Binding IsCashHandoffsTabSelected, Mode=TwoWay}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsSessionsTabSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="Business-date sessions" Style="{StaticResource Text.Subheading}" Margin="0,0,0,4" />
+                            <TextBlock Text="Choose a date to review its teller and vault positions. Opening a teller session makes financial write actions available for the officer."
+                                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,14" />
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="240" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                    <TextBlock Text="BUSINESS DATE" Style="{StaticResource Text.FieldLabel}" />
+                                    <DatePicker SelectedDate="{Binding SelectedBusinessDate, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Date}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Load Sessions" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}"
+                                        VerticalAlignment="Bottom" Margin="0,0,0,0" />
+                            </Grid>
+
+                            <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Open a session" Style="{StaticResource Text.Subheading}" Margin="0,0,0,4" />
+                                    <TextBlock Text="New sessions use the active business date, regardless of the date selected for the session list."
+                                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <TextBlock Text="{Binding ActiveBusinessDate, StringFormat=Active business date: {0:yyyy-MM-dd}}"
+                                               Style="{StaticResource Text.Caption}" Margin="0,0,0,12" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220" />
+                                            <ColumnDefinition Width="240" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                            <TextBlock Text="POSITION" Style="{StaticResource Text.FieldLabel}" />
+                                            <ComboBox ItemsSource="{Binding PositionTypes}" SelectedItem="{Binding PositionType}" Style="{StaticResource Input.Select}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                            <TextBlock Text="OPENING CASH" Style="{StaticResource Text.FieldLabel}" />
+                                            <TextBox Text="{Binding OpeningCashText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" />
+                                            <TextBlock Text="{Binding OpeningCashError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Content="Open Session" Command="{Binding OpenSessionCommand}" Style="{StaticResource Button.Primary}"
+                                                VerticalAlignment="Top" Margin="0,20,0,0" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Card.Flush}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                                        <TextBlock Text="Session register" Style="{StaticResource Text.FieldLabel}" />
+                                    </Border>
+                                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" MinHeight="260">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Session" Binding="{Binding Id}" />
+                                        <DataGridTextColumn Header="Position" Binding="{Binding PositionType}" />
+                                        <DataGridTextColumn Header="Teller" Binding="{Binding TellerId}" />
+                                        <DataGridTextColumn Header="Business date" Binding="{Binding BusinessDate}" />
+                                        <DataGridTextColumn Header="Opening" Binding="{Binding OpeningCash, StringFormat=N2}" />
+                                        <DataGridTextColumn Header="Expected closing" Binding="{Binding ExpectedClosingCash, StringFormat=N2}" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsCloseSessionTabSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="Physical cash count" Style="{StaticResource Text.Subheading}" />
+                            <TextBlock Text="Count and close the selected session. A mismatch creates an investigation; the system expected balance remains unchanged."
+                                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,16" />
+                            <Border Style="{StaticResource Card.Compact}" HorizontalAlignment="Stretch">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SelectedSession.PositionType, TargetNullValue=No session selected}" Style="{StaticResource Text.Body}" />
+                                    <TextBlock Text="{Binding SelectedSession.BusinessDate, StringFormat=Business date: {0:yyyy-MM-dd}}" Style="{StaticResource Text.BodyMuted}" Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding SelectedSession.ExpectedClosingCash, StringFormat=Expected cash: {0:N2}}" Style="{StaticResource Text.BodyMuted}" Margin="0,2,0,14" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                            <TextBlock Text="PHYSICAL CASH COUNT" Style="{StaticResource Text.FieldLabel}" />
+                                            <TextBox Text="{Binding ActualCashText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" />
+                                            <TextBlock Text="{Binding ActualCashError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                            <TextBlock Text="CASH RECIPIENT (REQUIRED WHEN COUNT IS POSITIVE)" Style="{StaticResource Text.FieldLabel}" />
+                                            <ComboBox ItemsSource="{Binding HandoffRecipients}" SelectedItem="{Binding SelectedHandoffRecipient}"
+                                                      IsEditable="True" IsTextSearchEnabled="True" TextSearch.TextPath="FullName"
+                                                      Style="{StaticResource Input.Select}">
+                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding FullName}" /></DataTemplate></ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <TextBlock Text="{Binding HandoffRecipientError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock Text="COUNT NOTES (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" Margin="0,14,0,4" />
+                                    <TextBox Text="{Binding CountNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" />
+                                    <TextBlock Text="{Binding CountNotesError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" />
+                                    <Button Content="Submit Count and Close Session" Command="{Binding CountCashCommand}"
+                                            Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True"
+                                            HorizontalAlignment="Left" Margin="0,16,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsSessionHistoryTabSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="Session history" Style="{StaticResource Text.Subheading}" />
+                            <TextBlock Text="Immutable movement and physical-count records for the selected session." Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,10" />
+                            <Button Content="Load Selected Session History" Command="{Binding ViewSessionHistoryCommand}"
+                                    Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,0,0,14" />
+                            <Border Style="{StaticResource Card.Flush}" Margin="0,0,0,14">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Cash movements" Style="{StaticResource Text.FieldLabel}" /></Border>
+                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Movements}" MinHeight="160">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Time (UTC)" Binding="{Binding CreatedAtUtc}" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
+                                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=N2}" />
+                                    <DataGridTextColumn Header="Related transaction" Binding="{Binding TransactionId}" />
+                                    <DataGridTextColumn Header="Actor" Binding="{Binding ActorId}" />
+                                    <DataGridTextColumn Header="Note" Binding="{Binding Note}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card.Flush}">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Physical counts" Style="{StaticResource Text.FieldLabel}" /></Border>
+                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Counts}" MinHeight="150">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Counted (UTC)" Binding="{Binding CountedAtUtc}" />
+                                    <DataGridTextColumn Header="Expected" Binding="{Binding ExpectedAmount, StringFormat=N2}" />
+                                    <DataGridTextColumn Header="Actual" Binding="{Binding ActualAmount, StringFormat=N2}" />
+                                    <DataGridTextColumn Header="Difference" Binding="{Binding Difference, StringFormat=N2}" />
+                                    <DataGridTextColumn Header="Counted by" Binding="{Binding CountedBy}" />
+                                    <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsCashHandoffsTabSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="Cash handoffs" Style="{StaticResource Text.Subheading}" />
+                            <TextBlock Text="Review incoming and outgoing custody transfers. Only the assigned recipient can acknowledge or decline; the sender can reassign an unaccepted handoff."
+                                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,14" />
+                            <Border Style="{StaticResource Card.Flush}">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Handoff register" Style="{StaticResource Text.FieldLabel}" /></Border>
+                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Handoffs}" SelectedItem="{Binding SelectedHandoff}" MinHeight="220">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Handoff" Binding="{Binding Id}" />
+                                    <DataGridTextColumn Header="Session" Binding="{Binding SessionId}" />
+                                    <DataGridTextColumn Header="Sender" Binding="{Binding SenderName}" />
+                                    <DataGridTextColumn Header="Recipient" Binding="{Binding RecipientName}" />
+                                    <DataGridTextColumn Header="Cash" Binding="{Binding Amount, StringFormat=N2}" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            </DockPanel>
+                            </Border>
+                            <WrapPanel Margin="0,14,0,0">
+                                <StackPanel Width="280" Margin="0,0,12,0">
+                                    <TextBlock Text="ACTION NOTE" Style="{StaticResource Text.FieldLabel}" />
+                                    <TextBox Text="{Binding HandoffNote, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" />
+                                </StackPanel>
+                                <StackPanel Width="280">
+                                    <TextBlock Text="REASSIGN RECIPIENT" Style="{StaticResource Text.FieldLabel}" />
+                                    <ComboBox ItemsSource="{Binding HandoffRecipients}" SelectedItem="{Binding SelectedHandoffRecipient}"
+                                              IsEditable="True" IsTextSearchEnabled="True" TextSearch.TextPath="FullName" Style="{StaticResource Input.Select}">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding FullName}" /></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+                            </WrapPanel>
+                            <WrapPanel Margin="0,14,0,0">
+                                <Button Content="Acknowledge Receipt" Command="{Binding AcceptHandoffCommand}" Style="{StaticResource Button.Primary}"
+                                        t:ThemeAssist.RequiresOpenCashSession="True" Margin="0,0,8,0" />
+                                <Button Content="Decline Handoff" Command="{Binding DeclineHandoffCommand}" Style="{StaticResource Button.Secondary}"
+                                        t:ThemeAssist.RequiresOpenCashSession="True" Margin="0,0,8,0" />
+                                <Button Content="Reassign" Command="{Binding ReassignHandoffCommand}" Style="{StaticResource Button.Secondary}"
+                                        t:ThemeAssist.RequiresOpenCashSession="True" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

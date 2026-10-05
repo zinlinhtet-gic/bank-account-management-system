@@ -67,6 +67,9 @@
                             <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="160"
                                                 ElementStyle="{StaticResource Table.Text}"/>
 
+                            <DataGridTextColumn Header="Initiated by" Binding="{Binding InitiatedByText}" Width="150"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
                             <DataGridTemplateColumn Header="Status" Width="125" SortMemberPath="Status">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -81,8 +84,14 @@
                             <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceText}" Width="*" MinWidth="80"
                                                 ElementStyle="{StaticResource Table.Text.Muted}"/>
 
+                            <DataGridTextColumn Header="Description" Binding="{Binding DescriptionText}" Width="180"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
                             <DataGridTextColumn Header="Date" Binding="{Binding TransactionAtText}" Width="160"
                                                 SortMemberPath="TransactionAt" ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTextColumn Header="Business date" Binding="{Binding BusinessDateText}" Width="105"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
 
                             <!-- Officers only: finish pending transfers. -->
                             <DataGridTemplateColumn Header="Actions" Width="128" CanUserSort="False"
@@ -95,14 +104,17 @@
                                                         Visibility="{Binding IsPendingNrcTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <Button Style="{StaticResource Button.Icon}" ToolTip="Pay out: pickup at our branch, or record the other bank's payout"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.UserCheck}" Margin="0,0,4,0"
+                                                        t:ThemeAssist.RequiresOpenCashSession="True"
                                                         Command="{Binding DataContext.PickUpNrcTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource Button.Icon}" ToolTip="Issue a new pickup code (the current code stops working)"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.Key}" Margin="0,0,4,0"
+                                                        t:ThemeAssist.RequiresOpenCashSession="True"
                                                         Command="{Binding DataContext.ReissueNrcPickupCodeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource Button.IconDanger}" ToolTip="Cancel and refund the sender"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.Close}"
+                                                        t:ThemeAssist.RequiresOpenCashSession="True"
                                                         Command="{Binding DataContext.CancelNrcTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                             </StackPanel>
@@ -111,10 +123,12 @@
                                                         Visibility="{Binding IsPendingInterbankTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <Button Style="{StaticResource Button.Icon}" ToolTip="Mark as settled"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.Check}" Margin="0,0,4,0"
+                                                        t:ThemeAssist.RequiresOpenCashSession="True"
                                                         Command="{Binding DataContext.CompleteInterbankTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource Button.IconDanger}" ToolTip="Mark as failed and refund the sender"
                                                         t:ThemeAssist.Icon="{StaticResource Icon.AlertCircle}"
+                                                        t:ThemeAssist.RequiresOpenCashSession="True"
                                                         Command="{Binding DataContext.FailInterbankTransferCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                             </StackPanel>

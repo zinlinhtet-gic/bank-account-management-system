@@ -109,6 +109,7 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
     }
 
     public FieldError PickupCodeError { get; } = new();
+    public FieldError CashSessionError { get; } = new();
 
     /// <summary>Error that belongs to no single field (identity mismatch, expired, blocked, network...).</summary>
     public string FormError
@@ -154,7 +155,6 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
         PickupCodeError.Set(code.Length != TransactionFieldRules.PickupCodeLength || !code.All(char.IsAsciiDigit)
             ? $"Enter the {TransactionFieldRules.PickupCodeLength}-digit code the sender received."
             : string.Empty);
-
         if (ReceiverNameError.HasError || ReceiverNrcError.HasError || PickupCodeError.HasError)
         {
             return;
@@ -172,6 +172,10 @@ public sealed class NrcPickupFormViewModel : ViewModelBase, IDialogViewModel
             if (exception.Code == MessageCode.InvalidPickupCode)
             {
                 PickupCodeError.Set(exception.Message);
+            }
+            else if (exception.Code == MessageCode.CashSessionNotOpen)
+            {
+                CashSessionError.Set(exception.Message);
             }
             else
             {

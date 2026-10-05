@@ -1,11 +1,13 @@
 namespace bams.desktop.DTOs.Accounts;
 
+using bams.desktop.DTOs.Transactions;
+
 public sealed record AccountTransactionDetailResponse(
     long Id,
     string TransactionNo,
-    string TransactionType,
-    string TransactionStatus,
-    string EntryType,
+    TransactionType TransactionType,
+    TransactionStatus TransactionStatus,
+    EntryType EntryType,
     decimal Amount,
     decimal LedgerBalanceAfter,
     decimal AvailableBalanceAfter,

@@ -58,6 +58,9 @@
                   <TextBlock Text="{Binding TransactionNo}" Style="{StaticResource Text.Mono}" />
                   <TextBlock Text="{Binding Amount, StringFormat={}{0:N2}}" Style="{StaticResource Text.Mono}" DockPanel.Dock="Right" />
                   <TextBlock Text="{Binding TransactionType}" Style="{StaticResource Text.Body}" Margin="14,0,0,0" />
+                  <TextBlock Text="{Binding TransactionStatus}" Style="{StaticResource Text.Caption}" Margin="10,0,0,0" />
+                  <TextBlock Text="{Binding EntryType}" Style="{StaticResource Text.Caption}" Margin="10,0,0,0" />
+                  <TextBlock Text="{Binding CreatedAt, StringFormat={}{0:dd MMM yyyy HH:mm}}" Style="{StaticResource Text.Caption}" DockPanel.Dock="Bottom" Margin="0,6,0,0" />
                 </DockPanel>
               </Border>
             </DataTemplate>

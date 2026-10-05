@@ -68,8 +68,7 @@ public sealed record NrcPayoutRequest(
 /// <summary>
 /// Cancels a pending NRC transfer and refunds the sender. The reason is stored on the refund transaction.
 /// </summary>
-public sealed record NrcCancelRequest(
-    string? Reason);
+public sealed record NrcCancelRequest(string? Reason);
 
 /// <summary>
 /// Records that the payment gateway settled an interbank transfer.

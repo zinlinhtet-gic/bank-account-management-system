@@ -22,6 +22,10 @@ public static class ThemeAssist
 {
     // ----- Buttons -----
 
+    /// <summary>Disables this write action for officers until the shell confirms an open teller session.</summary>
+    public static readonly DependencyProperty RequiresOpenCashSessionProperty = DependencyProperty.RegisterAttached(
+        "RequiresOpenCashSession", typeof(bool), typeof(ThemeAssist), new FrameworkPropertyMetadata(false));
+
     /// <summary>Small (28px), Medium (36px, default) or Large (44px).</summary>
     public static readonly DependencyProperty SizeProperty = DependencyProperty.RegisterAttached(
         "Size", typeof(ControlSize), typeof(ThemeAssist), new FrameworkPropertyMetadata(ControlSize.Medium));
@@ -76,6 +80,9 @@ public static class ThemeAssist
 
     public static ControlSize GetSize(DependencyObject element) => (ControlSize)element.GetValue(SizeProperty);
     public static void SetSize(DependencyObject element, ControlSize value) => element.SetValue(SizeProperty, value);
+
+    public static bool GetRequiresOpenCashSession(DependencyObject element) => (bool)element.GetValue(RequiresOpenCashSessionProperty);
+    public static void SetRequiresOpenCashSession(DependencyObject element, bool value) => element.SetValue(RequiresOpenCashSessionProperty, value);
 
     public static Geometry? GetIcon(DependencyObject element) => (Geometry?)element.GetValue(IconProperty);
     public static void SetIcon(DependencyObject element, Geometry? value) => element.SetValue(IconProperty, value);

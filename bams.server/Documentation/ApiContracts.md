@@ -1,6 +1,6 @@
 # API Contracts
 
-The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by account, customer, account-type, and interest-rate controllers.
+The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by account, customer, account-type, interest-rate, accounting, cash-operations, and business-date controllers.
 
 ## Endpoint overview
 
@@ -24,6 +24,22 @@ Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payl
 | PATCH | `/api/accounts/{id}/reactivate` | `account_management` | Reactivate a Dormant, Suspended, or Frozen account. |
 | PUT | `/api/accounts/{id}/holders` | `account_management` | Update both holders of a joint account. |
 | PATCH | `/api/accounts/fixed-deposits/{fixedDepositId}` | `account_management` | Update payout and renewal instructions. |
+| POST | `/api/accounting/reconciliation/accounts` | `accounting` | Compare operational balances to customer liability ledger balances. |
+| GET | `/api/accounting/reconciliation/exceptions` | `accounting` | List reconciliation exceptions with date/status filters and paging. |
+| GET | `/api/accounting/reconciliation/exceptions/{id}` | `accounting` | Get an exception and its append-only status/notes audit timeline. |
+| PATCH | `/api/accounting/reconciliation/exceptions/{id}` | `accounting` and `reconciliation_investigation` | Update assignment, investigation status, notes, and correction reference; cannot resolve directly. |
+| GET | `/api/cash-operations/sessions` | `cash_operations` | List teller/vault sessions for a business date. |
+| GET | `/api/cash-operations/sessions/{id}` | `cash_operations` | Read an authorized cash session with its movement and physical-count history and linked transaction references. |
+| POST | `/api/cash-operations/sessions` | `cash_operations` | Open a teller or vault cash position. |
+| POST | `/api/cash-operations/sessions/{id}/transfers` | `cash_operations` | Transfer expected cash between positions on the same business date. Cash positions are not branch-scoped. |
+| POST | `/api/cash-operations/sessions/{id}/count` | `cash_operations` | Record physical cash count and create a mismatch exception. |
+| POST | `/api/cash-operations/sessions/{id}/adjustments` | `cash_operations` | Submit a signed adjustment linked to the exact posted Cash on Hand journal effect. |
+| GET | `/api/cash-operations/adjustments` | `cash_operations` and `end_of_day_approval` | List cash adjustment requests for approval review. |
+| POST | `/api/cash-operations/adjustments/{id}/approve` | `cash_operations` and `end_of_day_approval` | Approve another user's valid adjustment and apply it to the expected position. |
+| GET | `/api/operations/business-date` | `accounting`, `audit`, or `cash_operations` | Read or initialize the persisted open business date. |
+| POST | `/api/operations/business-date/{date}/pre-close` | `accounting` or `audit` | Run and persist EOD pre-close stages. |
+| POST | `/api/operations/business-date/runs/{id}/approve` | `end_of_day_approval` | Approve a run as a different user than the preparer. |
+| POST | `/api/operations/business-date/runs/{id}/close` | `end_of_day_approval` | Close after locking and rechecking blockers; open the next date. |
 
 ## Available account types
 
@@ -33,9 +49,19 @@ Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payl
 
 Account transaction, status-history, and interest-accrual routes return the records for one existing account ordered newest first.
 
+Transaction summaries, detail, and posting responses include `businessDate` separately from the UTC `transactionAt` timestamp.
+
+Cash funded deposit, withdrawal, NRC transfer, NRC pickup, and cash refund requests are associated server-side with the actor's open teller session for the active posting business date. Transaction request DTOs do not require or accept a cash-session identifier; the physical movement is saved atomically with posting. If no current teller session exists, the server returns `CashSessionNotOpen`. A physical count is immutable and never overwrites expected cash. Cash adjustments require a signed amount equal to a posted transaction's Cash on Hand journal effect and independent approval. Account reconciliation preserves run/result snapshots and exception history; mismatches are resolved only after a matched rerun. EOD initiation is manual; scheduled reconciliation and financial postings use the existing scheduled-job mechanism.
+
+All officer-authorized write requests require the signed-in officer's open teller session for the active posting business date. `POST /api/cash-operations/sessions` is exempt so the officer can open that session; read-only requests and manager/other-role authorization are unaffected. A missing session returns `CashSessionNotOpen`.
+
 ## Available interest rules
 
 `GET /api/interest-rate-rules?accountTypeId={id}` returns rules for the selected product whose status is `Active` and whose effective date range includes the current Myanmar (Asia/Rangoon) business date. A positive unknown account type ID returns `AccountTypeNotFound`; a type with no applicable rules returns an empty array. Current accounts intentionally have no seeded rule.
+
+`POST /api/accounting/reconciliation/accounts` accepts `fromDate`, `toDate`, and an optional `accountId`. It returns daily comparison snapshots for every eligible account across the inclusive date range. Ledger balances are cumulative through each date; operational balances use the latest account transaction snapshot through that date.
+
+The inclusive date range is limited to 366 business dates. Exception status filters accept `Open`, `UnderInvestigation`, `AdjustmentRequired`, or `Resolved`, and updates must follow supported transitions. Invalid ranges, statuses, IDs, and overlong notes return HTTP 400 with a stable message code. Cash transfer/adjustment notes are limited to 500 characters and count notes to 2,000; amounts allow at most two decimal places.
 
 ## List accounts
 
@@ -107,3 +133,31 @@ The operation cannot add, remove, or replace customers. It requires exactly one 
 Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.
 
 All successful responses use `ApiMessageResponse<T>`. Expected failures use `ApiErrorResponse` with `code`, `name`, `message`, and `traceId`. Clients must branch on `code`, not message text.
+
+## Scheduled accounting-close recovery
+
+The manager permission `scheduled_job_management` protects these endpoints:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/operations/scheduled-jobs/failures` | Lists occurrences that exhausted automatic attempts and remain unresolved. Includes the stable failure code and a safe cause summary. |
+| POST | `/api/operations/scheduled-jobs/executions/{executionId}/retry` | Queues another attempt for the same occurrence and period; records the requesting user and timestamp. |
+
+For an open previous-month business date, the response includes `BusinessDateToClose`; close it through the existing `/api/operations/business-date` pre-close, approval, and close workflow before retrying. The retry endpoint does not close dates or bypass EOD gates. A retry rejection uses `ScheduledJobRetryUnavailable`; an unclosed month uses `MonthlyAccountingPeriodNotClosed`.
+
+## Teller session cash handoffs
+
+Cash session close counts may include `handoffRecipientUserId` when `actualAmount` is positive. This closes the session and creates a pending custody transfer in the same database transaction. A positive count without a valid eligible recipient is rejected; a zero count needs no recipient. Recounting an already closed session does not create a second handoff.
+
+Session opening and count-close requests require the standard `Idempotency-Key` header (maximum 64 characters). A retry with the same key and same payload returns the original session/count result; reuse with different details returns `IdempotencyKeyReused`. Cash-count requests also send `expectedSessionVersion`; handoff action/reassignment requests send `expectedVersion`. Responses include the latest `version`. A stale version returns HTTP 409 `ConcurrentModification`; refresh the selected session/handoff before making a new change. Repeated accept/decline requests in their already-applied state are treated as successful replays and do not append duplicate history.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/cash-handoffs/recipients` | Lists active eligible recipients (cash operations, audit, or EOD approval). |
+| GET | `/api/cash-handoffs?businessDate=YYYY-MM-DD` | Lists handoffs visible to the sender/recipient or an authorized reviewer. |
+| GET | `/api/cash-handoffs/{id}` | Returns a visible handoff and its append-only history. |
+| POST | `/api/cash-handoffs/{id}/accept` | Recipient acknowledges custody; optional note. |
+| POST | `/api/cash-handoffs/{id}/decline` | Recipient declines with a required note; remains an EOD blocker. |
+| PUT | `/api/cash-handoffs/{id}/recipient` | Sender or audit/EOD reviewer assigns an eligible recipient; status becomes pending. |
+
+All routes require at least one of `cash_operations`, `audit`, or `end_of_day_approval`; business authorization is further restricted by actor and handoff state in the service. `CashHandoffRecipientRequired` and `CashHandoffNotPending` are stable error codes.

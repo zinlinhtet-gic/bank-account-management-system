@@ -63,6 +63,9 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3011 | InvalidDateRange | 400 | A "from" date is after the "to" date in a list filter. |
 | 3012 | NewPasswordSameAsCurrent | 400 | Change password: the new password equals the current one. |
 | 3013 | DefaultPasswordNotAllowed | 400 | Change password: the new password is one of the role default passwords. |
+| 3015 | ReconciliationDateRangeTooLong | 400 | A reconciliation request spans more than 366 inclusive business dates. |
+| 3016 | InvalidReconciliationExceptionStatus | 400 | The supplied reconciliation exception status is not supported. |
+| 3017 | ReconciliationStatusTransitionInvalid | 400 | The exception cannot move from its current status to the requested status. |
 | 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the account type's minimum. |
 
 | 3400 | InterestRateBalanceRangeInvalid | 400 | Minimum balance is greater than maximum balance on an interest rate rule. |
@@ -286,7 +289,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4242 | BranchNotFound | 404 | The NRC pickup branch does not exist or is not active. |
 | 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
 | 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
-| 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
+| 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different request payload. |
 | 4340 | AccountTypeCodeAlreadyExists | 409 | Another account type already uses this code (bank policy create/update). |
 | 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
 | 4440 | InsufficientBalance | 422 | A debit exceeds the account's available balance. |
@@ -323,7 +326,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4242 | BranchNotFound                  | 404  | The NRC pickup branch does not exist or is not active.                                   |
 | 4305 | UsernameAlreadyExists           | 409  | Another user already has this username.                                                  |
 | 4306 | EmailAlreadyExists              | 409  | Another user already has this email.                                                     |
-| 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
+| 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different request payload. |
 | 4400 | BusinessRuleViolation           | 422  | A business rule was violated.                                                            |
 | 4440 | InsufficientBalance             | 422  | A debit exceeds the account's available balance.                                         |
 | 4441 | AccountNotOperational           | 422  | The account is closed, frozen or suspended.                                              |
@@ -381,6 +384,18 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4462 | DailyAccountingUnbalanced | 422 | The day's total debits and credits are not equal. |
 | 4463 | AuditUserUnavailable | 422 | No user is available to record the end-of-day reconciliation. |
 | 4464 | UnsupportedGlAccountClass | 422 | A GL account has an account class the reports cannot classify. |
+| 4465 | TransactionAccountingEntriesIncomplete | 422 | A transaction journal is missing required lines, contains duplicate lines, or has non-positive amounts. |
+| 4466 | ReconciliationExceptionNotResolvable | 422 | Reconciliation must confirm the difference is cleared before the exception can be resolved. |
+| 4467 | CashSessionNotOpen | 422 | An open cash session for the teller or vault and business date is required. |
+| 4468 | BusinessDateClosed | 422 | Normal financial posting is not allowed to a closed business date. |
+| 4469 | BusinessDateTransitionConflict | 409 | The requested business-date transition is not valid for the current lifecycle state. |
+| 4470 | ReconciliationBlocked | 422 | The business date cannot advance while blocking reconciliation or pre-close conditions remain. |
+| 4471 | EndOfDayApprovalRequired | 422 | A distinct authorized reviewer must approve the EOD run before it can close. |
+| 4472 | CashAdjustmentApprovalRequired | 422 | Cash adjustment approval requires a distinct authorized reviewer and a matching posted correction transaction. |
+| 4475 | CashSessionAlreadyExists | 409 | This teller or vault position already has an open session for the business date. |
+| 4476 | InsufficientCashPositionBalance | 422 | The current cash session does not have enough available cash for the withdrawal. |
+| 4477 | CashHandoffRecipientRequired | 422 | A positive physical cash count needs an eligible handoff recipient. |
+| 4478 | CashHandoffNotPending | 422 | The handoff is no longer awaiting acknowledgement or reassignment. |
 
 | Code | Name                     | HTTP | Meaning                                                 |
 | ---- | ------------------------ | ---- | ------------------------------------------------------- |
@@ -475,6 +490,12 @@ The WPF client mirrors server codes below 6000 in `bams.desktop/Utils/MessageCod
 | 4204 | UserNotFound                    | 404                                                                            | The requested staff user does not exist.                                                   |
 | 4305 | UsernameAlreadyExists           | 409                                                                            | Another user already has this username.                                                    |
 | 4306 | EmailAlreadyExists              | 409                                                                            | Another user already has this email.                                                       |
+| 4473 | MonthlyAccountingPeriodNotClosed | 422 | Monthly close cannot run until the previous month's final business date is closed through End of Day. |
+| 4474 | ScheduledJobRetryUnavailable | 422 | The failed occurrence is no longer eligible for a manager retry. |
+| 4475 | CashSessionAlreadyExists | 409 | This teller or vault position already has an open session for the business date. |
+| 4477 | CashHandoffRecipientRequired | 422 | A positive physical cash count needs an eligible handoff recipient. |
+| 4478 | CashHandoffNotPending | 422 | The handoff is no longer awaiting acknowledgement or reassignment. |
+| 4476 | InsufficientCashPositionBalance | 422 | A withdrawal would make expected cash negative. |
 | 4400 | BusinessRuleViolation           | 422                                                                            | A business rule was violated.                                                              |
 | 5000 | InternalServerError             | 500                                                                            | An unexpected server error occurred.                                                       |
 
@@ -486,6 +507,7 @@ The WPF client mirrors server codes below 6000 in `bams.desktop/Utils/MessageCod
 | 6001 | NetworkUnavailable       | The server could not be reached.                               |
 | 6002 | RequestTimeout           | The server did not answer in time.                             |
 | 6003 | InvalidServerResponse    | The server response could not be read.                         |
+| 6020 | ScheduledJobAlertsUnavailable | The desktop could not load scheduled-operation alerts. |
 | Code | Name                     | Meaning                                                        |
 | ---  | ---                      | ---                                                            |
 | 6000 | ClientError              | Unexpected client-side failure.                                |

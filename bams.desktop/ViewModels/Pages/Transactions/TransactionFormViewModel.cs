@@ -161,6 +161,8 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public bool ShowsBankFields => Kind == TransactionFormKind.InterbankTransfer;
 
     public bool ShowsNrcFields => Kind == TransactionFormKind.NrcTransfer;
+    public bool ShowsCashSession => Kind is TransactionFormKind.Deposit or TransactionFormKind.Withdrawal ||
+        Kind == TransactionFormKind.NrcTransfer && IsPaidInCash;
 
     public string SourceAccountLabel => Kind switch
     {
@@ -184,6 +186,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
                 SourceAccountError.Clear();
                 OnPropertyChanged(nameof(IsPaidFromAccount));
                 OnPropertyChanged(nameof(ShowsSourceAccount));
+                OnPropertyChanged(nameof(ShowsCashSession));
             }
         }
     }
@@ -405,6 +408,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public FieldError BankError { get; } = new();
 
     public FieldError AmountError { get; } = new();
+    public FieldError CashSessionError { get; } = new();
 
     public FieldError DestinationAccountNoError { get; } = new();
 
@@ -618,6 +622,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
         {
             case MessageCode.InvalidAmount:
             case MessageCode.InsufficientBalance:
+            case MessageCode.InsufficientCashPositionBalance:
             case MessageCode.MinimumBalanceRequired:
             case MessageCode.DailyTransactionLimitExceeded:
             case MessageCode.MonthlyTransactionLimitExceeded:
@@ -626,6 +631,9 @@ public sealed class TransactionFormViewModel : ViewModelBase
             case MessageCode.WithdrawalNotAllowed:
             case MessageCode.TransferNotAllowed:
                 SourceAccountError.Set(exception.Message);
+                break;
+            case MessageCode.CashSessionNotOpen:
+                CashSessionError.Set(exception.Message);
                 break;
             case MessageCode.SameSourceAndDestinationAccount:
                 DestinationAccountError.Set(exception.Message);

@@ -16,7 +16,11 @@ public sealed record TransactionSummaryResponse(
     string? ReferenceNo,
     long InitiatedBy,
     string InitiatedByUserName,
-    string InitiatedByFullName);
+    string InitiatedByFullName)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
+    
 
 /// <summary>
 /// Complete read-only transaction information used for transaction history
@@ -50,7 +54,10 @@ public sealed record TransactionDetailResponse(
     IReadOnlyList<TransactionAccountingEntryResponse> AccountingEntries,
     IReadOnlyList<TransactionAuditLogResponse> AuditLogs,
     NrcTransferDetailResponse? NrcTransfer,
-    InterbankTransferDetailResponse? InterbankTransfer);
+    InterbankTransferDetailResponse? InterbankTransfer)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
 
 /// <summary>
 /// A debit or credit posted to a customer account by a transaction.

@@ -78,6 +78,12 @@
                      t:ThemeAssist.HasError="{Binding PickupCodeError.HasError}"/>
             <TextBlock Text="{Binding PickupCodeError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
                        Visibility="{Binding PickupCodeError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <TextBlock Text="CASH POSITION" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0"/>
+            <TextBlock Text="Payout will be recorded in your current open teller session automatically."
+                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding CashSessionError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                       Visibility="{Binding CashSessionError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
 
         <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,20,0,0" Content="{Binding FormError}"
@@ -88,6 +94,7 @@
                     Command="{Binding CancelCommand}"/>
             <Button Content="Complete pickup" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
                     t:ThemeAssist.IsLoading="{Binding IsBusy}" t:ThemeAssist.Icon="{StaticResource Icon.Check}"
+                    t:ThemeAssist.RequiresOpenCashSession="True"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </StackPanel>

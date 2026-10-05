@@ -1,9 +1,13 @@
 using bams.server.Data;
+using bams.server.Constants;
 using bams.server.Exceptions;
 using bams.server.Messages;
+using bams.server.Models.Accounting;
 using bams.server.Models.Security;
+using bams.server.Services.Interfaces;
 using bams.server.Utils.Extensions;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Middlewares;
@@ -60,8 +64,39 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
             throw new ForbiddenException(MessageCode.InsufficientPermission);
         }
 
+        // Officer writes require an open teller session for the current posting business date. The session-opening
+        // action is explicitly exempt so an officer can satisfy this requirement after signing in.
+        if (IsWriteRequest(httpContext.Request.Method) &&
+            !AllowsWriteWithoutSession(context) &&
+            await IsOfficerAsync(dbContext, userId, cancellationToken))
+        {
+            var businessDates = httpContext.RequestServices.GetRequiredService<IBusinessDateService>();
+            var postingDate = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
+            var hasOpenSession = await dbContext.CashPositionSessions.AsNoTracking().AnyAsync(session =>
+                session.TellerId == userId && session.PositionType == OperationsConstants.CashPositionTeller &&
+                session.BusinessDate == postingDate && session.Status == OperationsConstants.CashSessionOpen,
+                cancellationToken);
+            if (!hasOpenSession)
+                throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
+        }
+
         await next();
     }
+
+    // Treats HTTP methods that can change server state as writes; reads remain available without a cash session.
+    private static bool IsWriteRequest(string method) =>
+        HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsPatch(method) || HttpMethods.IsDelete(method);
+
+    // Resolves the exemption from both endpoint metadata and MVC method metadata for consistent routing behavior.
+    private static bool AllowsWriteWithoutSession(ActionExecutingContext context) =>
+        context.ActionDescriptor.EndpointMetadata.OfType<AllowWithoutOpenCashSessionAttribute>().Any() ||
+        context.ActionDescriptor is ControllerActionDescriptor action &&
+        Attribute.IsDefined(action.MethodInfo, typeof(AllowWithoutOpenCashSessionAttribute));
+
+    // Resolves the user's role from persisted authorization data rather than trusting client-supplied role text.
+    private static Task<bool> IsOfficerAsync(ApplicationDbContext dbContext, long userId, CancellationToken cancellationToken) =>
+        dbContext.UserRoles.AsNoTracking().Where(userRole => userRole.UserId == userId)
+            .AnyAsync(userRole => userRole.Role != null && userRole.Role.Code == SecurityConstants.OfficerRole, cancellationToken);
 
     // Checks, in a single query, whether any of the user's roles grants one of the required permissions.
     private async Task<bool> HasAnyPermissionAsync(

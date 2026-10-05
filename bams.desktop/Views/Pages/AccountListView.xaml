@@ -10,7 +10,7 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
     <DockPanel Margin="0,0,0,20">
-      <Button DockPanel.Dock="Right" Content="＋  Create Account" Style="{StaticResource Button.Primary}" Command="{Binding Workflow.OpenCreateCommand}" MinWidth="170" MaxWidth="230" Height="44" />
+      <Button DockPanel.Dock="Right" Content="＋  Create Account" Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True" Command="{Binding Workflow.OpenCreateCommand}" MinWidth="170" MaxWidth="230" Height="44" />
       <StackPanel>
         <TextBlock Text="Accounts" Style="{StaticResource Text.Heading}" FontSize="28" />
         <TextBlock Text="Search, filter, and manage account records" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,0" />
@@ -45,8 +45,8 @@
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
                 <StackPanel Orientation="Horizontal">
-                  <Button Content="Change Status" Style="{StaticResource Button.Ghost}" Command="{Binding DataContext.Workflow.OpenStatusDialogCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" />
-                  <Button Content="Suspend" Foreground="{StaticResource DangerBrush}" Style="{StaticResource Button.Ghost}" Command="{Binding DataContext.Workflow.SuspendAccountCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" />
+                  <Button Content="Change Status" Style="{StaticResource Button.Ghost}" t:ThemeAssist.RequiresOpenCashSession="True" Command="{Binding DataContext.Workflow.OpenStatusDialogCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" />
+                  <Button Content="Suspend" Foreground="{StaticResource DangerBrush}" Style="{StaticResource Button.Ghost}" t:ThemeAssist.RequiresOpenCashSession="True" Command="{Binding DataContext.Workflow.SuspendAccountCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" />
                 </StackPanel>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>

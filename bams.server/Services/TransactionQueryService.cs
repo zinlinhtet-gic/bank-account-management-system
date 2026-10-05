@@ -95,21 +95,24 @@ public sealed class TransactionQueryService : ITransactionQueryService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(transaction => new TransactionSummaryResponse(
-            transaction.Id,
-            transaction.TransactionNo,
-            transaction.TransactionType,
-            transaction.TransactionStatus,
-            transaction.Amount,
-            transaction.TransactionAt,
-            transaction.Description,
-            transaction.ReferenceNo,
-            transaction.InitiatedBy,
-            transaction.InitiatedByUser != null
-                ? transaction.InitiatedByUser.Username
-                : string.Empty,
-            transaction.InitiatedByUser != null
-                ? transaction.InitiatedByUser.FullName
-                : string.Empty))
+                transaction.Id,
+                transaction.TransactionNo,
+                transaction.TransactionType,
+                transaction.TransactionStatus,
+                transaction.Amount,
+                transaction.TransactionAt,
+                transaction.Description,
+                transaction.ReferenceNo,
+                transaction.InitiatedBy,
+                transaction.InitiatedByUser != null
+                    ? transaction.InitiatedByUser.Username
+                    : string.Empty,
+                transaction.InitiatedByUser != null
+                    ? transaction.InitiatedByUser.FullName
+                    : string.Empty)
+            {
+                BusinessDate = transaction.BusinessDate
+            })
             .ToListAsync(cancellationToken);
 
         return new PagedResponse<TransactionSummaryResponse>(items, page, pageSize, totalCount, TotalPages);
@@ -159,6 +162,7 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 item.Amount,
                 item.FeeAmount,
                 item.TransactionAt,
+                item.BusinessDate,
                 item.Description,
                 item.ReferenceNo,
 
@@ -334,7 +338,10 @@ public sealed class TransactionQueryService : ITransactionQueryService
             auditLogs,
 
             nrcTransfer,
-            interbankTransfer);
+            interbankTransfer)
+        {
+            BusinessDate = transaction.BusinessDate
+        };
     }
 
     /// <summary>

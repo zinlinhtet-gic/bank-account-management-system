@@ -42,6 +42,12 @@ public sealed class TransactionDisplayModel
 
     public string ReferenceText { get; init; } = string.Empty;
 
+    public string DescriptionText { get; init; } = string.Empty;
+
+    public string InitiatedByText { get; init; } = string.Empty;
+
+    public string BusinessDateText { get; init; } = string.Empty;
+
     /// <summary>A pending NRC transfer can be picked up or cancelled.</summary>
     public bool IsPendingNrcTransfer => Type == TransactionType.NrcTransfer && Status == TransactionStatus.Pending;
 
@@ -65,6 +71,14 @@ public sealed class TransactionDisplayModel
             InitiatedBy = transaction.InitiatedBy,
             InitiatedByUsername = transaction.InitiatedByUsername,
             InitiatedByFullName = transaction.InitiatedByFullName
+            DescriptionText = TransactionDisplay.OrDash(transaction.Description),
+            InitiatedByText = string.IsNullOrWhiteSpace(transaction.InitiatedByFullName)
+                ? TransactionDisplay.OrDash(transaction.InitiatedByUserName)
+                : string.IsNullOrWhiteSpace(transaction.InitiatedByUserName)
+                    ? transaction.InitiatedByFullName
+                    : $"{transaction.InitiatedByFullName} ({transaction.InitiatedByUserName})",
+            BusinessDateText = transaction.BusinessDate?.ToString(Constants.DisplayFormats.Date)
+                ?? Constants.DisplayFormats.EmptyValue
         };
     }
 }

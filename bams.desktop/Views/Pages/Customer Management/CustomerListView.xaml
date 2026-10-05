@@ -91,7 +91,7 @@
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list" t:ThemeAssist.IsLoading="{Binding Table.IsLoading}" Command="{Binding RefreshCommand}" />
-                            <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" Command="{Binding ShowCreateFormCommand}" />
+                            <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" t:ThemeAssist.RequiresOpenCashSession="True" Command="{Binding ShowCreateFormCommand}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Customers" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />
@@ -169,6 +169,7 @@
                                                     Command="{Binding DataContext.ShowCustomerDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}" />
                                             <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}"
+                                                    t:ThemeAssist.RequiresOpenCashSession="True"
                                                     Command="{Binding DataContext.EditCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}" />
                                         </StackPanel>

@@ -61,6 +61,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Scheduled jobs
     public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
     public DbSet<ScheduledJobExecution> ScheduledJobExecutions => Set<ScheduledJobExecution>();
+    public DbSet<ScheduledJobRetryRequest> ScheduledJobRetryRequests => Set<ScheduledJobRetryRequest>();
 
     // External banking
     public DbSet<OtherBank> OtherBanks => Set<OtherBank>();
@@ -71,6 +72,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<GlAccount> GlAccounts => Set<GlAccount>();
     public DbSet<DailySummary> DailySummaries => Set<DailySummary>();
     public DbSet<MonthlySummary> MonthlySummaries => Set<MonthlySummary>();
+    public DbSet<BusinessDate> BusinessDates => Set<BusinessDate>();
+    public DbSet<AccountReconciliationRun> AccountReconciliationRuns => Set<AccountReconciliationRun>();
+    public DbSet<AccountReconciliationResult> AccountReconciliationResults => Set<AccountReconciliationResult>();
+    public DbSet<ReconciliationException> ReconciliationExceptions => Set<ReconciliationException>();
+    public DbSet<ReconciliationExceptionHistory> ReconciliationExceptionHistories => Set<ReconciliationExceptionHistory>();
+    public DbSet<CashPositionSession> CashPositionSessions => Set<CashPositionSession>();
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+    public DbSet<CashCount> CashCounts => Set<CashCount>();
+    public DbSet<CashHandoff> CashHandoffs => Set<CashHandoff>();
+    public DbSet<CashHandoffHistory> CashHandoffHistories => Set<CashHandoffHistory>();
+    public DbSet<EndOfDayRun> EndOfDayRuns => Set<EndOfDayRun>();
 
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
