@@ -1,0 +1,115 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Configuration.InterestRateView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:tx="clr-namespace:bams.desktop.Views.Pages.Transactions"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="720"
+             d:DesignWidth="1000">
+    <!-- Interest Rate page. DataContext: InterestRateViewModel. -->
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource Text.Heading}" Text="{Binding PageTitle}"/>
+            <TextBlock Margin="0,4,0,0" Style="{StaticResource Text.BodyMuted}" Text="{Binding PageDescription}"/>
+        </StackPanel>
+
+        <!-- ===== Outcome banner ===== -->
+        <ContentControl Grid.Row="1" Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
+                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- ===== Interest rate table ===== -->
+        <Border Grid.Row="2" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <tx:TransactionPager Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0"
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"
+                                    t:ThemeAssist.IsLoading="{Binding IsLoading}"
+                                    Command="{Binding RefreshCommand}"/>
+                            <Button Content="New rate" Style="{StaticResource Button.Primary}" t:ThemeAssist.Size="Small"
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Plus}"
+                                    Command="{Binding CreateInterestRateCommand}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Interest rate rules" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
+                            <ContentControl Style="{StaticResource Badge.Neutral}" t:ThemeAssist.ShowDot="False"
+                                            Content="{Binding CountText}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Grid>
+                    <DataGrid Style="{StaticResource Table}" BorderThickness="0"
+                              ItemsSource="{Binding Rows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Account type" Binding="{Binding AccountType}" Width="1.3*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <DataGridTextColumn Header="Term" Binding="{Binding Term}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTextColumn Header="Annual rate" Binding="{Binding AnnualRate}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <DataGridTextColumn Header="Min balance" Binding="{Binding MinBalance}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <DataGridTextColumn Header="Max balance" Binding="{Binding MaxBalance}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <DataGridTemplateColumn Header="Status" Width="110" SortMemberPath="Status">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentControl Content="{Binding Status}">
+                                            <ContentControl.Style>
+                                                <Style TargetType="ContentControl" BasedOn="{StaticResource Badge.Neutral}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Active">
+                                                            <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+                                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ContentControl.Style>
+                                        </ContentControl>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="Actions" Width="90" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Cursor="Arrow">
+                                            <Button Style="{StaticResource Button.Icon}" ToolTip="Edit rule"
+                                                    t:ThemeAssist.Icon="{StaticResource Icon.Edit}"
+                                                    Command="{Binding DataContext.EditInterestRateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Empty state under the column headers -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,72,0,0" IsHitTestVisible="False"
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="No interest rate rules yet" Style="{StaticResource Text.Subheading}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Click New rate to add the first rule." Style="{StaticResource Text.BodyMuted}"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

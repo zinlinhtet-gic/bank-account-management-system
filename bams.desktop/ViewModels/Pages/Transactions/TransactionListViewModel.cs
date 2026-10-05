@@ -103,7 +103,6 @@ public sealed class TransactionListViewModel : ViewModelBase
                 Transactions.Add(TransactionDisplayModel.FromResponse(transaction));
             }
 
-            // change page to page number
             Page = result.PageNumber;
             _totalCount = result.TotalCount;
             OnPropertyChanged(nameof(CountText));

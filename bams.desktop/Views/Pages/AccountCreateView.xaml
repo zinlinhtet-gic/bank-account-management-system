@@ -60,29 +60,21 @@
               <TextBlock Text="{Binding Workflow.Holder1.NrcNumber}" Foreground="{StaticResource MutedForegroundBrush}" />
               <TextBlock Text="{Binding Workflow.Holder1.Phone}" Foreground="{StaticResource MutedForegroundBrush}" />
               <TextBlock Text="{Binding Workflow.Holder1.Email}" Foreground="{StaticResource MutedForegroundBrush}" />
+              <TextBlock Foreground="{StaticResource MutedForegroundBrush}"><Run Text="KYC status: " /><Run Text="{Binding Workflow.Holder1.KycStatus}" /></TextBlock>
               <TextBlock Text="{Binding Workflow.Holder2.FullName}" FontWeight="SemiBold" Margin="0,8,0,0" />
               <TextBlock Text="{Binding Workflow.Holder2.CustomerNo}" Foreground="{StaticResource MutedForegroundBrush}" />
               <TextBlock Text="{Binding Workflow.Holder2.NrcNumber}" Foreground="{StaticResource MutedForegroundBrush}" />
               <TextBlock Text="{Binding Workflow.Holder2.Phone}" Foreground="{StaticResource MutedForegroundBrush}" />
               <TextBlock Text="{Binding Workflow.Holder2.Email}" Foreground="{StaticResource MutedForegroundBrush}" />
-              <StackPanel Visibility="{Binding Workflow.ShowCustomerRegistrationForm, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,14,0,0">
-                <TextBlock Text="Register customer" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding Workflow.RegistrationNrc}" Foreground="{StaticResource MutedForegroundBrush}" Margin="0,6" />
-                <TextBlock Text="Customer type" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0" />
-                <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.CustomerTypes}" SelectedItem="{Binding Workflow.RegistrationCustomerType}" />
-                <TextBox Style="{StaticResource Input.Text}" Text="{Binding Workflow.RegistrationFullName, UpdateSourceTrigger=PropertyChanged}" t:ThemeAssist.Placeholder="Full name" />
-                <TextBox Style="{StaticResource Input.Text}" Text="{Binding Workflow.RegistrationDateOfBirth, UpdateSourceTrigger=PropertyChanged}" t:ThemeAssist.Placeholder="Date of birth (YYYY-MM-DD)" Margin="0,8,0,0" />
-                <TextBox Style="{StaticResource Input.Text}" Text="{Binding Workflow.RegistrationPhone}" t:ThemeAssist.Placeholder="Phone" Margin="0,8,0,0" />
-                <TextBox Style="{StaticResource Input.Text}" Text="{Binding Workflow.RegistrationEmail}" t:ThemeAssist.Placeholder="Email" Margin="0,8,0,0" />
-                <Button Content="Create customer" Style="{StaticResource Button.Secondary}" Command="{Binding Workflow.CreateCustomerCommand}" Margin="0,10,0,0" HorizontalAlignment="Left" />
-              </StackPanel>
+              <TextBlock Foreground="{StaticResource MutedForegroundBrush}"><Run Text="KYC status: " /><Run Text="{Binding Workflow.Holder2.KycStatus}" /></TextBlock>
+              <TextBlock Text="Customers must be registered and have verified KYC before an account can be opened. Use Customer Management to register the customer or complete KYC, then look them up again." TextWrapping="Wrap" Foreground="{StaticResource MutedForegroundBrush}" Margin="0,10,0,0" />
             </StackPanel>
             <StackPanel Visibility="{Binding Workflow.IsStep3, Converter={StaticResource BooleanToVisibilityConverter}}">
               <TextBlock Text="Choose an eligible account type" Style="{StaticResource Text.Subheading}" Margin="0,0,0,14" />
               <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.EligibleAccountTypes}" SelectedItem="{Binding Workflow.SelectedCreateType}" DisplayMemberPath="Name" t:ThemeAssist.Placeholder="Choose account type" />
               <TextBlock Text="Account types already actively held by the selected customer(s) are filtered out. Fixed-deposit types are shown when their required account is owned." Style="{StaticResource Text.BodyMuted}" Margin="0,8" />
-              <TextBlock Text="Owned accounts available for fixed-deposit payout" Style="{StaticResource Text.Title}" Margin="0,18,0,6" />
-              <ItemsControl ItemsSource="{Binding Workflow.OwnedAccounts}">
+              <TextBlock Text="Eligible payout accounts" Style="{StaticResource Text.Title}" Margin="0,18,0,6" />
+              <ItemsControl ItemsSource="{Binding Workflow.PayoutAccounts}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <TextBlock Text="{Binding DisplayName}" Margin="0,3" />
@@ -147,7 +139,7 @@
                 <TextBlock Text="Interest rate rule" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                 <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.InterestRateRules}" SelectedItem="{Binding Workflow.SelectedInterestRateRule}" DisplayMemberPath="DisplayName" />
                 <TextBlock Text="Payout account" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.OwnedAccounts}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding Workflow.PayoutAccountId}" />
+                <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.PayoutAccounts}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding Workflow.PayoutAccountId}" />
                 <TextBlock Text="Renewal instruction" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                 <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.RenewalInstructions}" SelectedItem="{Binding Workflow.RenewalInstruction}" />
                 <CheckBox Content="Calculate interest from current principal" IsChecked="{Binding Workflow.CalculateFromCurrent}" Margin="0,10,0,0" Style="{StaticResource Input.Check}" />

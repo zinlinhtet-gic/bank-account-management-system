@@ -3,8 +3,8 @@ info:
   title: Bank Account Management API
   version: 1.0.0
   description: |
-    OpenAPI contract for account, customer creation, account type, and interest-rate endpoints.
-    Account operations require account_management; customer creation requires customer_management.
+    OpenAPI contract for account, customer, account type, and interest-rate endpoints.
+    Account operations require account_management; customer-management operations require customer_management.
     Version fields provide optimistic locking.
 servers:
   - url: https://localhost:7018
@@ -317,7 +317,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Matching customer profile.
+          description: Matching customer profile, including its KYC review status.
           content:
             application/json:
               schema:
@@ -333,22 +333,46 @@ paths:
       tags: [Customers]
       operationId: createCustomer
       summary: Create a customer
-      description: Persists a customer profile and returns the saved profile for account opening.
+      description: Creates a customer through Customer Management. New customers require KYC review before account opening.
       security:
         - bearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/CreateCustomerRequest'
+              type: object
+              required: [customerType, fullName, dateOfBirth]
+              properties:
+                customerType: { type: string, enum: [Citizen, Foreigner] }
+                fullName: { type: string, maxLength: 150 }
+                dateOfBirth: { type: string, format: date }
+                nationality: { type: string, nullable: true }
+                nrcNumber: { type: string, nullable: true, maxLength: 32 }
+                passportNumber: { type: string, nullable: true, maxLength: 32 }
+                phone: { type: string, nullable: true, maxLength: 32 }
+                occupation: { type: string, nullable: true, maxLength: 100 }
+                addressLine1: { type: string, nullable: true }
+                addressLine2: { type: string, nullable: true }
+                city: { type: string, nullable: true }
+                state: { type: string, nullable: true }
+                postalCode: { type: string, nullable: true }
+                country: { type: string, nullable: true }
+                email: { type: string, nullable: true, format: email }
+                documents:
+                  type: array
+                  items: { $ref: '#/components/schemas/CreateCustomerDocumentRequest' }
+              encoding:
+                documents:
+                  style: form
+                  explode: true
       responses:
         '201':
           description: Customer created successfully.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomerMessageResponse'
+                $ref: '#/components/schemas/CustomerManagementMessageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -368,7 +392,7 @@ paths:
     get:
       tags: [Accounts]
       operationId: getAccountOpeningOptions
-      summary: Get eligible products and owned payout accounts
+      summary: Get eligible products, required documents, and configured payout accounts for account opening
       security:
         - bearerAuth: []
       parameters:
@@ -384,7 +408,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Eligible products, document requirements, and owned accounts.
+          description: Eligible products and required documents, plus the primary holder's active individual accounts matching payout products configured on eligible fixed-deposit types.
           content:
             application/json:
               schema:
@@ -702,6 +726,7 @@ components:
           format: int64
           minimum: 1
           nullable: true
+          description: Optional active individual account owned by the primary holder. The account type must not be fixed deposit; this is independent of the account type's requiredProductId.
         interestRateRuleId:
           type: integer
           format: int64
@@ -803,6 +828,7 @@ components:
           format: int64
           minimum: 1
           nullable: true
+          description: Optional active individual non-fixed-deposit account owned by the primary holder.
         version:
           type: integer
           format: int64
@@ -840,28 +866,71 @@ components:
           type: string
           nullable: true
 
-    CreateCustomerRequest:
+    CreateCustomerDocumentRequest:
       type: object
-      required: [fullName, dateOfBirth, nrcNumber]
+      required: [documentType]
       properties:
-        fullName: { type: string, maxLength: 150 }
-        dateOfBirth: { type: string, format: date }
-        nrcNumber: { type: string, maxLength: 32 }
-        phone: { type: string, nullable: true, maxLength: 32 }
-        email: { type: string, nullable: true, maxLength: 256, format: email }
+        documentType: { $ref: '#/components/schemas/DocumentType' }
+        documentNumber: { type: string, nullable: true }
+        file: { type: string, format: binary, nullable: true }
+        issuedDate: { type: string, format: date, nullable: true }
+        expiryDate: { type: string, format: date, nullable: true }
 
-    CustomerMessageResponse:
+    CustomerManagementMessageResponse:
       allOf:
         - $ref: '#/components/schemas/ApiMessageResponseBase'
         - type: object
           required: [data]
           properties:
             data:
-              $ref: '#/components/schemas/CustomerLookupResponse'
+              $ref: '#/components/schemas/CustomerResponse'
+
+    CustomerResponse:
+      type: object
+      required: [id, customerNo, customerType, fullName, dateOfBirth, riskLevel, kycStatus, status, createdAt, documents]
+      properties:
+        id: { type: integer, format: int64 }
+        customerNo: { type: string }
+        customerType: { type: string, enum: [Citizen, Foreigner] }
+        fullName: { type: string }
+        dateOfBirth: { type: string, format: date }
+        nationality: { type: string, nullable: true }
+        nrcNumber: { type: string, nullable: true }
+        passportNumber: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        occupation: { type: string, nullable: true }
+        addressLine1: { type: string, nullable: true }
+        addressLine2: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        postalCode: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        riskLevel: { type: string, enum: [Low, Medium, High] }
+        kycStatus: { type: string, enum: [Pending, Verified, Rejected] }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/CustomerDocumentResponse' }
+
+    CustomerDocumentResponse:
+      type: object
+      required: [id, customerId, documentType]
+      properties:
+        id: { type: integer, format: int64 }
+        customerId: { type: integer, format: int64 }
+        documentType: { $ref: '#/components/schemas/DocumentType' }
+        documentNumber: { type: string, nullable: true }
+        fileReference: { type: string, nullable: true }
+        issuedDate: { type: string, format: date, nullable: true }
+        expiryDate: { type: string, format: date, nullable: true }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        verifiedBy: { type: integer, format: int64, nullable: true }
 
     CustomerLookupResponse:
       type: object
-      required: [id, customerNo, fullName, dateOfBirth, status, customerType]
+      required: [id, customerNo, fullName, dateOfBirth, status, customerType, kycStatus]
       properties:
         id: { type: integer, format: int64 }
         customerNo: { type: string }
@@ -874,10 +943,13 @@ components:
         customerType:
           type: string
           enum: [Citizen, Foreigner]
+        kycStatus:
+          type: string
+          enum: [Pending, Verified, Rejected]
 
     AccountOpeningOptionsResponse:
       type: object
-      required: [accountTypes, requiredDocuments, ownedAccounts]
+      required: [accountTypes, requiredDocuments, payoutAccounts]
       properties:
         accountTypes:
           type: array
@@ -890,8 +962,9 @@ components:
             properties:
               accountTypeId: { type: integer, format: int64 }
               documentType: { $ref: '#/components/schemas/DocumentType' }
-        ownedAccounts:
+        payoutAccounts:
           type: array
+          description: Active individual accounts owned by the primary holder, excluding fixed-deposit accounts.
           items:
             type: object
             required: [id, accountNo, accountTypeCode, status, accountTypeName]
@@ -901,7 +974,6 @@ components:
               accountTypeCode: { type: string }
               status: { $ref: '#/components/schemas/AccountStatus' }
               accountTypeName: { type: string }
-
     AccountTransactionDetailResponse:
       type: object
       properties:
@@ -1108,6 +1180,7 @@ components:
         - name
         - minimumOpeningBalance
         - minimumMaintainedBalance
+        - allowDeposit
         - allowWithdrawal
         - allowTransfer
         - allowPartialWithdrawal
@@ -1141,6 +1214,8 @@ components:
           type: number
           format: decimal
           nullable: true
+        allowDeposit:
+          type: boolean
         allowWithdrawal:
           type: boolean
         allowTransfer:
@@ -1151,6 +1226,7 @@ components:
           type: integer
           format: int64
           nullable: true
+          description: Eligibility prerequisite; a selected customer must own an active account of this type. It does not constrain fixed-deposit payout-account selection.
         isFixedDeposit:
           type: boolean
         allowForeigner:

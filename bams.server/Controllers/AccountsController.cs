@@ -68,7 +68,7 @@ public sealed class AccountsController : ControllerBase
     public async Task<ActionResult<ApiMessageResponse<CustomerLookupResponse>>> GetCustomerByNrcAsync([FromQuery] string nrc, CancellationToken cancellationToken)
         => Ok(ApiMessageResponse<CustomerLookupResponse>.FromCode(MessageCode.Success, await _customerLookUpService.GetCustomerByNrcAsync(nrc, cancellationToken)));
 
-    /// <summary>Gets eligible account types, required documents, and accounts owned by the primary holder.</summary>
+    /// <summary>Gets eligible account types and required documents for account opening.</summary>
     [HttpGet("opening-options")]
     [RequirePermission(SecurityConstants.AccountManagement)]
     public async Task<ActionResult<ApiMessageResponse<AccountOpeningOptionsResponse>>> GetAccountOpeningOptionsAsync(

@@ -7,11 +7,11 @@ using bams.desktop.Constants;
 using bams.desktop.Services;
 using bams.desktop.ViewModels;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.ViewModels.Pages.Configuration;
 using bams.desktop.Utils;
 using Bams.Desktop.Components.NavBar;
 using Microsoft.Extensions.DependencyInjection;
 using bams.desktop.ViewModels.Pages.Accounting;
-using System.Windows.Threading;
 
 namespace bams.desktop;
 
@@ -94,13 +94,22 @@ public partial class App : Application
 
     private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        var exception = e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString());
-        AppLog.WriteError($"Unhandled application exception. IsTerminating={e.IsTerminating}.", exception);
+        if (e.ExceptionObject is Exception exception)
+        {
+            AppLog.WriteError($"Unhandled exception. IsTerminating={e.IsTerminating}.", exception);
+        }
+        else
+        {
+            AppLog.WriteError(
+                $"Unhandled non-exception object. IsTerminating={e.IsTerminating}.",
+                new InvalidOperationException(e.ExceptionObject?.ToString() ?? "The runtime supplied a null exception object."));
+        }
     }
 
     private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
-        AppLog.WriteError("Unobserved task exception.", e.Exception);
+        AppLog.WriteError("An unobserved task exception was raised.", e.Exception);
+        e.SetObserved();
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -127,6 +136,18 @@ public partial class App : Application
         services.AddSingleton<Services.IUserService, Services.UserService>();
         services.AddTransient<ViewModels.Pages.Users.UserFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Users.UserListViewModel>();
+
+        // Other Banks (view only)
+        services.AddSingleton<Services.IOtherBankService, Services.OtherBankService>();
+
+        // Interest Rate
+        services.AddSingleton<Services.IInterestRateService, Services.InterestRateService>();
+
+        // Fee Rate
+        services.AddSingleton<Services.IFeeRateService, Services.FeeRateService>();
+
+        // Bank Policies
+        services.AddSingleton<Services.IBankPolicyService, Services.BankPolicyService>();
 
         // Customer Management
         services.AddSingleton<Services.ICustomerService, Services.CustomerService>();
@@ -161,6 +182,12 @@ public partial class App : Application
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();
         services.AddTransient<CustomerListViewModel>();
+
+        // Register Configuration sub-pages
+        services.AddTransient<InterestRateViewModel>();
+        services.AddTransient<FeeRateViewModel>();
+        services.AddTransient<BankPoliciesViewModel>();
+        services.AddTransient<OtherBanksViewModel>();
 
         // Register Views
         services.AddTransient<Views.LoginView>();

@@ -9,6 +9,13 @@ public enum MessageCode
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
     AccountCreatedSuccessfully = 1100,
+    InterestRateCreatedSuccessfully = 1400,
+    InterestRateUpdatedSuccessfully = 1401,
+    FeeRuleCreatedSuccessfully = 1402,
+    FeeRuleUpdatedSuccessfully = 1403,
+    BankPolicyCreatedSuccessfully = 1404,
+    BankPolicyUpdatedSuccessfully = 1405,
+
     CustomerCreatedSuccessfully = 1300,
     CustomerUpdatedSuccessfully = 1301,
     CustomerKycReviewedSuccessfully = 1302,
@@ -16,6 +23,7 @@ public enum MessageCode
     TransactionSubmittedSuccessfully = 1201,
     TransactionRefundedSuccessfully = 1202,
     InterbankTransferSettledSuccessfully = 1203,
+
     NrcPickupCodeReissuedSuccessfully = 1204,
     AccountStatusUpdatedSuccessfully = 1101,
     AccountBalanceUpdatedSuccessfully = 1102,
@@ -38,6 +46,10 @@ public enum MessageCode
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
     OpeningBalanceInvalid = 3102,
+    InterestRateBalanceRangeInvalid = 3400,
+    FeeRuleAmountRangeInvalid = 3401,
+    BankPolicyBalanceRangeInvalid = 3402,
+    InvalidDate = 3014,
     CustomerFullNameRequired = 3200,
     CustomerDateOfBirthInvalid = 3201,
     CustomerBelowMinimumAge = 3202,
@@ -48,7 +60,6 @@ public enum MessageCode
     CustomerEmailInvalid = 3206,
     CustomerDocumentTypeRequired = 3207,
     InvalidKycReviewStatus = 3208,
-    InvalidDate = 3014,
     SameSourceAndDestinationAccount = 3300,
     InvalidPickupCode = 3301,
     HolderAlreadyHasActiveAccount = 3103,
@@ -80,6 +91,7 @@ public enum MessageCode
     AccountRefererCountInsufficient = 3129,
     AccountRefererSelectionInvalid = 3130,
     AccountRefererMustOwnAccount = 3131,
+    AccountHolderKycNotVerified = 3132,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,
@@ -99,14 +111,15 @@ public enum MessageCode
     CustomerNotFound = 4202,
     AccountTypeNotFound = 4203,
     UserNotFound = 4204,
-
+    InterestRateRuleNotFound = 4250,
+    FeeRuleNotFound = 4251,
     TransactionNotFound = 4240,
     OtherBankNotFound = 4241,
     BranchNotFound = 4242,
     FixedDepositNotFound = 4205,
-    InterestRateRuleNotFound = 4206,
+    // InterestRateRuleNotFound = 4206,
     PayoutAccountNotFound = 4207,
-    RequiredPayoutAccountNotFound = 4208,
+    PayoutAccountUnavailable = 4208,
     KycReviewerNotFound = 4209,
     CustomerDocumentNotFound = 4210,
 
@@ -114,13 +127,13 @@ public enum MessageCode
     ConcurrentModification = 4304,
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
-    CustomerAlreadyExists = 4307,
-    // Business Rules: 4400 - 4499
     Conflict = 4300,
     EndOfDayAuditAlreadyProcessed = 4308,
     CustomerNrcAlreadyExists = 4307,
 
+    CustomerAlreadyExists = 4309,
     IdempotencyKeyReused = 4330,
+    AccountTypeCodeAlreadyExists = 4340,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,
@@ -131,7 +144,6 @@ public enum MessageCode
     AccountStatusTransitionNotAllowed = 4403,
     AccountHolderUpdateNotAllowed = 4404,
     InterestRateRuleNotApplicable = 4405,
-    RequiredPayoutAccountNotConfigured = 4406,
     FixedDepositStatusTransitionNotAllowed = 4407,
 
     // Transactions: 4440 - 4459

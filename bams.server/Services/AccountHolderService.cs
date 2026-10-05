@@ -39,6 +39,7 @@ public sealed class AccountHolderService : IAccountHolderService
                 request.HolderNRC1,
                 request.AccountTypeId,
                 cancellationToken);
+            ValidateKycStatus([customer]);
             return [customer];
         }
 
@@ -48,7 +49,9 @@ public sealed class AccountHolderService : IAccountHolderService
             throw new ValidationException(MessageCode.SharedAccountRequiresTwoHolders);
         }
 
-        return await ResolveDistinctHoldersAsync(request.HolderNRC1, request.HolderNRC2, cancellationToken);
+        var customers = await ResolveDistinctHoldersAsync(request.HolderNRC1, request.HolderNRC2, cancellationToken);
+        ValidateKycStatus(customers);
+        return customers;
     }
 
     /// <inheritdoc />
@@ -91,6 +94,14 @@ public sealed class AccountHolderService : IAccountHolderService
         }
 
         return [firstCustomer, secondCustomer];
+    }
+
+    private static void ValidateKycStatus(IReadOnlyList<Customer> customers)
+    {
+        if (customers.Any(customer => customer.KycStatus != KycStatus.Verified))
+        {
+            throw new ValidationException(MessageCode.AccountHolderKycNotVerified);
+        }
     }
 
     /// <inheritdoc />
@@ -234,34 +245,28 @@ public sealed class AccountHolderService : IAccountHolderService
     }
 
     /// <inheritdoc />
-    public async Task<Account> FindRequiredIndividualAccountAsync(
-        AccountType requestedAccountType,
+    public async Task<Account> FindEligiblePayoutAccountAsync(
         Customer primaryHolder,
         CancellationToken cancellationToken)
     {
-        if (!requestedAccountType.RequiredProductId.HasValue)
-        {
-            throw new BusinessRuleException(MessageCode.RequiredPayoutAccountNotConfigured);
-        }
-
-        var requiredAccount = await _dbContext.AccountHolders
+        var payoutAccount = await _dbContext.AccountHolders
             .AsNoTracking()
             .Where(holder =>
                 holder.CustomerId == primaryHolder.Id &&
                 holder.OwnershipType == OwnershipType.Individual &&
                 holder.Account != null &&
                 holder.Account.Status == AccountStatus.Active &&
-                holder.Account.AccountTypeId == requestedAccountType.RequiredProductId.Value)
+                holder.Account.AccountType!.Category != AccountTypeCategory.FIXED)
             .OrderBy(holder => holder.AccountId)
             .Select(holder => holder.Account!)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (requiredAccount is null)
+        if (payoutAccount is null)
         {
-            throw new NotFoundException(MessageCode.RequiredPayoutAccountNotFound);
+            throw new NotFoundException(MessageCode.PayoutAccountUnavailable);
         }
 
-        return requiredAccount;
+        return payoutAccount;
     }
 
     /// <inheritdoc />
@@ -273,7 +278,35 @@ public sealed class AccountHolderService : IAccountHolderService
             .Where(holder => holder.CustomerId == customerId &&
                 holder.OwnershipType == OwnershipType.Individual &&
                 holder.Account != null && holder.Account.Status == AccountStatus.Active)
-            // Keep DISTINCT over scalar SQL columns; provider translation cannot reliably order a DTO record.
+            .Select(holder => new
+            {
+                Id = holder.Account!.Id,
+                AccountNo = holder.Account.AccountNo,
+                AccountTypeCode = holder.Account.AccountType!.Code,
+                Status = holder.Account.Status,
+                AccountTypeName = holder.Account.AccountType.Name
+            })
+            .Distinct()
+            .OrderBy(account => account.AccountNo)
+            .Select(account => new OwnedAccountOptionResponse(
+                account.Id,
+                account.AccountNo,
+                account.AccountTypeCode,
+                account.Status,
+                account.AccountTypeName))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OwnedAccountOptionResponse>> GetEligiblePayoutAccountsAsync(
+        long customerId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.AccountHolders.AsNoTracking()
+            .Where(holder => holder.CustomerId == customerId &&
+                holder.OwnershipType == OwnershipType.Individual &&
+                holder.Account != null && holder.Account.Status == AccountStatus.Active &&
+                holder.Account.AccountType!.Category != AccountTypeCategory.FIXED)
             .Select(holder => new
             {
                 Id = holder.Account!.Id,

@@ -25,6 +25,20 @@ public static class ApiConstants
     public const string UserRolesEndpoint = UsersEndpoint + "/roles";
     public const string ResetPasswordSegment = "reset-password";
 
+    // Other Banks
+    public const string OtherBanksEndpoint = "api/other-banks";
+
+    // Interest Rate. Routes with an id: $"{InterestRatesEndpoint}/{id}" (update).
+    public const string InterestRatesEndpoint = "api/interest-rates";
+    public const string InterestRateAccountTypesEndpoint = InterestRatesEndpoint + "/account-types";
+
+    // Fee Rate. Routes with an id: $"{FeeRatesEndpoint}/{id}" (update).
+    public const string FeeRatesEndpoint = "api/fee-rates";
+    public const string FeeRateAccountTypesEndpoint = FeeRatesEndpoint + "/account-types";
+
+    // Bank Policies. Routes with an id: $"{BankPoliciesEndpoint}/{id}" (update).
+    public const string BankPoliciesEndpoint = "api/bank-policies";
+
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".
     public const string TransactionsEndpoint = "api/transactions";
@@ -34,7 +48,7 @@ public static class ApiConstants
     public const string InterbankTransferEndpoint = TransactionsEndpoint + "/transfer/interbank";
     public const string NrcTransferEndpoint = TransactionsEndpoint + "/transfer/nrc";
     public const string NrcPickupEndpoint = TransactionsEndpoint + "/nrc-pickup";
-    public const string OtherBanksEndpoint = TransactionsEndpoint + "/other-banks";
+    public const string TransactionOtherBanksEndpoint = TransactionsEndpoint + "/other-banks";
     public const string BranchesEndpoint = TransactionsEndpoint + "/branches";
     public const string PaidOutSegment = "paid-out";
     public const string CompleteSegment = "complete";

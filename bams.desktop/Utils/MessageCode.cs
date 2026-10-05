@@ -13,6 +13,12 @@ public enum MessageCode
     UserUpdatedSuccessfully = 1002,
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
+    InterestRateCreatedSuccessfully = 1400,
+    InterestRateUpdatedSuccessfully = 1401,
+    FeeRuleCreatedSuccessfully = 1402,
+    FeeRuleUpdatedSuccessfully = 1403,
+    BankPolicyCreatedSuccessfully = 1404,
+    BankPolicyUpdatedSuccessfully = 1405,
     CustomerCreatedSuccessfully = 1300,
     TransactionCompletedSuccessfully = 1200,
     TransactionSubmittedSuccessfully = 1201,
@@ -35,6 +41,10 @@ public enum MessageCode
     InvalidDateRange = 3011,
     NewPasswordSameAsCurrent = 3012,
     DefaultPasswordNotAllowed = 3013,
+    InterestRateBalanceRangeInvalid = 3400,
+    FeeRuleAmountRangeInvalid = 3401,
+    BankPolicyBalanceRangeInvalid = 3402,
+
     CustomerFullNameRequired = 3200,
     CustomerDateOfBirthInvalid = 3201,
     CustomerBelowMinimumAge = 3202,
@@ -58,9 +68,15 @@ public enum MessageCode
 
     // Not Found: 4200 - 4299
     ResourceNotFound = 4200,
+    AccountTypeNotFound = 4203,
+
     AccountNotFound = 4201,
     CustomerNotFound = 4202,
+    AccountHolderKycNotVerified = 3132,
     UserNotFound = 4204,
+    InterestRateRuleNotFound = 4250,
+    FeeRuleNotFound = 4251,
+
     TransactionNotFound = 4240,
     OtherBankNotFound = 4241,
     BranchNotFound = 4242,
@@ -70,6 +86,7 @@ public enum MessageCode
     EmailAlreadyExists = 4306,
     CustomerAlreadyExists = 4307,
     IdempotencyKeyReused = 4330,
+    AccountTypeCodeAlreadyExists = 4340,
 
     // Business Rules: 4400 - 4499
     InsufficientBalance = 4440,

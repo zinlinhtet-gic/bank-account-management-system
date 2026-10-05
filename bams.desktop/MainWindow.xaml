@@ -1,4 +1,4 @@
-<Window x:Class="bams.desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:constants="clr-namespace:bams.desktop.Constants" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:nav="clr-namespace:Bams.Desktop.Components.NavBar" xmlns:header="clr-namespace:Bams.Desktop.Components.Header" xmlns:local="clr-namespace:bams.desktop" xmlns:viewmodels="clr-namespace:bams.desktop.ViewModels" xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages" xmlns:views="clr-namespace:bams.desktop.Views" xmlns:pages="clr-namespace:bams.desktop.Views.Pages" mc:Ignorable="d" Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280" FontFamily="{StaticResource SansFont}" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource ForegroundBrush}" Background="{StaticResource BackgroundBrush}">
+<Window x:Class="bams.desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:constants="clr-namespace:bams.desktop.Constants" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:nav="clr-namespace:Bams.Desktop.Components.NavBar" xmlns:header="clr-namespace:Bams.Desktop.Components.Header" xmlns:local="clr-namespace:bams.desktop" xmlns:viewmodels="clr-namespace:bams.desktop.ViewModels" xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages" xmlns:configviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Configuration" xmlns:views="clr-namespace:bams.desktop.Views" xmlns:pages="clr-namespace:bams.desktop.Views.Pages" xmlns:configpages="clr-namespace:bams.desktop.Views.Pages.Configuration" xmlns:accountingViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Accounting" xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting" mc:Ignorable="d" Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280" WindowState="Maximized" FontFamily="{StaticResource SansFont}" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource ForegroundBrush}" Background="{StaticResource BackgroundBrush}">
     <Grid>
         <!-- Login View -->
         <ContentControl x:Name="LoginContentControl" Content="{Binding LoginView}" />
@@ -42,11 +42,30 @@
                     <DataTemplate DataType="{x:Type pageviewmodels:TransactionHistoryViewModel}">
                         <pages:TransactionHistoryView />
                     </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:GeneralLedgerViewModel}">
+                        <accountingViews:GeneralLedgerView />
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
+                        <accountingViews:AccountingEntriesView />
+                    </DataTemplate>
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:
                     <DataTemplate DataType="{x:Type pageviewmodels:AccountManagementViewModel}">
                         <pages:AccountManagementView/>
                     </DataTemplate>
                     -->
+                    <!-- Configuration sub-pages -->
+                    <DataTemplate DataType="{x:Type configviewmodels:InterestRateViewModel}">
+                        <configpages:InterestRateView />
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:FeeRateViewModel}">
+                        <configpages:FeeRateView />
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:BankPoliciesViewModel}">
+                        <configpages:BankPoliciesView />
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type configviewmodels:OtherBanksViewModel}">
+                        <configpages:OtherBanksView />
+                    </DataTemplate>
                 </ContentControl.Resources>
             </ContentControl>
         </Grid>
