@@ -80,6 +80,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CashPositionSession> CashPositionSessions => Set<CashPositionSession>();
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<CashCount> CashCounts => Set<CashCount>();
+    public DbSet<CashHandoff> CashHandoffs => Set<CashHandoff>();
+    public DbSet<CashHandoffHistory> CashHandoffHistories => Set<CashHandoffHistory>();
     public DbSet<EndOfDayRun> EndOfDayRuns => Set<EndOfDayRun>();
 
     // Audit

@@ -120,6 +120,8 @@ public enum MessageCode
     ScheduledJobRetryUnavailable = 4474,
     CashSessionAlreadyExists = 4475,
     InsufficientCashPositionBalance = 4476,
+    CashHandoffRecipientRequired = 4477,
+    CashHandoffNotPending = 4478,
     LastManagerCannotBeRemoved = 4480,
 
     // Server / Infrastructure: 5000 - 5999

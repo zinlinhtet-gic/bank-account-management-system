@@ -136,7 +136,9 @@ public sealed class EndOfDayWorkflowService(
         var actorId = currentUser.GetCurrentUserId();
         await UpsertLedgerReconciliationExceptionAsync(date, dailyTotals?.Debits ?? 0m, dailyTotals?.Credits ?? 0m,
             ledgerUnbalanced, actorId, cancellationToken);
-        var openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status == OperationsConstants.CashSessionOpen, cancellationToken);
+          var openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status == OperationsConstants.CashSessionOpen, cancellationToken);
+          var pendingHandoffs = await db.CashHandoffs.CountAsync(item => item.BusinessDate == date &&
+              item.Status != OperationsConstants.CashHandoffAccepted, cancellationToken);
         var resolvedInUnitOfWork = db.ReconciliationExceptions.Local
             .Where(item => item.BusinessDate == date && item.Severity == "Critical" &&
                 item.Status == OperationsConstants.ExceptionResolved && db.Entry(item).State == EntityState.Modified)
@@ -152,7 +154,9 @@ public sealed class EndOfDayWorkflowService(
             new(OperationsConstants.EodStagePendingApprovals, pendingApprovals == 0 ? "Complete" : "Blocked", pendingApprovals, null),
             new(OperationsConstants.EodStageAccountingEntries, missingEntries + unbalanced == 0 ? "Complete" : "Blocked", missingEntries + unbalanced, null),
             new(OperationsConstants.EodStageLedgerReconciliation, !ledgerUnbalanced ? "Complete" : "Blocked", ledgerUnbalanced ? 1 : 0, null),
-            new(OperationsConstants.EodStageCash, openSessions == 0 ? "Complete" : "Blocked", openSessions, null),
+              new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs == 0 ? "Complete" : "Blocked",
+                  openSessions + pendingHandoffs, openSessions + pendingHandoffs == 0 ? null :
+                      $"{openSessions} open cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance or reassignment."),
             new(OperationsConstants.EodStageCriticalExceptions, criticalExceptions == 0 ? "Complete" : "Exceptions", criticalExceptions, null)
         ];
     }

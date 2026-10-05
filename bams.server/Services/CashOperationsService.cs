@@ -5,6 +5,7 @@ using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
+using bams.server.Models.Security;
 using bams.server.Services.Interfaces;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -15,8 +16,9 @@ namespace bams.server.Services;
 public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserService currentUser,
     IBusinessDateService businessDates) : ICashOperationsService
 {
-    public async Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, CancellationToken cancellationToken)
+    public async Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, string? idempotencyKey, CancellationToken cancellationToken)
     {
+        var key = NormalizeCashIdempotencyKey(idempotencyKey);
         if (request.OpeningCash < 0m || decimal.Round(request.OpeningCash, 2) != request.OpeningCash)
             throw new ValidationException(MessageCode.InvalidAmount);
         if (request.PositionType is not ("Teller" or "Vault"))
@@ -25,11 +27,28 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         var actorId = currentUser.GetCurrentUserId();
         if (request.PositionType == OperationsConstants.CashPositionVault)
             await EnsureVaultPermissionAsync(actorId, cancellationToken);
+        var priorOpen = await db.CashPositionSessions.AsNoTracking().FirstOrDefaultAsync(
+            item => item.OpenedBy == actorId && item.OpenIdempotencyKey == key, cancellationToken);
+        if (priorOpen is not null)
+        {
+            if (priorOpen.PositionType != request.PositionType || priorOpen.OpeningCash != request.OpeningCash)
+                throw new ConflictException(MessageCode.IdempotencyKeyReused);
+            return ToResponse(priorOpen);
+        }
         var date = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
-        // Business-date row locking serializes session openings for this date, so this invariant
-        // remains safe when two operators attempt to open a session concurrently.
+        priorOpen = (await db.CashPositionSessions.FromSql(
+            $"SELECT * FROM CashPositionSessions WHERE OpenedBy = {actorId} AND OpenIdempotencyKey = {key} FOR UPDATE")
+            .ToListAsync(cancellationToken)).SingleOrDefault();
+        if (priorOpen is not null)
+        {
+            if (priorOpen.PositionType != request.PositionType || priorOpen.OpeningCash != request.OpeningCash)
+                throw new ConflictException(MessageCode.IdempotencyKeyReused);
+            return ToResponse(priorOpen);
+        }
+        var tellerId = request.PositionType == OperationsConstants.CashPositionTeller ? actorId : (long?)null;
         var sessionExistsForDate = await db.CashPositionSessions.AnyAsync(
-            session => session.BusinessDate == date, cancellationToken);
+            session => session.BusinessDate == date && session.PositionType == request.PositionType &&
+                session.TellerId == tellerId && session.Status == OperationsConstants.CashSessionOpen, cancellationToken);
         if (sessionExistsForDate)
             throw new ConflictException(MessageCode.CashSessionAlreadyExists);
         var now = DateTime.UtcNow;
@@ -39,7 +58,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
             TellerId = request.PositionType == OperationsConstants.CashPositionTeller ? actorId : null,
             BusinessDate = date,
             OpeningCash = request.OpeningCash, ExpectedClosingCash = request.OpeningCash, Status = "Open",
-            OpenedAtUtc = now, OpenedBy = actorId
+            OpenedAtUtc = now, OpenedBy = actorId, OpenIdempotencyKey = key
         };
         db.CashPositionSessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
@@ -103,6 +122,8 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         var now = DateTime.UtcNow;
         source.ExpectedClosingCash -= request.Amount;
         destination.ExpectedClosingCash += request.Amount;
+        source.Version++;
+        destination.Version++;
         AddMovement(source, destination, "TransferOut", request.Amount, actorId, now, request.Note);
         AddMovement(destination, source, "TransferIn", request.Amount, actorId, now, request.Note);
         await db.SaveChangesAsync(cancellationToken);
@@ -110,17 +131,44 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         return ToResponse(source);
     }
 
-    public async Task<CashCountResponse> SubmitCountAsync(long sessionId, SubmitCashCountRequest request, CancellationToken cancellationToken)
+    public async Task<CashCountResponse> SubmitCountAsync(long sessionId, SubmitCashCountRequest request, string? idempotencyKey, CancellationToken cancellationToken)
     {
+        var key = NormalizeCashIdempotencyKey(idempotencyKey);
         if (request.ActualAmount < 0m || decimal.Round(request.ActualAmount, 2) != request.ActualAmount)
             throw new ValidationException(MessageCode.InvalidAmount);
         TransactionRequestValidator.EnsureMaximumLength(request.Notes, 2000);
         var actorId = currentUser.GetCurrentUserId();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var session = await LockSessionAsync(sessionId, cancellationToken);
-        EnsureAssignedToActor(session, actorId);
         if (session.PositionType == OperationsConstants.CashPositionVault)
             await EnsureVaultPermissionAsync(actorId, cancellationToken);
+        var priorCount = (await db.CashCounts.FromSql(
+            $"SELECT * FROM CashCounts WHERE CountedBy = {actorId} AND IdempotencyKey = {key} FOR UPDATE")
+            .ToListAsync(cancellationToken)).SingleOrDefault();
+        if (priorCount is not null)
+        {
+            var priorHandoff = await db.CashHandoffs.AsNoTracking()
+                .FirstOrDefaultAsync(item => item.CashCountId == priorCount.Id, cancellationToken);
+            if (priorCount.SessionId != sessionId || priorCount.ActualAmount != request.ActualAmount ||
+                priorCount.Notes != request.Notes || priorHandoff?.RecipientId != request.HandoffRecipientUserId)
+                throw new ConflictException(MessageCode.IdempotencyKeyReused);
+            return new CashCountResponse(priorCount.Id, priorCount.SessionId, priorCount.ExpectedAmount,
+                priorCount.ActualAmount, priorCount.Difference, priorCount.Difference == 0m ? "Matched" : "Unmatched",
+                priorCount.CountedAtUtc, priorHandoff?.Id, priorHandoff?.Status);
+        }
+        if (session.Version != request.ExpectedSessionVersion)
+            throw new ConflictException(MessageCode.ConcurrentModification);
+        db.Entry(session).Property(item => item.Version).OriginalValue = request.ExpectedSessionVersion;
+        session.Version++;
+        EnsureAssignedToActor(session, actorId);
+        var closingSession = session.Status == OperationsConstants.CashSessionOpen;
+        if (request.HandoffRecipientUserId.HasValue && (request.ActualAmount == 0m || !closingSession))
+            throw new ValidationException(MessageCode.InvalidRequest);
+        if (closingSession && request.ActualAmount > 0m && !request.HandoffRecipientUserId.HasValue)
+            throw new BusinessRuleException(MessageCode.CashHandoffRecipientRequired);
+        User? recipient = null;
+        if (closingSession && request.ActualAmount > 0m)
+            recipient = await GetEligibleHandoffRecipientAsync(request.HandoffRecipientUserId!.Value, actorId, cancellationToken);
         var now = DateTime.UtcNow;
         var difference = request.ActualAmount - session.ExpectedClosingCash;
         if (session.Status == OperationsConstants.CashSessionOpen)
@@ -132,9 +180,25 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         var count = new CashCount
         {
             SessionId = session.Id, ExpectedAmount = session.ExpectedClosingCash, ActualAmount = request.ActualAmount,
-            Difference = difference, Notes = request.Notes, CountedBy = actorId, CountedAtUtc = now
+            Difference = difference, Notes = request.Notes, CountedBy = actorId, CountedAtUtc = now, IdempotencyKey = key
         };
         db.CashCounts.Add(count);
+        CashHandoff? handoff = null;
+        if (closingSession && request.ActualAmount > 0m)
+        {
+            handoff = new CashHandoff
+            {
+                Session = session, CashCount = count, BusinessDate = session.BusinessDate, SenderId = actorId,
+                Recipient = recipient, RecipientId = recipient!.Id, Amount = request.ActualAmount,
+                Status = OperationsConstants.CashHandoffPendingAcceptance, CreatedAtUtc = now, UpdatedAtUtc = now
+            };
+            db.CashHandoffs.Add(handoff);
+            db.CashHandoffHistories.Add(new CashHandoffHistory
+            {
+                CashHandoff = handoff, OldStatus = "None", NewStatus = handoff.Status, RecipientId = recipient.Id,
+                Note = "Cash handoff created when the session was closed.", ActorId = actorId, CreatedAtUtc = now
+            });
+        }
         var existingException = await db.ReconciliationExceptions.Where(item => item.Type == OperationsConstants.ExceptionCashBalance &&
                 item.PositionSessionId == session.Id && item.Status != OperationsConstants.ExceptionResolved)
             .OrderByDescending(item => item.Id).FirstOrDefaultAsync(cancellationToken);
@@ -189,7 +253,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new CashCountResponse(count.Id, session.Id, count.ExpectedAmount, count.ActualAmount, difference,
-            difference == 0m ? "Matched" : "Unmatched", now);
+            difference == 0m ? "Matched" : "Unmatched", now, handoff?.Id, handoff?.Status);
     }
 
     /// <summary>Requests an expected-cash adjustment backed by a posted cash-on-hand correction transaction.</summary>
@@ -272,6 +336,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         movement.ApprovedBy = actorId;
         movement.ApprovedAtUtc = DateTime.UtcNow;
         session.ExpectedClosingCash += signedAmount;
+        session.Version++;
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToAdjustmentResponse(movement, signedAmount);
@@ -301,6 +366,165 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         return items;
     }
 
+    /// <summary>Returns active users authorized to receive physical cash custody.</summary>
+    public async Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken)
+    {
+        var actorId = currentUser.GetCurrentUserId();
+        return await (from user in db.Users.AsNoTracking()
+            where user.Status == UserStatus.Active && user.Id != actorId &&
+                (from ur in db.UserRoles join rp in db.RolePermissions on ur.RoleId equals rp.RoleId
+                 join p in db.Permissions on rp.PermissionId equals p.Id
+                 where ur.UserId == user.Id && (p.Code == SecurityConstants.CashOperations ||
+                     p.Code == SecurityConstants.Audit || p.Code == SecurityConstants.EndOfDayApproval)
+                 select p.Id).Any()
+            orderby user.FullName, user.Username
+            select new CashHandoffRecipientResponse(user.Id, user.FullName, user.Username))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CashHandoffResponse>> GetCashHandoffsAsync(DateOnly? businessDate, CancellationToken cancellationToken)
+    {
+        var actorId = currentUser.GetCurrentUserId();
+        var canReviewAll = await HasHandoffReviewPermissionAsync(actorId, cancellationToken);
+        var query = db.CashHandoffs.AsNoTracking().Include(item => item.Sender).Include(item => item.Recipient).AsQueryable();
+        if (businessDate.HasValue) query = query.Where(item => item.BusinessDate == businessDate.Value);
+        if (!canReviewAll) query = query.Where(item => item.SenderId == actorId || item.RecipientId == actorId);
+        var items = await query.OrderByDescending(item => item.CreatedAtUtc).ToListAsync(cancellationToken);
+        return items.Select(ToHandoffResponse).ToList();
+    }
+
+    public async Task<CashHandoffDetailResponse> GetCashHandoffDetailAsync(long handoffId, CancellationToken cancellationToken)
+    {
+        var actorId = currentUser.GetCurrentUserId();
+        var handoff = await db.CashHandoffs.AsNoTracking().Include(item => item.Sender).Include(item => item.Recipient)
+            .SingleOrDefaultAsync(item => item.Id == handoffId, cancellationToken)
+            ?? throw new NotFoundException(MessageCode.ResourceNotFound);
+        if (handoff.SenderId != actorId && handoff.RecipientId != actorId &&
+            !await HasHandoffReviewPermissionAsync(actorId, cancellationToken))
+            throw new ForbiddenException(MessageCode.InsufficientPermission);
+        var history = await db.CashHandoffHistories.AsNoTracking().Where(item => item.CashHandoffId == handoffId)
+            .OrderBy(item => item.CreatedAtUtc)
+            .Select(item => new CashHandoffHistoryResponse(item.Id, item.OldStatus, item.NewStatus,
+                item.PreviousRecipientId, item.RecipientId, item.Note, item.ActorId, item.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+        return new CashHandoffDetailResponse(ToHandoffResponse(handoff), history);
+    }
+
+    public Task<CashHandoffResponse> AcceptCashHandoffAsync(long handoffId, CashHandoffActionRequest request, CancellationToken cancellationToken) =>
+        ChangeHandoffStatusAsync(handoffId, request, OperationsConstants.CashHandoffAccepted, cancellationToken);
+
+    public Task<CashHandoffResponse> DeclineCashHandoffAsync(long handoffId, CashHandoffActionRequest request, CancellationToken cancellationToken) =>
+        ChangeHandoffStatusAsync(handoffId, request, OperationsConstants.CashHandoffDeclined, cancellationToken);
+
+    private async Task<CashHandoffResponse> ChangeHandoffStatusAsync(long handoffId, CashHandoffActionRequest request,
+        string newStatus, CancellationToken cancellationToken)
+    {
+        TransactionRequestValidator.EnsureMaximumLength(request.Note, 500);
+        if (newStatus == OperationsConstants.CashHandoffDeclined && string.IsNullOrWhiteSpace(request.Note))
+            throw new ValidationException(MessageCode.RequiredFieldMissing);
+        var actorId = currentUser.GetCurrentUserId();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var handoff = await LockHandoffAsync(handoffId, cancellationToken);
+        if (handoff.RecipientId != actorId)
+            throw new ForbiddenException(MessageCode.InsufficientPermission);
+        if (handoff.Status == newStatus)
+        {
+            await db.Entry(handoff).Reference(item => item.Sender).LoadAsync(cancellationToken);
+            await db.Entry(handoff).Reference(item => item.Recipient).LoadAsync(cancellationToken);
+            return ToHandoffResponse(handoff);
+        }
+        if (handoff.Status != OperationsConstants.CashHandoffPendingAcceptance)
+            throw new BusinessRuleException(MessageCode.CashHandoffNotPending);
+        if (handoff.Version != request.ExpectedVersion)
+            throw new ConflictException(MessageCode.ConcurrentModification);
+        db.Entry(handoff).Property(item => item.Version).OriginalValue = request.ExpectedVersion;
+        var oldStatus = handoff.Status;
+        handoff.Status = newStatus;
+        handoff.Version++;
+        handoff.UpdatedAtUtc = DateTime.UtcNow;
+        if (newStatus == OperationsConstants.CashHandoffAccepted) handoff.AcceptedAtUtc = handoff.UpdatedAtUtc;
+        else handoff.DeclinedAtUtc = handoff.UpdatedAtUtc;
+        db.CashHandoffHistories.Add(new CashHandoffHistory
+        {
+            CashHandoffId = handoff.Id, OldStatus = oldStatus, NewStatus = newStatus,
+            RecipientId = handoff.RecipientId, Note = request.Note, ActorId = actorId, CreatedAtUtc = handoff.UpdatedAtUtc
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        await db.Entry(handoff).Reference(item => item.Sender).LoadAsync(cancellationToken);
+        await db.Entry(handoff).Reference(item => item.Recipient).LoadAsync(cancellationToken);
+        return ToHandoffResponse(handoff);
+    }
+
+    public async Task<CashHandoffResponse> ReassignCashHandoffAsync(long handoffId, ReassignCashHandoffRequest request,
+        CancellationToken cancellationToken)
+    {
+        TransactionRequestValidator.EnsureMaximumLength(request.Note, 500);
+        var actorId = currentUser.GetCurrentUserId();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var handoff = await LockHandoffAsync(handoffId, cancellationToken);
+        if (handoff.Status == OperationsConstants.CashHandoffAccepted)
+            throw new BusinessRuleException(MessageCode.CashHandoffNotPending);
+        if (handoff.SenderId != actorId && !await HasHandoffReviewPermissionAsync(actorId, cancellationToken))
+            throw new ForbiddenException(MessageCode.InsufficientPermission);
+        var recipient = await GetEligibleHandoffRecipientAsync(request.RecipientUserId, handoff.SenderId, cancellationToken);
+        if (handoff.Status == OperationsConstants.CashHandoffPendingAcceptance && handoff.RecipientId == recipient.Id)
+        {
+            await db.Entry(handoff).Reference(item => item.Sender).LoadAsync(cancellationToken);
+            await db.Entry(handoff).Reference(item => item.Recipient).LoadAsync(cancellationToken);
+            return ToHandoffResponse(handoff);
+        }
+        if (handoff.Version != request.ExpectedVersion)
+            throw new ConflictException(MessageCode.ConcurrentModification);
+        db.Entry(handoff).Property(item => item.Version).OriginalValue = request.ExpectedVersion;
+        var oldStatus = handoff.Status;
+        var oldRecipientId = handoff.RecipientId;
+        handoff.RecipientId = recipient.Id;
+        handoff.Recipient = recipient;
+        handoff.Status = OperationsConstants.CashHandoffPendingAcceptance;
+        handoff.Version++;
+        handoff.DeclinedAtUtc = null;
+        handoff.UpdatedAtUtc = DateTime.UtcNow;
+        db.CashHandoffHistories.Add(new CashHandoffHistory
+        {
+            CashHandoffId = handoff.Id, OldStatus = oldStatus, NewStatus = handoff.Status,
+            PreviousRecipientId = oldRecipientId, RecipientId = recipient.Id, Note = request.Note,
+            ActorId = actorId, CreatedAtUtc = handoff.UpdatedAtUtc
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        await db.Entry(handoff).Reference(item => item.Sender).LoadAsync(cancellationToken);
+        return ToHandoffResponse(handoff);
+    }
+
+    private async Task<CashHandoff> LockHandoffAsync(long id, CancellationToken cancellationToken) =>
+        (await db.CashHandoffs.FromSql($"SELECT * FROM CashHandoffs WHERE Id = {id} FOR UPDATE").ToListAsync(cancellationToken))
+            .SingleOrDefault() ?? throw new NotFoundException(MessageCode.ResourceNotFound);
+
+    private async Task<User> GetEligibleHandoffRecipientAsync(long recipientId, long senderId, CancellationToken cancellationToken)
+    {
+        if (recipientId == senderId) throw new ValidationException(MessageCode.InvalidRequest);
+        var user = await db.Users.SingleOrDefaultAsync(item => item.Id == recipientId && item.Status == UserStatus.Active, cancellationToken)
+            ?? throw new NotFoundException(MessageCode.UserNotFound);
+        var eligible = await (from ur in db.UserRoles join rp in db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == recipientId && (p.Code == SecurityConstants.CashOperations || p.Code == SecurityConstants.Audit ||
+                p.Code == SecurityConstants.EndOfDayApproval)
+            select p.Id).AnyAsync(cancellationToken);
+        if (!eligible) throw new ForbiddenException(MessageCode.InsufficientPermission);
+        return user;
+    }
+
+    private async Task<bool> HasHandoffReviewPermissionAsync(long actorId, CancellationToken cancellationToken) =>
+        await (from ur in db.UserRoles join rp in db.RolePermissions on ur.RoleId equals rp.RoleId
+            join p in db.Permissions on rp.PermissionId equals p.Id
+            where ur.UserId == actorId && (p.Code == SecurityConstants.Audit || p.Code == SecurityConstants.EndOfDayApproval)
+            select p.Id).AnyAsync(cancellationToken);
+
+    private static CashHandoffResponse ToHandoffResponse(CashHandoff item) => new(item.Id, item.SessionId,
+        item.BusinessDate, item.SenderId, item.Sender?.FullName ?? string.Empty, item.RecipientId,
+        item.Recipient?.FullName ?? string.Empty, item.Amount, item.Status, item.CreatedAtUtc, item.AcceptedAtUtc, item.Version);
+
     /// <summary>Records a transaction's cash effect against the actor's open teller session for the posting date.</summary>
     public async Task AddTransactionMovementAsync(bams.server.Models.Transactions.Transaction transaction, bool isDeposit, long actorId, decimal amount, CancellationToken cancellationToken)
     {
@@ -314,6 +538,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
         if (!isDeposit && session.ExpectedClosingCash < amount)
             throw new BusinessRuleException(MessageCode.InsufficientCashPositionBalance);
         session.ExpectedClosingCash += isDeposit ? amount : -amount;
+        session.Version++;
         db.CashMovements.Add(new CashMovement
         {
             SessionId = session.Id, Type = isDeposit ? "Deposit" : "Withdrawal", Amount = amount,
@@ -387,5 +612,13 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
 
     private static CashPositionSessionResponse ToResponse(CashPositionSession session) => new(
         session.Id, session.PositionType, session.TellerId, session.BusinessDate,
-        session.OpeningCash, session.ExpectedClosingCash, session.Status);
+        session.OpeningCash, session.ExpectedClosingCash, session.Status, session.Version);
+
+    private static string NormalizeCashIdempotencyKey(string? idempotencyKey)
+    {
+        var key = TransactionRequestValidator.TrimToNull(idempotencyKey);
+        if (key is null) throw new ValidationException(MessageCode.RequiredFieldMissing);
+        TransactionRequestValidator.EnsureMaximumLength(key, TransactionConstants.IdempotencyKeyMaximumLength);
+        return key;
+    }
 }

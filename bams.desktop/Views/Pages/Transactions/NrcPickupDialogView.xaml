@@ -94,6 +94,7 @@
                     Command="{Binding CancelCommand}"/>
             <Button Content="Complete pickup" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
                     t:ThemeAssist.IsLoading="{Binding IsBusy}" t:ThemeAssist.Icon="{StaticResource Icon.Check}"
+                    t:ThemeAssist.RequiresOpenCashSession="True"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </StackPanel>

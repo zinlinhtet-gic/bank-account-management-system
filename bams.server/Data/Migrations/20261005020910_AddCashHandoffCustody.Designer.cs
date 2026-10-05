@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bams.server.Data;
 
@@ -10,9 +11,11 @@ using bams.server.Data;
 namespace bams.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261005020910_AddCashHandoffCustody")]
+    partial class AddCashHandoffCustody
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -164,10 +167,6 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("IdempotencyKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
-
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
@@ -177,9 +176,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CountedBy", "IdempotencyKey")
-                        .IsUnique()
-                        .HasDatabaseName("IX_CC_Idem");
+                    b.HasIndex("CountedBy");
 
                     b.HasIndex("SessionId", "CountedAtUtc");
 
@@ -227,10 +224,6 @@ namespace bams.server.Data.Migrations
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -384,10 +377,6 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("OpenIdempotencyKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
-
                     b.Property<DateTime>("OpenedAtUtc")
                         .HasColumnType("datetime(6)");
 
@@ -411,17 +400,9 @@ namespace bams.server.Data.Migrations
                     b.Property<long?>("TellerId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
 
                     b.HasIndex("BusinessDate", "Status");
-
-                    b.HasIndex("OpenedBy", "OpenIdempotencyKey")
-                        .IsUnique()
-                        .HasDatabaseName("IX_CPS_Idem");
 
                     b.HasIndex("TellerId", "BusinessDate", "Status");
 

@@ -275,6 +275,7 @@
                     Command="{Binding ClearCommand}"/>
             <Button Content="{Binding SaveText}" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
                     t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                    t:ThemeAssist.RequiresOpenCashSession="True"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </StackPanel>

@@ -15,4 +15,5 @@ public sealed class CashCount
     public long CountedBy { get; set; }
     public User? CountedByUser { get; set; }
     public DateTime CountedAtUtc { get; set; }
+    public string? IdempotencyKey { get; set; }
 }

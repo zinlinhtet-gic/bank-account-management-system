@@ -162,6 +162,7 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 item.Amount,
                 item.FeeAmount,
                 item.TransactionAt,
+                item.BusinessDate,
                 item.Description,
                 item.ReferenceNo,
 

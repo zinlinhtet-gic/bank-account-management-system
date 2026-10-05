@@ -183,6 +183,8 @@ public enum MessageCode
     ScheduledJobRetryUnavailable = 4474,
     CashSessionAlreadyExists = 4475,
     InsufficientCashPositionBalance = 4476,
+    CashHandoffRecipientRequired = 4477,
+    CashHandoffNotPending = 4478,
 
     // Users: 4480 - 4489
     LastManagerCannotBeRemoved = 4480,

@@ -17,17 +17,19 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     private int _selectedStageIndex;
 
     public EndOfDayViewModel(IEndOfDayClientService service, AuthContext authContext,
-        ICashOperationsClientService cashOperations, IReconciliationService reconciliationService)
+        ICashOperationsClientService cashOperations, IReconciliationService reconciliationService,
+        OfficerCashSessionContext officerCashSessionContext)
     {
         _service = service;
         _authContext = authContext;
-        CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext);
+        CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext, officerCashSessionContext);
         AccountReconciliation = new AccountReconciliationViewModel(reconciliationService);
         LedgerReconciliation = new LedgerReconciliationViewModel();
         PreCloseChecks = new PreCloseChecksViewModel();
         Summary = new EndOfDaySummaryViewModel();
         ExceptionCenter = new ExceptionCenterViewModel(reconciliationService);
         FinalReview = new FinalReviewViewModel();
+        CashHandoffs = new CashHandoffCenterViewModel(cashOperations, authContext);
         RunPreCloseCommand = new AsyncRelayCommand(RunPreCloseAsync, () => CanRunPreClose);
         ApproveCommand = new AsyncRelayCommand(ApproveAsync, () => CanApprove);
         CloseCommand = new AsyncRelayCommand(CloseAsync, () => CanClose);
@@ -52,6 +54,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public AccountReconciliationViewModel AccountReconciliation { get; }
     public ExceptionCenterViewModel ExceptionCenter { get; }
     public FinalReviewViewModel FinalReview { get; }
+    public CashHandoffCenterViewModel CashHandoffs { get; }
     public AsyncRelayCommand RunPreCloseCommand { get; }
     public AsyncRelayCommand ApproveCommand { get; }
     public AsyncRelayCommand CloseCommand { get; }
@@ -105,6 +108,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             RunPreCloseCommand.RaiseCanExecuteChanged();
             if (CashReconciliation.HasCashOperationsPermission)
                 await CashReconciliation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
+            await CashHandoffs.LoadForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
             await ExceptionCenter.Investigation.InitializeAsync(cancellationToken);
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
@@ -149,6 +153,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             RunPreCloseCommand.RaiseCanExecuteChanged();
             if (CashReconciliation.HasCashOperationsPermission)
                 await CashReconciliation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
+            await CashHandoffs.LoadForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }

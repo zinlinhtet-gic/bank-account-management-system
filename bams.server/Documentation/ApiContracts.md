@@ -53,6 +53,8 @@ Transaction summaries, detail, and posting responses include `businessDate` sepa
 
 Cash funded deposit, withdrawal, NRC transfer, NRC pickup, and cash refund requests are associated server-side with the actor's open teller session for the active posting business date. Transaction request DTOs do not require or accept a cash-session identifier; the physical movement is saved atomically with posting. If no current teller session exists, the server returns `CashSessionNotOpen`. A physical count is immutable and never overwrites expected cash. Cash adjustments require a signed amount equal to a posted transaction's Cash on Hand journal effect and independent approval. Account reconciliation preserves run/result snapshots and exception history; mismatches are resolved only after a matched rerun. EOD initiation is manual; scheduled reconciliation and financial postings use the existing scheduled-job mechanism.
 
+All officer-authorized write requests require the signed-in officer's open teller session for the active posting business date. `POST /api/cash-operations/sessions` is exempt so the officer can open that session; read-only requests and manager/other-role authorization are unaffected. A missing session returns `CashSessionNotOpen`.
+
 ## Available interest rules
 
 `GET /api/interest-rate-rules?accountTypeId={id}` returns rules for the selected product whose status is `Active` and whose effective date range includes the current Myanmar (Asia/Rangoon) business date. A positive unknown account type ID returns `AccountTypeNotFound`; a type with no applicable rules returns an empty array. Current accounts intentionally have no seeded rule.
@@ -142,3 +144,20 @@ The manager permission `scheduled_job_management` protects these endpoints:
 | POST | `/api/operations/scheduled-jobs/executions/{executionId}/retry` | Queues another attempt for the same occurrence and period; records the requesting user and timestamp. |
 
 For an open previous-month business date, the response includes `BusinessDateToClose`; close it through the existing `/api/operations/business-date` pre-close, approval, and close workflow before retrying. The retry endpoint does not close dates or bypass EOD gates. A retry rejection uses `ScheduledJobRetryUnavailable`; an unclosed month uses `MonthlyAccountingPeriodNotClosed`.
+
+## Teller session cash handoffs
+
+Cash session close counts may include `handoffRecipientUserId` when `actualAmount` is positive. This closes the session and creates a pending custody transfer in the same database transaction. A positive count without a valid eligible recipient is rejected; a zero count needs no recipient. Recounting an already closed session does not create a second handoff.
+
+Session opening and count-close requests require the standard `Idempotency-Key` header (maximum 64 characters). A retry with the same key and same payload returns the original session/count result; reuse with different details returns `IdempotencyKeyReused`. Cash-count requests also send `expectedSessionVersion`; handoff action/reassignment requests send `expectedVersion`. Responses include the latest `version`. A stale version returns HTTP 409 `ConcurrentModification`; refresh the selected session/handoff before making a new change. Repeated accept/decline requests in their already-applied state are treated as successful replays and do not append duplicate history.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/cash-handoffs/recipients` | Lists active eligible recipients (cash operations, audit, or EOD approval). |
+| GET | `/api/cash-handoffs?businessDate=YYYY-MM-DD` | Lists handoffs visible to the sender/recipient or an authorized reviewer. |
+| GET | `/api/cash-handoffs/{id}` | Returns a visible handoff and its append-only history. |
+| POST | `/api/cash-handoffs/{id}/accept` | Recipient acknowledges custody; optional note. |
+| POST | `/api/cash-handoffs/{id}/decline` | Recipient declines with a required note; remains an EOD blocker. |
+| PUT | `/api/cash-handoffs/{id}/recipient` | Sender or audit/EOD reviewer assigns an eligible recipient; status becomes pending. |
+
+All routes require at least one of `cash_operations`, `audit`, or `end_of_day_approval`; business authorization is further restricted by actor and handoff state in the service. `CashHandoffRecipientRequired` and `CashHandoffNotPending` are stable error codes.

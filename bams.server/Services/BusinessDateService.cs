@@ -15,59 +15,51 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
 {
     public async Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken)
     {
-        var businessDate = await GetOrCreateOpenDateAsync(cancellationToken);
+        var businessDate = await GetOrCreateOpenDateAsync(BusinessTime.Today, cancellationToken);
         return new BusinessDateResponse(businessDate.Date, businessDate.Status, businessDate.OpenedAtUtc, businessDate.ClosedAtUtc);
     }
 
     public async Task<DateOnly> GetOpenBusinessDateValueAsync(CancellationToken cancellationToken) =>
-        (await GetOrCreateOpenDateAsync(cancellationToken)).Date;
+        (await GetOrCreateOpenDateAsync(BusinessTime.Today, cancellationToken)).Date;
 
     /// <summary>Returns the active date for a financial posting and prevents posting into yesterday after midnight until EOD closes it.</summary>
     public async Task<DateOnly> GetPostingBusinessDateValueAsync(DateTime nowUtc, CancellationToken cancellationToken)
     {
-        var currentDate = BusinessTime.ToBusinessDate(nowUtc);
-        var openDates = await db.BusinessDates
-            .FromSql($"SELECT * FROM BusinessDates WHERE Status = {OperationsConstants.BusinessDateOpen} ORDER BY Date DESC FOR UPDATE")
-            .ToListAsync(cancellationToken);
-        var openDate = openDates.FirstOrDefault();
-        if (openDate is not null && (openDate.Date == currentDate || openDate.Date > currentDate))
-            return openDate.Date;
-
-        var currentDateIsOpen = openDates.Any(item => item.Date == currentDate);
-        var yesterdayIsNotClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
-            item.Date == currentDate.AddDays(-1) && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (yesterdayIsNotClosed && !currentDateIsOpen)
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-
-        if (openDate is not null)
-            return openDate.Date;
-
-        var currentDateIsClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
-            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (currentDateIsClosed)
-            throw new BusinessRuleException(MessageCode.BusinessDateClosed);
-
-        return currentDate;
+        return (await GetOrCreateOpenDateAsync(BusinessTime.ToBusinessDate(nowUtc), cancellationToken)).Date;
     }
 
-    private async Task<Models.Accounting.BusinessDate> GetOrCreateOpenDateAsync(CancellationToken cancellationToken)
+    private async Task<Models.Accounting.BusinessDate> GetOrCreateOpenDateAsync(DateOnly currentDate, CancellationToken cancellationToken)
     {
-        var open = await db.BusinessDates.Where(item => item.Status == OperationsConstants.BusinessDateOpen)
-            .OrderByDescending(item => item.Date).FirstOrDefaultAsync(cancellationToken);
+        var open = await db.BusinessDates.FirstOrDefaultAsync(item =>
+            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
         if (open is not null) return open;
 
+        var currentDateIsClosed = await db.BusinessDates.AnyAsync(item =>
+            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (currentDateIsClosed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);
+        var yesterdayIsNotClosed = await db.BusinessDates.AnyAsync(item =>
+            item.Date == currentDate.AddDays(-1) && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (yesterdayIsNotClosed) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        open = await db.BusinessDates.Where(item => item.Status == OperationsConstants.BusinessDateOpen)
-            .OrderByDescending(item => item.Date).FirstOrDefaultAsync(cancellationToken);
+        open = await db.BusinessDates.FirstOrDefaultAsync(item =>
+            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
         if (open is not null)
         {
             await transaction.CommitAsync(cancellationToken);
             return open;
         }
 
+        currentDateIsClosed = await db.BusinessDates.AnyAsync(item =>
+            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (currentDateIsClosed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);
+        yesterdayIsNotClosed = await db.BusinessDates.AnyAsync(item =>
+            item.Date == currentDate.AddDays(-1) && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (yesterdayIsNotClosed) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
         open = new Models.Accounting.BusinessDate
         {
-            Date = BusinessTime.Today, Status = OperationsConstants.BusinessDateOpen,
+            Date = currentDate, Status = OperationsConstants.BusinessDateOpen,
             OpenedBy = await GetActorIdAsync(cancellationToken), OpenedAtUtc = DateTime.UtcNow
         };
         db.BusinessDates.Add(open);
@@ -81,8 +73,8 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
         {
             await transaction.RollbackAsync(cancellationToken);
             db.ChangeTracker.Clear();
-            open = await db.BusinessDates.AsNoTracking().Where(item => item.Status == OperationsConstants.BusinessDateOpen)
-                .OrderByDescending(item => item.Date).FirstOrDefaultAsync(cancellationToken);
+            open = await db.BusinessDates.AsNoTracking().FirstOrDefaultAsync(item =>
+                item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
             if (open is not null) return open;
             throw;
         }

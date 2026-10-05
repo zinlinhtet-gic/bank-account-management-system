@@ -1,4 +1,5 @@
 using bams.desktop.Api;
+using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 
 namespace bams.desktop.Services;
@@ -15,14 +16,37 @@ public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOper
     public Task<CashPositionSessionDetailResponse> GetSessionDetailAsync(long sessionId, CancellationToken cancellationToken) =>
         apiClient.GetAsync<CashPositionSessionDetailResponse>($"/api/cash-operations/sessions/{sessionId}", cancellationToken);
 
-    public Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, CancellationToken cancellationToken) =>
-        apiClient.PostAsync<OpenCashSessionRequest, CashPositionSessionResponse>("/api/cash-operations/sessions", request, cancellationToken);
+    public Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<OpenCashSessionRequest, CashPositionSessionResponse>("/api/cash-operations/sessions", request,
+            new Dictionary<string, string> { [ApiConstants.IdempotencyKeyHeader] = idempotencyKey }, cancellationToken);
 
     public Task<CashPositionSessionResponse> TransferCashAsync(long sessionId, TransferCashRequest request, CancellationToken cancellationToken) =>
         apiClient.PostAsync<TransferCashRequest, CashPositionSessionResponse>($"/api/cash-operations/sessions/{sessionId}/transfers", request, cancellationToken);
 
-    public Task<CashCountResponse> SubmitCountAsync(long sessionId, SubmitCashCountRequest request, CancellationToken cancellationToken) =>
-        apiClient.PostAsync<SubmitCashCountRequest, CashCountResponse>($"/api/cash-operations/sessions/{sessionId}/count", request, cancellationToken);
+    public Task<CashCountResponse> SubmitCountAsync(long sessionId, SubmitCashCountRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<SubmitCashCountRequest, CashCountResponse>($"/api/cash-operations/sessions/{sessionId}/count", request,
+            new Dictionary<string, string> { [ApiConstants.IdempotencyKeyHeader] = idempotencyKey }, cancellationToken);
+
+    public Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken) =>
+        apiClient.GetAsync<IReadOnlyList<CashHandoffRecipientResponse>>("/api/cash-handoffs/recipients", cancellationToken);
+
+    public Task<IReadOnlyList<CashHandoffResponse>> GetCashHandoffsAsync(DateOnly? date, CancellationToken cancellationToken)
+    {
+        var suffix = date.HasValue ? $"?businessDate={date.Value:yyyy-MM-dd}" : string.Empty;
+        return apiClient.GetAsync<IReadOnlyList<CashHandoffResponse>>("/api/cash-handoffs" + suffix, cancellationToken);
+    }
+
+    public Task<CashHandoffDetailResponse> GetCashHandoffDetailAsync(long handoffId, CancellationToken cancellationToken) =>
+        apiClient.GetAsync<CashHandoffDetailResponse>($"/api/cash-handoffs/{handoffId}", cancellationToken);
+
+    public Task<CashHandoffResponse> AcceptCashHandoffAsync(long handoffId, CashHandoffActionRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CashHandoffActionRequest, CashHandoffResponse>($"/api/cash-handoffs/{handoffId}/accept", request, cancellationToken);
+
+    public Task<CashHandoffResponse> DeclineCashHandoffAsync(long handoffId, CashHandoffActionRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CashHandoffActionRequest, CashHandoffResponse>($"/api/cash-handoffs/{handoffId}/decline", request, cancellationToken);
+
+    public Task<CashHandoffResponse> ReassignCashHandoffAsync(long handoffId, ReassignCashHandoffRequest request, CancellationToken cancellationToken) =>
+        apiClient.PutAsync<ReassignCashHandoffRequest, CashHandoffResponse>($"/api/cash-handoffs/{handoffId}/recipient", request, cancellationToken);
 
     public Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? date, string? status, CancellationToken cancellationToken)
     {

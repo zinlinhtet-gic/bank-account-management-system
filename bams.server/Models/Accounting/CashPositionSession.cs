@@ -17,4 +17,6 @@ public sealed class CashPositionSession
     public long OpenedBy { get; set; }
     public DateTime? ClosedAtUtc { get; set; }
     public long? ClosedBy { get; set; }
+    public long Version { get; set; } = 1;
+    public string? OpenIdempotencyKey { get; set; }
 }

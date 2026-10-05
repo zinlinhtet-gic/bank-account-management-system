@@ -60,7 +60,7 @@
             <Button Content="{Binding CancelText}" Style="{StaticResource Button.Secondary}" MinWidth="96" Margin="0,0,8,0"
                     Command="{Binding CancelCommand}"/>
             <Button x:Name="SubmitButton" Content="{Binding SaveText}" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
-                    t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                    t:ThemeAssist.IsLoading="{Binding IsBusy}" t:ThemeAssist.RequiresOpenCashSession="True"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </StackPanel>

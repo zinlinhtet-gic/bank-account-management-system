@@ -30,10 +30,12 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("sessions")]
+    [AllowWithoutOpenCashSession]
     public async Task<ActionResult<ApiMessageResponse<CashPositionSessionResponse>>> OpenSessionAsync(
-        OpenCashSessionRequest request, CancellationToken cancellationToken)
+        OpenCashSessionRequest request, [FromHeader(Name = TransactionConstants.IdempotencyKeyHeaderName)] string? idempotencyKey,
+        CancellationToken cancellationToken)
     {
-        var session = await cashOperations.OpenSessionAsync(request, cancellationToken);
+        var session = await cashOperations.OpenSessionAsync(request, idempotencyKey, cancellationToken);
         return Ok(ApiMessageResponse<CashPositionSessionResponse>.FromCode(MessageCode.Success, session));
     }
 
@@ -47,9 +49,10 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
 
     [HttpPost("sessions/{id:long}/count")]
     public async Task<ActionResult<ApiMessageResponse<CashCountResponse>>> SubmitCountAsync(
-        long id, SubmitCashCountRequest request, CancellationToken cancellationToken)
+        long id, SubmitCashCountRequest request, [FromHeader(Name = TransactionConstants.IdempotencyKeyHeaderName)] string? idempotencyKey,
+        CancellationToken cancellationToken)
     {
-        var count = await cashOperations.SubmitCountAsync(id, request, cancellationToken);
+        var count = await cashOperations.SubmitCountAsync(id, request, idempotencyKey, cancellationToken);
         return Ok(ApiMessageResponse<CashCountResponse>.FromCode(MessageCode.Success, count));
     }
 

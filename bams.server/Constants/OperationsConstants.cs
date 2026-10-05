@@ -34,4 +34,7 @@ public static class OperationsConstants
     public const string CashMovementApproved = "Approved";
     public const string CashMovementPendingApproval = "PendingApproval";
     public const string CashMovementAdjustment = "ApprovedAdjustment";
+    public const string CashHandoffPendingAcceptance = "PendingAcceptance";
+    public const string CashHandoffAccepted = "Accepted";
+    public const string CashHandoffDeclined = "Declined";
 }

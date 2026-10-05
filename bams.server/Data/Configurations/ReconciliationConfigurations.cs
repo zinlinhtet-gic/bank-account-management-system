@@ -86,8 +86,11 @@ public sealed class CashPositionSessionConfiguration : IEntityTypeConfiguration<
         builder.HasKey(item => item.Id);
         builder.Property(item => item.PositionType).IsRequired().HasMaxLength(20);
         builder.Property(item => item.Status).IsRequired().HasMaxLength(20);
+        builder.Property(item => item.OpenIdempotencyKey).HasMaxLength(64);
+        builder.Property(item => item.Version).IsConcurrencyToken();
         builder.HasIndex(item => new { item.BusinessDate, item.Status });
         builder.HasIndex(item => new { item.TellerId, item.BusinessDate, item.Status });
+        builder.HasIndex(item => new { item.OpenedBy, item.OpenIdempotencyKey }).IsUnique().HasDatabaseName("IX_CPS_Idem");
         builder.HasOne(item => item.Teller).WithMany().HasForeignKey(item => item.TellerId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -117,9 +120,42 @@ public sealed class CashCountConfiguration : IEntityTypeConfiguration<CashCount>
     {
         builder.HasKey(item => item.Id);
         builder.Property(item => item.Notes).HasMaxLength(2000);
+        builder.Property(item => item.IdempotencyKey).HasMaxLength(64);
         builder.HasIndex(item => new { item.SessionId, item.CountedAtUtc });
+        builder.HasIndex(item => new { item.CountedBy, item.IdempotencyKey }).IsUnique().HasDatabaseName("IX_CC_Idem");
         builder.HasOne(item => item.Session).WithMany().HasForeignKey(item => item.SessionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.CountedByUser).WithMany().HasForeignKey(item => item.CountedBy).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class CashHandoffConfiguration : IEntityTypeConfiguration<CashHandoff>
+{
+    public void Configure(EntityTypeBuilder<CashHandoff> builder)
+    {
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Status).IsRequired().HasMaxLength(30);
+        builder.Property(item => item.Version).IsConcurrencyToken();
+        builder.HasIndex(item => item.CashCountId).IsUnique().HasDatabaseName("IX_CH_Count");
+        builder.HasIndex(item => new { item.BusinessDate, item.Status }).HasDatabaseName("IX_CH_BD_ST");
+        builder.HasIndex(item => new { item.RecipientId, item.Status }).HasDatabaseName("IX_CH_R_ST");
+        builder.HasOne(item => item.Session).WithMany().HasForeignKey(item => item.SessionId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Sess");
+        builder.HasOne(item => item.CashCount).WithMany().HasForeignKey(item => item.CashCountId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Count");
+        builder.HasOne(item => item.Sender).WithMany().HasForeignKey(item => item.SenderId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Send");
+        builder.HasOne(item => item.Recipient).WithMany().HasForeignKey(item => item.RecipientId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Recv");
+    }
+}
+
+public sealed class CashHandoffHistoryConfiguration : IEntityTypeConfiguration<CashHandoffHistory>
+{
+    public void Configure(EntityTypeBuilder<CashHandoffHistory> builder)
+    {
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.OldStatus).IsRequired().HasMaxLength(30);
+        builder.Property(item => item.NewStatus).IsRequired().HasMaxLength(30);
+        builder.Property(item => item.Note).HasMaxLength(500);
+        builder.HasIndex(item => new { item.CashHandoffId, item.CreatedAtUtc }).HasDatabaseName("IX_CHH_Hist");
+        builder.HasOne(item => item.CashHandoff).WithMany().HasForeignKey(item => item.CashHandoffId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CHH_Handoff");
+        builder.HasOne(item => item.Actor).WithMany().HasForeignKey(item => item.ActorId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CHH_Actor");
     }
 }
 

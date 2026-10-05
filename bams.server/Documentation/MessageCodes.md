@@ -289,7 +289,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4242 | BranchNotFound | 404 | The NRC pickup branch does not exist or is not active. |
 | 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
 | 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
-| 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
+| 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different request payload. |
 | 4340 | AccountTypeCodeAlreadyExists | 409 | Another account type already uses this code (bank policy create/update). |
 | 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
 | 4440 | InsufficientBalance | 422 | A debit exceeds the account's available balance. |
@@ -326,7 +326,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4242 | BranchNotFound                  | 404  | The NRC pickup branch does not exist or is not active.                                   |
 | 4305 | UsernameAlreadyExists           | 409  | Another user already has this username.                                                  |
 | 4306 | EmailAlreadyExists              | 409  | Another user already has this email.                                                     |
-| 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
+| 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different request payload. |
 | 4400 | BusinessRuleViolation           | 422  | A business rule was violated.                                                            |
 | 4440 | InsufficientBalance             | 422  | A debit exceeds the account's available balance.                                         |
 | 4441 | AccountNotOperational           | 422  | The account is closed, frozen or suspended.                                              |
@@ -392,8 +392,10 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4470 | ReconciliationBlocked | 422 | The business date cannot advance while blocking reconciliation or pre-close conditions remain. |
 | 4471 | EndOfDayApprovalRequired | 422 | A distinct authorized reviewer must approve the EOD run before it can close. |
 | 4472 | CashAdjustmentApprovalRequired | 422 | Cash adjustment approval requires a distinct authorized reviewer and a matching posted correction transaction. |
-| 4475 | CashSessionAlreadyExists | 409 | A cash session already exists for this business date; only one session may be opened per date. |
+| 4475 | CashSessionAlreadyExists | 409 | This teller or vault position already has an open session for the business date. |
 | 4476 | InsufficientCashPositionBalance | 422 | The current cash session does not have enough available cash for the withdrawal. |
+| 4477 | CashHandoffRecipientRequired | 422 | A positive physical cash count needs an eligible handoff recipient. |
+| 4478 | CashHandoffNotPending | 422 | The handoff is no longer awaiting acknowledgement or reassignment. |
 
 | Code | Name                     | HTTP | Meaning                                                 |
 | ---- | ------------------------ | ---- | ------------------------------------------------------- |
@@ -490,7 +492,9 @@ The WPF client mirrors server codes below 6000 in `bams.desktop/Utils/MessageCod
 | 4306 | EmailAlreadyExists              | 409                                                                            | Another user already has this email.                                                       |
 | 4473 | MonthlyAccountingPeriodNotClosed | 422 | Monthly close cannot run until the previous month's final business date is closed through End of Day. |
 | 4474 | ScheduledJobRetryUnavailable | 422 | The failed occurrence is no longer eligible for a manager retry. |
-| 4475 | CashSessionAlreadyExists | 409 | Only one cash session may be opened for a business date. |
+| 4475 | CashSessionAlreadyExists | 409 | This teller or vault position already has an open session for the business date. |
+| 4477 | CashHandoffRecipientRequired | 422 | A positive physical cash count needs an eligible handoff recipient. |
+| 4478 | CashHandoffNotPending | 422 | The handoff is no longer awaiting acknowledgement or reassignment. |
 | 4476 | InsufficientCashPositionBalance | 422 | A withdrawal would make expected cash negative. |
 | 4400 | BusinessRuleViolation           | 422                                                                            | A business rule was violated.                                                              |
 | 5000 | InternalServerError             | 500                                                                            | An unexpected server error occurred.                                                       |

@@ -36,7 +36,7 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
         _service = service;
         RunCommand = new AsyncRelayCommand(async _ => await RunAsync());
         RefreshExceptionsCommand = new AsyncRelayCommand(async _ => await LoadExceptionsAsync());
-        UpdateExceptionCommand = new AsyncRelayCommand(async _ => await UpdateSelectedExceptionAsync());
+        UpdateExceptionCommand = new AsyncRelayCommand(async () => await UpdateSelectedExceptionAsync(), () => CanUpdateSelectedException);
         LoadExceptionTimelineCommand = new AsyncRelayCommand(async _ => await LoadSelectedExceptionTimelineAsync());
     }
 
@@ -48,7 +48,7 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
     public AsyncRelayCommand RefreshExceptionsCommand { get; }
     public AsyncRelayCommand UpdateExceptionCommand { get; }
     public AsyncRelayCommand LoadExceptionTimelineCommand { get; }
-    public ReconciliationExceptionResponse? SelectedException { get => _selectedException; set { if (SetProperty(ref _selectedException, value)) { if (value is not null) { InvestigationStatuses = GetAllowedStatuses(value.Status); InvestigationStatus = value.Status; InvestigationNotes = value.Notes; AssignedToText = value.AssignedTo?.ToString() ?? string.Empty; CorrectionTransactionIdText = value.CorrectionTransactionId?.ToString() ?? string.Empty; } OnPropertyChanged(nameof(CanUpdateSelectedException)); } } }
+    public ReconciliationExceptionResponse? SelectedException { get => _selectedException; set { if (SetProperty(ref _selectedException, value)) { if (value is not null) { InvestigationStatuses = GetAllowedStatuses(value.Status); InvestigationStatus = value.Status; InvestigationNotes = value.Notes; AssignedToText = value.AssignedTo?.ToString() ?? string.Empty; CorrectionTransactionIdText = value.CorrectionTransactionId?.ToString() ?? string.Empty; } OnPropertyChanged(nameof(CanUpdateSelectedException)); UpdateExceptionCommand.RaiseCanExecuteChanged(); } } }
     public bool CanUpdateSelectedException => SelectedException is not null && SelectedException.Status != "Resolved";
     public string InvestigationStatus { get => _investigationStatus; set => SetProperty(ref _investigationStatus, value); }
     public string? InvestigationNotes { get => _investigationNotes; set => SetProperty(ref _investigationNotes, value); }

@@ -128,6 +128,7 @@ public partial class App : Application
 
         // Themed confirmation dialogs (use instead of MessageBox.Show)
         services.AddSingleton<Services.IDialogService, Services.DialogService>();
+        services.AddSingleton<Services.OfficerCashSessionContext>();
 
         // Ends the session from anywhere (logout, self-delete); MainWindow returns to sign-in
         services.AddSingleton<Services.ISessionService, Services.SessionService>();

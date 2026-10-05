@@ -8,6 +8,7 @@ using bams.desktop.Constants;
 using bams.desktop.DTOs.Common;
 using bams.desktop.Exceptions;
 using bams.desktop.Utils;
+using bams.desktop.Services;
 
 namespace bams.desktop.Api;
 
@@ -24,10 +25,14 @@ public sealed class ApiClient
     };
 
     private readonly HttpClient _httpClient;
+    private readonly AuthContext _authContext;
+    private readonly OfficerCashSessionContext _cashSessionContext;
 
-    public ApiClient(HttpClient httpClient)
+    public ApiClient(HttpClient httpClient, AuthContext authContext, OfficerCashSessionContext cashSessionContext)
     {
         _httpClient = httpClient;
+        _authContext = authContext;
+        _cashSessionContext = cashSessionContext;
     }
 
     /// <summary>
@@ -69,6 +74,7 @@ public sealed class ApiClient
         MultipartFormDataContent content,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         using var response = await SendRequestAsync(
             () => _httpClient.PostAsync(endpoint, content, cancellationToken),
             cancellationToken);
@@ -85,6 +91,7 @@ public sealed class ApiClient
         TRequest request,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PostAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
@@ -102,6 +109,7 @@ public sealed class ApiClient
         IReadOnlyDictionary<string, string> headers,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () =>
             {
@@ -130,6 +138,7 @@ public sealed class ApiClient
         string endpoint,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PostAsync(endpoint, content: null, cancellationToken),
             cancellationToken);
@@ -147,6 +156,7 @@ public sealed class ApiClient
         MultipartFormDataContent formContent,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PostAsync(endpoint, formContent, cancellationToken),
             cancellationToken);
@@ -163,6 +173,7 @@ public sealed class ApiClient
         MultipartFormDataContent formContent,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PatchAsync(endpoint, formContent, cancellationToken),
             cancellationToken);
@@ -178,6 +189,7 @@ public sealed class ApiClient
         TRequest request,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PutAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
@@ -186,6 +198,7 @@ public sealed class ApiClient
     /// <summary>Sends a JSON PATCH request and returns the success envelope payload.</summary>
     public Task<TResponse> PatchAsync<TRequest, TResponse>(string endpoint, TRequest request, CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PatchAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
@@ -200,10 +213,26 @@ public sealed class ApiClient
         string endpoint,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         _ = await SendAsync<bool>(
             () => _httpClient.DeleteAsync(endpoint, cancellationToken),
             cancellationToken);
     }
+
+    // Stops officer write requests locally until the shell has confirmed an open session; the server applies the same rule.
+    private void EnsureWriteAllowed(string endpoint)
+    {
+        if (!string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase) ||
+            _cashSessionContext.HasOpenSession || IsOpeningCashSessionEndpoint(endpoint))
+            return;
+
+        throw new ApiException(MessageCode.CashSessionNotOpen,
+            "If no opened session, no write can be done.", null);
+    }
+
+    // Allows only the session-creation request; other cash-operation mutations still require the open session.
+    private static bool IsOpeningCashSessionEndpoint(string endpoint) =>
+        endpoint.TrimStart('/').Split('?', 2)[0].Equals("api/cash-operations/sessions", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Downloads a file response (not the JSON envelope) to a local path.
