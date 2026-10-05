@@ -15,7 +15,17 @@ public sealed class TransactionDisplayModel
     public TransactionType Type { get; init; }
 
     public TransactionStatus Status { get; init; }
-
+    public long InitiatedBy { get; init; }
+    public string InitiatedByUsername { get; init; } = string.Empty;
+    public string InitiatedByFullName { get; init; } = string.Empty;
+    /// <summary>
+    /// Best display label for the initiating user.
+    /// </summary>
+    public string InitiatedByText => !string.IsNullOrWhiteSpace(InitiatedByFullName)
+        ? InitiatedByFullName
+        : !string.IsNullOrWhiteSpace(InitiatedByUsername)
+            ? InitiatedByUsername
+            : InitiatedBy.ToString();
     public string TypeText => TransactionDisplay.ToDisplayName(Type);
 
     public string StatusText => TransactionDisplay.ToDisplayName(Status);
@@ -51,7 +61,10 @@ public sealed class TransactionDisplayModel
             Status = transaction.TransactionStatus,
             Amount = transaction.Amount,
             TransactionAt = DateTimeDisplay.ToLocal(transaction.TransactionAt),
-            ReferenceText = TransactionDisplay.OrDash(transaction.ReferenceNo)
+            ReferenceText = TransactionDisplay.OrDash(transaction.ReferenceNo),
+            InitiatedBy = transaction.InitiatedBy,
+            InitiatedByUsername = transaction.InitiatedByUsername,
+            InitiatedByFullName = transaction.InitiatedByFullName
         };
     }
 }

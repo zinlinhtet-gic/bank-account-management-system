@@ -152,7 +152,8 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
         TransactionGroups.Clear();
         foreach (var group in result.Items.GroupBy(entry => entry.TransactionId).OrderByDescending(group => group.First().TransactionAt).ThenByDescending(group => group.Key))
             TransactionGroups.Add(new AccountingTransactionGroupDisplayModel(group.OrderBy(entry => entry.Id).ToList()));
-        _currentPage = result.Page; _totalCount = result.TotalCount;
+        _currentPage = result.PageNumber; 
+        _totalCount = result.TotalCount;
         OnPropertyChanged(nameof(CurrentPage)); OnPropertyChanged(nameof(TotalPages)); OnPropertyChanged(nameof(PageInfo));
         OnPropertyChanged(nameof(HasPreviousPage)); OnPropertyChanged(nameof(HasNextPage)); OnPropertyChanged(nameof(CountText)); OnPropertyChanged(nameof(IsEmpty));
         PreviousPageCommand.RaiseCanExecuteChanged(); NextPageCommand.RaiseCanExecuteChanged();

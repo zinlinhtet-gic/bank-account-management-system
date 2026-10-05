@@ -5,7 +5,7 @@ using bams.desktop.ViewModels.Pages.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using bams.desktop.ViewModels.Pages.Accounting;
 using System.Printing;
-
+using bams.desktop.ViewModels.Pages.Audit;
 namespace bams.desktop.Services;
 
 /// <summary>
@@ -42,8 +42,7 @@ public sealed class NavigationService : INavigationService
             PageNames.Reconciliation => _serviceProvider.GetService<ReconciliationViewModel>(),
             PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
             PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
-            // The Audit nav group's only page; shows the audit placeholder until it has its own view.
-            PageNames.TransactionAudit => _serviceProvider.GetService<AuditViewModel>(),
+            PageNames.TransactionAudit => _serviceProvider.GetService<TransactionAuditViewModel>(),
             PageNames.Configurations => _serviceProvider.GetService<ConfigurationsViewModel>(),
             PageNames.InterestRate => _serviceProvider.GetService<InterestRateViewModel>(),
             PageNames.FeeRate => _serviceProvider.GetService<FeeRateViewModel>(),

@@ -10,6 +10,8 @@ namespace bams.desktop.DTOs.Transactions;
 /// <param name="Before">Transactions before this instant (exclusive).</param>
 public sealed record TransactionListFilter(
     string? AccountNo,
+    string? TransactionNo,
+    string? ReferenceNo,
     TransactionType? Type,
     TransactionStatus? Status,
     DateTimeOffset? From,

@@ -140,7 +140,7 @@ public sealed class AccountingReportService : IAccountingReportService
                 entry.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        return new GlAccountDetailResponse(account, new PagedResponse<AccountingEntryResponse>(entries, page, pageSize, totalCount));
+        return new GlAccountDetailResponse(account, new PagedResponse<AccountingEntryResponse>(entries, page, pageSize, totalCount,(int)Math.Ceiling(totalCount/(double)pageSize)));
     }
 
     /// <summary>
@@ -268,7 +268,7 @@ public sealed class AccountingReportService : IAccountingReportService
                 entry.CreatedAt
             )).ToListAsync(cancellationToken);
 
-        return new PagedResponse<AccountingEntryResponse>(items, page, pageSize, totalCount);
+        return new PagedResponse<AccountingEntryResponse>(items, page, pageSize, totalCount,(int)Math.Ceiling(totalCount/(double)pageSize));
     }
 
     // Ensures the supplied month represents a valid calendar month.
