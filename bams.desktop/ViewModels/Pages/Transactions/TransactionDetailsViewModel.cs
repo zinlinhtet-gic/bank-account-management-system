@@ -80,7 +80,7 @@ public sealed record AuditLogDisplayModel(
 {
     public static AuditLogDisplayModel FromResponse(TransactionAuditLogResponse log) => new(
         log.Action,
-        FormatActor(log.FullName, log.Username),
+        FormatActor(log.FullName, log.UserName),
         TransactionDisplay.OrDash(log.Details),
         TransactionDisplay.FormatTimestamp(log.CreatedAt),
         TransactionDisplay.OrDash(string.Join(" · ", new[] { log.IpAddress, log.DeviceInfo }
