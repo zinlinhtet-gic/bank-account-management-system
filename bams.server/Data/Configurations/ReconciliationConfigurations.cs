@@ -2,6 +2,7 @@ using bams.server.Models.Accounting;
 using bams.server.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using MySql.EntityFrameworkCore.Extensions;
 
 namespace bams.server.Data.Configurations;
 
@@ -47,6 +48,7 @@ public sealed class ReconciliationExceptionConfiguration : IEntityTypeConfigurat
     public void Configure(EntityTypeBuilder<ReconciliationException> builder)
     {
         builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).UseMySQLAutoIncrementColumn("bigint");
         builder.Property(item => item.Type).IsRequired().HasMaxLength(40);
         builder.Property(item => item.Source).IsRequired().HasMaxLength(40);
         builder.Property(item => item.Severity).IsRequired().HasMaxLength(20);
