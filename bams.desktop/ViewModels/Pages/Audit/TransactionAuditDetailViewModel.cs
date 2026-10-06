@@ -1,6 +1,7 @@
 using bams.desktop.DTOs.Transactions;
 using bams.desktop.Models;
 using bams.desktop.Utils;
+using bams.desktop.Commands;
 
 namespace bams.desktop.ViewModels.Pages.Audit;
 
@@ -108,10 +109,13 @@ public sealed record TransactionAuditLogDisplayModel(
 /// </summary>
 public sealed class TransactionAuditDetailViewModel : ViewModelBase
 {
+    public event Action? BackRequested;
+    public RelayCommand BackCommand { get; }
     public TransactionAuditDetailViewModel(
         TransactionDetailResponse transaction)
     {
         Transaction = transaction;
+        BackCommand = new RelayCommand(_ => BackRequested?.Invoke());
 
         AccountEntries = transaction.AccountEntries
             .Select(TransactionAuditAccountEntryDisplayModel.FromResponse)
