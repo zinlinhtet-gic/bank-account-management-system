@@ -24,6 +24,7 @@ public static class PageNames
     public const string EndOfDay = "End of Day";
     // Audit child pages
     public const string TransactionAudit = "Transaction Audit";
+    public const string TransactionAuditDetail = "Transaction Audit Detail";
     public const string Operations = "Operations";
     public const string Configurations = "Configurations";
     public const string CustomerList = "Customer List";

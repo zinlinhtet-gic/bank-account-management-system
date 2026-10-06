@@ -72,6 +72,10 @@
                         <auditViews:TransactionAuditView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type auditViewModels:TransactionAuditDetailViewModel}">
+                        <auditViews:TransactionAuditDetailView/>
+                    </DataTemplate>
+
                     <DataTemplate DataType="{x:Type accountingViewModels:GeneralLedgerViewModel}">
                         <accountingViews:GeneralLedgerView/>
                     </DataTemplate>

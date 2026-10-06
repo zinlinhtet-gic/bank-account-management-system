@@ -7,7 +7,7 @@ using bams.desktop.Utils;
 using bams.desktop.ViewModels.Pages;
 using bams.desktop.ViewModels.Pages.Accounting;
 using Bams.Desktop.Components.NavBar;
-
+using bams.desktop.ViewModels.Pages.Audit;
 namespace bams.desktop.ViewModels;
 
 /// <summary>
@@ -127,6 +127,11 @@ public sealed class MainViewModel : ViewModelBase
             if (viewModel is GeneralLedgerViewModel generalLedger)
             {
                 generalLedger.DetailRequested += OpenGlAccountDetail;
+            }
+
+            if (viewModel is TransactionAuditViewModel transactionAudit)
+            {
+                transactionAudit.DetailRequested += OpenTransactionAuditDetail;
             }
 
             AppLog.WriteInformation($"Navigating to page '{pageLabel}' ({viewModel.GetType().FullName}).");
@@ -276,6 +281,10 @@ public sealed class MainViewModel : ViewModelBase
         {
             detailViewModel.BackRequested -= ReturnFromGlAccountDetail;
         }
+        if (CurrentPage is TransactionAuditDetailViewModel auditDetail)
+        {
+            auditDetail.BackRequested -= ReturnFromTransactionAuditDetail;
+        }
     }
 
     private void OpenEndOfDay() => NavigateToPage(PageNames.EndOfDay);
@@ -380,5 +389,47 @@ public sealed class MainViewModel : ViewModelBase
                 : parts[0].ToUpper();
 
         return (parts[0][0].ToString() + parts[^1][0].ToString()).ToUpper();
+    }
+
+    /// <summary>
+    /// Opens a separately rendered audit-detail page for the selected transaction.
+    /// </summary>
+    private void OpenTransactionAuditDetail(
+        TransactionAuditDetailViewModel detailViewModel)
+    {
+        detailViewModel.BackRequested += ReturnFromTransactionAuditDetail;
+
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+
+        CurrentPage = detailViewModel;
+        _currentPageLabel = PageNames.TransactionAuditDetail;
+
+        // Keep Transaction Audit highlighted in the sidebar because
+        // the detail page belongs to that feature.
+        ActiveItem = PageNames.TransactionAudit;
+    }
+    /// <summary>
+    /// Returns from transaction audit detail to the audit transaction list.
+    /// </summary>
+    private void ReturnFromTransactionAuditDetail()
+    {
+        if (CurrentPage is TransactionAuditDetailViewModel detailViewModel)
+        {
+            detailViewModel.BackRequested -= ReturnFromTransactionAuditDetail;
+        }
+
+        if (_previousPage is null ||
+            string.IsNullOrWhiteSpace(_previousPageLabel))
+        {
+            return;
+        }
+
+        CurrentPage = _previousPage;
+        _currentPageLabel = _previousPageLabel;
+        ActiveItem = PageNames.TransactionAudit;
+
+        _previousPage = null;
+        _previousPageLabel = string.Empty;
     }
 }

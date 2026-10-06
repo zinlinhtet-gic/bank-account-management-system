@@ -12,6 +12,11 @@
                   HorizontalScrollBarVisibility="Disabled">
 
         <StackPanel Margin="{StaticResource CardPadding}">
+            <Button Content="Back to Transaction Audit"
+                Style="{StaticResource Button.Secondary}"
+                Command="{Binding BackCommand}"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,20"/>
 
             <!-- ===== Header ===== -->
 

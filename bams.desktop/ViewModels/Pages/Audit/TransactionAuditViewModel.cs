@@ -2,70 +2,63 @@ using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.Exceptions;
 using bams.desktop.Models;
-using bams.desktop.ViewModels.Pages.Transactions;
-using bams.desktop.Utils;
 using bams.desktop.Services;
+using bams.desktop.Utils;
+using bams.desktop.ViewModels.Pages.Transactions;
 
 namespace bams.desktop.ViewModels.Pages.Audit;
 
 /// <summary>
 /// Read-only transaction investigation page for auditors.
-/// Reuses the shared transaction filter and paged transaction list.
-/// Detailed transaction inspection is added separately.
+/// Owns the transaction search/list and requests navigation to
+/// a separate transaction-audit detail page.
 /// </summary>
 public sealed class TransactionAuditViewModel : ViewModelBase, IAsyncInitializable
 {
-    private string _errorMessage = string.Empty;
     private readonly ITransactionService _transactionService;
+
+    private string _errorMessage = string.Empty;
+    private bool _isLoadingDetail;
+
     public TransactionAuditViewModel(
         ITransactionService transactionService,
         TransactionFilterViewModel filter,
         TransactionListViewModel list)
     {
         _transactionService = transactionService;
-        SelectTransactionCommand = new AsyncRelayCommand(SelectTransactionAsync);
+
         Filter = filter;
         List = list;
 
-        // The parent coordinates its child components.
         Filter.FiltersChanged += OnFiltersChanged;
         List.PageRequested += OnPageRequested;
 
         RefreshCommand = new AsyncRelayCommand(
             () => ReloadAsync(List.Page, CancellationToken.None));
+
+        SelectTransactionCommand =
+            new AsyncRelayCommand(SelectTransactionAsync);
     }
 
-    public string PageTitle => "Transaction Audit";
-
-    public string PageDescription =>
-        "Review transaction activity, posting details and audit evidence";
+    /// <summary>
+    /// Raised after the selected transaction has been fully loaded.
+    /// MainViewModel handles the actual page navigation.
+    /// </summary>
+    public event Action<TransactionAuditDetailViewModel>? DetailRequested;
 
     public TransactionFilterViewModel Filter { get; }
 
     public TransactionListViewModel List { get; }
 
-    private TransactionAuditDetailViewModel? _detail;
-    private bool _isLoadingDetail;
-    public TransactionAuditDetailViewModel? Detail
-    {
-        get => _detail;
-        private set
-        {
-            if(SetProperty(ref _detail, value))
-            {
-                OnPropertyChanged(nameof(HasDetail));
-            }
-        }
-    }
-    public bool HasDetail => Detail is not null;
+    public AsyncRelayCommand RefreshCommand { get; }
+
+    public AsyncRelayCommand SelectTransactionCommand { get; }
+
     public bool IsLoadingDetail
     {
         get => _isLoadingDetail;
         private set => SetProperty(ref _isLoadingDetail, value);
     }
-
-    public AsyncRelayCommand RefreshCommand { get; }
-    public AsyncRelayCommand SelectTransactionCommand { get; }
 
     public string ErrorMessage
     {
@@ -79,19 +72,17 @@ public sealed class TransactionAuditViewModel : ViewModelBase, IAsyncInitializab
         }
     }
 
-    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    public bool HasError =>
+        !string.IsNullOrWhiteSpace(ErrorMessage);
 
-    /// <summary>
-    /// Loads the first transaction page whenever the auditor opens the page.
-    /// </summary>
-    public Task InitializeAsync(CancellationToken cancellationToken)
+    public Task InitializeAsync(
+        CancellationToken cancellationToken)
     {
         return ReloadAsync(
             TransactionListViewModel.FirstPageNumber,
             cancellationToken);
     }
 
-    // Event handler intentionally uses async void.
     private async void OnFiltersChanged()
     {
         await ReloadAsync(
@@ -99,15 +90,13 @@ public sealed class TransactionAuditViewModel : ViewModelBase, IAsyncInitializab
             CancellationToken.None);
     }
 
-    // Event handler intentionally uses async void.
     private async void OnPageRequested(int page)
     {
-        await ReloadAsync(page, CancellationToken.None);
+        await ReloadAsync(
+            page,
+            CancellationToken.None);
     }
 
-    /// <summary>
-    /// Loads a transaction page using the current filter state.
-    /// </summary>
     private async Task ReloadAsync(
         int page,
         CancellationToken cancellationToken)
@@ -116,10 +105,12 @@ public sealed class TransactionAuditViewModel : ViewModelBase, IAsyncInitializab
 
         if (error is not null)
         {
-            ErrorMessage = MessageCatalog.GetMessage(error.Value);
+            ErrorMessage =
+                MessageCatalog.GetMessage(error.Value);
+
             return;
         }
-        Detail = null;
+
         try
         {
             ErrorMessage = string.Empty;
@@ -136,9 +127,11 @@ public sealed class TransactionAuditViewModel : ViewModelBase, IAsyncInitializab
     }
 
     /// <summary>
-    /// Loads the full transaction selected in the audit table.
+    /// Loads the selected transaction and asks the shell to navigate
+    /// to its standalone audit-detail page.
     /// </summary>
-    private async Task SelectTransactionAsync(object? parameter)
+    private async Task SelectTransactionAsync(
+        object? parameter)
     {
         if (parameter is not TransactionDisplayModel row)
         {
@@ -150,11 +143,15 @@ public sealed class TransactionAuditViewModel : ViewModelBase, IAsyncInitializab
             ErrorMessage = string.Empty;
             IsLoadingDetail = true;
 
-            var transaction = await _transactionService.GetTransactionByIdAsync(
+            var transaction =
+                await _transactionService.GetTransactionByIdAsync(
                     row.Id,
                     CancellationToken.None);
 
-            Detail = new TransactionAuditDetailViewModel(transaction);
+            var detailViewModel =
+                new TransactionAuditDetailViewModel(transaction);
+
+            DetailRequested?.Invoke(detailViewModel);
         }
         catch (AppException exception)
         {
