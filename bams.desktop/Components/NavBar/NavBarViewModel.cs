@@ -45,8 +45,8 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanManageCustomers)
             AddNavItem(PageNames.CustomerManagement, "Icon.Accounts", Items.Count == 0);
 
-        if (flags.CanPerformKYC)
-            AddNavItem(PageNames.CustomerKyc, "Icon.UserCheck");
+        // KYC review happens from a "Review" action right on the customer list row (see
+        // CustomerListViewModel.ReviewCustomerKycCommand), so it no longer needs its own nav item.
 
         if (flags.CanManageAccounts)
             AddNavItem(PageNames.AccountManagement, "Icon.Accounts", Items.Count == 0);

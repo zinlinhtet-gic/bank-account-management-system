@@ -165,9 +165,28 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <Button Style="{StaticResource Button.Icon}" ToolTip="View customer" t:ThemeAssist.Icon="{StaticResource Icon.Eye}"
-                                                    Command="{Binding DataContext.ShowCustomerDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}" />
+                                            <!-- One button, two meanings: a manager reviewing a still-Pending row sees
+                                                 "Review KYC"; everyone else (and every already-decided row) sees "View". -->
+                                            <Button CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+                                                        <Setter Property="ToolTip" Value="View customer" />
+                                                        <Setter Property="t:ThemeAssist.Icon" Value="{StaticResource Icon.Eye}" />
+                                                        <Setter Property="Command" Value="{Binding DataContext.ShowCustomerDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsKycPending}" Value="True" />
+                                                                    <Condition Binding="{Binding DataContext.CanPerformKyc, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="ToolTip" Value="Review KYC" />
+                                                                <Setter Property="t:ThemeAssist.Icon" Value="{StaticResource Icon.UserCheck}" />
+                                                                <Setter Property="Command" Value="{Binding DataContext.ReviewCustomerKycCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
                                             <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}"
                                                     Command="{Binding DataContext.EditCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}" />

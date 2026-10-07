@@ -31,7 +31,6 @@ public sealed class NavigationService : INavigationService
             PageNames.UserManagement => _serviceProvider.GetService<UserManagementViewModel>(),
             PageNames.CustomerManagement => _serviceProvider.GetService<CustomerListViewModel>(),
             PageNames.CustomerList => _serviceProvider.GetService<CustomerListViewModel>(),
-            PageNames.CustomerKyc => _serviceProvider.GetService<CustomerKYCViewModel>(),
             PageNames.AccountManagement => _serviceProvider.GetService<AccountManagementViewModel>(),
             PageNames.Transactions => _serviceProvider.GetService<TransactionsViewModel>(),
             PageNames.TransactionHistory => _serviceProvider.GetService<TransactionHistoryViewModel>(),

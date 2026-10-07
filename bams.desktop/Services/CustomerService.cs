@@ -68,6 +68,14 @@ public sealed class CustomerService : ICustomerService
         return await _apiClient.PatchFormAsync<CustomerResponse>($"{ApiConstants.CustomersEndpoint}/{id}", formContent, cancellationToken);
     }
 
+    public Task<CustomerResponse> ReviewCustomerKycAsync(long id, ReviewCustomerKycRequest request, CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<ReviewCustomerKycRequest, CustomerResponse>(
+            $"{ApiConstants.CustomersEndpoint}/{id}/kyc-review",
+            request,
+            cancellationToken);
+    }
+
     // Builds "?pageNumber=..&customerNo=..&customerName=..&kycStatus=..&status=..&riskLevel=..&startDate=..&endDate=..",
     // skipping every filter that was not supplied.
     private static string BuildQueryString(GetCustomersRequest request)

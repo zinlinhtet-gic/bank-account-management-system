@@ -8,7 +8,6 @@ public static class PageNames
 {
     public const string UserManagement = "User Management";
     public const string CustomerManagement = "Customer Management";
-    public const string CustomerKyc = "Customer KYC";
     public const string AccountManagement = "Account Management";
     public const string Transactions = "Transactions";
     public const string TransactionHistory = "Transaction History";

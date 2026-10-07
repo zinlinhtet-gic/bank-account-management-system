@@ -170,7 +170,6 @@ public partial class App : Application
         // Register Page ViewModels
         services.AddTransient<UserManagementViewModel>();
         // services.AddTransient<CustomerManagementViewModel>();
-        services.AddTransient<CustomerKYCViewModel>();
         services.AddTransient<AccountingEntriesViewModel>();
         // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
