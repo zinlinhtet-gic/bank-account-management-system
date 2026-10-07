@@ -84,14 +84,38 @@
   changed by the posting user). Scheduled interest, fee and dormant-penalty postings do not reactivate an account.
   Refunds only need the account to be not closed.
 - Debits follow the account type (`AccountType`), all 422:
-  - deposits need `AllowDeposit` (`DepositNotAllowed`);
-  - withdrawals need `AllowWithdrawal` (`WithdrawalNotAllowed`);
+  - deposits need `AllowDeposit` (`DepositNotAllowed`) and at least `MinimumDepositAmount` (`DepositBelowMinimumAmount`);
+  - withdrawals need `AllowWithdrawal` (`WithdrawalNotAllowed`) and at least `MinimumWithdrawalAmount`
+    (`WithdrawalBelowMinimumAmount`);
   - internal, interbank and NRC transfers need `AllowTransfer` on the source (`TransferNotAllowed`);
-  - the debit may not exceed the available balance (`InsufficientBalance`) or leave less than
+  - the debit plus any transfer fee may not exceed the available balance (`InsufficientBalance`) or leave less than
     `MinimumMaintainedBalance` (`MinimumBalanceRequired`);
-  - customer debits (withdrawals and the three transfer types) on the same Myanmar business day / calendar month may not exceed
-    `DailyTransactionLimit` / `MonthlyTransactionLimit` (`DailyTransactionLimitExceeded` /
-    `MonthlyTransactionLimitExceeded`). Refunded (cancelled or failed) transfers do not count. A null limit means no limit.
+  - customer debits (withdrawals and the three transfer types) on the same Myanmar business day / business week
+    (Monday to Sunday) / calendar month may not exceed `DailyTransactionLimit` / `WeeklyTransactionLimit` /
+    `MonthlyTransactionLimit` (`DailyTransactionLimitExceeded` / `WeeklyTransactionLimitExceeded` /
+    `MonthlyTransactionLimitExceeded`); cash withdrawals on the same day may also not exceed `DailyWithdrawalLimit`
+    (`DailyWithdrawalLimitExceeded`). Only the transaction amount counts, not its fee. Refunded (cancelled or failed)
+    transfers do not count. A null limit or minimum means none.
+- These terms are edited per account type on the Bank Policies screen (`api/bank-policies`). `ProductSeeder` seeds the
+  bank policy (1 lakh = 100,000 MMK; the migration `AddTransactionPolicyLimits` back-fills seeded products that still
+  had neutral terms):
+
+  | Product | Opening | Minimum balance | Daily | Weekly | Daily withdrawal | Min. deposit / withdrawal |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Current | 10,000 | 1,000 | 10 lakh | 50 lakh | 10 lakh | 1,000 |
+  | Normal Saving | 10,000 | 10,000 | 20 lakh | 100 lakh | 10 lakh | 1,000 |
+  | Special Saving | 1,000,000 | 500,000 | 10 lakh | 50 lakh | 10 lakh | 1,000 |
+  | Normal / Special / 100-Days Deposit | 10,000 / 1,000,000 / 10,000,000 | none | none | none | none | none |
+
+### Transfer fees
+
+- `TransferFeeService` reads the source account type's active `FeeRule` effective on the business date: `Transfer` for
+  an internal transfer to another customer's account, `InterbankTransfer` for an interbank transfer. Fee = `Amount` +
+  `Percentage`% of the transfer amount, kept within `MinimumFee` / `MaximumFee`, rounded to 2 decimals. No rule means
+  no fee. Transfers between accounts that share a holder are free. NRC transfers charge no fee.
+- `FeeRuleSeeder` seeds 0.2% (`Transfer`) and 0.5% (`InterbankTransfer`) for current and saving products.
+- The fee is a second debit entry ("Transfer fee") on the same transaction and is returned in `feeAmount`. A failed
+  interbank transfer refunds the fee with the amount ("Transfer fee refund").
 
 ### Posting
 
@@ -163,6 +187,8 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 | Interbank transfer | Customer Deposits | Interbank Clearing (2100) |
 | Interbank settled | Interbank Clearing | Due from Other Banks (1100) |
 | Interbank failed (refund) | Interbank Clearing | Customer Deposits |
+| Transfer fee (internal or interbank) | Customer Deposits (source) | Transfer Fee Income (4003) |
+| Transfer fee refund (interbank failed) | Transfer Fee Income | Customer Deposits |
 | NRC transfer, paid in cash | Cash on Hand | NRC Transfers Payable (2200) |
 | NRC transfer, paid from account | Customer Deposits | NRC Transfers Payable |
 | NRC pickup at our branch, in cash | NRC Transfers Payable | Cash on Hand |
@@ -238,8 +264,8 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 - Jobs are registered in code by stable key and a reusable interval or monthly schedule, then synchronized to `ScheduledJobs` at startup.
 - Each attempt is recorded in `ScheduledJobExecutions`; failures include bounded exception details. Jobs retry up to `Jobs:MaximumAttempts`, then retain `Failed` as their latest status and proceed to the next recurrence.
 - Account maintenance and interest accumulation run at 00:00 Asia/Rangoon on the fifth day of each month. They process accounts in batches and persist monthly accruals idempotently.
-- Saving maintenance fees accrue monthly and are deducted after calendar quarter close; dormant penalties are accrued and deducted monthly. Saving and active fixed-deposit interest accrue monthly and are credited quarterly. Monthly accruals and balance postings each create account transaction entries, balanced General Ledger entries, and audit records.
-- Scheduled account operations use effective product fee and interest rules. A savings balance outside every configured interest tier earns no interest for the month (a warning is logged); other missing/invalid rules fail the affected account and are recorded by the scheduled-job retry workflow. Seeded demo saving fees are 1,000 MMK monthly and dormant penalties are 5,000 MMK monthly.
+- Current and saving maintenance fees accrue monthly and are deducted after calendar quarter close; dormant penalties are accrued and deducted monthly. Saving and active fixed-deposit interest accrue monthly and are credited quarterly. Monthly accruals and balance postings each create account transaction entries, balanced General Ledger entries, and audit records.
+- Scheduled account operations use effective product fee and interest rules. A savings balance outside every configured interest tier earns no interest for the month (a warning is logged); other missing/invalid rules fail the affected account and are recorded by the scheduled-job retry workflow. A fee rule of 0 MMK charges nothing and stores no accrual. `FeeRuleSeeder` seeds the bank policy for current and saving products: maintenance 0 MMK monthly and dormant-account penalty 3,000 MMK monthly (rows still holding the earlier demo amounts of 1,000 / 5,000 MMK are moved to these values on startup).
 - Database lease tokens and heartbeats ensure only one application instance owns a running occurrence; if a heartbeat cannot renew the lease, the handler is cancelled and the attempt fails. Missed interval occurrences are skipped; the next interval is aligned to the UTC interval boundary. Monthly occurrences are never skipped: after a success or exhausted attempts the next run is the occurrence after the one just processed, so months missed during downtime run one by one.
 
 ## Business dates

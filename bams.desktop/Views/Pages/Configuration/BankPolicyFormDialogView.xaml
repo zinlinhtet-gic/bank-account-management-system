@@ -40,6 +40,8 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Row 0: code + name -->
@@ -116,8 +118,44 @@
                            Visibility="{Binding HasMonthlyTransactionLimitError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
             </StackPanel>
 
-            <!-- Row 4: referer counts -->
+            <!-- Row 4: weekly limit + daily cash-withdrawal limit -->
             <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,16,0,0">
+                <TextBlock Text="WEEKLY LIMIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 5000000"
+                         Text="{Binding WeeklyTransactionLimitText, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasWeeklyTransactionLimitError}"/>
+                <TextBlock Text="{Binding WeeklyTransactionLimitError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasWeeklyTransactionLimitError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+            <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,16,0,0">
+                <TextBlock Text="DAILY WITHDRAWAL LIMIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000000"
+                         Text="{Binding DailyWithdrawalLimitText, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasDailyWithdrawalLimitError}"/>
+                <TextBlock Text="{Binding DailyWithdrawalLimitError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasDailyWithdrawalLimitError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+
+            <!-- Row 5: minimum cash deposit + minimum cash withdrawal -->
+            <StackPanel Grid.Row="5" Grid.Column="0" Margin="0,16,0,0">
+                <TextBlock Text="MINIMUM DEPOSIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000"
+                         Text="{Binding MinimumDepositAmountText, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasMinimumDepositAmountError}"/>
+                <TextBlock Text="{Binding MinimumDepositAmountError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasMinimumDepositAmountError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+            <StackPanel Grid.Row="5" Grid.Column="2" Margin="0,16,0,0">
+                <TextBlock Text="MINIMUM WITHDRAWAL (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000"
+                         Text="{Binding MinimumWithdrawalAmountText, UpdateSourceTrigger=PropertyChanged}"
+                         t:ThemeAssist.HasError="{Binding HasMinimumWithdrawalAmountError}"/>
+                <TextBlock Text="{Binding MinimumWithdrawalAmountError}" Style="{StaticResource Text.Error}"
+                           Visibility="{Binding HasMinimumWithdrawalAmountError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
+
+            <!-- Row 6: referer counts -->
+            <StackPanel Grid.Row="6" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="CITIZEN REFERERS REQUIRED" Style="{StaticResource Text.FieldLabel}"/>
                 <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 0"
                          Text="{Binding CitizenRequiredReferText, UpdateSourceTrigger=PropertyChanged}"
@@ -125,7 +163,7 @@
                 <TextBlock Text="{Binding CitizenRequiredReferError}" Style="{StaticResource Text.Error}"
                            Visibility="{Binding HasCitizenRequiredReferError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
             </StackPanel>
-            <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,16,0,0">
+            <StackPanel Grid.Row="6" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="FOREIGNER REFERERS REQUIRED" Style="{StaticResource Text.FieldLabel}"/>
                 <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 0"
                          Text="{Binding ForeignRequiredReferText, UpdateSourceTrigger=PropertyChanged}"

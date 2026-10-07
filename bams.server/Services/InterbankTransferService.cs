@@ -18,16 +18,22 @@ public sealed class InterbankTransferService : IInterbankTransferService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly LedgerPostingService _ledger;
+    private readonly TransferFeeService _transferFees;
 
-    public InterbankTransferService(ApplicationDbContext dbContext, LedgerPostingService ledger)
+    public InterbankTransferService(
+        ApplicationDbContext dbContext,
+        LedgerPostingService ledger,
+        TransferFeeService transferFees)
     {
         _dbContext = dbContext;
         _ledger = ledger;
+        _transferFees = transferFees;
     }
 
     /// <summary>
-    /// Debits the source account and records a pending interbank transfer.
-    /// Ledger: debit Customer Deposits, credit Interbank Clearing.
+    /// Debits the source account with the amount and the interbank transfer fee, and records a pending interbank
+    /// transfer. Ledger: debit Customer Deposits, credit Interbank Clearing; the fee debits Customer Deposits and
+    /// credits Transfer Fee Income.
     /// </summary>
     public async Task<TransactionResponse> CreateTransferAsync(
         InterbankTransferRequest request,
@@ -66,12 +72,18 @@ public sealed class InterbankTransferService : IInterbankTransferService
                 var source = accounts[request.SourceAccountId];
 
                 var now = DateTime.UtcNow;
+                var fee = await _transferFees.CalculateInterbankTransferFeeAsync(
+                    source,
+                    request.Amount,
+                    now,
+                    cancellationToken);
                 await _ledger.EnsureCanDebitAsync(
                     source,
                     request.Amount,
                     DebitPurpose.Transfer,
                     now,
-                    cancellationToken);
+                    cancellationToken,
+                    fee);
 
                 var entity = LedgerPostingService.CreateTransaction(
                     TransactionType.InterbankTransfer,
@@ -90,6 +102,7 @@ public sealed class InterbankTransferService : IInterbankTransferService
                     null,
                     now,
                     cancellationToken);
+                await _ledger.PostTransferFeeAsync(entity, source, fee, now, cancellationToken);
                 await _dbContext.InterbankTransferDetails.AddAsync(new InterbankTransferDetail
                 {
                     Transaction = entity,
@@ -106,6 +119,7 @@ public sealed class InterbankTransferService : IInterbankTransferService
                     new
                     {
                         entity.Amount,
+                        entity.FeeAmount,
                         SourceAccountId = source.Id,
                         request.OtherBankId,
                         DestinationAccountNo = request.DestinationAccountNo.Trim()

@@ -11,11 +11,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
-/// <summary>Accrues saving maintenance fees monthly, deducts them quarterly, and deducts dormant penalties monthly.</summary>
+/// <summary>
+/// Accrues current and saving maintenance fees monthly, deducts them quarterly, and deducts dormant penalties monthly.
+/// A fee rule of 0 MMK (the bank policy for maintenance) charges nothing.
+/// </summary>
 public sealed class AccountMaintenanceService
 {
     private const int AccountBatchSize = 250;
     private const string ActiveRuleStatus = "Active";
+
+    private static readonly AccountTypeCategory[] MaintainedCategories =
+    [
+        AccountTypeCategory.CURRENT,
+        AccountTypeCategory.SAVING
+    ];
 
     private readonly ApplicationDbContext _dbContext;
     private readonly IAccountTypeService _accountTypeService;
@@ -43,8 +52,10 @@ public sealed class AccountMaintenanceService
         var (periodStart, periodEnd) = ScheduledJobPeriod.GetPreviousCalendarMonth(runDate);
         var failures = new List<Exception>();
 
+        // Current and saving accounts both carry the monthly maintenance fee and dormant penalty of their policy.
+        foreach (var category in MaintainedCategories)
         await foreach (var batch in _accountTypeService.GetAccountBatchesByCategoryAsync(
-                           AccountTypeCategory.SAVING, AccountBatchSize, cancellationToken))
+                           category, AccountBatchSize, cancellationToken))
         {
             foreach (var account in batch)
             {
@@ -193,16 +204,18 @@ public sealed class AccountMaintenanceService
             .OrderByDescending(item => item.EffectiveFrom)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (rule is null || !rule.Amount.HasValue || rule.Amount.Value <= 0m || rule.Percentage.HasValue)
+        // A 0 MMK rule is valid and means the policy charges nothing for this fee.
+        if (rule is null || !rule.Amount.HasValue || rule.Amount.Value < 0m || rule.Percentage.HasValue)
         {
             throw new InvalidOperationException(
-                $"No valid fixed-amount {feeType} rule applies to saving account type {accountTypeId} on {effectiveDate:yyyy-MM-dd}.");
+                $"No valid fixed-amount {feeType} rule applies to account type {accountTypeId} on {effectiveDate:yyyy-MM-dd}.");
         }
 
         return rule;
     }
 
-    private async Task<FeeAccrual> EnsureMonthlyAccrualAsync(
+    // Returns the month's accrual for the fee, creating it when missing; null when the rule charges nothing.
+    private async Task<FeeAccrual?> EnsureMonthlyAccrualAsync(
         Account account,
         FeeRule rule,
         DateOnly periodStart,
@@ -217,6 +230,12 @@ public sealed class AccountMaintenanceService
         {
             await EnsureAccrualTransactionAsync(existing, cancellationToken);
             return existing;
+        }
+
+        // A 0 MMK fee charges nothing, so no accrual row is stored for the month.
+        if (rule.Amount is not > 0m)
+        {
+            return null;
         }
 
         var accrual = new FeeAccrual

@@ -161,6 +161,10 @@ public enum MessageCode
     NrcPickupLocationMismatch = 4451,
     NrcPickupReceiverMismatch = 4452,
     DepositNotAllowed = 4453,
+    WeeklyTransactionLimitExceeded = 4454,
+    DailyWithdrawalLimitExceeded = 4455,
+    DepositBelowMinimumAmount = 4456,
+    WithdrawalBelowMinimumAmount = 4457,
 
     // Accounting / Audit: 4460 - 4479
     TransactionMissingAccountingEntries = 4460,

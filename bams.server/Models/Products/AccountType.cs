@@ -18,6 +18,18 @@ public sealed class AccountType
 
     public decimal? MonthlyTransactionLimit { get; set; }
 
+    // Customer debits allowed per Myanmar business week (Monday to Sunday); null means no weekly limit.
+    public decimal? WeeklyTransactionLimit { get; set; }
+
+    // Cash withdrawals allowed per business day, on top of the overall daily limit; null means no extra limit.
+    public decimal? DailyWithdrawalLimit { get; set; }
+
+    // Smallest cash deposit accepted; null means any positive amount.
+    public decimal? MinimumDepositAmount { get; set; }
+
+    // Smallest cash withdrawal accepted; null means any positive amount.
+    public decimal? MinimumWithdrawalAmount { get; set; }
+
     public bool AllowDeposit { get; set; }
 
     public bool AllowWithdrawal { get; set; }

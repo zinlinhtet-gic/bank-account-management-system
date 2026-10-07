@@ -302,6 +302,11 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4450 | TransactionNotPending | 422 | The interbank transfer's gateway result was already recorded. |
 | 4451 | NrcPickupLocationMismatch | 422 | Pickup was tried on an other-bank NRC transfer, or a payout recorded for a branch one. |
 | 4452 | NrcPickupReceiverMismatch | 422 | The name or NRC entered at pickup does not match the receiver the sender designated; counted as a failed pickup attempt. |
+| 4453 | DepositNotAllowed | 422 | The account type does not allow deposits. |
+| 4454 | WeeklyTransactionLimitExceeded | 422 | The debit would exceed the account type's weekly limit (Monday to Sunday). |
+| 4455 | DailyWithdrawalLimitExceeded | 422 | The cash withdrawal would exceed the account type's daily withdrawal limit. |
+| 4456 | DepositBelowMinimumAmount | 422 | The cash deposit is below the account type's minimum deposit amount. |
+| 4457 | WithdrawalBelowMinimumAmount | 422 | The cash withdrawal is below the account type's minimum withdrawal amount. |
 | 4480 | LastManagerCannotBeRemoved | 422 | Deleting, or taking the manager role from, the only active manager is refused. |
 | 4201 | AccountNotFound | 404 | The account does not exist. |
 | 4202 | CustomerNotFound | 404 | The customer does not exist. |

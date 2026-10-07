@@ -13,6 +13,30 @@ public sealed class ProductSeeder
     private const string ActiveStatus = "Active";
     private const string NormalSavingProductCode = "NORMAL_SAVING";
 
+    // Bank policy amounts in MMK (1 lakh = 100,000 MMK). Savings and current accounts take cash deposits and
+    // withdrawals from MinimumCashTransactionAmount; fixed products take no teller transactions, so they only carry an
+    // opening balance. These are only the starting values: bank policies can be edited afterwards.
+    private const decimal MinimumCashTransactionAmount = 1_000m;
+
+    private static readonly ProductPolicy CurrentPolicy = new(
+        MinimumOpeningBalance: 10_000m, MinimumMaintainedBalance: 1_000m,
+        DailyTransactionLimit: 1_000_000m, WeeklyTransactionLimit: 5_000_000m, DailyWithdrawalLimit: 1_000_000m,
+        MinimumDepositAmount: MinimumCashTransactionAmount, MinimumWithdrawalAmount: MinimumCashTransactionAmount);
+
+    private static readonly ProductPolicy NormalSavingPolicy = new(
+        MinimumOpeningBalance: 10_000m, MinimumMaintainedBalance: 10_000m,
+        DailyTransactionLimit: 2_000_000m, WeeklyTransactionLimit: 10_000_000m, DailyWithdrawalLimit: 1_000_000m,
+        MinimumDepositAmount: MinimumCashTransactionAmount, MinimumWithdrawalAmount: MinimumCashTransactionAmount);
+
+    private static readonly ProductPolicy SpecialSavingPolicy = new(
+        MinimumOpeningBalance: 1_000_000m, MinimumMaintainedBalance: 500_000m,
+        DailyTransactionLimit: 1_000_000m, WeeklyTransactionLimit: 5_000_000m, DailyWithdrawalLimit: 1_000_000m,
+        MinimumDepositAmount: MinimumCashTransactionAmount, MinimumWithdrawalAmount: MinimumCashTransactionAmount);
+
+    private static readonly ProductPolicy FixedDepositPolicy = CreateFixedProductPolicy(10_000m);
+    private static readonly ProductPolicy SpecialFixedPolicy = CreateFixedProductPolicy(1_000_000m);
+    private static readonly ProductPolicy HundredDaysFixedPolicy = CreateFixedProductPolicy(10_000_000m);
+
     private static readonly DocumentType[] RequiredDocumentTypes =
     [
         DocumentType.Nrc,
@@ -161,13 +185,19 @@ public sealed class ProductSeeder
     {
         return
         [
-            new(CreateProduct("CURRENT", "Current", AccountTypeCategory.CURRENT, true), null),
-            new(CreateProduct(NormalSavingProductCode, "Normal Saving", AccountTypeCategory.SAVING, true), null),
-            new(CreateProduct("SPECIAL_SAVING", "Special Saving", AccountTypeCategory.SAVING, true), null),
-            new(CreateProduct("NORMAL_DEPOSIT", "Normal Deposit", AccountTypeCategory.FIXED, false), NormalSavingProductCode),
-            new(CreateProduct("SPECIAL_DEPOSIT", "Special Deposit", AccountTypeCategory.FIXED, false), NormalSavingProductCode),
-            new(CreateProduct("HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", AccountTypeCategory.FIXED, false), NormalSavingProductCode)
+            new(CreateProduct("CURRENT", "Current", AccountTypeCategory.CURRENT, true, CurrentPolicy), null),
+            new(CreateProduct(NormalSavingProductCode, "Normal Saving", AccountTypeCategory.SAVING, true, NormalSavingPolicy), null),
+            new(CreateProduct("SPECIAL_SAVING", "Special Saving", AccountTypeCategory.SAVING, true, SpecialSavingPolicy), null),
+            new(CreateProduct("NORMAL_DEPOSIT", "Normal Deposit", AccountTypeCategory.FIXED, false, FixedDepositPolicy), NormalSavingProductCode),
+            new(CreateProduct("SPECIAL_DEPOSIT", "Special Deposit", AccountTypeCategory.FIXED, false, SpecialFixedPolicy), NormalSavingProductCode),
+            new(CreateProduct("HUNDRED_DAYS_DEPOSIT", "Hundred-Days Deposit", AccountTypeCategory.FIXED, false, HundredDaysFixedPolicy), NormalSavingProductCode)
         ];
+    }
+
+    // Fixed products only hold interest-earning deposits: an opening balance and no minimum balance or limits.
+    private static ProductPolicy CreateFixedProductPolicy(decimal minimumOpeningBalance)
+    {
+        return new ProductPolicy(minimumOpeningBalance, 0m, null, null, null, null, null);
     }
 
     // Points each new product at its prerequisite: a product inserted in the same batch is linked through the
@@ -196,22 +226,27 @@ public sealed class ProductSeeder
         }
     }
 
-    // Creates neutral configuration for a seeded account product.
+    // Creates a seeded account product with the balances and transaction limits of its bank policy.
     private static AccountType CreateProduct(
         string code,
         string name,
         AccountTypeCategory category,
-        bool allowsTransactions)
+        bool allowsTransactions,
+        ProductPolicy policy)
     {
         return new AccountType
         {
             Code = code,
             Name = name,
             Category = category,
-            MinimumOpeningBalance = 0m,
-            MinimumMaintainedBalance = 0m,
-            DailyTransactionLimit = null,
+            MinimumOpeningBalance = policy.MinimumOpeningBalance,
+            MinimumMaintainedBalance = policy.MinimumMaintainedBalance,
+            DailyTransactionLimit = policy.DailyTransactionLimit,
             MonthlyTransactionLimit = null,
+            WeeklyTransactionLimit = policy.WeeklyTransactionLimit,
+            DailyWithdrawalLimit = policy.DailyWithdrawalLimit,
+            MinimumDepositAmount = policy.MinimumDepositAmount,
+            MinimumWithdrawalAmount = policy.MinimumWithdrawalAmount,
             AllowDeposit = allowsTransactions,
             AllowWithdrawal = allowsTransactions,
             AllowTransfer = allowsTransactions,
@@ -223,6 +258,16 @@ public sealed class ProductSeeder
             Status = ActiveStatus
         };
     }
+
+    // Balances and transaction limits a seeded product starts with; null means no limit.
+    private sealed record ProductPolicy(
+        decimal MinimumOpeningBalance,
+        decimal MinimumMaintainedBalance,
+        decimal? DailyTransactionLimit,
+        decimal? WeeklyTransactionLimit,
+        decimal? DailyWithdrawalLimit,
+        decimal? MinimumDepositAmount,
+        decimal? MinimumWithdrawalAmount);
 
     // A seeded product and the code of the product a customer must already hold to open it.
     private sealed record ProductSeed(AccountType Product, string? RequiredProductCode);

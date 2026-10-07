@@ -102,6 +102,11 @@ public enum MessageCode
     TransactionNotPending = 4450,
     NrcPickupLocationMismatch = 4451,
     NrcPickupReceiverMismatch = 4452,
+    DepositNotAllowed = 4453,
+    WeeklyTransactionLimitExceeded = 4454,
+    DailyWithdrawalLimitExceeded = 4455,
+    DepositBelowMinimumAmount = 4456,
+    WithdrawalBelowMinimumAmount = 4457,
     LastManagerCannotBeRemoved = 4480,
 
     // Server / Infrastructure: 5000 - 5999

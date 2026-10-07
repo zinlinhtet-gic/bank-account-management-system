@@ -315,11 +315,16 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
         return true;
     }
 
-    // e.g. "Cash deposit TXN2026… · MMK 10,000.00."
+    // e.g. "Cash deposit TXN2026… · MMK 10,000.00." A transfer that charged a fee also names the fee, so the teller
+    // can tell the customer the total debited.
     private static string DescribeTransaction(TransactionResponse transaction)
     {
+        var fee = transaction.FeeAmount > 0m
+            ? $" (fee {TransactionDisplay.FormatMoney(transaction.FeeAmount)})"
+            : string.Empty;
+
         return $"{TransactionDisplay.ToDisplayName(transaction.TransactionType)} {transaction.TransactionNo} · "
-            + $"{TransactionDisplay.FormatMoney(transaction.Amount)}.";
+            + $"{TransactionDisplay.FormatMoney(transaction.Amount)}{fee}.";
     }
 
     // A new action replaces the previous outcome banner.
