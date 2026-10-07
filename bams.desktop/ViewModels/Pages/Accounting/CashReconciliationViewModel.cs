@@ -10,7 +10,7 @@ namespace bams.desktop.ViewModels.Pages.Accounting;
 /// <summary>Presentation state for teller and vault cash sessions and physical counts.</summary>
 public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializable
 {
-    private enum CashSessionTab { Sessions, CloseSession, SessionHistory, CashHandoffs }
+    private enum CashSessionTab { Sessions, CloseSession, SessionHistory, CashHandoffs, Adjustments }
 
     private readonly ICashOperationsClientService _service;
     private readonly IEndOfDayClientService _businessDateService;
@@ -49,6 +49,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     private string _adjustmentAmountError = string.Empty;
     private string _correctionTransactionIdError = string.Empty;
     private string _adjustmentNoteError = string.Empty;
+    private string _adjustmentRejectionReason = string.Empty;
 
     public ObservableCollection<CashPositionSessionResponse> Sessions { get; } = [];
     public ObservableCollection<CashHandoffRecipientResponse> HandoffRecipients { get; } = [];
@@ -63,6 +64,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     public AsyncRelayCommand TransferCashCommand { get; }
     public AsyncRelayCommand RequestAdjustmentCommand { get; }
     public AsyncRelayCommand ApproveAdjustmentCommand { get; }
+    public AsyncRelayCommand RejectAdjustmentCommand { get; }
     public AsyncRelayCommand ViewSessionHistoryCommand { get; }
     public AsyncRelayCommand AcceptHandoffCommand { get; }
     public AsyncRelayCommand DeclineHandoffCommand { get; }
@@ -71,6 +73,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     public bool IsCloseSessionTabSelected { get => _selectedTab == CashSessionTab.CloseSession; set { if (value) SelectTab(CashSessionTab.CloseSession); } }
     public bool IsSessionHistoryTabSelected { get => _selectedTab == CashSessionTab.SessionHistory; set { if (value) SelectTab(CashSessionTab.SessionHistory); } }
     public bool IsCashHandoffsTabSelected { get => _selectedTab == CashSessionTab.CashHandoffs; set { if (value) SelectTab(CashSessionTab.CashHandoffs); } }
+    public bool IsAdjustmentsTabSelected { get => _selectedTab == CashSessionTab.Adjustments; set { if (value) SelectTab(CashSessionTab.Adjustments); } }
 
     public CashReconciliationViewModel(ICashOperationsClientService service, IEndOfDayClientService businessDateService,
         AuthContext authContext, OfficerCashSessionContext officerCashSessionContext)
@@ -88,6 +91,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => CanViewCashSessions);
         RequestAdjustmentCommand = new AsyncRelayCommand(RequestAdjustmentAsync, () => HasCashOperationsPermission);
         ApproveAdjustmentCommand = new AsyncRelayCommand(ApproveAdjustmentAsync, () => CanApproveAdjustments);
+        RejectAdjustmentCommand = new AsyncRelayCommand(RejectAdjustmentAsync, () => CanApproveAdjustments && SelectedAdjustment?.Status == "PendingApproval");
         ViewSessionHistoryCommand = new AsyncRelayCommand(LoadSessionHistoryAsync, () => CanViewCashSessions);
         AcceptHandoffCommand = new AsyncRelayCommand(AcceptHandoffAsync, () => CanReviewHandoffs && SelectedHandoff?.Status == "PendingAcceptance");
         DeclineHandoffCommand = new AsyncRelayCommand(DeclineHandoffAsync, () => CanReviewHandoffs && SelectedHandoff?.Status == "PendingAcceptance");
@@ -103,6 +107,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         OnPropertyChanged(nameof(IsCloseSessionTabSelected));
         OnPropertyChanged(nameof(IsSessionHistoryTabSelected));
         OnPropertyChanged(nameof(IsCashHandoffsTabSelected));
+        OnPropertyChanged(nameof(IsAdjustmentsTabSelected));
     }
 
     public string PositionType { get => _positionType; set { if (SetProperty(ref _positionType, value)) _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); } }
@@ -120,7 +125,12 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     public string AdjustmentAmountText { get => _adjustmentAmountText; set { if (SetProperty(ref _adjustmentAmountText, value)) AdjustmentAmountError = string.Empty; } }
     public string CorrectionTransactionIdText { get => _correctionTransactionIdText; set { if (SetProperty(ref _correctionTransactionIdText, value)) CorrectionTransactionIdError = string.Empty; } }
     public string? AdjustmentNote { get => _adjustmentNote; set { if (SetProperty(ref _adjustmentNote, value)) AdjustmentNoteError = string.Empty; } }
-    public CashAdjustmentResponse? SelectedAdjustment { get => _selectedAdjustment; set => SetProperty(ref _selectedAdjustment, value); }
+    public CashAdjustmentResponse? SelectedAdjustment
+    {
+        get => _selectedAdjustment;
+        set { if (SetProperty(ref _selectedAdjustment, value)) RejectAdjustmentCommand.RaiseCanExecuteChanged(); }
+    }
+    public string AdjustmentRejectionReason { get => _adjustmentRejectionReason; set => SetProperty(ref _adjustmentRejectionReason, value); }
     public CashPositionSessionDetailResponse? SessionDetail { get => _sessionDetail; private set => SetProperty(ref _sessionDetail, value); }
     public string CountNotes { get => _countNotes; set { if (SetProperty(ref _countNotes, value)) { CountNotesError = string.Empty; _countIdempotencyKey = Guid.NewGuid().ToString("N"); } } }
     public string TransferNote { get => _transferNote; set { if (SetProperty(ref _transferNote, value)) TransferNoteError = string.Empty; } }
@@ -379,6 +389,25 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         {
             IsBusy = true;
             await _service.ApproveAdjustmentAsync(SelectedAdjustment.Id, CancellationToken.None);
+            await RefreshAsync();
+            ErrorMessage = string.Empty;
+        }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+        finally { IsBusy = false; }
+    }
+
+    private async Task RejectAdjustmentAsync()
+    {
+        if (!CanApproveAdjustments || SelectedAdjustment is null || string.IsNullOrWhiteSpace(AdjustmentRejectionReason))
+        {
+            ErrorMessage = "Select a pending request and enter a rejection reason.";
+            return;
+        }
+        try
+        {
+            IsBusy = true;
+            await _service.RejectAdjustmentAsync(SelectedAdjustment.Id,
+                new RejectCashAdjustmentRequest(AdjustmentRejectionReason.Trim()), CancellationToken.None);
             await RefreshAsync();
             ErrorMessage = string.Empty;
         }

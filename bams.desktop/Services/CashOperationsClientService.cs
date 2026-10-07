@@ -62,4 +62,7 @@ public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOper
 
     public Task<CashAdjustmentResponse> ApproveAdjustmentAsync(long adjustmentId, CancellationToken cancellationToken) =>
         apiClient.PostAsync<CashAdjustmentResponse>($"/api/cash-operations/adjustments/{adjustmentId}/approve", cancellationToken);
+
+    public Task<CashAdjustmentResponse> RejectAdjustmentAsync(long adjustmentId, RejectCashAdjustmentRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<RejectCashAdjustmentRequest, CashAdjustmentResponse>($"/api/cash-operations/adjustments/{adjustmentId}/reject", request, cancellationToken);
 }

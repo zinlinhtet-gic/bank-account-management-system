@@ -25,5 +25,6 @@ public sealed record CashCountHistoryResponse(long Id, decimal ExpectedAmount, d
 public sealed record CashPositionSessionDetailResponse(CashPositionSessionResponse Session,
     IReadOnlyList<CashMovementHistoryResponse> Movements, IReadOnlyList<CashCountHistoryResponse> Counts);
 public sealed record RequestCashAdjustmentRequest(decimal SignedAmount, long CorrectionTransactionId, string? Note);
+public sealed record RejectCashAdjustmentRequest(string Reason);
 public sealed record CashAdjustmentResponse(long Id, long SessionId, decimal SignedAmount, long CorrectionTransactionId,
     string Status, long RequestedBy, DateTime RequestedAtUtc, long? ApprovedBy, DateTime? ApprovedAtUtc, string? Note);

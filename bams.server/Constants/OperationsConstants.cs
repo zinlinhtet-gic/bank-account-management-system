@@ -33,6 +33,7 @@ public static class OperationsConstants
     public const string EodStageAccountReconciliation = "Account Reconciliation";
     public const string CashMovementApproved = "Approved";
     public const string CashMovementPendingApproval = "PendingApproval";
+    public const string CashMovementRejected = "Rejected";
     public const string CashMovementAdjustment = "ApprovedAdjustment";
     public const string CashHandoffPendingAcceptance = "PendingAcceptance";
     public const string CashHandoffAccepted = "Accepted";

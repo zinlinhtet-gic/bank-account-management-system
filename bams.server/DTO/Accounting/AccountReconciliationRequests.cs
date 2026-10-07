@@ -5,3 +5,5 @@ public sealed record AccountReconciliationRequest(DateOnly FromDate, DateOnly To
 
 /// <summary>Changes the assignment, notes, or investigation status of a discrepancy.</summary>
 public sealed record UpdateReconciliationExceptionRequest(string Status, string? Notes, long? AssignedTo, long? CorrectionTransactionId);
+public sealed record RequestTransactionCorrectionRequest(long TransactionId, string Reason, string? ExternalRecoveryReference);
+public sealed record ReviewTransactionCorrectionRequest(bool Approve, string Note, string? RecoveryAttestation);

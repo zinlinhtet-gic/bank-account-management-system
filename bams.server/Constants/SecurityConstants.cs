@@ -26,4 +26,5 @@ public static class SecurityConstants
     public const string ReconciliationInvestigation = "reconciliation_investigation";
     public const string EndOfDayApproval = "end_of_day_approval";
     public const string ScheduledJobManagement = "scheduled_job_management";
+    public const string TransactionCorrectionApproval = "transaction_correction_approval";
 }

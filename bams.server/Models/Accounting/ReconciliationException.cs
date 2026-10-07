@@ -26,6 +26,15 @@ public sealed class ReconciliationException
     public Transaction? RelatedTransaction { get; set; }
     public long? CorrectionTransactionId { get; set; }
     public Transaction? CorrectionTransaction { get; set; }
+    public string? CorrectionRequestStatus { get; set; }
+    public long? RequestedCorrectionTransactionId { get; set; }
+    public long? CorrectionRequestedBy { get; set; }
+    public DateTime? CorrectionRequestedAtUtc { get; set; }
+    public long? CorrectionReviewedBy { get; set; }
+    public DateTime? CorrectionReviewedAtUtc { get; set; }
+    public string? CorrectionRequestReason { get; set; }
+    public string? CorrectionExternalRecoveryReference { get; set; }
+    public string? CorrectionReviewNote { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public long CreatedBy { get; set; }

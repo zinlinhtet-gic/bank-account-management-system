@@ -18,4 +18,5 @@ public interface ICashOperationsClientService
     Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? date, string? status, CancellationToken cancellationToken);
     Task<CashAdjustmentResponse> RequestAdjustmentAsync(long sessionId, RequestCashAdjustmentRequest request, CancellationToken cancellationToken);
     Task<CashAdjustmentResponse> ApproveAdjustmentAsync(long adjustmentId, CancellationToken cancellationToken);
+    Task<CashAdjustmentResponse> RejectAdjustmentAsync(long adjustmentId, RejectCashAdjustmentRequest request, CancellationToken cancellationToken);
 }

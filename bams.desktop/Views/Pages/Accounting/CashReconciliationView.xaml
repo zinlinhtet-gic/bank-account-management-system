@@ -33,6 +33,9 @@
                     <RadioButton Content="Cash Handoffs" Style="{StaticResource Tab}" GroupName="CashSessionTabs"
                                  Visibility="{Binding CanReviewHandoffs, Converter={StaticResource BooleanToVisibilityConverter}}"
                                  IsChecked="{Binding IsCashHandoffsTabSelected, Mode=TwoWay}" />
+                    <RadioButton Content="Cash Adjustments" Style="{StaticResource Tab}" GroupName="CashSessionTabs"
+                                 Visibility="{Binding CanViewCashSessions, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                 IsChecked="{Binding IsAdjustmentsTabSelected, Mode=TwoWay}" />
                 </StackPanel>
             </Border>
 
@@ -185,6 +188,46 @@
                             </DataGrid>
                             </DockPanel>
                             </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsAdjustmentsTabSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="Cash adjustment requests" Style="{StaticResource Text.Subheading}" />
+                            <TextBlock Text="Request an adjustment only after a physical count. Link it to the posted transaction that corrects Cash on Hand; an independent authorized reviewer must approve it." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,14" />
+                            <Border Style="{StaticResource Card.Compact}" Visibility="{Binding HasCashOperationsPermission, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBlock Text="Request adjustment for selected session" Style="{StaticResource Text.FieldLabel}" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <StackPanel Margin="0,0,12,8"><TextBlock Text="SIGNED AMOUNT" Style="{StaticResource Text.FieldLabel}"/><TextBox Width="150" Text="{Binding AdjustmentAmountText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/><TextBlock Text="{Binding AdjustmentAmountError}" Style="{StaticResource Text.Error}"/></StackPanel>
+                                        <StackPanel Margin="0,0,12,8"><TextBlock Text="POSTED CORRECTION TRANSACTION ID" Style="{StaticResource Text.FieldLabel}"/><TextBox Width="220" Text="{Binding CorrectionTransactionIdText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/><TextBlock Text="{Binding CorrectionTransactionIdError}" Style="{StaticResource Text.Error}"/></StackPanel>
+                                        <StackPanel Margin="0,0,12,8"><TextBlock Text="NOTE" Style="{StaticResource Text.FieldLabel}"/><TextBox Width="250" Text="{Binding AdjustmentNote, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/></StackPanel>
+                                    </WrapPanel>
+                                    <Button Content="Submit for Review" Command="{Binding RequestAdjustmentCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card.Flush}" Margin="0,12,0,0">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Adjustment review queue" Style="{StaticResource Text.FieldLabel}" /></Border>
+                                    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Adjustments}" SelectedItem="{Binding SelectedAdjustment}" MinHeight="220">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Request" Binding="{Binding Id}" />
+                                            <DataGridTextColumn Header="Session" Binding="{Binding SessionId}" />
+                                            <DataGridTextColumn Header="Amount" Binding="{Binding SignedAmount, StringFormat=N2}" />
+                                            <DataGridTextColumn Header="Correction Txn" Binding="{Binding CorrectionTransactionId}" />
+                                            <DataGridTextColumn Header="Requested by" Binding="{Binding RequestedBy}" />
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
+                                            <DataGridTextColumn Header="Note" Binding="{Binding Note}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </Border>
+                            <Button Content="Approve Selected Adjustment" Command="{Binding ApproveAdjustmentCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                            <StackPanel Margin="0,10,0,0" Visibility="{Binding CanApproveAdjustments, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="REJECTION REASON" Style="{StaticResource Text.FieldLabel}" />
+                                <TextBox Text="{Binding AdjustmentRejectionReason, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" />
+                                <Button Content="Reject Selected Request" Command="{Binding RejectAdjustmentCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
 

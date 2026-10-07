@@ -16,6 +16,12 @@ Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payl
 | POST | `/api/customers` | `customer_management` | Persist a customer profile and return the saved profile. |
 | GET | `/api/accounts/opening-options?holderNrc={nrc}` | `account_management` | Get eligible products, required documents, and individual accounts matching their configured payout products. |
 | GET | `/api/accounts/{id}/transactions` | `account_management` | Get account transaction entries. |
+| GET | `/api/accounting/reconciliation/exceptions/{id}/correction-candidates` | `reconciliation_investigation` | List posted account transactions and journal previews for exception review. |
+| GET | `/api/accounting/reconciliation/account-options?search={term}` | `accounting` | Search up to 50 accounts by full or partial account number for the reconciliation scope selector. |
+| GET | `/api/accounting/reconciliation/staff-options` | `reconciliation_investigation` | List staff names, usernames, and roles for assignment without exposing numeric IDs in the UI. |
+| POST | `/api/accounting/reconciliation/exceptions/{id}/correction-requests` | `reconciliation_investigation` | Request a reviewed full reversal of a posted account transaction. |
+| POST | `/api/accounting/reconciliation/exceptions/{id}/correction-review` | `transaction_correction_approval` | Approve and post or reject a correction request. |
+| POST | `/api/cash-operations/adjustments/{id}/reject` | `end_of_day_approval` | Reject a pending cash adjustment with a required reason. |
 | GET | `/api/accounts/{id}/status-history` | `account_management` | Get account status changes. |
 | GET | `/api/accounts/{id}/interest-accruals` | `account_management` | Get calculated interest accrual periods. |
 | POST | `/api/accounts` | `account_management` | Create an account. |

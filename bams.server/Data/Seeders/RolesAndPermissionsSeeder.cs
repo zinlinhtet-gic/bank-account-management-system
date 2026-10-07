@@ -43,7 +43,8 @@ public static class RolesAndPermissionsSeeder
             (SecurityConstants.CashOperations, "cash operations"),
             (SecurityConstants.ReconciliationInvestigation, "reconciliation investigation"),
             (SecurityConstants.EndOfDayApproval, "end of day approval"),
-            (SecurityConstants.ScheduledJobManagement, "scheduled job management")
+            (SecurityConstants.ScheduledJobManagement, "scheduled job management"),
+            (SecurityConstants.TransactionCorrectionApproval, "transaction correction approval")
         };
         var permissions = await dbContext.Permissions.ToListAsync();
         foreach (var (code, name) in additions)
@@ -60,6 +61,7 @@ public static class RolesAndPermissionsSeeder
             (SecurityConstants.ManagerRole, SecurityConstants.ReconciliationInvestigation),
             (SecurityConstants.ManagerRole, SecurityConstants.EndOfDayApproval),
             (SecurityConstants.ManagerRole, SecurityConstants.ScheduledJobManagement),
+            (SecurityConstants.ManagerRole, SecurityConstants.TransactionCorrectionApproval),
             (SecurityConstants.OfficerRole, SecurityConstants.CashOperations),
             (SecurityConstants.AuditorRole, SecurityConstants.ReconciliationInvestigation)
         };
@@ -112,7 +114,8 @@ public static class RolesAndPermissionsSeeder
             new Permission { Code = SecurityConstants.CashOperations, Name = "cash operations" },
             new Permission { Code = SecurityConstants.ReconciliationInvestigation, Name = "reconciliation investigation" },
             new Permission { Code = SecurityConstants.EndOfDayApproval, Name = "end of day approval" },
-            new Permission { Code = SecurityConstants.ScheduledJobManagement, Name = "scheduled job management" }
+            new Permission { Code = SecurityConstants.ScheduledJobManagement, Name = "scheduled job management" },
+            new Permission { Code = SecurityConstants.TransactionCorrectionApproval, Name = "transaction correction approval" }
         };
 
         await dbContext.Permissions.AddRangeAsync(permissions);
@@ -166,7 +169,8 @@ public static class RolesAndPermissionsSeeder
             SecurityConstants.CashOperations,
             SecurityConstants.ReconciliationInvestigation,
             SecurityConstants.EndOfDayApproval,
-            SecurityConstants.ScheduledJobManagement
+            SecurityConstants.ScheduledJobManagement,
+            SecurityConstants.TransactionCorrectionApproval
         };
 
         foreach (var permissionCode in managerPermissionCodes)

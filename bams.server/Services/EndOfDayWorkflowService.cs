@@ -118,6 +118,11 @@ public sealed class EndOfDayWorkflowService(
         var pending = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Pending, cancellationToken);
         var failed = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Failed, cancellationToken);
         var pendingApprovals = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Authorized, cancellationToken);
+        pendingApprovals += await (from movement in db.CashMovements.AsNoTracking()
+            join session in db.CashPositionSessions.AsNoTracking() on movement.SessionId equals session.Id
+            where movement.Type == OperationsConstants.CashMovementAdjustment &&
+                movement.Status == OperationsConstants.CashMovementPendingApproval && session.BusinessDate == date
+            select movement.Id).CountAsync(cancellationToken);
         var postedIds = dayTransactions.Where(item => item.PostedAt.HasValue).Select(item => item.Id);
         var missingEntries = await postedIds.CountAsync(id => !db.TransactionEntries.Any(entry => entry.TransactionId == id), cancellationToken);
         var groupedEntries = await db.TransactionEntries.AsNoTracking().Where(entry => postedIds.Contains(entry.TransactionId))

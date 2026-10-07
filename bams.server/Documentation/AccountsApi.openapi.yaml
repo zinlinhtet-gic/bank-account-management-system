@@ -615,6 +615,89 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/BusinessRuleViolation' }
 
+  /api/accounting/reconciliation/exceptions/{id}/correction-candidates:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+    get:
+      tags: [Reconciliation]
+      operationId: getCorrectionCandidates
+      summary: List posted account transactions with journal previews for an exception
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Candidate transactions and journal summaries., content: { application/json: { schema: { $ref: '#/components/schemas/DataMessageResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/accounting/reconciliation/account-options:
+    get:
+      tags: [Reconciliation]
+      operationId: searchReconciliationAccounts
+      summary: Search customer accounts by account number
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string }, description: Full or partial account number; omitted to list the first matches. }
+      responses:
+        '200': { description: Up to 50 account choices., content: { application/json: { schema: { $ref: '#/components/schemas/DataMessageResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/accounting/reconciliation/staff-options:
+    get:
+      tags: [Reconciliation]
+      operationId: getInvestigatorOptions
+      summary: List staff available for investigation assignment
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Staff names, usernames, and roles for a searchable selector., content: { application/json: { schema: { $ref: '#/components/schemas/DataMessageResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/accounting/reconciliation/exceptions/{id}/correction-requests:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+    post:
+      tags: [Reconciliation]
+      operationId: requestTransactionCorrection
+      summary: Request a reviewed full reversal from a reconciliation exception
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transactionId, reason]
+              properties:
+                transactionId: { type: integer, format: int64 }
+                reason: { type: string, maxLength: 2000 }
+                externalRecoveryReference: { type: string, nullable: true }
+      responses:
+        '200': { description: Submitted for independent review., content: { application/json: { schema: { $ref: '#/components/schemas/DataMessageResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
+  /api/accounting/reconciliation/exceptions/{id}/correction-review:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+    post:
+      tags: [Reconciliation]
+      operationId: reviewTransactionCorrection
+      summary: Approve and post or reject a correction request
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approve, note]
+              properties:
+                approve: { type: boolean }
+                note: { type: string, maxLength: 2000 }
+                recoveryAttestation: { type: string, nullable: true }
+      responses:
+        '200': { description: Correction decision and any reversal transaction., content: { application/json: { schema: { $ref: '#/components/schemas/DataMessageResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
   /api/cash-operations/sessions:
     get:
       tags: [Cash Operations]
@@ -792,6 +875,28 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DataMessageResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
+  /api/cash-operations/adjustments/{id}/reject:
+    post:
+      tags: [Cash Operations]
+      operationId: rejectCashAdjustment
+      summary: Reject another user's pending cash adjustment with a reason
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/ResourceId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Rejected adjustment; expected cash is unchanged., content: { application/json: { schema: { $ref: '#/components/schemas/DataMessageResponse' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/BusinessRuleViolation' }
 

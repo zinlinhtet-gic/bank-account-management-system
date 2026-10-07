@@ -346,7 +346,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
     /// <summary>Lists posted adjustment requests for approval review.</summary>
     public async Task<IReadOnlyList<CashAdjustmentResponse>> GetAdjustmentsAsync(DateOnly? businessDate, string? status, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(status) && status is not (OperationsConstants.CashMovementPendingApproval or OperationsConstants.CashMovementApproved))
+        if (!string.IsNullOrWhiteSpace(status) && status is not (OperationsConstants.CashMovementPendingApproval or OperationsConstants.CashMovementApproved or OperationsConstants.CashMovementRejected))
             throw new ValidationException(MessageCode.InvalidRequest);
         var query = from movement in db.CashMovements.AsNoTracking()
                     join session in db.CashPositionSessions.AsNoTracking() on movement.SessionId equals session.Id
@@ -365,6 +365,29 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
                 item.movement.CreatedAtUtc, item.movement.ApprovedBy, item.movement.ApprovedAtUtc, item.movement.Note))
             .ToListAsync(cancellationToken);
         return items;
+    }
+
+    /// <summary>Rejects a pending cash adjustment with a required reviewer reason.</summary>
+    public async Task<CashAdjustmentResponse> RejectAdjustmentAsync(long movementId, string reason, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > 500)
+            throw new ValidationException(MessageCode.RequiredFieldMissing);
+        var actorId = currentUser.GetCurrentUserId();
+        if (!await HasVaultPermissionAsync(actorId, cancellationToken))
+            throw new ForbiddenException(MessageCode.InsufficientPermission);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var movement = (await db.CashMovements.FromSql($"SELECT * FROM CashMovements WHERE Id = {movementId} FOR UPDATE")
+            .ToListAsync(cancellationToken)).SingleOrDefault() ?? throw new NotFoundException(MessageCode.ResourceNotFound);
+        if (movement.Type != OperationsConstants.CashMovementAdjustment || movement.Status != OperationsConstants.CashMovementPendingApproval || movement.ActorId == actorId)
+            throw new BusinessRuleException(MessageCode.CashAdjustmentApprovalRequired);
+        movement.Status = OperationsConstants.CashMovementRejected;
+        movement.ApprovedBy = actorId;
+        movement.ApprovedAtUtc = DateTime.UtcNow;
+        movement.Note = $"Rejection: {reason.Trim()}\n{movement.Note}";
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return ToAdjustmentResponse(movement, await GetCashEffectAsync(movement.CorrectionTransactionId!.Value,
+            (await db.CashPositionSessions.Where(item => item.Id == movement.SessionId).Select(item => item.BusinessDate).SingleAsync(cancellationToken)), cancellationToken));
     }
 
     /// <summary>Returns active users authorized to receive physical cash custody.</summary>

@@ -23,11 +23,11 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         _service = service;
         _authContext = authContext;
         CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext, officerCashSessionContext);
-        AccountReconciliation = new AccountReconciliationViewModel(reconciliationService, service);
+        AccountReconciliation = new AccountReconciliationViewModel(reconciliationService, service, authContext);
         LedgerReconciliation = new LedgerReconciliationViewModel();
         PreCloseChecks = new PreCloseChecksViewModel();
         Summary = new EndOfDaySummaryViewModel();
-        ExceptionCenter = new ExceptionCenterViewModel(reconciliationService, service);
+        ExceptionCenter = new ExceptionCenterViewModel(reconciliationService, service, authContext);
         FinalReview = new FinalReviewViewModel();
         CashHandoffs = new CashHandoffCenterViewModel(cashOperations, authContext);
         RunPreCloseCommand = new AsyncRelayCommand(RunPreCloseAsync, () => CanRunPreClose);

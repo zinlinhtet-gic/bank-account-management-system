@@ -64,6 +64,55 @@ public sealed class AccountingController : ControllerBase
         return Ok(ApiMessageResponse<ReconciliationExceptionResponse>.FromCode(MessageCode.Success, result));
     }
 
+    /// <summary>Submits a full reversal request for an account transaction associated with the exception.</summary>
+    [HttpPost("reconciliation/exceptions/{id:long}/correction-requests")]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    public async Task<ActionResult<ApiMessageResponse<ReconciliationExceptionResponse>>> RequestTransactionCorrectionAsync(
+        long id, RequestTransactionCorrectionRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.RequestTransactionCorrectionAsync(id, request, cancellationToken);
+        return Ok(ApiMessageResponse<ReconciliationExceptionResponse>.FromCode(MessageCode.Success, result));
+    }
+
+    /// <summary>Approves and posts or rejects a requested transaction reversal.</summary>
+    [HttpPost("reconciliation/exceptions/{id:long}/correction-review")]
+    [RequirePermission(SecurityConstants.TransactionCorrectionApproval)]
+    public async Task<ActionResult<ApiMessageResponse<ReconciliationExceptionResponse>>> ReviewTransactionCorrectionAsync(
+        long id, ReviewTransactionCorrectionRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.ReviewTransactionCorrectionAsync(id, request, cancellationToken);
+        return Ok(ApiMessageResponse<ReconciliationExceptionResponse>.FromCode(MessageCode.Success, result));
+    }
+
+    /// <summary>Lists posted transactions affecting the exception account with journal previews.</summary>
+    [HttpGet("reconciliation/exceptions/{id:long}/correction-candidates")]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CorrectionTransactionCandidateResponse>>>> GetCorrectionCandidatesAsync(
+        long id, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.GetCorrectionCandidatesAsync(id, cancellationToken);
+        return Ok(ApiMessageResponse<IReadOnlyList<CorrectionTransactionCandidateResponse>>.FromCode(MessageCode.Success, result));
+    }
+
+    /// <summary>Searches accounts by account number for the reconciliation scope selector.</summary>
+    [HttpGet("reconciliation/account-options")]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<ReconciliationAccountOptionResponse>>>> SearchReconciliationAccountsAsync(
+        [FromQuery] string? search, CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.SearchAccountsAsync(search, cancellationToken);
+        return Ok(ApiMessageResponse<IReadOnlyList<ReconciliationAccountOptionResponse>>.FromCode(MessageCode.Success, result));
+    }
+
+    /// <summary>Lists staff available for assignment to reconciliation investigations.</summary>
+    [HttpGet("reconciliation/staff-options")]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<ReconciliationStaffOptionResponse>>>> GetInvestigatorOptionsAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.GetInvestigatorOptionsAsync(cancellationToken);
+        return Ok(ApiMessageResponse<IReadOnlyList<ReconciliationStaffOptionResponse>>.FromCode(MessageCode.Success, result));
+    }
+
     // Returns all general-ledger accounts.
     [HttpGet("gl-accounts")]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<GlAccountResponse>>>>

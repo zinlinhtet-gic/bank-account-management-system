@@ -85,4 +85,14 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
         var adjustment = await cashOperations.ApproveAdjustmentAsync(id, cancellationToken);
         return Ok(ApiMessageResponse<CashAdjustmentResponse>.FromCode(MessageCode.Success, adjustment));
     }
+
+    /// <summary>Rejects a pending cash adjustment with a required reason.</summary>
+    [HttpPost("adjustments/{id:long}/reject")]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
+    public async Task<ActionResult<ApiMessageResponse<CashAdjustmentResponse>>> RejectAdjustmentAsync(
+        long id, RejectCashAdjustmentRequest request, CancellationToken cancellationToken)
+    {
+        var adjustment = await cashOperations.RejectAdjustmentAsync(id, request.Reason, cancellationToken);
+        return Ok(ApiMessageResponse<CashAdjustmentResponse>.FromCode(MessageCode.Success, adjustment));
+    }
 }
