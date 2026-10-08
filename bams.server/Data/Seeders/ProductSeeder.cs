@@ -16,7 +16,7 @@ public sealed class ProductSeeder
     // Bank policy amounts in MMK (1 lakh = 100,000 MMK). Savings and current accounts take cash deposits and
     // withdrawals from MinimumCashTransactionAmount; fixed products take no teller transactions, so they only carry an
     // opening balance. These are only the starting values: bank policies can be edited afterwards.
-    private const decimal MinimumCashTransactionAmount = 1_000m;
+    private const decimal MinimumCashTransactionAmount = 10_000m;
 
     private static readonly ProductPolicy CurrentPolicy = new(
         MinimumOpeningBalance: 10_000m, MinimumMaintainedBalance: 1_000m,
