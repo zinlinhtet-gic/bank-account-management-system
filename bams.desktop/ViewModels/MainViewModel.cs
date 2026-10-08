@@ -348,6 +348,8 @@ public sealed class MainViewModel : ViewModelBase
             return PageNames.AccountManagement;
         if (flags.CanViewTransactions)
             return PageNames.Transactions;
+        if (flags.CanApproveEndOfDay)
+            return PageNames.EndOfDay;
         if (flags.CanAccessAccounting)
             return PageNames.GeneralLedger;
         if (flags.CanViewAudit)

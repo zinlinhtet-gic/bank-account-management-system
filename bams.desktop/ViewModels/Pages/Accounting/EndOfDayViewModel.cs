@@ -15,6 +15,8 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     private string _successMessage = string.Empty;
     private bool _isBusy;
     private int _selectedStageIndex;
+    private DateTime? _selectedBusinessDate;
+    private string _forceCloseReason = string.Empty;
 
     public EndOfDayViewModel(IEndOfDayClientService service, AuthContext authContext,
         ICashOperationsClientService cashOperations, IReconciliationService reconciliationService,
@@ -34,6 +36,9 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         ApproveCommand = new AsyncRelayCommand(ApproveAsync, () => CanApprove);
         CloseCommand = new AsyncRelayCommand(CloseAsync, () => CanClose);
         RefreshCommand = new AsyncRelayCommand(() => InitializeAsync(CancellationToken.None));
+        LoadBusinessDateCommand = new AsyncRelayCommand(LoadSelectedBusinessDateAsync, () => !IsBusy && SelectedBusinessDate.HasValue);
+        RequestForceCloseCommand = new AsyncRelayCommand(RequestForceCloseAsync, () => CanRequestForceClose);
+        ApproveForceCloseCommand = new AsyncRelayCommand(ApproveForceCloseAsync, () => CanApproveForceClose);
         NavigateToStageCommand = new RelayCommand(parameter =>
         {
             var index = -1;
@@ -59,6 +64,15 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public AsyncRelayCommand ApproveCommand { get; }
     public AsyncRelayCommand CloseCommand { get; }
     public AsyncRelayCommand RefreshCommand { get; }
+    public AsyncRelayCommand LoadBusinessDateCommand { get; }
+    public AsyncRelayCommand RequestForceCloseCommand { get; }
+    public AsyncRelayCommand ApproveForceCloseCommand { get; }
+    public string ForceCloseReason { get => _forceCloseReason; set { if (SetProperty(ref _forceCloseReason, value)) RequestForceCloseCommand.RaiseCanExecuteChanged(); } }
+    public DateTime? SelectedBusinessDate
+    {
+        get => _selectedBusinessDate;
+        set { if (SetProperty(ref _selectedBusinessDate, value)) LoadBusinessDateCommand.RaiseCanExecuteChanged(); }
+    }
     public RelayCommand NavigateToStageCommand { get; }
     public string? ErrorMessage { get => _errorMessage; private set { if (SetProperty(ref _errorMessage, value)) OnPropertyChanged(nameof(HasError)); } }
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
@@ -72,9 +86,15 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             if (SetProperty(ref _isBusy, value))
             {
                 OnPropertyChanged(nameof(CanRunPreClose));
+                OnPropertyChanged(nameof(CanRequestForceClose));
+                OnPropertyChanged(nameof(CanOverrideOpen));
+                OnPropertyChanged(nameof(CanApproveForceClose));
                 RunPreCloseCommand.RaiseCanExecuteChanged();
                 ApproveCommand.RaiseCanExecuteChanged();
                 CloseCommand.RaiseCanExecuteChanged();
+                LoadBusinessDateCommand.RaiseCanExecuteChanged();
+                RequestForceCloseCommand.RaiseCanExecuteChanged();
+                ApproveForceCloseCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -82,7 +102,8 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public bool CanRunPreClosePermission => _authContext.HasPermission(PermissionCodes.Accounting) || _authContext.HasPermission(PermissionCodes.Audit);
     public bool HasEndOfDayApprovalPermission => _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
     public bool CanViewCashSessions => CashReconciliation.CanViewCashSessions;
-    public bool CanRunPreClose => !IsBusy && Summary.BusinessDate?.Status == "Open" && CanRunPreClosePermission;
+    public bool CanRunPreClose => !IsBusy && Summary.BusinessDate?.Status == "Open" &&
+        FinalReview.Run?.Status is not ("OverridePending" or "OverrideApproved") && CanRunPreClosePermission;
     public string BusinessDateStatus => Summary.BusinessDate?.Status ?? "Loading";
     public string CurrentRunStatus => FinalReview.Run?.Status ?? "Not started";
     public int TotalIssueCount => PreCloseChecks.Stages.Sum(stage => stage.IssueCount);
@@ -97,23 +118,90 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public string CriticalExceptionStatus => GetStageStatus(EndOfDayStageNames.CriticalExceptions);
     public int CriticalExceptionCount => GetStageIssues(EndOfDayStageNames.CriticalExceptions);
     public bool CanApprove => !IsBusy && FinalReview.Run?.Status == "ReadyForApproval" && _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
-    public bool CanClose => !IsBusy && FinalReview.Run?.Status == "Approved" && _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public bool CanClose => !IsBusy && (FinalReview.Run?.Status is "Approved" or "OverrideApproved") && _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public bool CanRequestForceClose => !IsBusy && Summary.BusinessDate?.Status == "Open" &&
+        FinalReview.Run?.Status is not ("OverridePending" or "OverrideApproved") &&
+        ForceCloseReason.Trim().Length is >= 5 and <= 1000 && _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public bool CanOverrideOpen => !IsBusy && Summary.BusinessDate?.Status == "Open" &&
+        FinalReview.Run?.Status is not ("OverridePending" or "OverrideApproved") &&
+        _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public bool HasOverridePending => FinalReview.Run?.Status == "OverridePending";
+    public bool HasManagerOverride => FinalReview.Run?.OverrideReason is not null;
+    public bool CanApproveForceClose => !IsBusy && HasOverridePending && _authContext.UserId.HasValue &&
+        FinalReview.Run!.OverrideRequiredUserIds.Contains(_authContext.UserId.Value) &&
+        !FinalReview.Run.OverrideApprovedUserIds.Contains(_authContext.UserId.Value) &&
+        _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
+    public string OverrideApprovalStatus => FinalReview.Run is { OverrideReason: not null } run
+        ? $"Manager override approvals: {run.OverrideApprovedUserIds.Count} / {run.OverrideRequiredUserIds.Count}. " +
+          $"Approved user IDs: {string.Join(", ", run.OverrideApprovedUserIds.Select(id => run.OverrideApprovalTimesUtc.TryGetValue(id, out var at) ? $"#{id} at {at:yyyy-MM-dd HH:mm} UTC" : $"#{id}"))}. " +
+          $"Reason: {run.OverrideReason}"
+        : string.Empty;
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         try
         {
             Summary.BusinessDate = await _service.GetCurrentBusinessDateAsync(cancellationToken);
+            SelectedBusinessDate = Summary.BusinessDate.Date.ToDateTime(TimeOnly.MinValue);
+            await LoadSupportingViewsAsync(Summary.BusinessDate.Date, cancellationToken);
+            var latestRun = await _service.GetLatestRunAsync(Summary.BusinessDate.Date, cancellationToken);
+            if (latestRun is not null) ApplyRun(latestRun);
             OnPropertyChanged(nameof(BusinessDateStatus));
             OnPropertyChanged(nameof(CanRunPreClose));
             RunPreCloseCommand.RaiseCanExecuteChanged();
-            await AccountReconciliation.Results.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
-            if (CashReconciliation.CanViewCashSessions)
-                await CashReconciliation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
-            await CashHandoffs.LoadForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
-            await ExceptionCenter.Investigation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, cancellationToken);
+        }
+        catch (AppException exception)
+        {
+            ErrorMessage = exception.Message;
+            // The current-date lookup can be blocked by an unclosed prior date. The date search remains available.
+            try
+            {
+                var dates = await _service.SearchBusinessDatesAsync(null, null, cancellationToken);
+                var openDate = dates.Where(item => item.Status == "Open").OrderBy(item => item.Date).FirstOrDefault();
+                if (openDate is not null)
+                {
+                    SelectedBusinessDate = openDate.Date.ToDateTime(TimeOnly.MinValue);
+                    await LoadSelectedBusinessDateAsync();
+                }
+            }
+            catch (AppException) { }
+        }
+    }
+
+    private async Task LoadSelectedBusinessDateAsync()
+    {
+        if (SelectedBusinessDate is null) return;
+        try
+        {
+            IsBusy = true;
+            var date = DateOnly.FromDateTime(SelectedBusinessDate.Value);
+            var dates = await _service.SearchBusinessDatesAsync(date, date, CancellationToken.None);
+            var selected = dates.FirstOrDefault(item => item.Date == date);
+            if (selected is null) { ErrorMessage = "No business-date record exists for the selected date."; return; }
+            Summary.BusinessDate = selected;
+            var latestRun = await _service.GetLatestRunAsync(date, CancellationToken.None);
+            if (latestRun is not null) ApplyRun(latestRun);
+            else ClearRun();
+            await LoadSupportingViewsAsync(date, CancellationToken.None);
+            ErrorMessage = string.Empty;
+            SuccessMessage = selected.Status == "Open"
+                ? $"Loaded open business date {date:yyyy-MM-dd}. Run pre-close checks to continue."
+                : $"Loaded closed business date {date:yyyy-MM-dd} for review.";
+            OnPropertyChanged(nameof(BusinessDateStatus));
+            OnPropertyChanged(nameof(CanRunPreClose));
+            RunPreCloseCommand.RaiseCanExecuteChanged();
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
+        finally { IsBusy = false; }
+    }
+
+    private async Task LoadSupportingViewsAsync(DateOnly date, CancellationToken cancellationToken)
+    {
+        await AccountReconciliation.Results.InitializeForBusinessDateAsync(date, cancellationToken);
+        if (CashReconciliation.CanViewCashSessions)
+            await CashReconciliation.InitializeForBusinessDateAsync(date, cancellationToken);
+        await CashHandoffs.LoadForBusinessDateAsync(date, cancellationToken);
+        await ExceptionCenter.Investigation.InitializeForBusinessDateAsync(date, cancellationToken);
     }
 
     private async Task RunPreCloseAsync()
@@ -124,6 +212,41 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             IsBusy = true;
             var run = await _service.RunPreCloseAsync(Summary.BusinessDate.Date, CancellationToken.None);
             ApplyRun(run);
+        }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+        finally { IsBusy = false; }
+    }
+
+    private async Task RequestForceCloseAsync()
+    {
+        if (Summary.BusinessDate is null || !CanRequestForceClose) return;
+        try
+        {
+            IsBusy = true;
+            var run = await _service.RequestForceCloseAsync(Summary.BusinessDate.Date,
+                new ForceCloseRequest(ForceCloseReason.Trim()), CancellationToken.None);
+            ForceCloseReason = string.Empty;
+            ApplyRun(run);
+            SuccessMessage = run.Status == "Closed"
+                ? "All eligible managers approved the override and the business date is closed."
+                : run.Status == "OverrideApproved"
+                    ? "All eligible managers have approved the override. Close the business date to finish."
+                    : $"Override requested. {run.OverrideApprovedUserIds.Count} of {run.OverrideRequiredUserIds.Count} manager approvals recorded.";
+        }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+        finally { IsBusy = false; }
+    }
+
+    private async Task ApproveForceCloseAsync()
+    {
+        if (FinalReview.Run is null) return;
+        try
+        {
+            IsBusy = true;
+            ApplyRun(await _service.ApproveForceCloseAsync(FinalReview.Run.RunId, CancellationToken.None));
+            SuccessMessage = FinalReview.Run.Status == "OverrideApproved"
+                ? "All eligible managers have approved the override. Close the business date to finish."
+                : $"Manager approval recorded: {FinalReview.Run.OverrideApprovedUserIds.Count} of {FinalReview.Run.OverrideRequiredUserIds.Count}.";
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }
@@ -146,18 +269,19 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             SuccessMessage = string.Empty;
             var closedDate = Summary.BusinessDate?.Date;
             ApplyRun(await _service.CloseAsync(FinalReview.Run.RunId, CancellationToken.None));
-            Summary.BusinessDate = await _service.GetCurrentBusinessDateAsync(CancellationToken.None);
+            var nextDate = closedDate?.AddDays(1);
+            IReadOnlyList<BusinessDateResponse> nextRecords = nextDate.HasValue
+                ? await _service.SearchBusinessDatesAsync(nextDate, nextDate, CancellationToken.None)
+                : Array.Empty<BusinessDateResponse>();
+            Summary.BusinessDate = nextRecords.FirstOrDefault() ?? await _service.GetCurrentBusinessDateAsync(CancellationToken.None);
+            SelectedBusinessDate = Summary.BusinessDate.Date.ToDateTime(TimeOnly.MinValue);
             SuccessMessage = closedDate.HasValue
-                ? $"Business date {closedDate.Value:yyyy-MM-dd} closed successfully. Business date {Summary.BusinessDate.Date:yyyy-MM-dd} is now open."
-                : $"Business date closed successfully. Business date {Summary.BusinessDate.Date:yyyy-MM-dd} is now open.";
+                ? $"Business date {closedDate.Value:yyyy-MM-dd} closed successfully. Business date {Summary.BusinessDate.Date:yyyy-MM-dd} is now selected."
+                : $"Business date closed successfully. Business date {Summary.BusinessDate.Date:yyyy-MM-dd} is now selected.";
             OnPropertyChanged(nameof(BusinessDateStatus));
             OnPropertyChanged(nameof(CanRunPreClose));
             RunPreCloseCommand.RaiseCanExecuteChanged();
-            await AccountReconciliation.Results.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
-            if (CashReconciliation.CanViewCashSessions)
-                await CashReconciliation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
-            await CashHandoffs.LoadForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
-            await ExceptionCenter.Investigation.InitializeForBusinessDateAsync(Summary.BusinessDate.Date, CancellationToken.None);
+            await LoadSupportingViewsAsync(Summary.BusinessDate.Date, CancellationToken.None);
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }
@@ -167,6 +291,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     {
         FinalReview.Run = run;
         PreCloseChecks.Update(run.Stages);
+        RunPreCloseCommand.RaiseCanExecuteChanged();
         var accountStage = run.Stages.FirstOrDefault(stage => stage.Name == EndOfDayStageNames.AccountReconciliation);
         AccountReconciliation.Status = accountStage?.Status ?? "Locked";
         var ledgerStage = run.Stages.FirstOrDefault(stage => stage.Name == EndOfDayStageNames.LedgerReconciliation);
@@ -175,8 +300,17 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         _ = ExceptionCenter.Investigation.InitializeForBusinessDateAsync(run.BusinessDate, CancellationToken.None);
         ApproveCommand.RaiseCanExecuteChanged();
         CloseCommand.RaiseCanExecuteChanged();
+        RequestForceCloseCommand.RaiseCanExecuteChanged();
+        ApproveForceCloseCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(CanApprove));
         OnPropertyChanged(nameof(CanClose));
+        OnPropertyChanged(nameof(CanRunPreClose));
+        OnPropertyChanged(nameof(CanApproveForceClose));
+        OnPropertyChanged(nameof(CanRequestForceClose));
+        OnPropertyChanged(nameof(CanOverrideOpen));
+        OnPropertyChanged(nameof(HasOverridePending));
+        OnPropertyChanged(nameof(HasManagerOverride));
+        OnPropertyChanged(nameof(OverrideApprovalStatus));
         OnPropertyChanged(nameof(CurrentRunStatus));
         OnPropertyChanged(nameof(HasStages));
         OnPropertyChanged(nameof(HasNoStages));
@@ -190,6 +324,33 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         OnPropertyChanged(nameof(CriticalExceptionStatus));
         OnPropertyChanged(nameof(CriticalExceptionCount));
         ErrorMessage = string.Empty;
+    }
+
+    private void ClearRun()
+    {
+        FinalReview.Run = null;
+        PreCloseChecks.Update([]);
+        AccountReconciliation.Status = "Locked";
+        LedgerReconciliation.Status = "Locked";
+        ExceptionCenter.UnresolvedCount = 0;
+        RunPreCloseCommand.RaiseCanExecuteChanged();
+        ApproveCommand.RaiseCanExecuteChanged();
+        CloseCommand.RaiseCanExecuteChanged();
+        RequestForceCloseCommand.RaiseCanExecuteChanged();
+        ApproveForceCloseCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(CurrentRunStatus));
+        OnPropertyChanged(nameof(CanRunPreClose));
+        OnPropertyChanged(nameof(CanApprove));
+        OnPropertyChanged(nameof(CanClose));
+        OnPropertyChanged(nameof(CanRequestForceClose));
+        OnPropertyChanged(nameof(CanOverrideOpen));
+        OnPropertyChanged(nameof(CanApproveForceClose));
+        OnPropertyChanged(nameof(HasOverridePending));
+        OnPropertyChanged(nameof(HasManagerOverride));
+        OnPropertyChanged(nameof(OverrideApprovalStatus));
+        OnPropertyChanged(nameof(HasStages));
+        OnPropertyChanged(nameof(HasNoStages));
+        OnPropertyChanged(nameof(TotalIssueCount));
     }
 
     private string GetStageStatus(string name) =>

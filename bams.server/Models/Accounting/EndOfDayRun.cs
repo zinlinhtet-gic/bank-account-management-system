@@ -13,4 +13,8 @@ public sealed class EndOfDayRun
     public DateTime? ApprovedAtUtc { get; set; }
     public long? ClosedBy { get; set; }
     public DateTime? ClosedAtUtc { get; set; }
+    public string? OverrideReason { get; set; }
+    public string? OverrideRequiredUserIdsJson { get; set; }
+    public string? OverrideApprovedUserIdsJson { get; set; }
+    public string? OverrideApprovalAuditJson { get; set; }
 }

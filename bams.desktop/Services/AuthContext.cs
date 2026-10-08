@@ -142,6 +142,7 @@ public sealed class AuthContext : INotifyPropertyChanged
             CanViewTransactions = HasPermission(PermissionCodes.Transactions),
             CanViewTransactionHistory = HasPermission(PermissionCodes.TransactionHistory),
             CanAccessAccounting = HasPermission(PermissionCodes.Accounting),
+            CanApproveEndOfDay = HasPermission(PermissionCodes.EndOfDayApproval),
             CanConfigureSystem = HasPermission(PermissionCodes.Configuration),
             CanPerformOperations = HasPermission(PermissionCodes.Operation),
             CanViewAudit = HasPermission(PermissionCodes.Audit),
@@ -224,6 +225,7 @@ public sealed class PermissionFlags
     public bool CanViewTransactions { get; set; }
     public bool CanViewTransactionHistory { get; set; }
     public bool CanAccessAccounting { get; set; }
+    public bool CanApproveEndOfDay { get; set; }
     public bool CanConfigureSystem { get; set; }
     public bool CanPerformOperations { get; set; }
     public bool CanViewAudit { get; set; }
