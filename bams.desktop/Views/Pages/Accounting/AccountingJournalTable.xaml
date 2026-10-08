@@ -23,7 +23,7 @@
                 <TextBlock Grid.Column="5" Text="GL Account" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
                 <TextBlock Grid.Column="6" Text="Credit" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
                 <TextBlock Grid.Column="7" Text="Debit" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="8" Text="Customer Account" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
+                <TextBlock Grid.Column="8" Text="Customer Account Number" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
                 <TextBlock Grid.Column="9" Text="Description" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
             </Grid>
             <ItemsControl ItemsSource="{Binding TransactionGroups}">
@@ -57,7 +57,7 @@
                                             <Border Grid.Column="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding GlAccountName}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
                                             <Border Grid.Column="3" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding CreditAmount, StringFormat={}{0:N2}}" VerticalAlignment="Center" TextAlignment="Right"/></Border>
                                             <Border Grid.Column="4" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding DebitAmount, StringFormat={}{0:N2}}" VerticalAlignment="Center" TextAlignment="Right"/></Border>
-                                            <Border Grid.Column="5" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding CustomerAccountId}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
+                                            <Border Grid.Column="5" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding CustomerAccountNumber, TargetNullValue=—}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
                                             <Border Grid.Column="6" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8"><TextBlock Text="{Binding Description}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
                                         </Grid>
                                     </DataTemplate>

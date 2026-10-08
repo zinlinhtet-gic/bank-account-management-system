@@ -12,6 +12,7 @@ public sealed record AccountingEntryResponse(
     string GlAccountCode,
     string GlAccountName,
     long? CustomerAccountId,
+    string? CustomerAccountNumber,
     EntryType EntryType,
     decimal Amount,
     DateOnly PostingDate,
