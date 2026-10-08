@@ -24,6 +24,12 @@
                             <TextBlock Text="{Binding BusinessDateStatus}" Style="{StaticResource Text.BodyMuted}"/>
                         </StackPanel>
                         <TextBlock Text="The date advances only after the close is approved and completed." Style="{StaticResource Text.Caption}" Margin="0,3,0,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <DatePicker SelectedDate="{Binding SelectedBusinessDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource Input.Date}" Width="170"/>
+                            <Button Content="Load Date" Command="{Binding LoadBusinessDateCommand}"
+                                    Style="{StaticResource Button.Secondary}" Margin="8,0,0,0"/>
+                        </StackPanel>
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
                         <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
@@ -38,6 +44,28 @@
                                 Style="{StaticResource Button.Primary}"/>
                     </WrapPanel>
                 </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16"
+                    Visibility="{Binding HasEndOfDayApprovalPermission, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="MANAGER OVERRIDE" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="Bypass unresolved pre-close blockers only with approval from every active manager at request time. Each manager must sign in and approve. If there is one manager, that manager can approve alone. The reason and approvals are recorded in the audit trail."
+                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                    <TextBlock Text="{Binding OverrideApprovalStatus}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"
+                               Visibility="{Binding HasManagerOverride, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBox Text="{Binding ForceCloseReason, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" MaxLength="1000"
+                             ToolTip="Enter a reason (5 to 1000 characters) for overriding the pre-close blockers" Margin="0,8,0,8"
+                             Visibility="{Binding CanOverrideOpen, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <WrapPanel>
+                        <Button Content="Request Manager Override" Command="{Binding RequestForceCloseCommand}"
+                                IsEnabled="{Binding CanRequestForceClose}" Style="{StaticResource Button.Danger}"
+                                Visibility="{Binding CanOverrideOpen, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0"/>
+                        <Button Content="Approve Override" Command="{Binding ApproveForceCloseCommand}"
+                                IsEnabled="{Binding CanApproveForceClose}" Style="{StaticResource Button.Primary}"
+                                Visibility="{Binding HasOverridePending, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </WrapPanel>
+                </StackPanel>
             </Border>
 
             <Border Style="{StaticResource Card.Compact}" Background="{StaticResource DangerSoftBrush}"

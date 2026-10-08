@@ -66,6 +66,15 @@ public sealed class ApiClient
             cancellationToken);
     }
 
+    /// <summary>Gets a response whose data payload may legitimately be null.</summary>
+    public Task<TResponse?> GetOptionalAsync<TResponse>(string endpoint, CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.GetAsync(endpoint, cancellationToken),
+            cancellationToken,
+            allowNullData: true);
+    }
+
     /// <summary>
     /// Posts multipart form data and returns the standard success envelope's data payload.
     /// </summary>
@@ -299,11 +308,12 @@ public sealed class ApiClient
     // Sends the request and reads the success payload.
     private static async Task<TResponse> SendAsync<TResponse>(
         Func<Task<HttpResponseMessage>> sendRequestAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowNullData = false)
     {
         using var response = await SendRequestAsync(sendRequestAsync, cancellationToken);
 
-        return await ReadResponseAsync<TResponse>(response, cancellationToken);
+        return await ReadResponseAsync<TResponse>(response, cancellationToken, allowNullData);
     }
 
     // Runs the request and converts transport failures into NetworkException.
@@ -328,7 +338,8 @@ public sealed class ApiClient
 
     private static async Task<TResponse> ReadResponseAsync<TResponse>(
         HttpResponseMessage response,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowNullData = false)
     {
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -339,7 +350,7 @@ public sealed class ApiClient
 
         var envelope = TryDeserialize<ApiMessageResponse<TResponse>>(content);
 
-        if (envelope is null || envelope.Data is null)
+        if (envelope is null || (!allowNullData && envelope.Data is null))
         {
             throw new ApiException(MessageCode.InvalidServerResponse);
         }

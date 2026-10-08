@@ -493,6 +493,18 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime>("PreparedAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("OverrideReason")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OverrideRequiredUserIdsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OverrideApprovedUserIdsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OverrideApprovalAuditJson")
+                        .HasColumnType("longtext");
+
                     b.Property<long>("PreparedBy")
                         .HasColumnType("bigint");
 

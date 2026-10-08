@@ -43,9 +43,13 @@ Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payl
 | GET | `/api/cash-operations/adjustments` | `cash_operations`, `end_of_day_approval`, or `audit` | List cash adjustment requests for review. |
 | POST | `/api/cash-operations/adjustments/{id}/approve` | `end_of_day_approval` | Approve another user's valid adjustment and apply it to the expected position. |
 | GET | `/api/operations/business-date` | `accounting`, `audit`, or `cash_operations` | Read or initialize the persisted open business date. |
+| GET | `/api/operations/business-date/dates` | `accounting`, `audit`, or `end_of_day_approval` | Search persisted business dates by optional date range. |
+| GET | `/api/operations/business-date/dates/{date}/latest-run` | `accounting`, `audit`, or `end_of_day_approval` | Load the latest EOD run and any pending manager override approvals. |
 | POST | `/api/operations/business-date/{date}/pre-close` | `accounting` or `audit` | Run and persist EOD pre-close stages. |
 | POST | `/api/operations/business-date/runs/{id}/approve` | `end_of_day_approval` | Approve a run as a different user than the preparer. |
 | POST | `/api/operations/business-date/runs/{id}/close` | `end_of_day_approval` | Close after locking and rechecking blockers; open the next date. |
+| POST | `/api/operations/business-date/{date}/force-close-request` | `end_of_day_approval` | Request a blocker override with a reason; the requester's approval is recorded. |
+| POST | `/api/operations/business-date/runs/{id}/force-close-approve` | `end_of_day_approval` | Record this manager's approval; close is enabled after every active manager approves. |
 
 ## Available account types
 

@@ -58,7 +58,7 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanViewTransactionHistory || flags.CanViewTransactions)
             AddNavItem(PageNames.TransactionHistory, "Icon.Reports");
 
-        if (flags.CanAccessAccounting)
+        if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
         {
             AddAccountingNavigation(flags);
         }
@@ -198,14 +198,16 @@ public partial class NavBarViewModel : ObservableObject
             IconKey = "Icon.Finance"
         };
 
-        accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
-
-        accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
-
-        accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
-        if (flags.CanManageCashOperations)
-            accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
-        accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));
+        if (flags.CanAccessAccounting)
+        {
+            accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
+            accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
+            accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+            if (flags.CanManageCashOperations)
+                accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
+        }
+        if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
+            accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));
 
         accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));
 
