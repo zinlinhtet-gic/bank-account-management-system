@@ -23,6 +23,9 @@ public sealed class EndOfDayClientService(ApiClient apiClient) : IEndOfDayClient
     public Task<EndOfDayRunResponse> RunPreCloseAsync(DateOnly date, CancellationToken cancellationToken) =>
         apiClient.PostAsync<EndOfDayRunResponse>($"/api/operations/business-date/{date:yyyy-MM-dd}/pre-close", cancellationToken);
 
+    public Task<EndOfDayRunResponse> ReviewPreCloseAsync(DateOnly date, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<EndOfDayRunResponse>($"/api/operations/business-date/{date:yyyy-MM-dd}/review-pre-close", cancellationToken);
+
     public Task<EndOfDayRunResponse> RequestForceCloseAsync(DateOnly date, ForceCloseRequest request, CancellationToken cancellationToken) =>
         apiClient.PostAsync<ForceCloseRequest, EndOfDayRunResponse>($"/api/operations/business-date/{date:yyyy-MM-dd}/force-close-request", request, cancellationToken);
 

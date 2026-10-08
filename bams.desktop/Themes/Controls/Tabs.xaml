@@ -22,6 +22,27 @@
         <Setter Property="BorderThickness" Value="0,0,0,1"/>
     </Style>
 
+    <!-- Use with a Tab.Strip made from Tab RadioButtons when a view needs the shared
+         tab component while keeping TabControl's existing selected-content behavior. -->
+    <Style x:Key="TabControl.ContentOnly" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <ContentPresenter x:Name="PART_SelectedContentHost"
+                                      ContentSource="SelectedContent"
+                                      Margin="0"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="Tab" TargetType="RadioButton">
         <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}"/>

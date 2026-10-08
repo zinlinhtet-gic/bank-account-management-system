@@ -8,6 +8,7 @@ public interface IEndOfDayClientService
     Task<IReadOnlyList<BusinessDateResponse>> SearchBusinessDatesAsync(DateOnly? fromDate, DateOnly? toDate, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse?> GetLatestRunAsync(DateOnly date, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse> RunPreCloseAsync(DateOnly date, CancellationToken cancellationToken);
+    Task<EndOfDayRunResponse> ReviewPreCloseAsync(DateOnly date, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse> RequestForceCloseAsync(DateOnly date, ForceCloseRequest request, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse> ApproveForceCloseAsync(long runId, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse> ApproveAsync(long runId, CancellationToken cancellationToken);

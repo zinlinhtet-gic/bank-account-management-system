@@ -391,7 +391,8 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         var glEntries = await _db.TransactionEntries.Where(item => item.TransactionId == originalId).ToListAsync(cancellationToken);
         if (accountEntries.Count == 0 || glEntries.Count == 0)
             throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
-        var openBusinessDate = await _db.BusinessDates.Where(item => item.Status == "Open").OrderByDescending(item => item.Date)
+        var today = BusinessTime.Today;
+        var openBusinessDate = await _db.BusinessDates.Where(item => item.Status == "Open" && item.Date <= today).OrderByDescending(item => item.Date)
             .Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken);
         if (openBusinessDate is null)
             throw new BusinessRuleException(MessageCode.BusinessDateClosed);

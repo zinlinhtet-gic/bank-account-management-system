@@ -38,12 +38,18 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
     private ReconciliationStaffOptionResponse? _selectedInvestigator;
     private string _investigatorSearchText = string.Empty;
     private IReadOnlyList<ReconciliationStaffOptionResponse> _allInvestigatorOptions = [];
+    private int _selectedTabIndex;
 
     public ReconciliationViewModel(IReconciliationService service, IEndOfDayClientService businessDateService, AuthContext authContext)
     {
         _service = service;
         _businessDateService = businessDateService;
         _authContext = authContext;
+        SelectTabCommand = new RelayCommand(parameter =>
+        {
+            if (int.TryParse(parameter?.ToString(), out var index) && index is >= 0 and <= 2)
+                SelectedTabIndex = index;
+        });
         RunCommand = new AsyncRelayCommand(async _ => await RunAsync());
         RefreshExceptionsCommand = new AsyncRelayCommand(async _ => await LoadExceptionsAsync());
         UpdateExceptionCommand = new AsyncRelayCommand(async () => await UpdateSelectedExceptionAsync(), () => CanUpdateSelectedException);
@@ -62,9 +68,11 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
     public ObservableCollection<CorrectionTransactionCandidateResponse> CorrectionCandidates { get; } = [];
     public ObservableCollection<ReconciliationAccountOptionResponse> AccountOptions { get; } = [];
     public ObservableCollection<ReconciliationStaffOptionResponse> InvestigatorOptions { get; } = [];
+    public int SelectedTabIndex { get => _selectedTabIndex; set => SetProperty(ref _selectedTabIndex, value); }
     public IReadOnlyList<string> InvestigationStatuses { get => _investigationStatuses; private set => SetProperty(ref _investigationStatuses, value); }
     public IReadOnlyList<string> ExceptionFilterStatuses { get; } = ["All", "Open", "UnderInvestigation", "AdjustmentRequired", "Resolved"];
     public AsyncRelayCommand RunCommand { get; }
+    public RelayCommand SelectTabCommand { get; }
     public AsyncRelayCommand RefreshExceptionsCommand { get; }
     public AsyncRelayCommand UpdateExceptionCommand { get; }
     public AsyncRelayCommand LoadExceptionTimelineCommand { get; }
@@ -104,6 +112,8 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
         set
         {
             if (!SetProperty(ref _selectedException, value)) return;
+            OnPropertyChanged(nameof(HasSelectedException));
+            OnPropertyChanged(nameof(HasNoSelectedException));
             if (value is not null)
             {
                 InvestigationStatuses = GetAllowedStatuses(value.Status);
@@ -124,6 +134,8 @@ public sealed class ReconciliationViewModel : ViewModelBase, IAsyncInitializable
             RejectCorrectionCommand.RaiseCanExecuteChanged();
         }
     }
+    public bool HasSelectedException => SelectedException is not null;
+    public bool HasNoSelectedException => SelectedException is null;
     public bool CanUpdateSelectedException => SelectedException is not null && SelectedException.Status != "Resolved" && CanManageInvestigation;
     public bool CanManageInvestigation => _authContext.HasPermission(PermissionCodes.ReconciliationInvestigation);
     public string InvestigationStatus { get => _investigationStatus; set => SetProperty(ref _investigationStatus, value); }

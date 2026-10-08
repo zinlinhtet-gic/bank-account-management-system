@@ -5,6 +5,7 @@ using bams.server.Messages;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
+using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
@@ -59,6 +60,9 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
 
     private async Task EnsurePostingDateIsOpenAsync(DateOnly postingDate, CancellationToken cancellationToken)
     {
+        if (postingDate > BusinessTime.Today)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
         var closed = await dbContext.BusinessDates.AsNoTracking()
             .AnyAsync(item => item.Date == postingDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
         if (closed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);

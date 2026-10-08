@@ -493,6 +493,12 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime>("PreparedAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("OverrideReason")
                         .HasColumnType("longtext");
 
@@ -524,6 +530,8 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("ClosedBy");
 
                     b.HasIndex("PreparedBy");
+
+                    b.HasIndex("ReviewedBy");
 
                     b.HasIndex("BusinessDate", "PreparedAtUtc");
 
@@ -2601,6 +2609,11 @@ namespace bams.server.Data.Migrations
                         .HasForeignKey("PreparedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("bams.server.Models.Security.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.GlAccount", b =>

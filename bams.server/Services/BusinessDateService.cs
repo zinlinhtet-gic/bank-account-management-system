@@ -30,6 +30,9 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
 
     private async Task<Models.Accounting.BusinessDate> GetOrCreateOpenDateAsync(DateOnly currentDate, CancellationToken cancellationToken)
     {
+        if (currentDate > BusinessTime.Today)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
         var open = await db.BusinessDates.FirstOrDefaultAsync(item =>
             item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
         if (open is not null) return open;

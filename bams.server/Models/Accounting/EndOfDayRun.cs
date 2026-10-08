@@ -9,6 +9,8 @@ public sealed class EndOfDayRun
     public string StageSummaryJson { get; set; } = "{}";
     public long PreparedBy { get; set; }
     public DateTime PreparedAtUtc { get; set; }
+    public long? ReviewedBy { get; set; }
+    public DateTime? ReviewedAtUtc { get; set; }
     public long? ApprovedBy { get; set; }
     public DateTime? ApprovedAtUtc { get; set; }
     public long? ClosedBy { get; set; }

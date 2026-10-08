@@ -170,6 +170,7 @@ public sealed class EndOfDayRunConfiguration : IEntityTypeConfiguration<EndOfDay
         builder.Property(item => item.StageSummaryJson).IsRequired().HasColumnType("json");
         builder.HasIndex(item => new { item.BusinessDate, item.PreparedAtUtc });
         builder.HasOne<bams.server.Models.Security.User>().WithMany().HasForeignKey(item => item.PreparedBy).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<bams.server.Models.Security.User>().WithMany().HasForeignKey(item => item.ReviewedBy).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<bams.server.Models.Security.User>().WithMany().HasForeignKey(item => item.ApprovedBy).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<bams.server.Models.Security.User>().WithMany().HasForeignKey(item => item.ClosedBy).OnDelete(DeleteBehavior.Restrict);
     }

@@ -3,6 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:bams.desktop.Themes">
     <UserControl.Resources>
+        <Style x:Key="ReconciliationTab0" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedTabIndex}" Value="0"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
+        <Style x:Key="ReconciliationTab1" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedTabIndex}" Value="1"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
+        <Style x:Key="ReconciliationTab2" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedTabIndex}" Value="2"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
         <DataTemplate x:Key="ExceptionStatusLabelTemplate">
             <TextBlock x:Name="StatusLabel" Text="{Binding}" />
             <DataTemplate.Triggers>
@@ -14,47 +17,58 @@
         </DataTemplate>
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-    <StackPanel Margin="24">
-        <TextBlock Text="Account Reconciliation" Style="{StaticResource Text.Title}" />
-        <TextBlock Text="Compare customer account balances with the General Ledger, investigate differences, and submit reviewed correction requests." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,0" />
-        <Border Style="{StaticResource Card.Compact}" Margin="0,16,0,12">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*" />
-                    <ColumnDefinition Width="1*" />
-                    <ColumnDefinition Width="1.2*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Account Reconciliation" Style="{StaticResource Text.Title}" />
+            <TextBlock Text="Compare customer account balances with the General Ledger, investigate differences, and submit reviewed correction requests." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+        </StackPanel>
+        <Border Grid.Row="1" Style="{StaticResource Card.Compact}" Margin="0,14,0,10">
+            <WrapPanel>
+                <StackPanel Width="210" Margin="0,0,12,8">
                     <TextBlock Text="Start business date" Style="{StaticResource Text.FieldLabel}"/>
                     <DatePicker SelectedDate="{Binding FromDate}" Style="{StaticResource Input.Date}"/>
                     <TextBlock Text="First date included in the comparison." Style="{StaticResource Text.Caption}" TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding FromDateError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                <StackPanel Width="210" Margin="0,0,12,8">
                     <TextBlock Text="End business date" Style="{StaticResource Text.FieldLabel}"/>
                     <DatePicker SelectedDate="{Binding ToDate}" Style="{StaticResource Input.Date}"/>
                     <TextBlock Text="Last date included; dates are inclusive." Style="{StaticResource Text.Caption}" TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding ToDateError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/>
                 </StackPanel>
-                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                <StackPanel Width="340" Margin="0,0,12,8">
                     <TextBlock Text="Optional account filter" Style="{StaticResource Text.FieldLabel}"/>
                     <TextBlock Text="Search by account number, then choose a match. Leave unselected to include all accounts." Style="{StaticResource Text.Caption}" TextWrapping="Wrap"/>
                     <DockPanel Margin="0,3,0,0">
                         <Button DockPanel.Dock="Right" Content="Find" Command="{Binding SearchAccountsCommand}" Style="{StaticResource Button.Secondary}" Margin="6,0,0,0" />
-                        <TextBox Text="{Binding AccountSearchText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" ToolTip="Type all or part of the account number, for example 100-" />
+                        <TextBox Text="{Binding AccountSearchText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Search account number" ToolTip="Type all or part of the account number, for example 100-" />
                     </DockPanel>
-                    <ComboBox ItemsSource="{Binding AccountOptions}" SelectedItem="{Binding SelectedAccountOption}" DisplayMemberPath="DisplayLabel" Style="{StaticResource Input.Select}" Margin="0,4,0,0" ToolTip="Choose an account by account number and product type." />
+                    <ComboBox ItemsSource="{Binding AccountOptions}" SelectedItem="{Binding SelectedAccountOption}" DisplayMemberPath="DisplayLabel" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account (optional)" Margin="0,4,0,0" ToolTip="Choose an account by account number and product type." />
                     <Button Content="Include all accounts" Command="{Binding ClearAccountFilterCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,4,0,0" />
                     <TextBlock Text="{Binding AccountLookupError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/>
                 </StackPanel>
-                <Button Grid.Column="3" Content="Compare balances" Command="{Binding RunCommand}" Style="{StaticResource Button.Primary}"
-                        VerticalAlignment="Top" Margin="0,20,0,0" />
-            </Grid>
+                <Button Content="Compare balances" Command="{Binding RunCommand}" Style="{StaticResource Button.Primary}"
+                        VerticalAlignment="Top" Margin="0,20,0,8" />
+            </WrapPanel>
         </Border>
-        <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,12" />
+        <TextBlock Grid.Row="2" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
 
-        <TabControl MinHeight="430">
+        <Border Grid.Row="3" Style="{StaticResource Card.Flush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Tab.Strip}" Padding="8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="Account Results" Style="{StaticResource ReconciliationTab0}" GroupName="ReconciliationTabs" Command="{Binding SelectTabCommand}" CommandParameter="0"/>
+                        <RadioButton Content="Exceptions" Style="{StaticResource ReconciliationTab1}" GroupName="ReconciliationTabs" Command="{Binding SelectTabCommand}" CommandParameter="1"/>
+                        <RadioButton Content="Investigation" Style="{StaticResource ReconciliationTab2}" GroupName="ReconciliationTabs" Command="{Binding SelectTabCommand}" CommandParameter="2"/>
+                    </StackPanel>
+                </Border>
+                <TabControl Style="{StaticResource TabControl.ContentOnly}" MinHeight="0" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
             <TabItem Header="Account Results">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
@@ -63,7 +77,7 @@
                         <Border Style="{StaticResource Card.Flush}">
                         <DockPanel>
                         <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Account balance results" Style="{StaticResource Text.FieldLabel}" /></Border>
-                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Results}" MinHeight="260">
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Results}" MinHeight="120" MaxHeight="320">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Account" Binding="{Binding AccountNo}" />
                                 <DataGridTextColumn Header="Date" Binding="{Binding BusinessDate}" />
@@ -79,25 +93,25 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Exceptions and Investigation">
+            <TabItem Header="Exceptions">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
                         <TextBlock Text="Review balance differences" Style="{StaticResource Text.Subheading}" />
-                        <TextBlock Text="The list uses the date range above. Select a row to see who owns the investigation, add notes, or request a reviewed reversal. A case closes after reconciliation confirms the balances match."
+                        <TextBlock Text="The list uses the date range above. Select a case, then open the Investigation tab to review ownership, add notes, or request a reviewed reversal. A case closes after reconciliation confirms the balances match."
                                    Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,10" />
                         <DockPanel Margin="0,0,0,8">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                                 <StackPanel>
                                     <TextBlock Text="Show cases with status" Style="{StaticResource Text.FieldLabel}" />
-                                    <ComboBox Width="200" ItemsSource="{Binding ExceptionFilterStatuses}" SelectedItem="{Binding ExceptionFilterStatus}" ItemTemplate="{StaticResource ExceptionStatusLabelTemplate}" Style="{StaticResource Input.Select}"/>
+                                    <ComboBox Width="200" ItemsSource="{Binding ExceptionFilterStatuses}" SelectedItem="{Binding ExceptionFilterStatus}" ItemTemplate="{StaticResource ExceptionStatusLabelTemplate}" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="All cases"/>
                                 </StackPanel>
                                 <Button Content="Refresh cases" Command="{Binding RefreshExceptionsCommand}" Style="{StaticResource Button.Secondary}" Margin="8,22,0,0" />
                             </StackPanel>
                         </DockPanel>
                         <Border Style="{StaticResource Card.Flush}">
                         <DockPanel>
-                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Cases in the selected date range — select one to open its details" Style="{StaticResource Text.FieldLabel}" /></Border>
-                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Exceptions}" SelectedItem="{Binding SelectedException}" MinHeight="180">
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Cases in the selected date range — choose a case to investigate" Style="{StaticResource Text.FieldLabel}" /></Border>
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Exceptions}" SelectedItem="{Binding SelectedException}" MinHeight="120" MaxHeight="280">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Case number" Binding="{Binding Id}" />
                                 <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
@@ -110,7 +124,19 @@
                         </DataGrid>
                         </DockPanel>
                         </Border>
+                        <Button Content="Open investigation" Command="{Binding SelectTabCommand}" CommandParameter="2"
+                                IsEnabled="{Binding HasSelectedException}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
+            <TabItem Header="Investigation">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+                        <TextBlock Text="Review and update the selected case. Choose a case from the Exceptions tab first."
+                                   Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Visibility="{Binding HasNoSelectedException, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <StackPanel Visibility="{Binding HasSelectedException, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Border Style="{StaticResource Card.Compact}" Margin="0,12,0,0" DataContext="{Binding SelectedException}">
                             <StackPanel>
                                 <TextBlock Text="Selected case: account balance compared with GL balance" Style="{StaticResource Text.Subheading}" />
@@ -124,15 +150,15 @@
                                 <TextBlock Text="Search by the person's name or username, then choose them from the results. No staff ID is needed." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
                                 <DockPanel Margin="0,0,0,4">
                                     <Button DockPanel.Dock="Right" Content="Search staff" Command="{Binding DataContext.LoadInvestigatorOptionsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Style="{StaticResource Button.Secondary}" Margin="6,0,0,0" />
-                                    <TextBox Text="{Binding DataContext.InvestigatorSearchText, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" ToolTip="Type a full or partial name or username." />
+                                <TextBox Text="{Binding DataContext.InvestigatorSearchText, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Search name or username" ToolTip="Type a full or partial name or username." />
                                 </DockPanel>
-                                <ComboBox Width="420" HorizontalAlignment="Left" ItemsSource="{Binding DataContext.InvestigatorOptions, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding DataContext.SelectedInvestigator, RelativeSource={RelativeSource AncestorType=UserControl}}" DisplayMemberPath="DisplayLabel" Style="{StaticResource Input.Select}" ToolTip="Choose a staff member from the search results." />
+                                <ComboBox MaxWidth="460" ItemsSource="{Binding DataContext.InvestigatorOptions, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding DataContext.SelectedInvestigator, RelativeSource={RelativeSource AncestorType=UserControl}}" DisplayMemberPath="DisplayLabel" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose investigator" ToolTip="Choose a staff member from the search results." />
                                 <TextBlock Text="Investigation status" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,2" />
                                 <TextBlock Text="Choose the current step for this case. Resolved is set automatically after a matching reconciliation." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                                <ComboBox Width="250" HorizontalAlignment="Left" ItemsSource="{Binding DataContext.InvestigationStatuses, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding DataContext.InvestigationStatus, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource ExceptionStatusLabelTemplate}" Style="{StaticResource Input.Select}" />
+                                <ComboBox MaxWidth="320" ItemsSource="{Binding DataContext.InvestigationStatuses, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding DataContext.InvestigationStatus, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource ExceptionStatusLabelTemplate}" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose status" />
                                 <TextBlock Text="Investigation notes" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,2" />
                                 <TextBlock Text="Record what was checked or what action is still needed. These notes are saved to the case history." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding DataContext.InvestigationNotes, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" MinHeight="72" />
+                                <TextBox Text="{Binding DataContext.InvestigationNotes, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="What was checked or what remains to do" AcceptsReturn="True" MinHeight="72" />
                                 <TextBlock Text="{Binding DataContext.InvestigationNotesError, RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" />
                                 <Button Content="Save case updates" Command="{Binding DataContext.UpdateExceptionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,8,0,0" />
                                 <TextBlock Text="{Binding DataContext.InvestigationStatusError, RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" />
@@ -148,7 +174,7 @@
                                     <Button DockPanel.Dock="Right" Content="Reload transactions" Command="{Binding DataContext.LoadCorrectionCandidatesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Style="{StaticResource Button.Secondary}" />
                                     <TextBlock Text="Transactions posted to this account — select the transaction to correct" Style="{StaticResource Text.BodyMuted}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 </DockPanel>
-                                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding DataContext.CorrectionCandidates, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding DataContext.SelectedCorrectionCandidate, RelativeSource={RelativeSource AncestorType=UserControl}}" MaxHeight="170" AutoGenerateColumns="False">
+                                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding DataContext.CorrectionCandidates, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding DataContext.SelectedCorrectionCandidate, RelativeSource={RelativeSource AncestorType=UserControl}}" MinHeight="100" MaxHeight="220" AutoGenerateColumns="False">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Transaction number" Binding="{Binding TransactionNo}" />
                                         <DataGridTextColumn Header="Transaction type" Binding="{Binding Type}" />
@@ -161,19 +187,19 @@
                                 <TextBlock Text="{Binding DataContext.SelectedCorrectionCandidate.TransactionNo, RelativeSource={RelativeSource AncestorType=UserControl}, TargetNullValue=Select a transaction above}" Style="{StaticResource Text.Body}" />
                                 <TextBlock Text="Why should this transaction be reversed? (required)" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,2" />
                                 <TextBlock Text="Explain the error and why reversing this whole transaction is appropriate." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding DataContext.CorrectionReason, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" MinHeight="64" />
+                                <TextBox Text="{Binding DataContext.CorrectionReason, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Explain the transaction error and why reversal is needed" AcceptsReturn="True" MinHeight="64" />
                                 <TextBlock Text="External recovery reference (settled NRC or interbank transfer)" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,2" />
                                 <TextBlock Text="Enter the bank recovery or settlement reference confirming returned funds. Leave blank for other transaction types." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding DataContext.ExternalRecoveryReference, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" />
+                                <TextBox Text="{Binding DataContext.ExternalRecoveryReference, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Bank recovery or settlement reference (if applicable)" />
                                 <Button Content="Request Correction" Command="{Binding DataContext.RequestCorrectionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" IsEnabled="{Binding DataContext.CanRequestCorrection, RelativeSource={RelativeSource AncestorType=UserControl}}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,8,0,8" />
                                 <Separator Margin="0,10,0,10" />
                                 <TextBlock Text="Manager review" Style="{StaticResource Text.Subheading}" />
                                 <TextBlock Text="Review the reason and linked journal above. Record a decision note; if rejecting, explain what must be corrected before resubmission." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,3,0,6" />
                                 <TextBlock Text="Decision note (required for approval and rejection)" Style="{StaticResource Text.FieldLabel}" />
-                                <TextBox Text="{Binding DataContext.ReviewNote, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" MinHeight="56" />
+                                <TextBox Text="{Binding DataContext.ReviewNote, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Decision note for approval or rejection" AcceptsReturn="True" MinHeight="56" />
                                 <TextBlock Text="Recovery attestation (settled NRC or interbank transfer only)" Style="{StaticResource Text.FieldLabel}" Margin="0,6,0,2" />
                                 <TextBlock Text="Confirm that the external recovery reference above was checked and funds were recovered." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding DataContext.RecoveryAttestation, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" />
+                                <TextBox Text="{Binding DataContext.RecoveryAttestation, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Confirm recovery was checked (if applicable)" />
                                 <WrapPanel Margin="0,8,0,0">
                                     <Button Content="Approve and Post Reversal" Command="{Binding DataContext.ApproveCorrectionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" IsEnabled="{Binding DataContext.CanReviewCorrection, RelativeSource={RelativeSource AncestorType=UserControl}}" Visibility="{Binding DataContext.HasCorrectionApprovalPermission, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}" Style="{StaticResource Button.Primary}" />
                                     <Button Content="Reject Request" Command="{Binding DataContext.RejectCorrectionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" IsEnabled="{Binding DataContext.CanReviewCorrection, RelativeSource={RelativeSource AncestorType=UserControl}}" Visibility="{Binding DataContext.HasCorrectionApprovalPermission, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}" Style="{StaticResource Button.Secondary}" Margin="8,0,0,0" />
@@ -187,7 +213,7 @@
                         <Border Style="{StaticResource Card.Flush}" Margin="0,8,0,0">
                         <DockPanel>
                         <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Investigation timeline" Style="{StaticResource Text.FieldLabel}" /></Border>
-                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding ExceptionDetail.Timeline}" MinHeight="140">
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding ExceptionDetail.Timeline}" MinHeight="100" MaxHeight="220">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="When (UTC)" Binding="{Binding CreatedAtUtc}" />
                                 <DataGridTextColumn Header="Actor" Binding="{Binding ActorId}" />
@@ -198,10 +224,13 @@
                         </DataGrid>
                         </DockPanel>
                         </Border>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-        </TabControl>
-    </StackPanel>
+                </TabControl>
+            </DockPanel>
+        </Border>
+    </Grid>
     </ScrollViewer>
 </UserControl>

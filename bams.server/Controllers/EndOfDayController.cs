@@ -45,6 +45,14 @@ public sealed class EndOfDayController(IEndOfDayWorkflowService workflow) : Cont
         return Ok(ApiMessageResponse<EndOfDayRunResponse>.FromCode(MessageCode.Success, result));
     }
 
+    [HttpPost("{date}/review-pre-close")]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
+    public async Task<ActionResult<ApiMessageResponse<EndOfDayRunResponse>>> ReviewPreCloseAsync(DateOnly date, CancellationToken cancellationToken)
+    {
+        var result = await workflow.ReviewPreCloseAsync(date, cancellationToken);
+        return Ok(ApiMessageResponse<EndOfDayRunResponse>.FromCode(MessageCode.Success, result));
+    }
+
     [HttpPost("{date}/force-close-request")]
     [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<EndOfDayRunResponse>>> RequestForceCloseAsync(DateOnly date,

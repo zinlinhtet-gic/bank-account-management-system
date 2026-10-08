@@ -30,7 +30,8 @@ public sealed class EndOfDayWorkflowService(
     public async Task<IReadOnlyList<BusinessDateResponse>> SearchBusinessDatesAsync(DateOnly? fromDate, DateOnly? toDate,
         CancellationToken cancellationToken)
     {
-        IQueryable<BusinessDate> query = db.BusinessDates.AsNoTracking();
+        DateOnly today = BusinessTime.Today;
+        IQueryable<BusinessDate> query = db.BusinessDates.AsNoTracking().Where(item => item.Date <= today);
         if (fromDate.HasValue) query = query.Where(item => item.Date >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(item => item.Date <= toDate.Value);
         return await query.OrderByDescending(item => item.Date)
@@ -76,6 +77,9 @@ public sealed class EndOfDayWorkflowService(
 
     private async Task LockAndValidateBusinessDateAsync(DateOnly date, CancellationToken cancellationToken)
     {
+        if (date > BusinessTime.Today)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
         List<BusinessDate> businessDates = await db.BusinessDates
             .FromSql($"SELECT * FROM BusinessDates WHERE Date = {date} FOR UPDATE")
             .ToListAsync(cancellationToken);
@@ -200,6 +204,35 @@ public sealed class EndOfDayWorkflowService(
         return ToResponse(run, stages);
     }
 
+    public async Task<EndOfDayRunResponse> ReviewPreCloseAsync(DateOnly date, CancellationToken cancellationToken)
+    {
+        long reviewerId = currentUser.GetCurrentUserId();
+        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await LockAndValidateBusinessDateAsync(date, cancellationToken);
+        await EnsureNoPendingForceCloseAsync(date, cancellationToken);
+
+        EndOfDayRun? latestRun = await db.EndOfDayRuns
+            .Where(item => item.BusinessDate == date)
+            .OrderByDescending(item => item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (latestRun is null || latestRun.Status != OperationsConstants.EodReadyForApproval)
+            throw new BusinessRuleException(MessageCode.EndOfDayApprovalRequired);
+        EndOfDayRun run = latestRun;
+
+        if (run.PreparedBy == reviewerId && !await IsSoleActiveManagerAsync(reviewerId, cancellationToken))
+            throw new BusinessRuleException(MessageCode.EndOfDayApprovalRequired);
+
+        List<EndOfDayStageResponse> stages = await BuildCompleteStageSummaryAsync(date, cancellationToken);
+        bool blocked = stages.Any(stage => stage.IssueCount > 0 || stage.Status is "Blocked" or "Exceptions");
+        run.StageSummaryJson = JsonSerializer.Serialize(stages, JsonOptions);
+        run.Status = blocked ? OperationsConstants.EodBlocked : OperationsConstants.EodReadyForApproval;
+        run.ReviewedBy = reviewerId;
+        run.ReviewedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return ToResponse(run, stages);
+    }
+
     private async Task EnsurePreCloseCanRunAsync(DateOnly date, CancellationToken cancellationToken)
     {
         await EnsureOldestOpenDateAsync(date, cancellationToken);
@@ -225,7 +258,11 @@ public sealed class EndOfDayWorkflowService(
             item.Date == run.BusinessDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
         if (!isBusinessDateOpen)
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        if (run.Status != OperationsConstants.EodReadyForApproval || actorId == run.PreparedBy)
+        bool isSoleManagerSelfApproval = actorId == run.PreparedBy &&
+            await IsSoleActiveManagerAsync(actorId, cancellationToken);
+        if (run.Status != OperationsConstants.EodReadyForApproval ||
+            (actorId == run.PreparedBy && !isSoleManagerSelfApproval) ||
+            run.ReviewedBy != actorId || !run.ReviewedAtUtc.HasValue)
             throw new BusinessRuleException(MessageCode.EndOfDayApprovalRequired);
         run.ApprovedBy = actorId;
         run.ApprovedAtUtc = DateTime.UtcNow;
@@ -240,14 +277,17 @@ public sealed class EndOfDayWorkflowService(
         EndOfDayRun initialRun = await db.EndOfDayRuns.AsNoTracking().SingleOrDefaultAsync(item => item.Id == runId, cancellationToken)
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         bool isManagerOverride = initialRun.Status == "OverrideApproved";
-        ValidateInitialCloseRun(initialRun, isManagerOverride);
+        bool isSoleManagerSelfApproval = !isManagerOverride && initialRun.PreparedBy == actorId &&
+            initialRun.ApprovedBy == actorId && initialRun.ReviewedBy == actorId &&
+            await IsSoleActiveManagerAsync(actorId, cancellationToken);
+        ValidateInitialCloseRun(initialRun, isManagerOverride, isSoleManagerSelfApproval);
 
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         EndOfDayRun run = (await db.EndOfDayRuns.FromSql($"SELECT * FROM EndOfDayRuns WHERE Id = {runId} FOR UPDATE").ToListAsync(cancellationToken)).Single();
         BusinessDate businessDate = (await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {run.BusinessDate} FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault()
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         isManagerOverride = run.Status == "OverrideApproved";
-        await ValidateLockedCloseStateAsync(run, businessDate, isManagerOverride, cancellationToken);
+        await ValidateLockedCloseStateAsync(run, businessDate, isManagerOverride, isSoleManagerSelfApproval, cancellationToken);
         await EnsureCloseAuditAsync(run.BusinessDate, cancellationToken);
         await ApplyBusinessDateCloseAsync(run, businessDate, actorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
@@ -255,18 +295,23 @@ public sealed class EndOfDayWorkflowService(
         return ToResponse(run, DeserializeStages(run.StageSummaryJson));
     }
 
-    private static void ValidateInitialCloseRun(EndOfDayRun run, bool isManagerOverride)
+    private static void ValidateInitialCloseRun(EndOfDayRun run, bool isManagerOverride, bool isSoleManagerSelfApproval)
     {
         bool isApprovedEodRun = run.Status == OperationsConstants.EodApproved;
         bool wasApprovedByAnotherManager = run.ApprovedBy != run.PreparedBy;
-        if ((!isManagerOverride && !isApprovedEodRun) || (!isManagerOverride && !wasApprovedByAnotherManager))
+        bool wasApprovedBySoleManager = isSoleManagerSelfApproval && run.ApprovedBy == run.PreparedBy &&
+            run.ReviewedBy == run.PreparedBy;
+        if ((!isManagerOverride && !isApprovedEodRun) ||
+            (!isManagerOverride && !wasApprovedByAnotherManager && !wasApprovedBySoleManager))
             throw new BusinessRuleException(MessageCode.EndOfDayApprovalRequired);
     }
 
     private async Task ValidateLockedCloseStateAsync(EndOfDayRun run, BusinessDate businessDate,
-        bool isManagerOverride, CancellationToken cancellationToken)
+        bool isManagerOverride, bool isSoleManagerSelfApproval, CancellationToken cancellationToken)
     {
-        bool isApprovedRun = run.Status == OperationsConstants.EodApproved || isManagerOverride;
+        bool hasIndependentApproval = run.ApprovedBy != run.PreparedBy ||
+            (isSoleManagerSelfApproval && run.ApprovedBy == run.PreparedBy && run.ReviewedBy == run.PreparedBy);
+        bool isApprovedRun = (run.Status == OperationsConstants.EodApproved && hasIndependentApproval) || isManagerOverride;
         bool isBusinessDateOpen = businessDate.Status == OperationsConstants.BusinessDateOpen;
         if (!isApprovedRun || !isBusinessDateOpen)
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
@@ -316,7 +361,7 @@ public sealed class EndOfDayWorkflowService(
         DateOnly nextBusinessDateValue = run.BusinessDate.AddDays(1);
         BusinessDate? nextBusinessDate = await db.BusinessDates.SingleOrDefaultAsync(
             item => item.Date == nextBusinessDateValue, cancellationToken);
-        if (nextBusinessDate is null)
+        if (nextBusinessDate is null && nextBusinessDateValue <= BusinessTime.Today)
         {
             BusinessDate nextBusinessDateRecord = new()
             {
@@ -327,7 +372,7 @@ public sealed class EndOfDayWorkflowService(
             };
             db.BusinessDates.Add(nextBusinessDateRecord);
         }
-        else if (nextBusinessDate.Status != OperationsConstants.BusinessDateOpen)
+        else if (nextBusinessDate is not null && nextBusinessDate.Status != OperationsConstants.BusinessDateOpen)
         {
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
         }
@@ -492,6 +537,12 @@ public sealed class EndOfDayWorkflowService(
                where user.Status == UserStatus.Active && permission.Code == SecurityConstants.EndOfDayApproval
                select user.Id).Distinct().OrderBy(id => id).ToListAsync(cancellationToken);
 
+    private async Task<bool> IsSoleActiveManagerAsync(long userId, CancellationToken cancellationToken)
+    {
+        List<long> managerIds = await GetActiveManagerIdsAsync(cancellationToken);
+        return managerIds.Count == 1 && managerIds[0] == userId;
+    }
+
     private static List<long> DeserializeUserIds(string? json) => string.IsNullOrWhiteSpace(json)
         ? [] : JsonSerializer.Deserialize<List<long>>(json, JsonOptions) ?? [];
 
@@ -506,6 +557,8 @@ public sealed class EndOfDayWorkflowService(
     private static EndOfDayRunResponse ToResponse(EndOfDayRun run, IReadOnlyList<EndOfDayStageResponse> stages) =>
         new(run.Id, run.BusinessDate, run.Status, run.PreparedAtUtc, stages, run.PreparedBy, run.ApprovedBy, run.ClosedBy)
         {
+            ReviewedBy = run.ReviewedBy,
+            ReviewedAtUtc = run.ReviewedAtUtc,
             OverrideReason = run.OverrideReason,
             OverrideRequiredUserIds = DeserializeUserIds(run.OverrideRequiredUserIdsJson),
             OverrideApprovedUserIds = DeserializeUserIds(run.OverrideApprovedUserIdsJson),
