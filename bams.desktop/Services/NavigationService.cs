@@ -4,6 +4,7 @@ using bams.desktop.ViewModels.Pages;
 using bams.desktop.ViewModels.Pages.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using bams.desktop.ViewModels.Pages.Accounting;
+using bams.desktop.ViewModels.Pages.Operations;
 using System.Printing;
 
 namespace bams.desktop.Services;
@@ -40,6 +41,9 @@ public sealed class NavigationService : INavigationService
             // Placeholder until reconciliation is built (shown by the generic page view).
             PageNames.Reconciliation => _serviceProvider.GetService<ReconciliationViewModel>(),
             PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
+            PageNames.OperationInterest => _serviceProvider.GetService<OperationInterestViewModel>(),
+            PageNames.OperationFees => _serviceProvider.GetService<OperationFeesViewModel>(),
+            PageNames.FixedDepositMaturity => _serviceProvider.GetService<FixedDepositMaturityViewModel>(),
             PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
             // The Audit nav group's only page; shows the audit placeholder until it has its own view.
             PageNames.TransactionAudit => _serviceProvider.GetService<AuditViewModel>(),

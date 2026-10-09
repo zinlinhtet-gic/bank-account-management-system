@@ -284,6 +284,8 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4240 | TransactionNotFound | 404 | The requested transaction (e.g. an NRC transfer for pickup) does not exist. |
 | 4241 | OtherBankNotFound | 404 | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist. |
 | 4242 | BranchNotFound | 404 | The NRC pickup branch does not exist or is not active. |
+| 4243 | InterestAccrualNotFound | 404 | The interest accrual record (Operations › Interest detail) does not exist. |
+| 4244 | FeeAccrualNotFound | 404 | The fee accrual record (Operations › Fees detail) does not exist. |
 | 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
 | 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
 | 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different user, transaction type or amount. |
@@ -321,6 +323,8 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4240 | TransactionNotFound             | 404  | The requested transaction (e.g. an NRC transfer for pickup) does not exist.              |
 | 4241 | OtherBankNotFound               | 404  | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist.    |
 | 4242 | BranchNotFound                  | 404  | The NRC pickup branch does not exist or is not active.                                   |
+| 4243 | InterestAccrualNotFound         | 404  | The interest accrual record (Operations › Interest detail) does not exist.               |
+| 4244 | FeeAccrualNotFound              | 404  | The fee accrual record (Operations › Fees detail) does not exist.                        |
 | 4305 | UsernameAlreadyExists           | 409  | Another user already has this username.                                                  |
 | 4306 | EmailAlreadyExists              | 409  | Another user already has this email.                                                     |
 | 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different user, transaction type or amount. |

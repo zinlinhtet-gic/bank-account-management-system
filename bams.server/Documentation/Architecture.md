@@ -104,6 +104,10 @@ Transactions follow the same layers:
     row locks, account-type debit rules, customer and GL entries, refunds, audit rows. All balance changes go through
     `PostCustomerEntryAsync`.
   - `TransactionRequestValidator`: request checks shared by the services.
+- `OperationsController` (`api/operations`, `[RequirePermission(operation)]` on the class): read-only, per-customer
+  lists of interest accruals (`interest`), fees (`fees`) and fixed-deposit maturity (`fixed-deposit-maturity`).
+  `IOperationQueryService` / `OperationQueryService` builds them; the customer on each row is the account's primary
+  holder. DTOs under `DTO/Operations`, values in `Constants/OperationConstants.cs`.
 - DTOs under `DTO/Transactions` (plus `DTO/Common/PagedResponse` and `RequestActor`); limits in
   `Constants/TransactionConstants.cs`, GL codes in `AccountingConstants.cs`, audit actions in `AuditConstants.cs`.
   GL accounts are seeded by `Data/Seeders/ChartOfAccountsSeeder.cs`. Example requests in `transactions.http`.
@@ -184,7 +188,7 @@ Authentication and authorization failures use `ApiErrorResponse`. `GlobalExcepti
 
 Account documents are validated against `AccountTypeRequiredDocument`. Files are stored below the configured private upload root, outside `wwwroot`, using generated filenames; the database stores only relative references and metadata.
 
-After migrations, the idempotent `ProductSeeder` populates reference products, required documents, and demo interest rules. In Development only, `TestDataSeeder` adds deterministic sample customers and accounts.
+After migrations, the idempotent `ProductSeeder` populates reference products, required documents, and demo interest rules. In Development only, `TestDataSeeder` adds deterministic sample customers and accounts. When `SampleData:SeedOperations` is `true` (set in `appsettings.Development.json`), `OperationSampleDataSeeder` then adds fixed-deposit accounts and one dormant saving account for those customers, replays the real `AccountMaintenanceService` and `InterestAccumulationService` jobs for every monthly run date from February 2026 up to today (so accruals, quarterly credits, fees and penalties carry their normal transactions, GL entries and audit rows), and marks past-maturity sample deposits Matured or Closed. It is idempotent; set the flag to `false` to stop it.
 
 ## Desktop client integration
 

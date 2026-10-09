@@ -10,6 +10,8 @@
                 <ResourceDictionary Source="Themes/Theme.xaml"/>
                 <!-- Transaction status / entry badges (after the theme they build on). -->
                 <ResourceDictionary Source="Views/Pages/Transactions/TransactionStyles.xaml"/>
+                <!-- Operations status badges (interest, fees, fixed deposits). -->
+                <ResourceDictionary Source="Views/Pages/Operations/OperationStyles.xaml"/>
                 <!-- Dialog ViewModel → View templates for IDialogService.ShowDialog (after the theme they use). -->
                 <ResourceDictionary Source="Views/DialogTemplates.xaml"/>
                 <ResourceDictionary Source="Themes/Colors.xaml"/>

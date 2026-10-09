@@ -1,0 +1,60 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Operations.OperationFilterBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:search="clr-namespace:bams.desktop.Components.SearchBox"
+             x:Name="Root">
+    <!--
+        Filter bar above an Operations table. DataContext: the page ViewModel; binds to its Filter
+        (OperationFilterViewModel). ExtraFilter adds a page-specific field (e.g. fee type) after the status.
+    -->
+    <Border Style="{StaticResource Card.Compact}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="220" MaxWidth="320"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="140"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="135"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="135"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="CUSTOMER / ACCOUNT" Style="{StaticResource Text.FieldLabel}"/>
+                <search:SearchBox Text="{Binding Filter.SearchText, Mode=TwoWay}" Placeholder="Name, customer no or account no"
+                                  SearchCommand="{Binding Filter.SearchCommand}"
+                                  ToolTip="Partial match. Press Enter or click the icon."/>
+            </StackPanel>
+
+            <!-- Page-specific filter, e.g. fee type. Empty when not set. -->
+            <ContentPresenter Grid.Column="2" Margin="0,0,16,0" Content="{Binding ExtraFilter, ElementName=Root}"/>
+
+            <StackPanel Grid.Column="3">
+                <TextBlock Text="STATUS" Style="{StaticResource Text.FieldLabel}"/>
+                <ComboBox Style="{StaticResource Input.Select}"
+                          ItemsSource="{Binding Filter.StatusOptions}" DisplayMemberPath="DisplayName"
+                          SelectedItem="{Binding Filter.SelectedStatus, Mode=TwoWay}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="5">
+                <TextBlock Text="{Binding FromLabel, ElementName=Root}" Style="{StaticResource Text.FieldLabel}"/>
+                <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding Filter.DateFrom, Mode=TwoWay}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="7">
+                <TextBlock Text="{Binding ToLabel, ElementName=Root}" Style="{StaticResource Text.FieldLabel}"/>
+                <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding Filter.DateTo, Mode=TwoWay}"/>
+            </StackPanel>
+
+            <Button Grid.Column="9" Content="Reset" VerticalAlignment="Bottom"
+                    Style="{StaticResource Button.Ghost}" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"
+                    ToolTip="Clear all filters"
+                    Command="{Binding Filter.ResetFiltersCommand}"/>
+        </Grid>
+    </Border>
+</UserControl>

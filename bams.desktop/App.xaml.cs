@@ -149,6 +149,9 @@ public partial class App : Application
         // Bank Policies
         services.AddSingleton<Services.IBankPolicyService, Services.BankPolicyService>();
 
+        // Operations (per-customer interest, fees and fixed-deposit maturity)
+        services.AddSingleton<Services.IOperationService, Services.OperationService>();
+
         // Customer Management
         services.AddSingleton<Services.ICustomerService, Services.CustomerService>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerFilterViewModel>();
@@ -188,6 +191,11 @@ public partial class App : Application
         services.AddTransient<FeeRateViewModel>();
         services.AddTransient<BankPoliciesViewModel>();
         services.AddTransient<OtherBanksViewModel>();
+
+        // Register Operations sub-pages
+        services.AddTransient<ViewModels.Pages.Operations.OperationInterestViewModel>();
+        services.AddTransient<ViewModels.Pages.Operations.OperationFeesViewModel>();
+        services.AddTransient<ViewModels.Pages.Operations.FixedDepositMaturityViewModel>();
 
         // Register Views
         services.AddTransient<Views.LoginView>();

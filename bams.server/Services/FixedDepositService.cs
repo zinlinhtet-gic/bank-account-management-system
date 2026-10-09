@@ -419,7 +419,9 @@ public sealed class FixedDepositService : IFixedDepositService
         return customer;
     }
 
-    private static DateOnly CalculateMaturityDate(DateOnly startDate, int? termDays, int? termMonths)
+    // A term is either days or months; the deposit matures that many days or calendar months after its start.
+    // Internal so sample-data seeding uses the same rule.
+    internal static DateOnly CalculateMaturityDate(DateOnly startDate, int? termDays, int? termMonths)
     {
         var hasDays = termDays is > 0;
         var hasMonths = termMonths is > 0;

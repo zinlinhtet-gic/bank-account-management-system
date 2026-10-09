@@ -134,6 +134,7 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
 builder.Services.AddScoped<INrcTransferService, NrcTransferService>();
 builder.Services.AddScoped<ITransactionQueryService, TransactionQueryService>();
+builder.Services.AddScoped<IOperationQueryService, OperationQueryService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountHolderService, AccountHolderService>();
@@ -154,6 +155,7 @@ builder.Services.AddScoped<ProductSeeder>();
 builder.Services.AddScoped<InterestRateRuleSeeder>();
 builder.Services.AddScoped<FeeRuleSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
+builder.Services.AddScoped<OperationSampleDataSeeder>();
 builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOtherBankService, OtherBankService>();
@@ -197,6 +199,13 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         var testDataSeeder = scope.ServiceProvider.GetRequiredService<TestDataSeeder>();
         await testDataSeeder.SeedAsync();
+
+        // Optional Operations sample data: fixed deposits plus replayed monthly interest and fee jobs.
+        if (app.Configuration.GetValue<bool>(OperationSampleDataSeeder.EnabledSettingKey))
+        {
+            var operationSampleDataSeeder = scope.ServiceProvider.GetRequiredService<OperationSampleDataSeeder>();
+            await operationSampleDataSeeder.SeedAsync();
+        }
     }
 }
 

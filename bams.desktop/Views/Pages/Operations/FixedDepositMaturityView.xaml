@@ -1,0 +1,105 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Operations.FixedDepositMaturityView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:tx="clr-namespace:bams.desktop.Views.Pages.Transactions"
+             xmlns:ops="clr-namespace:bams.desktop.Views.Pages.Operations"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="720"
+             d:DesignWidth="1200">
+    <!-- Operations › Interest page. DataContext: FixedDepositMaturityViewModel. One row per account per month. -->
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource Text.Heading}" Text="{Binding PageTitle}"/>
+            <TextBlock Margin="0,4,0,0" Style="{StaticResource Text.BodyMuted}" Text="{Binding PageDescription}"/>
+        </StackPanel>
+
+        <!-- ===== Filters ===== -->
+        <ops:OperationFilterBar Grid.Row="1" Margin="0,16,0,0" FromLabel="MATURES FROM" ToLabel="MATURES TO"/>
+
+        <!-- ===== Outcome banner ===== -->
+        <ContentControl Grid.Row="2" Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
+                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- ===== Fixed deposits table ===== -->
+        <Border Grid.Row="3" Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <tx:TransactionPager Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource Button.Icon}"
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"
+                                    t:ThemeAssist.IsLoading="{Binding IsLoading}"
+                                    Command="{Binding RefreshCommand}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Fixed deposits" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
+                            <ContentControl Style="{StaticResource Badge.Neutral}" t:ThemeAssist.ShowDot="False"
+                                            Content="{Binding CountText}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Grid>
+                    <DataGrid Style="{StaticResource Table}" BorderThickness="0" ItemsSource="{Binding Rows}"
+                              RowStyle="{StaticResource FixedDepositMaturityRow}">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Customer" Width="1.4*" SortMemberPath="Customer"
+                                                    CellTemplate="{StaticResource OperationCustomerCellTemplate}"/>
+                            <DataGridTemplateColumn Header="Account" Width="1.3*" SortMemberPath="AccountNo"
+                                                    CellTemplate="{StaticResource OperationAccountCellTemplate}"/>
+                            <DataGridTextColumn Header="Principal" Binding="{Binding Principal}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+                            <DataGridTextColumn Header="Rate" Binding="{Binding Rate}" Width="70"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+                            <DataGridTextColumn Header="Start" Binding="{Binding StartDate}" Width="95"
+                                                ElementStyle="{StaticResource Table.Text.Mono}"/>
+                            <DataGridTextColumn Header="Maturity" Binding="{Binding MaturityDate}" Width="95"
+                                                ElementStyle="{StaticResource Table.Text.Mono}"/>
+                            <DataGridTextColumn Header="Days left" Binding="{Binding DaysLeft}" Width="90"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+                            <DataGridTextColumn Header="Interest accrued" Binding="{Binding InterestAccrued}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+                            <DataGridTextColumn Header="Interest at maturity" Binding="{Binding MaturityInterest}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+                            <DataGridTextColumn Header="At maturity" Binding="{Binding RenewalInstruction}" Width="1.2*"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+                            <DataGridTextColumn Header="Payout account" Binding="{Binding PayoutAccountNo}" Width="*"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+                            <DataGridTemplateColumn Header="Status" Width="110" SortMemberPath="Status"
+                                                    CellTemplate="{StaticResource OperationStatusCellTemplate}"/>
+                            <DataGridTemplateColumn Header="Actions" Width="80" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource Button.Icon}" ToolTip="View details" HorizontalAlignment="Right" Cursor="Arrow"
+                                                t:ThemeAssist.Icon="{StaticResource Icon.Eye}"
+                                                Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Empty state under the column headers -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,72,0,0" IsHitTestVisible="False"
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="No fixed deposits" Style="{StaticResource Text.Subheading}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Change the filters, or open a new fixed deposit account." Style="{StaticResource Text.BodyMuted}"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -113,6 +113,8 @@ public static class MessageCatalog
             [MessageCode.TransactionNotFound] = "Transaction was not found.",
             [MessageCode.OtherBankNotFound] = "The destination bank was not found.",
             [MessageCode.BranchNotFound] = "The pickup branch was not found.",
+            [MessageCode.InterestAccrualNotFound] = "Interest record was not found.",
+            [MessageCode.FeeAccrualNotFound] = "Fee record was not found.",
             [MessageCode.UsernameAlreadyExists] = "A user with this username already exists.",
             [MessageCode.EmailAlreadyExists] = "A user with this email already exists.",
             [MessageCode.IdempotencyKeyReused] = "This idempotency key was already used for a different transaction.",

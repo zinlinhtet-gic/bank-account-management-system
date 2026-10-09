@@ -15,6 +15,8 @@
         xmlns:configpages="clr-namespace:bams.desktop.Views.Pages.Configuration"
         xmlns:accountingViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Accounting"
         xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting"
+        xmlns:operationviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Operations"
+        xmlns:operationpages="clr-namespace:bams.desktop.Views.Pages.Operations"
         mc:Ignorable="d"
         Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
         WindowState="Maximized"
@@ -92,6 +94,17 @@
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type configviewmodels:OtherBanksViewModel}">
                         <configpages:OtherBanksView/>
+                    </DataTemplate>
+
+                    <!-- Operations sub-pages -->
+                    <DataTemplate DataType="{x:Type operationviewmodels:OperationInterestViewModel}">
+                        <operationpages:OperationInterestView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type operationviewmodels:OperationFeesViewModel}">
+                        <operationpages:OperationFeesView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type operationviewmodels:FixedDepositMaturityViewModel}">
+                        <operationpages:FixedDepositMaturityView/>
                     </DataTemplate>
                 </ContentControl.Resources>
             </ContentControl>

@@ -7,7 +7,9 @@
                     xmlns:customers="clr-namespace:bams.desktop.ViewModels.Pages.Customers"
                     xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
                     xmlns:transactions="clr-namespace:bams.desktop.ViewModels.Pages.Transactions"
-                    xmlns:transactionviews="clr-namespace:bams.desktop.Views.Pages.Transactions">
+                    xmlns:transactionviews="clr-namespace:bams.desktop.Views.Pages.Transactions"
+                    xmlns:operations="clr-namespace:bams.desktop.ViewModels.Pages.Operations"
+                    xmlns:operationviews="clr-namespace:bams.desktop.Views.Pages.Operations">
 
     <!--
         Dialog ViewModel → dialog View, used by IDialogService.ShowDialog (Components/ModalDialog).
@@ -56,5 +58,16 @@
     </DataTemplate>
     <DataTemplate DataType="{x:Type transactions:AccountStatementViewModel}">
         <transactionviews:AccountStatementDialogView/>
+    </DataTemplate>
+
+    <!-- Operations -->
+    <DataTemplate DataType="{x:Type operations:InterestOperationDetailsViewModel}">
+        <operationviews:InterestOperationDetailsDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type operations:FeeOperationDetailsViewModel}">
+        <operationviews:FeeOperationDetailsDialogView/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type operations:FixedDepositMaturityDetailsViewModel}">
+        <operationviews:FixedDepositMaturityDetailsDialogView/>
     </DataTemplate>
 </ResourceDictionary>

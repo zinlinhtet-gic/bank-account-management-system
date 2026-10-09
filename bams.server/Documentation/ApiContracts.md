@@ -107,3 +107,31 @@ The operation cannot add, remove, or replace customers. It requires exactly one 
 Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.
 
 All successful responses use `ApiMessageResponse<T>`. Expected failures use `ApiErrorResponse` with `code`, `name`, `message`, and `traceId`. Clients must branch on `code`, not message text.
+
+## Operations (per-customer)
+
+Read-only lists for the desktop Operations pages. Every route requires the `operation` permission and returns
+`ApiMessageResponse<PagedResponse<T>>`. Common query parameters: `search` (partial match on account number, or any
+holder's customer number or name), `from` / `to` (inclusive `yyyy-MM-dd` dates), `page` (from 1) and `pageSize`
+(default 20, at most 100). `from` after `to` returns 400 `InvalidDateRange`. The customer on each row is the
+account's primary holder.
+
+| Method | Route | Extra filters | Rows | Order |
+| --- | --- | --- | --- | --- |
+| GET | `/api/operations/interest` | `status` (`Accrued`, `Posted`); dates bound the period end | `InterestOperationResponse`: one monthly interest accrual | Newest period first |
+| GET | `/api/operations/fees` | `feeType` (e.g. `Maintenance`, `EarlyWithdrawal`, `DormantAccount`), `status` (`FeeAccrualStatus`); dates bound the period end | `FeeOperationResponse`: one fee accrual | Newest period first |
+| GET | `/api/operations/fixed-deposit-maturity` | `status` (`FixedDepositStatus`); dates bound the maturity date | `FixedDepositMaturityResponse`: one fixed deposit | Nearest maturity first |
+
+Each list has a detail route returning `ApiMessageResponse<T>`; an unknown id returns 404 with the code shown.
+
+| Method | Route | Response | Not found |
+| --- | --- | --- | --- |
+| GET | `/api/operations/interest/{id}` | `InterestOperationDetailResponse`: account and customer contact (`OperationAccountDetail`), rule id, and the accrual and credit transactions (`OperationTransactionLink`, null until written) | 4243 `InterestAccrualNotFound` |
+| GET | `/api/operations/fees/{id}` | `FeeOperationDetailResponse`: account and customer contact, fee rule (amount or percentage), and the accrual and deduction transactions | 4244 `FeeAccrualNotFound` |
+| GET | `/api/operations/fixed-deposit-maturity/{id}` | `FixedDepositMaturityDetailResponse`: account and customer contact, original and current principal, term, accrued / credited / expected interest, payout account, and the month-by-month `interestSchedule` | 4205 `FixedDepositNotFound` |
+
+The credit or deduction transaction is the quarterly posting, so its amount can cover several months.
+
+`FixedDepositMaturityResponse` adds `daysToMaturity` (from today's Myanmar business date, zero or negative once
+matured), `interestAccrued` (accruals inside the deposit's term) and `expectedMaturityInterest` (current principal ×
+rate × term days / 365, rounded to 2 decimals, the same convention as the interest job).
