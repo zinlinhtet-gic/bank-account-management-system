@@ -2,10 +2,12 @@ using bams.desktop.Constants;
 using System.Windows.Input;
 using bams.desktop.Commands;
 using bams.desktop.Services;
+using bams.desktop.Exceptions;
 using bams.desktop.Utils;
 using bams.desktop.ViewModels.Pages;
+using bams.desktop.ViewModels.Pages.Accounting;
 using Bams.Desktop.Components.NavBar;
-
+using bams.desktop.ViewModels.Pages.Audit;
 namespace bams.desktop.ViewModels;
 
 /// <summary>
@@ -16,6 +18,10 @@ public sealed class MainViewModel : ViewModelBase
 {
     private readonly AuthContext _authContext;
     private readonly INavigationService _navigationService;
+    private readonly ScheduledJobFailuresViewModel _scheduledJobFailures;
+    private readonly ICashOperationsClientService _cashOperationsService;
+    private readonly OfficerCashSessionContext _cashSessionContext;
+    private readonly IDialogService _dialogService;
     private object? _currentPage;
     private object? _previousPage;
     private string _activeItem = string.Empty;
@@ -23,11 +29,23 @@ public sealed class MainViewModel : ViewModelBase
     private string _previousPageLabel = string.Empty;
     private CancellationTokenSource? _pageInitializationCancellation;
 
-    public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel)
+    public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel,
+        ScheduledJobFailuresViewModel scheduledJobFailures,
+        ICashOperationsClientService cashOperationsService,
+        OfficerCashSessionContext cashSessionContext,
+        IDialogService dialogService)
     {
         _authContext = authContext;
         _navigationService = navigationService;
         NavBar = navBarViewModel;
+        _scheduledJobFailures = scheduledJobFailures;
+        _cashOperationsService = cashOperationsService;
+        _cashSessionContext = cashSessionContext;
+        _dialogService = dialogService;
+        _cashSessionContext.PropertyChanged += OnCashSessionContextPropertyChanged;
+        _scheduledJobFailures.EndOfDayRequested += OpenEndOfDay;
+        if (_authContext.HasPermission(PermissionCodes.ScheduledJobManagement))
+            _scheduledJobFailures.Start();
         
         // Wire up navigation from NavBar
         NavBar.NavigateCommand = new RelayCommand(NavigateToPage);
@@ -37,10 +55,17 @@ public sealed class MainViewModel : ViewModelBase
         UpdateUserInfo();
         
         // Load initial page
-        NavigateToPage(GetDefaultPageForRole());
+        if (IsOfficer)
+            _cashSessionContext.Reset();
+        NavigateToPage(IsOfficer ? PageNames.CashReconciliation : GetDefaultPageForRole());
+        if (IsOfficer)
+            CheckOfficerCashSessionAsync();
     }
 
     public NavBarViewModel NavBar { get; }
+    public ScheduledJobFailuresViewModel ScheduledJobFailures => _scheduledJobFailures;
+    public bool CanManageScheduledJobs => _authContext.HasPermission(PermissionCodes.ScheduledJobManagement);
+    public bool IsOfficerWriteDisabled => IsOfficer && !_cashSessionContext.HasOpenSession;
 
     public RelayCommand LogoutCommand { get; }
 
@@ -84,9 +109,31 @@ public sealed class MainViewModel : ViewModelBase
         if (string.IsNullOrEmpty(pageLabel))
             return;
 
+        if (IsOfficer && CurrentPage is CashReconciliationViewModel &&
+            pageLabel != PageNames.CashReconciliation && !_cashSessionContext.HasOpenSession)
+        {
+            var continueNavigation = _dialogService.Confirm(new ConfirmDialogOptions(
+                "Cash session required",
+                "If no opened session, no write can be done.",
+                "Continue",
+                "Stay on session page"));
+            if (!continueNavigation)
+                return;
+        }
+
         var viewModel = _navigationService.GetPageViewModel(pageLabel);
         if (viewModel != null)
         {
+            if (viewModel is GeneralLedgerViewModel generalLedger)
+            {
+                generalLedger.DetailRequested += OpenGlAccountDetail;
+            }
+
+            if (viewModel is TransactionAuditViewModel transactionAudit)
+            {
+                transactionAudit.DetailRequested += OpenTransactionAuditDetail;
+            }
+
             AppLog.WriteInformation($"Navigating to page '{pageLabel}' ({viewModel.GetType().FullName}).");
             _previousPage = CurrentPage;
             _previousPageLabel = _currentPageLabel;
@@ -99,6 +146,36 @@ public sealed class MainViewModel : ViewModelBase
 
         // No page is mapped to this label: keep the current page and nav highlight instead of showing nothing.
         AppLog.WriteInformation($"Navigation to page '{pageLabel}' ignored because no page is registered for it.");
+    }
+
+    private void OpenGlAccountDetail(long accountId)
+    {
+        if (_navigationService.GetPageViewModel(PageNames.GLAccountDetail) is not GLAccountDetailViewModel detailViewModel)
+        {
+            return;
+        }
+
+        detailViewModel.SetAccountId(accountId);
+        detailViewModel.BackRequested += ReturnFromGlAccountDetail;
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = detailViewModel;
+        _currentPageLabel = PageNames.GLAccountDetail;
+        StartPageInitialization(detailViewModel);
+    }
+
+    private void ReturnFromGlAccountDetail()
+    {
+        if (_previousPage is null || string.IsNullOrWhiteSpace(_previousPageLabel))
+        {
+            return;
+        }
+
+        CurrentPage = _previousPage;
+        _currentPageLabel = _previousPageLabel;
+        ActiveItem = _previousPageLabel;
+        _previousPage = null;
+        _previousPageLabel = string.Empty;
     }
 
     /// <summary>Restores the last page known to have been usable after a dispatcher failure.</summary>
@@ -196,7 +273,47 @@ public sealed class MainViewModel : ViewModelBase
         _pageInitializationCancellation = null;
 
         OnLogoutRequested = null;
+        _scheduledJobFailures.EndOfDayRequested -= OpenEndOfDay;
+        _scheduledJobFailures.Dispose();
+        _cashSessionContext.PropertyChanged -= OnCashSessionContextPropertyChanged;
         NavBar.NavigateCommand = null;
+        if (CurrentPage is GLAccountDetailViewModel detailViewModel)
+        {
+            detailViewModel.BackRequested -= ReturnFromGlAccountDetail;
+        }
+        if (CurrentPage is TransactionAuditDetailViewModel auditDetail)
+        {
+            auditDetail.BackRequested -= ReturnFromTransactionAuditDetail;
+        }
+    }
+
+    private void OpenEndOfDay() => NavigateToPage(PageNames.EndOfDay);
+
+    /// <summary>Checks the signed-in officer's current business-date teller session and routes accordingly.</summary>
+    private async void CheckOfficerCashSessionAsync()
+    {
+        try
+        {
+            var sessions = await _cashOperationsService.GetSessionsAsync(null, CancellationToken.None);
+            var hasOpenSession = sessions.Any(session => session.PositionType == "Teller" && session.Status == "Open");
+            _cashSessionContext.SetStatus(hasOpenSession);
+            if (hasOpenSession && CurrentPage is CashReconciliationViewModel)
+                NavigateToPage(GetDefaultPageForRole());
+        }
+        catch (AppException exception)
+        {
+            _cashSessionContext.SetStatus(false);
+            AppLog.WriteInformation($"Could not verify the officer cash session at startup: {exception.Message}");
+        }
+    }
+
+    private bool IsOfficer => string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase);
+
+    // Lets themed action buttons react immediately when the officer's cash-session state changes.
+    private void OnCashSessionContextPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(OfficerCashSessionContext.HasOpenSession))
+            OnPropertyChanged(nameof(IsOfficerWriteDisabled));
     }
 
     /// <summary>
@@ -231,6 +348,8 @@ public sealed class MainViewModel : ViewModelBase
             return PageNames.AccountManagement;
         if (flags.CanViewTransactions)
             return PageNames.Transactions;
+        if (flags.CanApproveEndOfDay)
+            return PageNames.EndOfDay;
         if (flags.CanAccessAccounting)
             return PageNames.GeneralLedger;
         if (flags.CanViewAudit)
@@ -272,5 +391,47 @@ public sealed class MainViewModel : ViewModelBase
                 : parts[0].ToUpper();
 
         return (parts[0][0].ToString() + parts[^1][0].ToString()).ToUpper();
+    }
+
+    /// <summary>
+    /// Opens a separately rendered audit-detail page for the selected transaction.
+    /// </summary>
+    private void OpenTransactionAuditDetail(
+        TransactionAuditDetailViewModel detailViewModel)
+    {
+        detailViewModel.BackRequested += ReturnFromTransactionAuditDetail;
+
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+
+        CurrentPage = detailViewModel;
+        _currentPageLabel = PageNames.TransactionAuditDetail;
+
+        // Keep Transaction Audit highlighted in the sidebar because
+        // the detail page belongs to that feature.
+        ActiveItem = PageNames.TransactionAudit;
+    }
+    /// <summary>
+    /// Returns from transaction audit detail to the audit transaction list.
+    /// </summary>
+    private void ReturnFromTransactionAuditDetail()
+    {
+        if (CurrentPage is TransactionAuditDetailViewModel detailViewModel)
+        {
+            detailViewModel.BackRequested -= ReturnFromTransactionAuditDetail;
+        }
+
+        if (_previousPage is null ||
+            string.IsNullOrWhiteSpace(_previousPageLabel))
+        {
+            return;
+        }
+
+        CurrentPage = _previousPage;
+        _currentPageLabel = _previousPageLabel;
+        ActiveItem = PageNames.TransactionAudit;
+
+        _previousPage = null;
+        _previousPageLabel = string.Empty;
     }
 }

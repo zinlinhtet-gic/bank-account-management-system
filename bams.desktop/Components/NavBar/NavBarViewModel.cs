@@ -58,10 +58,13 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanViewTransactionHistory || flags.CanViewTransactions)
             AddNavItem(PageNames.TransactionHistory, "Icon.Reports");
 
-        if (flags.CanAccessAccounting)
+        if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
         {
-            AddAccountingNavigation();
+            AddAccountingNavigation(flags);
         }
+
+        if (flags.CanManageCashOperations && !flags.CanAccessAccounting)
+            AddNavItem(PageNames.CashReconciliation, "Icon.Finance", Items.Count == 0);
 
         if (flags.CanPerformOperations)
             AddNavItem(PageNames.Operations, "Icon.Settings");
@@ -187,7 +190,7 @@ public partial class NavBarViewModel : ObservableObject
     /// <summary>
     /// Adds the Accounting navigation group and its child pages.
     /// </summary>
-    private void AddAccountingNavigation()
+    private void AddAccountingNavigation(PermissionFlags flags)
     {
         var accounting = new NavItem
         {
@@ -195,11 +198,16 @@ public partial class NavBarViewModel : ObservableObject
             IconKey = "Icon.Finance"
         };
 
-        accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
-
-        accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
-
-        accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+        if (flags.CanAccessAccounting)
+        {
+            accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
+            accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
+            accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+            if (flags.CanManageCashOperations)
+                accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
+        }
+        if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
+            accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));
 
         accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));
 

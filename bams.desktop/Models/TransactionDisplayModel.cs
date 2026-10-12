@@ -15,6 +15,9 @@ public sealed class TransactionDisplayModel
     public TransactionType Type { get; init; }
 
     public TransactionStatus Status { get; init; }
+    public long InitiatedBy { get; init; }
+    public string InitiatedByUsername { get; init; } = string.Empty;
+    public string InitiatedByFullName { get; init; } = string.Empty;
 
     public string TypeText => TransactionDisplay.ToDisplayName(Type);
 
@@ -31,6 +34,12 @@ public sealed class TransactionDisplayModel
     public string TransactionAtText => TransactionAt.ToString(Constants.DisplayFormats.DateTime);
 
     public string ReferenceText { get; init; } = string.Empty;
+
+    public string DescriptionText { get; init; } = string.Empty;
+
+    public string InitiatedByText { get; init; } = string.Empty;
+
+    public string BusinessDateText { get; init; } = string.Empty;
 
     /// <summary>A pending NRC transfer can be picked up or cancelled.</summary>
     public bool IsPendingNrcTransfer => Type == TransactionType.NrcTransfer && Status == TransactionStatus.Pending;
@@ -51,7 +60,18 @@ public sealed class TransactionDisplayModel
             Status = transaction.TransactionStatus,
             Amount = transaction.Amount,
             TransactionAt = DateTimeDisplay.ToLocal(transaction.TransactionAt),
-            ReferenceText = TransactionDisplay.OrDash(transaction.ReferenceNo)
+            ReferenceText = TransactionDisplay.OrDash(transaction.ReferenceNo),
+            InitiatedBy = transaction.InitiatedBy,
+            InitiatedByUsername = transaction.InitiatedByUserName,
+            InitiatedByFullName = transaction.InitiatedByFullName,
+            DescriptionText = TransactionDisplay.OrDash(transaction.Description),
+            InitiatedByText = string.IsNullOrWhiteSpace(transaction.InitiatedByFullName)
+                ? TransactionDisplay.OrDash(transaction.InitiatedByUserName)
+                : string.IsNullOrWhiteSpace(transaction.InitiatedByUserName)
+                    ? transaction.InitiatedByFullName
+                    : $"{transaction.InitiatedByFullName} ({transaction.InitiatedByUserName})",
+            BusinessDateText = transaction.BusinessDate?.ToString(Constants.DisplayFormats.Date)
+                ?? Constants.DisplayFormats.EmptyValue
         };
     }
 }

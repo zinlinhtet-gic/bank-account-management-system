@@ -69,8 +69,7 @@ public sealed record NrcPayoutRequest(
     string? PayoutReference);
 
 /// <summary>Body of <c>POST api/transactions/transfer/nrc/{id}/cancel</c>.</summary>
-public sealed record NrcCancelRequest(
-    string? Reason);
+public sealed record NrcCancelRequest(string? Reason);
 
 /// <summary>Body of <c>POST api/transactions/transfer/interbank/{id}/complete</c>.</summary>
 public sealed record InterbankSettlementRequest(

@@ -25,7 +25,7 @@
         <Button Content="{Binding Workflow.Step5Label}" Foreground="{Binding Workflow.Step5Foreground}" Background="{Binding Workflow.Step5Background}" Command="{Binding Workflow.GoToCreateStepCommand}" CommandParameter="5" Style="{StaticResource Button.Ghost}" Margin="2" />
       </UniformGrid>
     </Border>
-    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
       <StackPanel HorizontalAlignment="Stretch">
         <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20">
           <StackPanel>

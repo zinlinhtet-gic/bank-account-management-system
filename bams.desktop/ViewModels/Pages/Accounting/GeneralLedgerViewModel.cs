@@ -35,6 +35,13 @@ public sealed class GeneralLedgerViewModel :ViewModelBase,IAsyncInitializable
         _selectedStatus = StatusOptions[0];
         RefreshCommand = new AsyncRelayCommand(async _ =>await LoadAsync(CancellationToken.None));
         ResetFiltersCommand =new RelayCommand(_ => ResetFilters());
+        OpenAccountDetailCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is GlAccountDisplayModel account)
+            {
+                DetailRequested?.Invoke(account.Id);
+            }
+        });
     }
     /// <summary>
     /// Rows currently visible in the General Ledger table.
@@ -63,6 +70,9 @@ public sealed class GeneralLedgerViewModel :ViewModelBase,IAsyncInitializable
     ];
     public AsyncRelayCommand RefreshCommand { get; }
     public RelayCommand ResetFiltersCommand { get; }
+    public RelayCommand OpenAccountDetailCommand { get; }
+
+    public event Action<long>? DetailRequested;
     public string SearchText
     {
         get => _searchText;

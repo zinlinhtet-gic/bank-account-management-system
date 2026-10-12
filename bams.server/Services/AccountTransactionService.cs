@@ -90,6 +90,9 @@ public sealed class AccountTransactionService : IAccountTransactionService
             cancellationToken);
         await _ledger.PostCustomerEntryAsync(entity, account, EntryType.Credit, currentDateTime, cancellationToken);
         await _dbContext.Transactions.AddAsync(entity, cancellationToken);
+        // Persist inside the caller's account-opening transaction so the saved journal can be validated before commit.
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _ledger.ValidateTransactionAccountingEntriesAsync(entity.Id, cancellationToken);
     }
 
     public async Task RecordScheduledTransactionAsync(Transaction transaction, Account account, decimal beforeLedger,

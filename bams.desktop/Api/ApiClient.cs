@@ -8,6 +8,7 @@ using bams.desktop.Constants;
 using bams.desktop.DTOs.Common;
 using bams.desktop.Exceptions;
 using bams.desktop.Utils;
+using bams.desktop.Services;
 
 namespace bams.desktop.Api;
 
@@ -24,10 +25,14 @@ public sealed class ApiClient
     };
 
     private readonly HttpClient _httpClient;
+    private readonly AuthContext _authContext;
+    private readonly OfficerCashSessionContext _cashSessionContext;
 
-    public ApiClient(HttpClient httpClient)
+    public ApiClient(HttpClient httpClient, AuthContext authContext, OfficerCashSessionContext cashSessionContext)
     {
         _httpClient = httpClient;
+        _authContext = authContext;
+        _cashSessionContext = cashSessionContext;
     }
 
     /// <summary>
@@ -61,6 +66,15 @@ public sealed class ApiClient
             cancellationToken);
     }
 
+    /// <summary>Gets a response whose data payload may legitimately be null.</summary>
+    public Task<TResponse?> GetOptionalAsync<TResponse>(string endpoint, CancellationToken cancellationToken)
+    {
+        return SendAsync<TResponse>(
+            () => _httpClient.GetAsync(endpoint, cancellationToken),
+            cancellationToken,
+            allowNullData: true);
+    }
+
     /// <summary>
     /// Posts multipart form data and returns the standard success envelope's data payload.
     /// </summary>
@@ -69,6 +83,7 @@ public sealed class ApiClient
         MultipartFormDataContent content,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         using var response = await SendRequestAsync(
             () => _httpClient.PostAsync(endpoint, content, cancellationToken),
             cancellationToken);
@@ -85,6 +100,7 @@ public sealed class ApiClient
         TRequest request,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PostAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
@@ -102,6 +118,7 @@ public sealed class ApiClient
         IReadOnlyDictionary<string, string> headers,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () =>
             {
@@ -130,6 +147,7 @@ public sealed class ApiClient
         string endpoint,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PostAsync(endpoint, content: null, cancellationToken),
             cancellationToken);
@@ -147,6 +165,7 @@ public sealed class ApiClient
         MultipartFormDataContent formContent,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PostAsync(endpoint, formContent, cancellationToken),
             cancellationToken);
@@ -163,6 +182,7 @@ public sealed class ApiClient
         MultipartFormDataContent formContent,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PatchAsync(endpoint, formContent, cancellationToken),
             cancellationToken);
@@ -178,6 +198,7 @@ public sealed class ApiClient
         TRequest request,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PutAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
@@ -186,6 +207,7 @@ public sealed class ApiClient
     /// <summary>Sends a JSON PATCH request and returns the success envelope payload.</summary>
     public Task<TResponse> PatchAsync<TRequest, TResponse>(string endpoint, TRequest request, CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         return SendAsync<TResponse>(
             () => _httpClient.PatchAsJsonAsync(endpoint, request, SerializerOptions, cancellationToken),
             cancellationToken);
@@ -200,10 +222,39 @@ public sealed class ApiClient
         string endpoint,
         CancellationToken cancellationToken)
     {
+        EnsureWriteAllowed(endpoint);
         _ = await SendAsync<bool>(
             () => _httpClient.DeleteAsync(endpoint, cancellationToken),
             cancellationToken);
     }
+
+    // Require an open teller session only for teller business writes, not account/customer maintenance or authentication.
+    private void EnsureWriteAllowed(string endpoint)
+    {
+        if (!string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase) ||
+            _cashSessionContext.HasOpenSession || !RequiresTellerSession(endpoint) || IsOpeningCashSessionEndpoint(endpoint))
+            return;
+
+        throw new ApiException(MessageCode.CashSessionNotOpen,
+            "If no opened session, no write can be done.", null);
+    }
+
+    // Identifies financial transaction and cash-custody operations that require the officer's open teller session.
+    private static bool RequiresTellerSession(string endpoint) =>
+        IsEndpointOrChild(endpoint, ApiConstants.TransactionsEndpoint) ||
+        IsEndpointOrChild(endpoint, ApiConstants.CashOperationsEndpoint) ||
+        IsEndpointOrChild(endpoint, ApiConstants.CashHandoffsEndpoint);
+
+    private static bool IsEndpointOrChild(string endpoint, string endpointRoot)
+    {
+        var path = endpoint.TrimStart('/').Split('?', 2)[0];
+        return path.Equals(endpointRoot, StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWith(endpointRoot + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Allows session creation so an officer can satisfy the session requirement after signing in.
+    private static bool IsOpeningCashSessionEndpoint(string endpoint) =>
+        endpoint.TrimStart('/').Split('?', 2)[0].Equals(ApiConstants.CashOperationsEndpoint + "/sessions", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Downloads a file response (not the JSON envelope) to a local path.
@@ -257,11 +308,12 @@ public sealed class ApiClient
     // Sends the request and reads the success payload.
     private static async Task<TResponse> SendAsync<TResponse>(
         Func<Task<HttpResponseMessage>> sendRequestAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowNullData = false)
     {
         using var response = await SendRequestAsync(sendRequestAsync, cancellationToken);
 
-        return await ReadResponseAsync<TResponse>(response, cancellationToken);
+        return await ReadResponseAsync<TResponse>(response, cancellationToken, allowNullData);
     }
 
     // Runs the request and converts transport failures into NetworkException.
@@ -286,7 +338,8 @@ public sealed class ApiClient
 
     private static async Task<TResponse> ReadResponseAsync<TResponse>(
         HttpResponseMessage response,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowNullData = false)
     {
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -297,7 +350,7 @@ public sealed class ApiClient
 
         var envelope = TryDeserialize<ApiMessageResponse<TResponse>>(content);
 
-        if (envelope is null || envelope.Data is null)
+        if (envelope is null || (!allowNullData && envelope.Data is null))
         {
             throw new ApiException(MessageCode.InvalidServerResponse);
         }

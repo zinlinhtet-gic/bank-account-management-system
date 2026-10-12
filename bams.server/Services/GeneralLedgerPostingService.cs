@@ -1,8 +1,11 @@
 using bams.server.Constants;
 using bams.server.Data;
+using bams.server.Exceptions;
+using bams.server.Messages;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
+using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
@@ -12,6 +15,7 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
     public async Task AddAccrualEntriesAsync(Transaction transaction, long accountId, TransactionType type,
         decimal amount, string description, DateOnly postingDate, DateTime createdAt, CancellationToken cancellationToken)
     {
+        await EnsurePostingDateIsOpenAsync(postingDate, cancellationToken);
         var (debitCode, debitClass, creditCode, creditClass, creditCustomerId) = type switch
         {
             TransactionType.InterestAccrual => (AccountingConstants.InterestExpenseGlCode, GlAccountClass.Expense,
@@ -32,6 +36,7 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
     public async Task AddPostingEntriesAsync(Transaction transaction, long accountId, TransactionType type,
         decimal amount, string description, DateOnly postingDate, DateTime createdAt, CancellationToken cancellationToken)
     {
+        await EnsurePostingDateIsOpenAsync(postingDate, cancellationToken);
         var isCredit = type == TransactionType.InterestCredit;
         var (offsetCode, offsetClass) = type switch
         {
@@ -52,6 +57,16 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
     private async Task<GlAccount> GetAsync(string code, GlAccountClass expectedClass, CancellationToken cancellationToken) =>
         await dbContext.GlAccounts.SingleOrDefaultAsync(a => a.Code == code && a.Status == AccountingConstants.ActiveGlAccountStatus && a.AccountClass == expectedClass, cancellationToken)
         ?? throw new InvalidOperationException($"Required active General Ledger account '{code}' is missing.");
+
+    private async Task EnsurePostingDateIsOpenAsync(DateOnly postingDate, CancellationToken cancellationToken)
+    {
+        if (postingDate > BusinessTime.Today)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
+        var closed = await dbContext.BusinessDates.AsNoTracking()
+            .AnyAsync(item => item.Date == postingDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (closed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);
+    }
 
     private static TransactionEntry CreateEntry(long transactionId, long glAccountId, long? customerAccountId,
         EntryType type, decimal amount, DateOnly date, string description, DateTime createdAt) => new()

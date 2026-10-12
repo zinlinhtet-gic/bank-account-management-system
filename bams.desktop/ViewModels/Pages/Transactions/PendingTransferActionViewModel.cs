@@ -108,6 +108,7 @@ public sealed class PendingTransferActionViewModel : ViewModelBase, IDialogViewM
     public bool ShowsSettlementReference => Action == PendingTransferAction.CompleteInterbankTransfer;
 
     public bool ShowsReason => IsDestructive;
+    public bool ShowsCashSession => Action == PendingTransferAction.CancelNrcTransfer;
 
     public string GatewayReference
     {
