@@ -167,27 +167,10 @@ public sealed class GeneralLedgerViewModel :ViewModelBase,IAsyncInitializable
                     .GetGlAccountsAsync(
                         cancellationToken);
 
-            // Used to turn ParentId into a readable
-            // "CODE - Account Name" value.
-            var accountsById =
-                accounts.ToDictionary(
-                    account => account.Id);
-
             _allAccounts.Clear();
 
             foreach (var account in accounts)
             {
-                var parentDisplay = "-";
-
-                if (account.ParentId.HasValue &&
-                    accountsById.TryGetValue(
-                        account.ParentId.Value,
-                        out var parent))
-                {
-                    parentDisplay =
-                        $"{parent.Code} - {parent.Name}";
-                }
-
                 _allAccounts.Add(
                     new GlAccountDisplayModel
                     {
@@ -198,8 +181,6 @@ public sealed class GeneralLedgerViewModel :ViewModelBase,IAsyncInitializable
                             account.AccountClass,
                         ParentId =
                             account.ParentId,
-                        ParentDisplay =
-                            parentDisplay,
                         Status =
                             account.Status
                     });

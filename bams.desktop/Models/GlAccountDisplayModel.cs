@@ -18,7 +18,5 @@ public sealed class GlAccountDisplayModel
 
     public long? ParentId { get; init; }
 
-    public string ParentDisplay { get; init; } = "-";
-
     public string Status { get; init; } = string.Empty;
 }
