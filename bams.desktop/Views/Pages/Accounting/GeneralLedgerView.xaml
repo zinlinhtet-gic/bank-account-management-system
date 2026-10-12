@@ -184,13 +184,6 @@
 
                             </DataGridTemplateColumn>
 
-                            <!-- Parent GL -->
-                            <DataGridTextColumn Header="Parent GL"
-                                Binding="{Binding ParentDisplay}"
-                                Width="220"
-                                SortMemberPath="ParentDisplay"
-                                ElementStyle="{StaticResource Table.Text.Muted}"/>
-
                             <!-- Status -->
                             <DataGridTemplateColumn Header="Status"
                                                     Width="120"
