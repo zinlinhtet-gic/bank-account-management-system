@@ -82,6 +82,14 @@ public sealed class AccountManagementService : IAccountManagementService
             $"{ApiConstants.AccountCustomerLookupEndpoint}?nrc={Uri.EscapeDataString(nrc.Trim())}", cancellationToken);
     }
 
+    public Task<CustomerLookupResponse> GetCustomerByPassportNumberAsync(string passportNumber, CancellationToken cancellationToken)
+    {
+        var query = $"?passportNumber={Uri.EscapeDataString(passportNumber.Trim())}";
+        return _apiClient.GetAsync<CustomerLookupResponse>(
+            ApiConstants.AccountCustomerLookupEndpoint + "/passport" + query,
+            cancellationToken);
+    }
+
     public Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken)
     {
         var query = $"holderNrc={Uri.EscapeDataString(holderNrc.Trim())}";

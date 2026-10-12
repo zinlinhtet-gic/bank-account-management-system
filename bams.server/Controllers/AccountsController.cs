@@ -68,6 +68,16 @@ public sealed class AccountsController : ControllerBase
     public async Task<ActionResult<ApiMessageResponse<CustomerLookupResponse>>> GetCustomerByNrcAsync([FromQuery] string nrc, CancellationToken cancellationToken)
         => Ok(ApiMessageResponse<CustomerLookupResponse>.FromCode(MessageCode.Success, await _customerLookUpService.GetCustomerByNrcAsync(nrc, cancellationToken)));
 
+    /// <summary>Looks up an existing customer using their passport number.</summary>
+    [HttpGet("customer-lookup/passport")]
+    [RequirePermission(SecurityConstants.AccountManagement)]
+    public async Task<ActionResult<ApiMessageResponse<CustomerLookupResponse>>> GetCustomerByPassportNumberAsync(
+        [FromQuery] string passportNumber,
+        CancellationToken cancellationToken)
+        => Ok(ApiMessageResponse<CustomerLookupResponse>.FromCode(
+            MessageCode.Success,
+            await _customerLookUpService.GetCustomerByPassportNumberAsync(passportNumber, cancellationToken)));
+
     /// <summary>Gets eligible account types and required documents for account opening.</summary>
     [HttpGet("opening-options")]
     [RequirePermission(SecurityConstants.AccountManagement)]
