@@ -314,40 +314,47 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4207 | PayoutAccountNotFound           | 404  | The supplied payout account is ineligible or absent.                                                                     |
 | 4208 | PayoutAccountUnavailable        | 404  | The primary holder has no active individual non-fixed-deposit payout account.                                            |
 
-| Code | Name                            | HTTP | Meaning                                                                                |
-| ---- | ------------------------------- | ---- | -------------------------------------------------------------------------------------- |
-| 4200 | ResourceNotFound                | 404  | A generic resource was not found.                                                      |
-| 4201 | AccountNotFound                 | 404  | The requested bank account does not exist.                                             |
-| 4203 | AccountTypeNotFound             | 404  | The requested account type does not exist.                                             |
-| 4204 | UserNotFound                    | 404  | The requested staff user does not exist.                                               |
-| 4240 | TransactionNotFound             | 404  | The requested transaction (e.g. an NRC transfer for pickup) does not exist.            |
-| 4241 | OtherBankNotFound               | 404  | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist.  |
-| 4242 | BranchNotFound                  | 404  | The NRC pickup branch does not exist or is not active.                                 |
-| 4305 | UsernameAlreadyExists           | 409  | Another user already has this username.                                                |
-| 4306 | EmailAlreadyExists              | 409  | Another user already has this email.                                                   |
-| 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different request payload.                |
-| 4400 | BusinessRuleViolation           | 422  | A business rule was violated.                                                          |
-| 4440 | InsufficientBalance             | 422  | A debit exceeds the account's available balance.                                       |
-| 4441 | AccountNotOperational           | 422  | The account is closed, frozen or suspended.                                            |
-| 4442 | PickupCodeExpired               | 422  | The NRC pickup code has passed its expiry time.                                        |
-| 4443 | TransactionNotPendingPickup     | 422  | The NRC transfer was already picked up or is no longer pending.                        |
-| 4444 | WithdrawalNotAllowed            | 422  | The account type does not allow withdrawals.                                           |
-| 4445 | TransferNotAllowed              | 422  | The source account type does not allow transfers.                                      |
-| 4446 | MinimumBalanceRequired          | 422  | The debit would leave less than the account type's minimum maintained balance.         |
-| 4447 | DailyTransactionLimitExceeded   | 422  | The debit would exceed the account type's daily limit.                                 |
-| 4448 | MonthlyTransactionLimitExceeded | 422  | The debit would exceed the account type's monthly limit.                               |
-| 4449 | PickupAttemptsExceeded          | 422  | Too many wrong pickup codes; the NRC transfer can only be cancelled.                   |
-| 4450 | TransactionNotPending           | 422  | The interbank transfer's gateway result was already recorded.                          |
-| 4451 | NrcPickupLocationMismatch       | 422  | Pickup was tried on an other-bank NRC transfer, or a payout recorded for a branch one. |
-| 4480 | LastManagerCannotBeRemoved      | 422  | Deleting, or taking the manager role from, the only active manager is refused.         |
-| 4201 | AccountNotFound                 | 404  | The account does not exist.                                                            |
-| 4202 | CustomerNotFound                | 404  | The customer does not exist.                                                           |
-| 4203 | AccountTypeNotFound             | 404  | The account type does not exist.                                                       |
-| 4204 | UserNotFound                    | 404  | The staff user does not exist.                                                         |
-| 4205 | FixedDepositNotFound            | 404  | The fixed deposit does not exist.                                                      |
-| 4206 | InterestRateRuleNotFound        | 404  | The interest-rate rule does not exist.                                                 |
-| 4207 | PayoutAccountNotFound           | 404  | The supplied payout account is ineligible or absent.                                   |
-| 4208 | PayoutAccountUnavailable        | 404  | The primary holder has no active individual non-fixed-deposit payout account.          |
+| Code | Name                            | HTTP | Meaning                                                                                                                  |
+| ---- | ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------ |
+| 4200 | ResourceNotFound                | 404  | A generic resource was not found.                                                                                        |
+| 4201 | AccountNotFound                 | 404  | The requested bank account does not exist.                                                                               |
+| 4203 | AccountTypeNotFound             | 404  | The requested account type does not exist.                                                                               |
+| 4204 | UserNotFound                    | 404  | The requested staff user does not exist.                                                                                 |
+| 4240 | TransactionNotFound             | 404  | The requested transaction (e.g. an NRC transfer for pickup) does not exist.                                              |
+| 4241 | OtherBankNotFound               | 404  | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist.                                    |
+| 4242 | BranchNotFound                  | 404  | The NRC pickup branch does not exist or is not active.                                                                   |
+| 4305 | UsernameAlreadyExists           | 409  | Another user already has this username.                                                                                  |
+| 4306 | EmailAlreadyExists              | 409  | Another user already has this email.                                                                                     |
+| 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different request payload.                                                  |
+| 4340 | AccountTypeCodeAlreadyExists    | 409  | Another account type already uses this code (bank policy create/update).                                                 |
+| 4400 | BusinessRuleViolation           | 422  | A business rule was violated.                                                                                            |
+| 4440 | InsufficientBalance             | 422  | A debit exceeds the account's available balance.                                                                         |
+| 4441 | AccountNotOperational           | 422  | The account is closed, frozen or suspended.                                                                              |
+| 4442 | PickupCodeExpired               | 422  | The NRC pickup code has passed its expiry time.                                                                          |
+| 4443 | TransactionNotPendingPickup     | 422  | The NRC transfer was already picked up or is no longer pending.                                                          |
+| 4444 | WithdrawalNotAllowed            | 422  | The account type does not allow withdrawals.                                                                             |
+| 4445 | TransferNotAllowed              | 422  | The source account type does not allow transfers.                                                                        |
+| 4446 | MinimumBalanceRequired          | 422  | The debit would leave less than the account type's minimum maintained balance.                                           |
+| 4447 | DailyTransactionLimitExceeded   | 422  | The debit would exceed the account type's daily limit.                                                                   |
+| 4448 | MonthlyTransactionLimitExceeded | 422  | The debit would exceed the account type's monthly limit.                                                                 |
+| 4449 | PickupAttemptsExceeded          | 422  | Too many wrong pickup codes; the NRC transfer can only be cancelled.                                                     |
+| 4450 | TransactionNotPending           | 422  | The interbank transfer's gateway result was already recorded.                                                            |
+| 4451 | NrcPickupLocationMismatch       | 422  | Pickup was tried on an other-bank NRC transfer, or a payout recorded for a branch one.                                   |
+| 4452 | NrcPickupReceiverMismatch       | 422  | The name or NRC entered at pickup does not match the receiver the sender designated; counted as a failed pickup attempt. |
+| 4453 | DepositNotAllowed               | 422  | The account type does not allow deposits.                                                                                |
+| 4454 | WeeklyTransactionLimitExceeded  | 422  | The debit would exceed the account type's weekly limit (Monday to Sunday).                                               |
+| 4455 | DailyWithdrawalLimitExceeded    | 422  | The cash withdrawal would exceed the account type's daily withdrawal limit.                                              |
+| 4456 | DepositBelowMinimumAmount       | 422  | The cash deposit is below the account type's minimum deposit amount.                                                     |
+| 4457 | WithdrawalBelowMinimumAmount    | 422  | The cash withdrawal is below the account type's minimum withdrawal amount.                                               |
+| 4480 | LastManagerCannotBeRemoved      | 422  | Deleting, or taking the manager role from, the only active manager is refused.                                           |
+| 4201 | AccountNotFound                 | 404  | The account does not exist.                                                                                              |
+| 4202 | CustomerNotFound                | 404  | The customer does not exist.                                                                                             |
+| 4203 | AccountTypeNotFound             | 404  | The account type does not exist.                                                                                         |
+| 4204 | UserNotFound                    | 404  | The staff user does not exist.                                                                                           |
+| 4205 | FixedDepositNotFound            | 404  | The fixed deposit does not exist.                                                                                        |
+| 4206 | InterestRateRuleNotFound        | 404  | The interest-rate rule does not exist.                                                                                   |
+| 4207 | PayoutAccountNotFound           | 404  | The supplied payout account is ineligible or absent.                                                                     |
+| 4208 | PayoutAccountUnavailable        | 404  | The primary holder has no active individual non-fixed-deposit payout account.                                            |
 
 > > > > > > > main
 

@@ -134,6 +134,7 @@ builder.Services.AddScoped<IEndOfDayWorkflowService, EndOfDayWorkflowService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IEndOfDayAuditService, EndOfDayAuditService>();
 builder.Services.AddScoped<LedgerPostingService>();
+builder.Services.AddScoped<TransferFeeService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IInterbankTransferService, InterbankTransferService>();
 builder.Services.AddScoped<INrcTransferService, NrcTransferService>();

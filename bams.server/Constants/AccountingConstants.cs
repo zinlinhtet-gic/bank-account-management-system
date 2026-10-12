@@ -33,6 +33,7 @@ public static class AccountingConstants
     // Income
     public const string MaintenanceFeeIncomeGlCode = "4001";
     public const string DormantPenaltyIncomeGlCode = "4002";
+    public const string TransferFeeIncomeGlCode = "4003";
 
     // Expenses
     public const string InterestExpenseGlCode = "6001";

@@ -14,6 +14,20 @@ public static class TransactionConstants
     // Amounts are stored as decimal(18, 2), so more decimal places would be silently rounded by the database.
     public const int MaximumAmountDecimalPlaces = 2;
 
+    // Business weeks for the weekly transaction limit start on Monday (Myanmar business date).
+    public const DayOfWeek FirstDayOfBusinessWeek = DayOfWeek.Monday;
+    public const int DaysPerWeek = 7;
+
+    // Fee rule percentages are stored as whole percents (0.5 means 0.5%).
+    public const decimal PercentageDivisor = 100m;
+
+    // Account-entry descriptions for transfer fee lines, so statements show the fee apart from the amount.
+    public const string TransferFeeEntryDescription = "Transfer fee";
+    public const string TransferFeeRefundEntryDescription = "Transfer fee refund";
+
+    // Fee rules are matched on this status (same spelling as the seeders and the fee rule form).
+    public const string ActiveFeeRuleStatus = "Active";
+
     // Status values stored in string status columns.
     public const string CompletedStatus = "completed";
     public const string PickupPendingStatus = "pickup_pending";
