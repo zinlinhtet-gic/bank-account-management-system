@@ -31,7 +31,8 @@ public sealed class OperationQueryService : IOperationQueryService
         InterestOperationQuery query,
         CancellationToken cancellationToken)
     {
-        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(query.Page, query.PageSize);
+        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(
+            query.Page, query.PageSize ?? OperationConstants.DefaultPageSize);
         ValidateDateRange(query.From, query.To);
 
         var accruals = _dbContext.InterestAccruals.AsNoTracking();
@@ -93,7 +94,8 @@ public sealed class OperationQueryService : IOperationQueryService
         FeeOperationQuery query,
         CancellationToken cancellationToken)
     {
-        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(query.Page, query.PageSize);
+        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(
+            query.Page, query.PageSize ?? OperationConstants.DefaultPageSize);
         ValidateDateRange(query.From, query.To);
 
         var fees = _dbContext.FeeAccruals.AsNoTracking();
@@ -159,7 +161,8 @@ public sealed class OperationQueryService : IOperationQueryService
         FixedDepositMaturityQuery query,
         CancellationToken cancellationToken)
     {
-        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(query.Page, query.PageSize);
+        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(
+            query.Page, query.PageSize ?? OperationConstants.DefaultPageSize);
         ValidateDateRange(query.From, query.To);
 
         var deposits = _dbContext.FixedDeposits.AsNoTracking();

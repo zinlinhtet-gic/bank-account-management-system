@@ -12,7 +12,7 @@ namespace bams.server.DTO.Operations;
 /// <param name="From">Only accrual periods ending on or after this date.</param>
 /// <param name="To">Only accrual periods ending on or before this date.</param>
 /// <param name="Page">Page number, starting at 1.</param>
-/// <param name="PageSize">Items per page, at most <c>TransactionConstants.MaximumPageSize</c>.</param>
+/// <param name="PageSize">Items per page (default <c>OperationConstants.DefaultPageSize</c>), at most <c>TransactionConstants.MaximumPageSize</c>.</param>
 public sealed record InterestOperationQuery(
     string? Search,
     string? Status,
@@ -30,7 +30,7 @@ public sealed record InterestOperationQuery(
 /// <param name="From">Only fee periods ending on or after this date.</param>
 /// <param name="To">Only fee periods ending on or before this date.</param>
 /// <param name="Page">Page number, starting at 1.</param>
-/// <param name="PageSize">Items per page, at most <c>TransactionConstants.MaximumPageSize</c>.</param>
+/// <param name="PageSize">Items per page (default <c>OperationConstants.DefaultPageSize</c>), at most <c>TransactionConstants.MaximumPageSize</c>.</param>
 public sealed record FeeOperationQuery(
     string? Search,
     FeeType? FeeType,
@@ -48,7 +48,7 @@ public sealed record FeeOperationQuery(
 /// <param name="From">Only deposits maturing on or after this date.</param>
 /// <param name="To">Only deposits maturing on or before this date.</param>
 /// <param name="Page">Page number, starting at 1.</param>
-/// <param name="PageSize">Items per page, at most <c>TransactionConstants.MaximumPageSize</c>.</param>
+/// <param name="PageSize">Items per page (default <c>OperationConstants.DefaultPageSize</c>), at most <c>TransactionConstants.MaximumPageSize</c>.</param>
 public sealed record FixedDepositMaturityQuery(
     string? Search,
     FixedDepositStatus? Status,

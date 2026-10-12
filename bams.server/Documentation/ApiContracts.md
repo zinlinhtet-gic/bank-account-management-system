@@ -149,7 +149,7 @@ All successful responses use `ApiMessageResponse<T>`. Expected failures use `Api
 Read-only lists for the desktop Operations pages. Every route requires the `operation` permission and returns
 `ApiMessageResponse<PagedResponse<T>>`. Common query parameters: `search` (partial match on account number, or any
 holder's customer number or name), `from` / `to` (inclusive `yyyy-MM-dd` dates), `page` (from 1) and `pageSize`
-(default 20, at most 100). `from` after `to` returns 400 `InvalidDateRange`. The customer on each row is the
+(default 10, at most 100). `from` after `to` returns 400 `InvalidDateRange`. The customer on each row is the
 account's primary holder.
 
 | Method | Route | Extra filters | Rows | Order |
