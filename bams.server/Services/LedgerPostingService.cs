@@ -485,7 +485,8 @@ public sealed class LedgerPostingService
             return;
         }
 
-        var today = BusinessTime.ToBusinessDate(now);
+        // Limits reset at Myanmar midnight: posting dates are business dates, the same dates stored on every entry.
+        var today = await GetPostingBusinessDateAsync(now, cancellationToken);
         var firstDayOfMonth = new DateOnly(today.Year, today.Month, 1);
         var daysSinceWeekStart = ((int)today.DayOfWeek - (int)TransactionConstants.FirstDayOfBusinessWeek
             + TransactionConstants.DaysPerWeek) % TransactionConstants.DaysPerWeek;
@@ -630,9 +631,9 @@ public sealed class LedgerPostingService
             LedgerBalanceAfter = account.LedgerBalance,
             AvailableBalanceBefore = availableBalanceBefore,
             AvailableBalanceAfter = account.AvailableBalance,
-            ValueDate = BusinessTime.ToBusinessDate(now),
-            PostingDate = BusinessTime.ToBusinessDate(now),
-            Description = description ?? transaction.Description,
+            ValueDate = postingDate,
+            PostingDate = postingDate,
+            Description = transaction.Description,
             ReferenceNo = transaction.ReferenceNo,
             Status = TransactionConstants.CompletedStatus,
             CreatedAt = now
@@ -700,7 +701,7 @@ public sealed class LedgerPostingService
             CustomerAccountId = customerAccountId,
             EntryType = entryType,
             Amount = amount ?? transaction.Amount,
-            PostingDate = BusinessTime.ToBusinessDate(now),
+            PostingDate = postingDate,
             Description = transaction.Description,
             CreatedAt = now
         });
