@@ -16,12 +16,16 @@ public sealed class TransactionService : ITransactionService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly LedgerPostingService _ledger;
+    private readonly TransferFeeService _transferFees;
+
+   
     private readonly ICashOperationsService _cashOperations;
 
-    public TransactionService(ApplicationDbContext dbContext, LedgerPostingService ledger, ICashOperationsService cashOperations)
+    public TransactionService(ApplicationDbContext dbContext, LedgerPostingService ledger,TransferFeeService transferFees, ICashOperationsService cashOperations)
     {
         _dbContext = dbContext;
         _ledger = ledger;
+        _transferFees = transferFees;
         _cashOperations = cashOperations;
     }
 
@@ -155,8 +159,10 @@ public sealed class TransactionService : ITransactionService
     }
 
     /// <summary>
-    /// Moves funds between two accounts in this bank as one atomic, completed transaction.
-    /// Ledger: debit and credit Customer Deposits for the two accounts.
+    /// Moves funds between two accounts in this bank as one atomic, completed transaction. A transfer to another
+    /// customer's account also charges the source account type's transfer fee.
+    /// Ledger: debit and credit Customer Deposits for the two accounts; the fee debits Customer Deposits (source) and
+    /// credits Transfer Fee Income.
     /// </summary>
     public Task<TransactionResponse> TransferInternallyAsync(
         InternalTransferRequest request,
@@ -184,12 +190,19 @@ public sealed class TransactionService : ITransactionService
                 var destination = accounts[request.DestinationAccountId];
 
                 var now = DateTime.UtcNow;
+                var fee = await _transferFees.CalculateInternalTransferFeeAsync(
+                    source,
+                    destination,
+                    request.Amount,
+                    now,
+                    cancellationToken);
                 await _ledger.EnsureCanDebitAsync(
                     source,
                     request.Amount,
                     DebitPurpose.Transfer,
                     now,
-                    cancellationToken);
+                    cancellationToken,
+                    fee);
 
                 var entity = LedgerPostingService.CreateTransaction(
                     TransactionType.InternalTransfer,
@@ -201,12 +214,19 @@ public sealed class TransactionService : ITransactionService
                     actor.UserId,
                     now);
                 await _ledger.PostCustomerEntryAsync(entity, source, EntryType.Debit, now, cancellationToken);
+                await _ledger.PostTransferFeeAsync(entity, source, fee, now, cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, destination, EntryType.Credit, now, cancellationToken);
                 _ledger.AddAuditLog(
                     AuditConstants.InternalTransferAction,
                     entity,
                     actor,
-                    new { entity.Amount, SourceAccountId = source.Id, DestinationAccountId = destination.Id },
+                    new
+                    {
+                        entity.Amount,
+                        entity.FeeAmount,
+                        SourceAccountId = source.Id,
+                        DestinationAccountId = destination.Id
+                    },
                     now);
 
                 await _dbContext.Transactions.AddAsync(entity, cancellationToken);
@@ -214,6 +234,7 @@ public sealed class TransactionService : ITransactionService
 
                 return LedgerPostingService.ToResponse(entity, source.Id, destination.Id);
             },
-            cancellationToken);
+            cancellationToken,
+            debitedAccountId: request.SourceAccountId);
     }
 }

@@ -9,6 +9,12 @@ public interface ICustomerLookUpService
     /// <summary>Finds an existing customer by NRC and maps the public lookup response.</summary>
     Task<CustomerLookupResponse> GetCustomerByNrcAsync(string nrc, CancellationToken cancellationToken);
 
+    /// <summary>Finds an existing customer by passport number and maps the public lookup response.</summary>
+    Task<CustomerLookupResponse> GetCustomerByPassportNumberAsync(string passportNumber, CancellationToken cancellationToken);
+
     /// <summary>Finds an existing customer entity for internal account workflows.</summary>
     Task<Customer> FindRegisteredCustomerByNrcAsync(string? nrc, CancellationToken cancellationToken);
+
+    /// <summary>Finds an existing customer entity by passport number for internal account workflows.</summary>
+    Task<Customer> FindRegisteredCustomerByPassportNumberAsync(string? passportNumber, CancellationToken cancellationToken);
 }

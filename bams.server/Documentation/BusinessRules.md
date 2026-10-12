@@ -83,15 +83,44 @@
   refund) moves it back to `Active` with a status-history row (`AccountConstants.DormantReactivationReason`,
   changed by the posting user). Scheduled interest, fee and dormant-penalty postings do not reactivate an account.
   Refunds only need the account to be not closed.
+- Debits follow the account type (`AccountType`), all 422:
+  - deposits need `AllowDeposit` (`DepositNotAllowed`) and at least `MinimumDepositAmount` (`DepositBelowMinimumAmount`);
+  - withdrawals need `AllowWithdrawal` (`WithdrawalNotAllowed`) and at least `MinimumWithdrawalAmount`
+    (`WithdrawalBelowMinimumAmount`);
+  - internal, interbank and NRC transfers need `AllowTransfer` on the source (`TransferNotAllowed`);
+  - the debit plus any transfer fee may not exceed the available balance (`InsufficientBalance`) or leave less than
 - Account postings follow the account type (`AccountType`), all 422:
   - deposits need `AllowDeposit` (`DepositNotAllowed`) and do not require an existing available balance or minimum maintained balance;
   - withdrawals need `AllowWithdrawal` (`WithdrawalNotAllowed`);
   - internal, interbank and NRC transfers need `AllowTransfer` on the source (`TransferNotAllowed`);
   - withdrawals and transfers may not exceed the available balance (`InsufficientBalance`) or leave less than
     `MinimumMaintainedBalance` (`MinimumBalanceRequired`);
-  - customer debits (withdrawals and the three transfer types) on the same Myanmar business day / calendar month may not exceed
-    `DailyTransactionLimit` / `MonthlyTransactionLimit` (`DailyTransactionLimitExceeded` /
-    `MonthlyTransactionLimitExceeded`). Refunded (cancelled or failed) transfers do not count. A null limit means no limit.
+  - customer debits (withdrawals and the three transfer types) on the same Myanmar business day / business week
+    (Monday to Sunday) / calendar month may not exceed `DailyTransactionLimit` / `WeeklyTransactionLimit` /
+    `MonthlyTransactionLimit` (`DailyTransactionLimitExceeded` / `WeeklyTransactionLimitExceeded` /
+    `MonthlyTransactionLimitExceeded`); cash withdrawals on the same day may also not exceed `DailyWithdrawalLimit`
+    (`DailyWithdrawalLimitExceeded`). Only the transaction amount counts, not its fee. Refunded (cancelled or failed)
+    transfers do not count. A null limit or minimum means none.
+- These terms are edited per account type on the Bank Policies screen (`api/bank-policies`). `ProductSeeder` seeds the
+  bank policy (1 lakh = 100,000 MMK; the migration `AddTransactionPolicyLimits` back-fills seeded products that still
+  had neutral terms):
+
+  | Product | Opening | Minimum balance | Daily | Weekly | Daily withdrawal | Min. deposit / withdrawal |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Current | 10,000 | 1,000 | 10 lakh | 50 lakh | 10 lakh | 1,000 |
+  | Normal Saving | 10,000 | 10,000 | 20 lakh | 100 lakh | 10 lakh | 1,000 |
+  | Special Saving | 1,000,000 | 500,000 | 10 lakh | 50 lakh | 10 lakh | 1,000 |
+  | Normal / Special / 100-Days Deposit | 10,000 / 1,000,000 / 10,000,000 | none | none | none | none | none |
+
+### Transfer fees
+
+- `TransferFeeService` reads the source account type's active `FeeRule` effective on the business date: `Transfer` for
+  an internal transfer to another customer's account, `InterbankTransfer` for an interbank transfer. Fee = `Amount` +
+  `Percentage`% of the transfer amount, kept within `MinimumFee` / `MaximumFee`, rounded to 2 decimals. No rule means
+  no fee. Transfers between accounts that share a holder are free. NRC transfers charge no fee.
+- `FeeRuleSeeder` seeds 0.2% (`Transfer`) and 0.5% (`InterbankTransfer`) for current and saving products.
+- The fee is a second debit entry ("Transfer fee") on the same transaction and is returned in `feeAmount`. A failed
+  interbank transfer refunds the fee with the amount ("Transfer fee refund").
 
 ### Posting
 
@@ -169,6 +198,8 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 | Interbank transfer | Customer Deposits | Interbank Clearing (2100) |
 | Interbank settled | Interbank Clearing | Due from Other Banks (1100) |
 | Interbank failed (refund) | Interbank Clearing | Customer Deposits |
+| Transfer fee (internal or interbank) | Customer Deposits (source) | Transfer Fee Income (4003) |
+| Transfer fee refund (interbank failed) | Transfer Fee Income | Customer Deposits |
 | NRC transfer, paid in cash | Cash on Hand | NRC Transfers Payable (2200) |
 | NRC transfer, paid from account | Customer Deposits | NRC Transfers Payable |
 | NRC pickup at our branch, in cash | NRC Transfers Payable | Cash on Hand |
@@ -191,7 +222,7 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 - An update request may also add and/or edit documents in the same call: a `Documents` entry with an `Id` edits that existing document (only its supplied fields change, and a supplied file replaces the stored one); an entry without an `Id` adds a new document and must specify `DocumentType` (`MessageCode.CustomerDocumentTypeRequired` otherwise). An `Id` that doesn't belong to the customer fails with `MessageCode.CustomerDocumentNotFound`.
 - When a document's file is replaced during an update, the old file on disk is only deleted after the database save commits successfully, so a failed update never leaves a document pointing at a file that no longer exists.
 - KYC review (`POST /api/customers/{id}/kyc-review`) sets `Customer.KycStatus` to `Verified` or `Rejected` — `Pending` is not a valid review outcome (`MessageCode.InvalidKycReviewStatus`). The reviewing user must exist (`MessageCode.KycReviewerNotFound` otherwise) and must hold the `RoleConstants.Manager` role (`MessageCode.AccessDenied` via `ForbiddenException` otherwise — only a Branch Manager may review KYC). No new fields were added to `Customer` for this: approving (`Verified`) stamps `VerifiedAt`/`VerifiedBy` on every one of the customer's existing `CustomerDocument` records using the already-existing per-document fields; rejecting only changes `Customer.KycStatus` and leaves documents untouched.
-- Account creation requires every individual or joint account holder to have `KycStatus.Verified`. The account-opening NRC lookup returns that status so the desktop can explain and block the action early; `AccountHolderService` validates it again on account creation and rejects pending or rejected KYC with `MessageCode.AccountHolderKycNotVerified`.
+- Account creation accepts either an NRC number or passport number for each individual or joint account holder. Holder resolution tries NRC first and passport only when the NRC is not found. The account-opening lookup returns `KycStatus` so the desktop can explain and block the action early; `AccountHolderService` validates it again on account creation and rejects pending or rejected KYC with `MessageCode.AccountHolderKycNotVerified`.
 
 ## Security (Users / Roles)
 
@@ -243,6 +274,9 @@ and dormant penalties. The scheduled-operation accounts (1101, 1102, 2101, 4001,
 
 - Jobs are registered in code by stable key and a reusable interval or monthly schedule, then synchronized to `ScheduledJobs` at startup.
 - Each attempt is recorded in `ScheduledJobExecutions`; failures include bounded exception details. Jobs retry up to `Jobs:MaximumAttempts`, then retain `Failed` as their latest status and proceed to the next recurrence.
+- Account maintenance and interest accumulation run at 00:00 Asia/Rangoon on the fifth day of each month. They process accounts in batches and persist monthly accruals idempotently.
+- Current and saving maintenance fees accrue monthly and are deducted after calendar quarter close; dormant penalties are accrued and deducted monthly. Saving and active fixed-deposit interest accrue monthly and are credited quarterly. Monthly accruals and balance postings each create account transaction entries, balanced General Ledger entries, and audit records.
+- Scheduled account operations use effective product fee and interest rules. A savings balance outside every configured interest tier earns no interest for the month (a warning is logged); other missing/invalid rules fail the affected account and are recorded by the scheduled-job retry workflow. A fee rule of 0 MMK charges nothing and stores no accrual. `FeeRuleSeeder` seeds the bank policy for current and saving products: maintenance 0 MMK monthly and dormant-account penalty 3,000 MMK monthly (rows still holding the earlier demo amounts of 1,000 / 5,000 MMK are moved to these values on startup).
 - The monthly accounting-close occurrence is scheduled for 00:00 Asia/Rangoon on the second day of each month. It runs prior-month account maintenance, then prior-month interest accumulation, then upserts one `MonthlySummary` per GL account for the prior calendar month. Each stage uses the existing idempotent service operations; the summary is published only after both posting stages succeed.
 - Saving maintenance fees accrue monthly and are deducted after calendar quarter close; dormant penalties are accrued and deducted monthly. Saving and active fixed-deposit interest accrue monthly and are credited quarterly. Monthly accruals and balance postings each create account transaction entries, balanced General Ledger entries, and audit records.
 - Scheduled account operations use effective product fee and interest rules. A savings balance outside every configured interest tier earns no interest for the month (a warning is logged); other missing/invalid rules fail the affected account and are recorded by the scheduled-job retry workflow. Seeded demo saving fees are 1,000 MMK monthly and dormant penalties are 5,000 MMK monthly.

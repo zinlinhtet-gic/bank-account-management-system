@@ -58,6 +58,8 @@ public sealed class BankPolicyService : IBankPolicyService
         await ValidateAsync(request.Code, request.MinimumOpeningBalance, request.MinimumMaintainedBalance,
             request.DailyTransactionLimit, request.MonthlyTransactionLimit, request.CitizenRequiredRefer,
             request.ForeignRequiredRefer, request.Status, excludedId: null, cancellationToken);
+        ValidateTransactionPolicyAmounts(request.WeeklyTransactionLimit, request.DailyWithdrawalLimit,
+            request.MinimumDepositAmount, request.MinimumWithdrawalAmount);
 
         var accountType = new AccountType
         {
@@ -68,6 +70,10 @@ public sealed class BankPolicyService : IBankPolicyService
             MinimumMaintainedBalance = request.MinimumMaintainedBalance,
             DailyTransactionLimit = request.DailyTransactionLimit,
             MonthlyTransactionLimit = request.MonthlyTransactionLimit,
+            WeeklyTransactionLimit = request.WeeklyTransactionLimit,
+            DailyWithdrawalLimit = request.DailyWithdrawalLimit,
+            MinimumDepositAmount = request.MinimumDepositAmount,
+            MinimumWithdrawalAmount = request.MinimumWithdrawalAmount,
             AllowWithdrawal = request.AllowWithdrawal,
             AllowTransfer = request.AllowTransfer,
             AllowPartialWithdrawal = request.AllowPartialWithdrawal,
@@ -103,6 +109,8 @@ public sealed class BankPolicyService : IBankPolicyService
         await ValidateAsync(request.Code, request.MinimumOpeningBalance, request.MinimumMaintainedBalance,
             request.DailyTransactionLimit, request.MonthlyTransactionLimit, request.CitizenRequiredRefer,
             request.ForeignRequiredRefer, request.Status, excludedId: id, cancellationToken);
+        ValidateTransactionPolicyAmounts(request.WeeklyTransactionLimit, request.DailyWithdrawalLimit,
+            request.MinimumDepositAmount, request.MinimumWithdrawalAmount);
 
         accountType.Code = request.Code.Trim();
         accountType.Name = request.Name.Trim();
@@ -111,6 +119,10 @@ public sealed class BankPolicyService : IBankPolicyService
         accountType.MinimumMaintainedBalance = request.MinimumMaintainedBalance;
         accountType.DailyTransactionLimit = request.DailyTransactionLimit;
         accountType.MonthlyTransactionLimit = request.MonthlyTransactionLimit;
+        accountType.WeeklyTransactionLimit = request.WeeklyTransactionLimit;
+        accountType.DailyWithdrawalLimit = request.DailyWithdrawalLimit;
+        accountType.MinimumDepositAmount = request.MinimumDepositAmount;
+        accountType.MinimumWithdrawalAmount = request.MinimumWithdrawalAmount;
         accountType.AllowWithdrawal = request.AllowWithdrawal;
         accountType.AllowTransfer = request.AllowTransfer;
         accountType.AllowPartialWithdrawal = request.AllowPartialWithdrawal;
@@ -123,6 +135,16 @@ public sealed class BankPolicyService : IBankPolicyService
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return accountType.ToResponse();
+    }
+
+    // The weekly and daily-withdrawal limits and the minimum deposit and withdrawal amounts are optional (null means
+    // no limit), but a given value may not be negative.
+    private static void ValidateTransactionPolicyAmounts(params decimal?[] amounts)
+    {
+        if (amounts.Any(amount => amount < 0))
+        {
+            throw new ValidationException(MessageCode.InvalidAmount);
+        }
     }
 
     // Shared validation for create and update. excludedId lets update keep its own code.

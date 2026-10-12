@@ -31,6 +31,10 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
     private string _minimumMaintainedBalanceText = string.Empty;
     private string _dailyTransactionLimitText = string.Empty;
     private string _monthlyTransactionLimitText = string.Empty;
+    private string _weeklyTransactionLimitText = string.Empty;
+    private string _dailyWithdrawalLimitText = string.Empty;
+    private string _minimumDepositAmountText = string.Empty;
+    private string _minimumWithdrawalAmountText = string.Empty;
     private bool _allowWithdrawal = true;
     private bool _allowTransfer = true;
     private bool _allowPartialWithdrawal = true;
@@ -47,6 +51,10 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
     private string _minimumMaintainedBalanceError = string.Empty;
     private string _dailyTransactionLimitError = string.Empty;
     private string _monthlyTransactionLimitError = string.Empty;
+    private string _weeklyTransactionLimitError = string.Empty;
+    private string _dailyWithdrawalLimitError = string.Empty;
+    private string _minimumDepositAmountError = string.Empty;
+    private string _minimumWithdrawalAmountError = string.Empty;
     private string _citizenRequiredReferError = string.Empty;
     private string _foreignRequiredReferError = string.Empty;
     private string _statusError = string.Empty;
@@ -176,6 +184,54 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
             if (SetProperty(ref _monthlyTransactionLimitText, value))
             {
                 MonthlyTransactionLimitError = string.Empty;
+            }
+        }
+    }
+
+    public string WeeklyTransactionLimitText
+    {
+        get => _weeklyTransactionLimitText;
+        set
+        {
+            if (SetProperty(ref _weeklyTransactionLimitText, value))
+            {
+                WeeklyTransactionLimitError = string.Empty;
+            }
+        }
+    }
+
+    public string DailyWithdrawalLimitText
+    {
+        get => _dailyWithdrawalLimitText;
+        set
+        {
+            if (SetProperty(ref _dailyWithdrawalLimitText, value))
+            {
+                DailyWithdrawalLimitError = string.Empty;
+            }
+        }
+    }
+
+    public string MinimumDepositAmountText
+    {
+        get => _minimumDepositAmountText;
+        set
+        {
+            if (SetProperty(ref _minimumDepositAmountText, value))
+            {
+                MinimumDepositAmountError = string.Empty;
+            }
+        }
+    }
+
+    public string MinimumWithdrawalAmountText
+    {
+        get => _minimumWithdrawalAmountText;
+        set
+        {
+            if (SetProperty(ref _minimumWithdrawalAmountText, value))
+            {
+                MinimumWithdrawalAmountError = string.Empty;
             }
         }
     }
@@ -344,6 +400,62 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
 
     public bool HasMonthlyTransactionLimitError => !string.IsNullOrEmpty(MonthlyTransactionLimitError);
 
+    public string WeeklyTransactionLimitError
+    {
+        get => _weeklyTransactionLimitError;
+        private set
+        {
+            if (SetProperty(ref _weeklyTransactionLimitError, value))
+            {
+                OnPropertyChanged(nameof(HasWeeklyTransactionLimitError));
+            }
+        }
+    }
+
+    public bool HasWeeklyTransactionLimitError => !string.IsNullOrEmpty(WeeklyTransactionLimitError);
+
+    public string DailyWithdrawalLimitError
+    {
+        get => _dailyWithdrawalLimitError;
+        private set
+        {
+            if (SetProperty(ref _dailyWithdrawalLimitError, value))
+            {
+                OnPropertyChanged(nameof(HasDailyWithdrawalLimitError));
+            }
+        }
+    }
+
+    public bool HasDailyWithdrawalLimitError => !string.IsNullOrEmpty(DailyWithdrawalLimitError);
+
+    public string MinimumDepositAmountError
+    {
+        get => _minimumDepositAmountError;
+        private set
+        {
+            if (SetProperty(ref _minimumDepositAmountError, value))
+            {
+                OnPropertyChanged(nameof(HasMinimumDepositAmountError));
+            }
+        }
+    }
+
+    public bool HasMinimumDepositAmountError => !string.IsNullOrEmpty(MinimumDepositAmountError);
+
+    public string MinimumWithdrawalAmountError
+    {
+        get => _minimumWithdrawalAmountError;
+        private set
+        {
+            if (SetProperty(ref _minimumWithdrawalAmountError, value))
+            {
+                OnPropertyChanged(nameof(HasMinimumWithdrawalAmountError));
+            }
+        }
+    }
+
+    public bool HasMinimumWithdrawalAmountError => !string.IsNullOrEmpty(MinimumWithdrawalAmountError);
+
     public string CitizenRequiredReferError
     {
         get => _citizenRequiredReferError;
@@ -426,6 +538,10 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
         _minimumMaintainedBalanceText = policy.MinimumMaintainedBalance.ToString(CultureInfo.InvariantCulture);
         _dailyTransactionLimitText = policy.DailyTransactionLimit?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         _monthlyTransactionLimitText = policy.MonthlyTransactionLimit?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _weeklyTransactionLimitText = FormatOptionalAmount(policy.WeeklyTransactionLimit);
+        _dailyWithdrawalLimitText = FormatOptionalAmount(policy.DailyWithdrawalLimit);
+        _minimumDepositAmountText = FormatOptionalAmount(policy.MinimumDepositAmount);
+        _minimumWithdrawalAmountText = FormatOptionalAmount(policy.MinimumWithdrawalAmount);
         _allowWithdrawal = policy.AllowWithdrawal;
         _allowTransfer = policy.AllowTransfer;
         _allowPartialWithdrawal = policy.AllowPartialWithdrawal;
@@ -456,6 +572,8 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
                     new UpdateBankPolicyRequest(
                         input.Code, input.Name, input.Category, input.MinimumOpeningBalance,
                         input.MinimumMaintainedBalance, input.DailyTransactionLimit, input.MonthlyTransactionLimit,
+                        input.WeeklyTransactionLimit, input.DailyWithdrawalLimit, input.MinimumDepositAmount,
+                        input.MinimumWithdrawalAmount,
                         input.AllowWithdrawal, input.AllowTransfer, input.AllowPartialWithdrawal,
                         input.AllowCitizen, input.AllowForeigner, input.CitizenRequiredRefer,
                         input.ForeignRequiredRefer, input.Status),
@@ -464,6 +582,8 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
                     new CreateBankPolicyRequest(
                         input.Code, input.Name, input.Category, input.MinimumOpeningBalance,
                         input.MinimumMaintainedBalance, input.DailyTransactionLimit, input.MonthlyTransactionLimit,
+                        input.WeeklyTransactionLimit, input.DailyWithdrawalLimit, input.MinimumDepositAmount,
+                        input.MinimumWithdrawalAmount,
                         input.AllowWithdrawal, input.AllowTransfer, input.AllowPartialWithdrawal,
                         input.AllowCitizen, input.AllowForeigner, input.CitizenRequiredRefer,
                         input.ForeignRequiredRefer, input.Status),
@@ -556,6 +676,11 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
             }
         }
 
+        WeeklyTransactionLimitError = ParseOptionalAmount(WeeklyTransactionLimitText, out var weeklyTransactionLimit);
+        DailyWithdrawalLimitError = ParseOptionalAmount(DailyWithdrawalLimitText, out var dailyWithdrawalLimit);
+        MinimumDepositAmountError = ParseOptionalAmount(MinimumDepositAmountText, out var minimumDepositAmount);
+        MinimumWithdrawalAmountError = ParseOptionalAmount(MinimumWithdrawalAmountText, out var minimumWithdrawalAmount);
+
         if (!int.TryParse(CitizenRequiredReferText.Trim(), out var citizenRequiredRefer) || citizenRequiredRefer < 0)
         {
             CitizenRequiredReferError = MessageCatalog.GetMessage(MessageCode.InvalidAmount);
@@ -580,6 +705,8 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
 
         var isValid = !HasCodeError && !HasNameError && !HasCategoryError && !HasMinimumOpeningBalanceError
             && !HasMinimumMaintainedBalanceError && !HasDailyTransactionLimitError && !HasMonthlyTransactionLimitError
+            && !HasWeeklyTransactionLimitError && !HasDailyWithdrawalLimitError && !HasMinimumDepositAmountError
+            && !HasMinimumWithdrawalAmountError
             && !HasCitizenRequiredReferError && !HasForeignRequiredReferError && !HasStatusError;
 
         input = isValid
@@ -591,6 +718,10 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
                 minimumMaintainedBalance,
                 dailyTransactionLimit,
                 monthlyTransactionLimit,
+                weeklyTransactionLimit,
+                dailyWithdrawalLimit,
+                minimumDepositAmount,
+                minimumWithdrawalAmount,
                 AllowWithdrawal,
                 AllowTransfer,
                 AllowPartialWithdrawal,
@@ -602,6 +733,32 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
             : default;
 
         return isValid;
+    }
+
+    // Parses an optional, non-negative amount field: blank means "no limit" (null). Returns the field error, or an
+    // empty string when the text is valid.
+    private static string ParseOptionalAmount(string text, out decimal? amount)
+    {
+        amount = null;
+        var trimmed = text.Trim();
+        if (trimmed.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (!decimal.TryParse(trimmed, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) || parsed < 0)
+        {
+            return MessageCatalog.GetMessage(MessageCode.InvalidAmount);
+        }
+
+        amount = parsed;
+        return string.Empty;
+    }
+
+    // Shows an optional amount in its field; null ("no limit") shows as an empty field.
+    private static string FormatOptionalAmount(decimal? amount)
+    {
+        return amount?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     // Puts a server rejection next to the field it is about; anything else goes to the banner.
@@ -627,6 +784,10 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
         decimal MinimumMaintainedBalance,
         decimal? DailyTransactionLimit,
         decimal? MonthlyTransactionLimit,
+        decimal? WeeklyTransactionLimit,
+        decimal? DailyWithdrawalLimit,
+        decimal? MinimumDepositAmount,
+        decimal? MinimumWithdrawalAmount,
         bool AllowWithdrawal,
         bool AllowTransfer,
         bool AllowPartialWithdrawal,

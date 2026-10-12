@@ -17,7 +17,7 @@ Controllers handle routing, binding, authorization attributes, and response enve
 - `AccountTypesController` exposes the read-only catalog of active account products.
 - `InterestRateRulesController` exposes active, currently effective rates filtered by account type.
 - `AccountService` coordinates account operations and delegates holder, account-type, fixed-deposit, document, audit, transaction, and accounting responsibilities.
-- `CustomerLookUpService` centralizes NRC-based customer resolution for account APIs and account-holder workflows.
+- `CustomerLookUpService` centralizes NRC and passport customer lookup for account APIs and account-holder workflows. Account opening resolves each holder by NRC first, then passport only when the NRC is not found.
 - `CustomersController` (`api/customers`) and `CustomerService` create and manage persisted customer records; account opening uses the NRC lookup response, including KYC status, and requires every holder to be verified.
 - `AccountHolderService` owns holder resolution, ownership validation, creation, joint-holder updates, and owned individual-account options.
 - `AccountRefererService` resolves referrers by NRC, verifies that each already owns an account, and associates them with a newly created account in its database transaction.

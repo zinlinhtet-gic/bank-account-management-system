@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
-/// <summary>Centralizes customer lookup by NRC for account API and domain services.</summary>
+/// <summary>Centralizes customer lookup by NRC and passport for account API and domain services.</summary>
 public sealed class CustomerLookUpService : ICustomerLookUpService
 {
     private readonly ApplicationDbContext _dbContext;
@@ -33,6 +33,22 @@ public sealed class CustomerLookUpService : ICustomerLookUpService
     }
 
     /// <inheritdoc />
+    public async Task<CustomerLookupResponse> GetCustomerByPassportNumberAsync(
+        string passportNumber,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(passportNumber))
+        {
+            throw new ValidationException(MessageCode.InvalidRequest);
+        }
+
+        var customer = await FindRegisteredCustomerByPassportNumberAsync(passportNumber, cancellationToken);
+        return new CustomerLookupResponse(customer.Id, customer.CustomerNo, customer.FullName,
+            customer.DateOfBirth, customer.NrcNumber, customer.Phone, customer.Email, customer.Status,
+            customer.CustomerType, customer.KycStatus);
+    }
+
+    /// <inheritdoc />
     public async Task<Customer> FindRegisteredCustomerByNrcAsync(string? nrc, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(nrc))
@@ -43,6 +59,23 @@ public sealed class CustomerLookUpService : ICustomerLookUpService
         var normalizedNrc = nrc.Trim();
         var customer = await _dbContext.Customers.AsNoTracking()
             .FirstOrDefaultAsync(item => item.NrcNumber == normalizedNrc, cancellationToken);
+
+        return customer ?? throw new NotFoundException(MessageCode.CustomerNotFound);
+    }
+
+    /// <inheritdoc />
+    public async Task<Customer> FindRegisteredCustomerByPassportNumberAsync(
+        string? passportNumber,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(passportNumber))
+        {
+            throw new NotFoundException(MessageCode.CustomerNotFound);
+        }
+
+        var normalizedPassportNumber = passportNumber.Trim();
+        var customer = await _dbContext.Customers.AsNoTracking()
+            .FirstOrDefaultAsync(item => item.PassportNumber == normalizedPassportNumber, cancellationToken);
 
         return customer ?? throw new NotFoundException(MessageCode.CustomerNotFound);
     }

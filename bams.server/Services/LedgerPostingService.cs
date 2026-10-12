@@ -10,6 +10,7 @@ using bams.server.Messages;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Audit;
+using bams.server.Models.Products;
 using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,8 @@ public enum DebitPurpose
 /// </summary>
 public sealed class LedgerPostingService
 {
-    // Customer-initiated debits count against an account type's daily and monthly limits; fees and refunds do not.
+    // Customer-initiated debits count against an account type's daily, weekly and monthly limits; fees and refunds
+    // do not.
     private static readonly TransactionType[] LimitedTransactionTypes =
     [
         TransactionType.CashWithdrawal,
@@ -72,6 +74,10 @@ public sealed class LedgerPostingService
     /// the same accounts, so a key reused for another account is rejected instead of silently returning the first.
     /// </param>
     /// <param name="postAsync">Posts and saves the transaction; receives the normalized idempotency key to store.</param>
+    /// <param name="debitedAccountId">
+    /// For postings that touch several customer accounts, the account that is debited. A replay must debit the same
+    /// account, so a key reused for the reverse transfer is rejected instead of returning the original direction.
+    /// </param>
     public async Task<TransactionResponse> RunIdempotentPostingAsync(
         string? idempotencyKey,
         TransactionType transactionType,
@@ -79,7 +85,8 @@ public sealed class LedgerPostingService
         long userId,
         IReadOnlyCollection<long> customerAccountIds,
         Func<string?, Task<TransactionResponse>> postAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? debitedAccountId = null)
     {
         var normalizedKey = NormalizeIdempotencyKey(idempotencyKey);
         var replay = await FindIdempotentReplayAsync(
@@ -88,6 +95,7 @@ public sealed class LedgerPostingService
             amount,
             userId,
             customerAccountIds,
+            debitedAccountId,
             cancellationToken);
         if (replay is not null)
         {
@@ -103,10 +111,12 @@ public sealed class LedgerPostingService
                 return response;
             }, cancellationToken);
         }
-        catch (DbUpdateException) when (normalizedKey is not null)
+        catch (Exception exception) when (
+            normalizedKey is not null && exception is DbUpdateException or BusinessRuleException)
         {
-            // A parallel request with the same key committed first and the unique index rejected this one.
-            // The rollback already happened; forget the rejected changes and return the committed result.
+            // A parallel request with the same key committed first. Either the unique index rejected this one, or it
+            // waited on the account lock and then failed a business rule (e.g. the balance the original already
+            // spent). The rollback already happened; forget the rejected changes and return the committed result.
             _dbContext.ChangeTracker.Clear();
             var concurrentReplay = await FindIdempotentReplayAsync(
                 normalizedKey,
@@ -114,6 +124,7 @@ public sealed class LedgerPostingService
                 amount,
                 userId,
                 customerAccountIds,
+                debitedAccountId,
                 cancellationToken);
             if (concurrentReplay is null)
             {
@@ -376,50 +387,100 @@ public sealed class LedgerPostingService
     }
 
     /// <summary>
+    /// Applies the account type's deposit or debit rules. Deposits check deposit permission and the minimum deposit
+    /// amount; debits check permission, the minimum withdrawal amount, available balance, minimum maintained balance,
+    /// and the daily, weekly, monthly and daily-withdrawal limits. The account must be locked by
+    /// <see cref="LockAccountsAsync"/>, which also keeps the limit totals stable until the posting commits.
     /// Applies the account type's deposit or debit rules. Deposits check deposit permission only; withdrawals and
     /// transfers also check available balance, minimum maintained balance, and configured debit limits. The account
     /// must be locked by <see cref="LockAccountsAsync"/>, which keeps balances and limit totals stable until commit.
     /// </summary>
+    /// <param name="feeAmount">
+    /// Fee debited together with <paramref name="amount"/>. The balance must cover both, but only the amount itself
+    /// counts against the transaction limits.
+    /// </param>
     public async Task EnsureCanDebitAsync(
         Account account,
         decimal amount,
         DebitPurpose purpose,
         DateTime now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        decimal feeAmount = 0m)
     {
         var accountType = account.AccountType
             ?? throw new InvalidOperationException("The account type must be loaded before checking debit rules.");
 
         if (purpose == DebitPurpose.Deposit)
         {
+            // A deposit adds money, so balance, minimum-balance and debit-limit checks do not apply.
             if (!accountType.AllowDeposit)
             {
                 throw new BusinessRuleException(MessageCode.DepositNotAllowed);
             }
 
+            // A null minimum means any positive amount is accepted.
+            if (amount < accountType.MinimumDepositAmount)
+            {
+                throw new BusinessRuleException(MessageCode.DepositBelowMinimumAmount);
+            }
+
             return;
         }
+
+        EnsureDebitIsPermitted(accountType, amount, purpose);
+        EnsureBalanceCoversDebit(account, amount + feeAmount);
+        await EnsureWithinTransactionLimitsAsync(account, amount, purpose, now, cancellationToken);
+    }
+
+    // Rejects a withdrawal or transfer the account type does not allow, and a withdrawal below its minimum amount.
+    private static void EnsureDebitIsPermitted(AccountType accountType, decimal amount, DebitPurpose purpose)
+    {
         if (purpose == DebitPurpose.Withdrawal && !accountType.AllowWithdrawal)
         {
             throw new BusinessRuleException(MessageCode.WithdrawalNotAllowed);
+        }
+
+        // A null minimum means any positive amount is accepted.
+        if (purpose == DebitPurpose.Withdrawal && amount < accountType.MinimumWithdrawalAmount)
+        {
+            throw new BusinessRuleException(MessageCode.WithdrawalBelowMinimumAmount);
         }
 
         if (purpose == DebitPurpose.Transfer && !accountType.AllowTransfer)
         {
             throw new BusinessRuleException(MessageCode.TransferNotAllowed);
         }
+    }
 
-        if (account.AvailableBalance < amount)
+    // The whole debit (amount plus any fee) must be available and must leave the minimum maintained balance.
+    private static void EnsureBalanceCoversDebit(Account account, decimal totalDebit)
+    {
+        if (account.AvailableBalance < totalDebit)
         {
             throw new BusinessRuleException(MessageCode.InsufficientBalance);
         }
 
-        if (account.AvailableBalance - amount < accountType.MinimumMaintainedBalance)
+        if (account.AvailableBalance - totalDebit < account.AccountType!.MinimumMaintainedBalance)
         {
             throw new BusinessRuleException(MessageCode.MinimumBalanceRequired);
         }
+    }
 
-        if (accountType.DailyTransactionLimit is null && accountType.MonthlyTransactionLimit is null)
+    // Checks the debit against the account type's daily, daily-withdrawal, weekly and monthly limits. A null limit
+    // means no limit. Limits reset at Myanmar midnight, on Monday and on the 1st: posting dates are business dates.
+    private async Task EnsureWithinTransactionLimitsAsync(
+        Account account,
+        decimal amount,
+        DebitPurpose purpose,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var accountType = account.AccountType!;
+        var withdrawalLimit = purpose == DebitPurpose.Withdrawal ? accountType.DailyWithdrawalLimit : null;
+        if (accountType.DailyTransactionLimit is null
+            && accountType.WeeklyTransactionLimit is null
+            && accountType.MonthlyTransactionLimit is null
+            && withdrawalLimit is null)
         {
             return;
         }
@@ -427,35 +488,78 @@ public sealed class LedgerPostingService
         // Limits reset at Myanmar midnight: posting dates are business dates, the same dates stored on every entry.
         var today = await GetPostingBusinessDateAsync(now, cancellationToken);
         var firstDayOfMonth = new DateOnly(today.Year, today.Month, 1);
-        var monthDebits = _dbContext.AccountTransactions
-            .AsNoTracking()
-            .Where(entry => entry.AccountId == account.Id
-                && entry.EntryType == EntryType.Debit
-                && entry.PostingDate >= firstDayOfMonth
-                && LimitedTransactionTypes.Contains(entry.Transaction!.TransactionType)
-                && !RefundedStatuses.Contains(entry.Transaction!.TransactionStatus));
+        var daysSinceWeekStart = ((int)today.DayOfWeek - (int)TransactionConstants.FirstDayOfBusinessWeek
+            + TransactionConstants.DaysPerWeek) % TransactionConstants.DaysPerWeek;
+        var firstDayOfWeek = today.AddDays(-daysSinceWeekStart);
+        var debits = await GetLimitedDebitsSinceAsync(
+            account.Id,
+            firstDayOfWeek < firstDayOfMonth ? firstDayOfWeek : firstDayOfMonth,
+            cancellationToken);
 
-        if (accountType.DailyTransactionLimit is { } dailyLimit)
+        decimal SumDebits(Func<LimitedDebit, bool> predicate) => debits.Where(predicate).Sum(debit => debit.Amount);
+
+        if (accountType.DailyTransactionLimit is { } dailyLimit
+            && SumDebits(debit => debit.PostingDate == today) + amount > dailyLimit)
         {
-            var debitedToday = await monthDebits
-                .Where(entry => entry.PostingDate == today)
-                .SumAsync(entry => (decimal?)entry.Amount, cancellationToken) ?? 0m;
-            if (debitedToday + amount > dailyLimit)
-            {
-                throw new BusinessRuleException(MessageCode.DailyTransactionLimitExceeded);
-            }
+            throw new BusinessRuleException(MessageCode.DailyTransactionLimitExceeded);
         }
 
-        if (accountType.MonthlyTransactionLimit is { } monthlyLimit)
+        if (withdrawalLimit is { } dailyWithdrawalLimit
+            && SumDebits(debit => debit.PostingDate == today && debit.TransactionType == TransactionType.CashWithdrawal)
+                + amount > dailyWithdrawalLimit)
         {
-            var debitedThisMonth = await monthDebits
-                .SumAsync(entry => (decimal?)entry.Amount, cancellationToken) ?? 0m;
-            if (debitedThisMonth + amount > monthlyLimit)
-            {
-                throw new BusinessRuleException(MessageCode.MonthlyTransactionLimitExceeded);
-            }
+            throw new BusinessRuleException(MessageCode.DailyWithdrawalLimitExceeded);
+        }
+
+        if (accountType.WeeklyTransactionLimit is { } weeklyLimit
+            && SumDebits(debit => debit.PostingDate >= firstDayOfWeek) + amount > weeklyLimit)
+        {
+            throw new BusinessRuleException(MessageCode.WeeklyTransactionLimitExceeded);
+        }
+
+        if (accountType.MonthlyTransactionLimit is { } monthlyLimit
+            && SumDebits(debit => debit.PostingDate >= firstDayOfMonth) + amount > monthlyLimit)
+        {
+            throw new BusinessRuleException(MessageCode.MonthlyTransactionLimitExceeded);
         }
     }
+
+    // Loads the account's limit-counted debits posted on or after windowStart, one row per transaction: a transfer
+    // with a fee has two debit entries (amount and fee), but only the transaction amount counts against the limits.
+    // The window is at most about five weeks of one account's limited debits, so it is summed in memory.
+    private async Task<List<LimitedDebit>> GetLimitedDebitsSinceAsync(
+        long accountId,
+        DateOnly windowStart,
+        CancellationToken cancellationToken)
+    {
+        var debits = await _dbContext.AccountTransactions
+            .AsNoTracking()
+            .Where(entry => entry.AccountId == accountId
+                && entry.EntryType == EntryType.Debit
+                && entry.PostingDate >= windowStart
+                && LimitedTransactionTypes.Contains(entry.Transaction!.TransactionType)
+                && !RefundedStatuses.Contains(entry.Transaction!.TransactionStatus))
+            .Select(entry => new
+            {
+                entry.TransactionId,
+                entry.PostingDate,
+                entry.Transaction!.TransactionType,
+                entry.Transaction!.Amount
+            })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return debits
+            .Select(debit => new LimitedDebit(debit.TransactionId, debit.PostingDate, debit.TransactionType, debit.Amount))
+            .ToList();
+    }
+
+    // A customer debit that counts against the transaction limits.
+    private sealed record LimitedDebit(
+        long TransactionId,
+        DateOnly PostingDate,
+        TransactionType TransactionType,
+        decimal Amount);
 
     /// <summary>
     /// Creates a transaction header. Completed transactions are also marked as posted by the initiating user.
@@ -495,20 +599,23 @@ public sealed class LedgerPostingService
     /// Applies the transaction amount to the customer account, records the account entry with before/after balances,
     /// and writes the matching Customer Deposits ledger line. Callers must check debit rules first.
     /// </summary>
+    /// <param name="amount">Amount of this entry; defaults to the transaction amount (a fee line passes the fee).</param>
+    /// <param name="description">Entry description; defaults to the transaction description.</param>
     public async Task PostCustomerEntryAsync(
         Transaction transaction,
         Account account,
         EntryType entryType,
         DateTime now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        decimal? amount = null,
+        string? description = null)
     {
-        var amount = transaction.Amount;
+        var entryAmount = amount ?? transaction.Amount;
         var ledgerBalanceBefore = account.LedgerBalance;
         var availableBalanceBefore = account.AvailableBalance;
-        var signedAmount = entryType == EntryType.Debit ? -amount : amount;
+        var signedAmount = entryType == EntryType.Debit ? -entryAmount : entryAmount;
         var postingDate = await GetPostingBusinessDateAsync(now, cancellationToken);
         transaction.BusinessDate ??= postingDate;
-
         account.LedgerBalance += signedAmount;
         account.AvailableBalance += signedAmount;
         account.LastActivityAt = now;
@@ -520,7 +627,7 @@ public sealed class LedgerPostingService
             Transaction = transaction,
             Account = account,
             EntryType = entryType,
-            Amount = amount,
+            Amount = entryAmount,
             LedgerBalanceBefore = ledgerBalanceBefore,
             LedgerBalanceAfter = account.LedgerBalance,
             AvailableBalanceBefore = availableBalanceBefore,
@@ -540,7 +647,8 @@ public sealed class LedgerPostingService
             entryType,
             account.Id,
             now,
-            cancellationToken);
+            cancellationToken,
+            entryAmount);
     }
 
     /// <summary>
@@ -573,8 +681,8 @@ public sealed class LedgerPostingService
     }
 
     /// <summary>
-    /// Writes one general-ledger line for the transaction amount. Every posting writes lines whose debits equal
-    /// its credits.
+    /// Writes one general-ledger line for the transaction amount, or for <paramref name="amount"/> when given (fee
+    /// lines). Every posting writes lines whose debits equal its credits.
     /// </summary>
     public async Task PostGlEntryAsync(
         Transaction transaction,
@@ -582,7 +690,8 @@ public sealed class LedgerPostingService
         EntryType entryType,
         long? customerAccountId,
         DateTime now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        decimal? amount = null)
     {
         var postingDate = await GetPostingBusinessDateAsync(now, cancellationToken);
         transaction.BusinessDate ??= postingDate;
@@ -592,7 +701,7 @@ public sealed class LedgerPostingService
             GlAccountId = await GetGlAccountIdAsync(glAccountCode, cancellationToken),
             CustomerAccountId = customerAccountId,
             EntryType = entryType,
-            Amount = transaction.Amount,
+            Amount = amount ?? transaction.Amount,
             PostingDate = postingDate,
             Description = transaction.Description,
             CreatedAt = now
@@ -606,9 +715,46 @@ public sealed class LedgerPostingService
     }
 
     /// <summary>
+    /// Charges a transfer fee to the account the transfer debits, as a second debit entry on the same transaction,
+    /// and records it in <see cref="Transaction.FeeAmount"/>. A zero fee posts nothing.
+    /// Ledger: debit Customer Deposits, credit Transfer Fee Income.
+    /// </summary>
+    public async Task PostTransferFeeAsync(
+        Transaction transaction,
+        Account account,
+        decimal feeAmount,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (feeAmount <= 0m)
+        {
+            return;
+        }
+
+        transaction.FeeAmount = feeAmount;
+        await PostCustomerEntryAsync(
+            transaction,
+            account,
+            EntryType.Debit,
+            now,
+            cancellationToken,
+            feeAmount,
+            TransactionConstants.TransferFeeEntryDescription);
+        await PostGlEntryAsync(
+            transaction,
+            AccountingConstants.TransferFeeIncomeGlCode,
+            EntryType.Credit,
+            null,
+            now,
+            cancellationToken,
+            feeAmount);
+    }
+
+    /// <summary>
     /// Creates a completed Reversal transaction that returns the original transfer's amount from the clearing ledger
     /// account the way it was paid in: to the account the original debited, or in cash when the sender paid cash
-    /// (an NRC transfer without a source account). The caller changes the original's status and saves.
+    /// (an NRC transfer without a source account). A transfer fee the original charged is returned too. The caller
+    /// changes the original's status and saves.
     /// </summary>
     public async Task<Transaction> CreateRefundAsync(
         Transaction original,
@@ -640,6 +786,7 @@ public sealed class LedgerPostingService
         {
             var accounts = await LockAccountsAsync([accountId], isRefund: true, cancellationToken);
             await PostCustomerEntryAsync(refund, accounts[accountId], EntryType.Credit, now, cancellationToken);
+            await RefundTransferFeeAsync(original, refund, accounts[accountId], now, cancellationToken);
         }
         else
         {
@@ -650,6 +797,38 @@ public sealed class LedgerPostingService
         await _dbContext.Transactions.AddAsync(refund, cancellationToken);
 
         return refund;
+    }
+
+    // The transfer did not go through, so the fee it charged goes back to the same account on the refund.
+    // Ledger: debit Transfer Fee Income, credit Customer Deposits.
+    private async Task RefundTransferFeeAsync(
+        Transaction original,
+        Transaction refund,
+        Account account,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (original.FeeAmount <= 0m)
+        {
+            return;
+        }
+
+        await PostGlEntryAsync(
+            refund,
+            AccountingConstants.TransferFeeIncomeGlCode,
+            EntryType.Debit,
+            null,
+            now,
+            cancellationToken,
+            original.FeeAmount);
+        await PostCustomerEntryAsync(
+            refund,
+            account,
+            EntryType.Credit,
+            now,
+            cancellationToken,
+            original.FeeAmount,
+            TransactionConstants.TransferFeeRefundEntryDescription);
     }
 
     /// <summary>
@@ -752,6 +931,7 @@ public sealed class LedgerPostingService
         decimal amount,
         long userId,
         IReadOnlyCollection<long> customerAccountIds,
+        long? debitedAccountId,
         CancellationToken cancellationToken)
     {
         if (idempotencyKey is null)
@@ -784,13 +964,19 @@ public sealed class LedgerPostingService
         }
 
         // Compare the accounts the original posting touched with the accounts this request names.
-        var postedAccountIds = await _dbContext.AccountTransactions
+        var postedEntries = await _dbContext.AccountTransactions
             .AsNoTracking()
             .Where(entry => entry.TransactionId == existing.Id)
-            .Select(entry => entry.AccountId)
-            .Distinct()
+            .Select(entry => new { entry.AccountId, entry.EntryType })
             .ToListAsync(cancellationToken);
-        if (!postedAccountIds.ToHashSet().SetEquals(customerAccountIds))
+        if (!postedEntries.Select(entry => entry.AccountId).ToHashSet().SetEquals(customerAccountIds))
+        {
+            throw new ConflictException(MessageCode.IdempotencyKeyReused);
+        }
+
+        if (debitedAccountId is { } expectedDebitedAccountId
+            && !postedEntries.Any(entry =>
+                entry.AccountId == expectedDebitedAccountId && entry.EntryType == EntryType.Debit))
         {
             throw new ConflictException(MessageCode.IdempotencyKeyReused);
         }

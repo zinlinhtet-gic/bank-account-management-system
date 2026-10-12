@@ -9,6 +9,7 @@ public interface IAccountManagementService
     Task<AccountPageResponse> GetAccountsAsync(AccountListCriteria criteria, CancellationToken cancellationToken);
     Task<AccountResponse> GetAccountAsync(long id, CancellationToken cancellationToken);
     Task<CustomerLookupResponse> GetCustomerByNrcAsync(string nrc, CancellationToken cancellationToken);
+    Task<CustomerLookupResponse> GetCustomerByPassportNumberAsync(string passportNumber, CancellationToken cancellationToken);
     Task<AccountOpeningOptionsResponse> GetAccountOpeningOptionsAsync(string holderNrc, string? secondHolderNrc, CancellationToken cancellationToken);
     Task<IReadOnlyList<AccountTransactionDetailResponse>> GetAccountTransactionsAsync(long id, CancellationToken cancellationToken);
     Task<IReadOnlyList<AccountStatusHistoryResponse>> GetAccountStatusHistoryAsync(long id, CancellationToken cancellationToken);
