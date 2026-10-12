@@ -144,7 +144,14 @@
 
                     <DataGrid Style="{StaticResource Table}"
                               BorderThickness="0"
+                              SelectionChanged="AccountsDataGrid_SelectionChanged"
                               ItemsSource="{Binding Accounts}">
+
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource Table.Row}">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Style>
+                        </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
 
@@ -176,13 +183,6 @@
                                 </DataGridTemplateColumn.CellTemplate>
 
                             </DataGridTemplateColumn>
-
-                            <!-- Parent GL -->
-                            <DataGridTextColumn Header="Parent GL"
-                                Binding="{Binding ParentDisplay}"
-                                Width="220"
-                                SortMemberPath="ParentDisplay"
-                                ElementStyle="{StaticResource Table.Text.Muted}"/>
 
                             <!-- Status -->
                             <DataGridTemplateColumn Header="Status"

@@ -2,6 +2,8 @@ using bams.server.Constants;
 using bams.server.Data;
 using bams.server.DTO.Common;
 using bams.server.DTO.Transactions;
+using bams.server.Exceptions;
+using bams.server.Messages;
 using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 
@@ -16,14 +18,15 @@ public sealed class TransactionService : ITransactionService
     private readonly LedgerPostingService _ledger;
     private readonly TransferFeeService _transferFees;
 
-    public TransactionService(
-        ApplicationDbContext dbContext,
-        LedgerPostingService ledger,
-        TransferFeeService transferFees)
+   
+    private readonly ICashOperationsService _cashOperations;
+
+    public TransactionService(ApplicationDbContext dbContext, LedgerPostingService ledger,TransferFeeService transferFees, ICashOperationsService cashOperations)
     {
         _dbContext = dbContext;
         _ledger = ledger;
         _transferFees = transferFees;
+        _cashOperations = cashOperations;
     }
 
     /// <summary>
@@ -66,6 +69,7 @@ public sealed class TransactionService : ITransactionService
                     key,
                     actor.UserId,
                     now);
+                await _cashOperations.AddTransactionMovementAsync(entity, true, actor.UserId, request.Amount, cancellationToken);
                 await _ledger.PostGlEntryAsync(
                     entity,
                     AccountingConstants.CashOnHandGlCode,
@@ -130,6 +134,7 @@ public sealed class TransactionService : ITransactionService
                     key,
                     actor.UserId,
                     now);
+                await _cashOperations.AddTransactionMovementAsync(entity, false, actor.UserId, request.Amount, cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, account, EntryType.Debit, now, cancellationToken);
                 await _ledger.PostGlEntryAsync(
                     entity,

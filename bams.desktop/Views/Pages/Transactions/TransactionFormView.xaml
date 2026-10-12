@@ -223,6 +223,14 @@
                     <Separator Style="{StaticResource Divider}" Margin="0,20,0,0"/>
                 </StackPanel>
 
+                <StackPanel Margin="0,0,0,16" Visibility="{Binding ShowsCashSession, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="CASH POSITION" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="Cash movement is recorded in your current open teller session automatically."
+                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding CashSessionError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                               Visibility="{Binding CashSessionError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </StackPanel>
+
                 <!-- Amount + reference -->
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -267,6 +275,7 @@
                     Command="{Binding ClearCommand}"/>
             <Button Content="{Binding SaveText}" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
                     t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                    t:ThemeAssist.RequiresOpenCashSession="True"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </StackPanel>

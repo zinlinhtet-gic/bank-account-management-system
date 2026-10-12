@@ -55,6 +55,8 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="175"
                                             ElementStyle="{StaticResource Table.Text.Muted}"/>
+                        <DataGridTextColumn Header="Posting date" Binding="{Binding PostingDateText}" Width="110"
+                                            ElementStyle="{StaticResource Table.Text.Muted}"/>
                         <DataGridTextColumn Header="Transaction no" Binding="{Binding TransactionNo}" Width="235"
                                             ElementStyle="{StaticResource Table.Text.Code}"/>
                         <DataGridTextColumn Header="Details" Binding="{Binding TypeText}" Width="*"
@@ -68,7 +70,9 @@
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Amount (MMK)" Binding="{Binding AmountText}" Width="125"
                                             ElementStyle="{StaticResource Table.Text.Mono}"/>
-                        <DataGridTextColumn Header="Balance (MMK)" Binding="{Binding BalanceAfterText}" Width="135"
+                        <DataGridTextColumn Header="Ledger balance (MMK)" Binding="{Binding BalanceAfterText}" Width="145"
+                                            ElementStyle="{StaticResource Table.Text.Mono}"/>
+                        <DataGridTextColumn Header="Available (MMK)" Binding="{Binding AvailableBalanceAfterText}" Width="140"
                                             ElementStyle="{StaticResource Table.Text.Mono}"/>
                     </DataGrid.Columns>
                 </DataGrid>

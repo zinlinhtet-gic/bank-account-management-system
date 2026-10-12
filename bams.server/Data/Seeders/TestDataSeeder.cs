@@ -1,8 +1,10 @@
 using bams.server.Constants;
+using bams.server.Models.Accounting;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Customers;
 using bams.server.Models.Products;
+using bams.server.Models.Transactions;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Data.Seeders;
@@ -184,6 +186,113 @@ public sealed class TestDataSeeder
             {
                 account.AccountHolders.Add(CreateAccountHolder(customer.Id));
             }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await InsertMissingOpeningEntriesAsync(cancellationToken);
+    }
+
+    // Give each nonzero seeded balance a durable operational snapshot and matching balanced journal entry.
+    private async Task InsertMissingOpeningEntriesAsync(
+        CancellationToken cancellationToken)
+    {
+        var transactionNumbers = AccountSeeds
+            .Select(seed => $"TEST-OPENING-{seed.AccountNo}")
+            .ToArray();
+        var existingTransactionNumbers = await _dbContext.Transactions
+            .Where(transaction => transactionNumbers.Contains(transaction.TransactionNo))
+            .Select(transaction => transaction.TransactionNo)
+            .ToHashSetAsync(cancellationToken);
+
+        var seedsNeedingOpeningEntry = AccountSeeds
+            .Where(seed => seed.OpeningBalance != 0m &&
+                !existingTransactionNumbers.Contains($"TEST-OPENING-{seed.AccountNo}"))
+            .ToArray();
+        if (seedsNeedingOpeningEntry.Length == 0)
+        {
+            return;
+        }
+
+        var actorId = await _dbContext.Users
+            .Where(user => user.Username == "manager")
+            .Select(user => (long?)user.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new InvalidOperationException("The manager seed user is required for test opening entries.");
+        var glAccounts = await _dbContext.GlAccounts
+            .Where(account => account.Code == AccountingConstants.CashOnHandGlCode ||
+                account.Code == AccountingConstants.CustomerDepositsGlCode)
+            .ToDictionaryAsync(account => account.Code, cancellationToken);
+        if (!glAccounts.TryGetValue(AccountingConstants.CashOnHandGlCode, out var cashAccount) ||
+            !glAccounts.TryGetValue(AccountingConstants.CustomerDepositsGlCode, out var depositsAccount))
+        {
+            throw new InvalidOperationException("Cash on Hand and Customer Deposits GL accounts must be seeded before test opening entries.");
+        }
+
+        var businessDate = DateOnly.FromDateTime(SeededAt);
+        var accountNumbers = seedsNeedingOpeningEntry.Select(seed => seed.AccountNo).ToArray();
+        var accountsByNumber = await _dbContext.Accounts
+            .Where(account => accountNumbers.Contains(account.AccountNo))
+            .ToDictionaryAsync(account => account.AccountNo, cancellationToken);
+        foreach (var seed in seedsNeedingOpeningEntry)
+        {
+            var account = accountsByNumber[seed.AccountNo];
+            var transaction = new Transaction
+            {
+                TransactionNo = $"TEST-OPENING-{seed.AccountNo}",
+                TransactionType = TransactionType.CashDeposit,
+                TransactionStatus = TransactionStatus.Completed,
+                InitiatedBy = actorId,
+                PostedBy = actorId,
+                Amount = seed.OpeningBalance,
+                TransactionAt = SeededAt,
+                BusinessDate = businessDate,
+                PostedAt = SeededAt,
+                Description = "Test data opening balance",
+                ReferenceNo = account.AccountNo,
+                CreatedAt = SeededAt,
+                UpdatedAt = SeededAt
+            };
+
+            _dbContext.Transactions.Add(transaction);
+            _dbContext.AccountTransactions.Add(new AccountTransaction
+            {
+                Transaction = transaction,
+                Account = account,
+                EntryType = EntryType.Credit,
+                Amount = seed.OpeningBalance,
+                LedgerBalanceBefore = 0m,
+                LedgerBalanceAfter = seed.OpeningBalance,
+                AvailableBalanceBefore = 0m,
+                AvailableBalanceAfter = seed.OpeningBalance,
+                ValueDate = businessDate,
+                PostingDate = businessDate,
+                Description = transaction.Description,
+                ReferenceNo = transaction.TransactionNo,
+                Status = TransactionConstants.CompletedStatus,
+                CreatedAt = SeededAt
+            });
+            _dbContext.TransactionEntries.AddRange(
+                new TransactionEntry
+                {
+                    Transaction = transaction,
+                    GlAccount = cashAccount,
+                    EntryType = EntryType.Debit,
+                    Amount = seed.OpeningBalance,
+                    PostingDate = businessDate,
+                    Description = transaction.Description,
+                    CreatedAt = SeededAt
+                },
+                new TransactionEntry
+                {
+                    Transaction = transaction,
+                    GlAccount = depositsAccount,
+                    CustomerAccount = account,
+                    EntryType = EntryType.Credit,
+                    Amount = seed.OpeningBalance,
+                    PostingDate = businessDate,
+                    Description = transaction.Description,
+                    CreatedAt = SeededAt
+                });
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

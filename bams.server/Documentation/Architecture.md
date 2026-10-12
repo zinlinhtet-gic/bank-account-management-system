@@ -48,7 +48,7 @@ builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
     jobs.Add<ReportService>(
         "monthly-report",
         "Monthly report",
-        JobSchedule.Monthly(1, TimeSpan.Zero, "Myanmar Standard Time"),
+        JobSchedule.Monthly(2, TimeSpan.Zero, "Myanmar Standard Time"),
         (service, execution, cancellationToken) =>
             service.GenerateMonthlyReportAsync(execution.ScheduledForUtc, cancellationToken));
 });
@@ -189,3 +189,7 @@ After migrations, the idempotent `ProductSeeder` populates reference products, r
 ## Desktop client integration
 
 `bams.desktop/Api/ApiClient.cs` sends requests, unwraps `ApiMessageResponse<T>.Data`, and converts `ApiErrorResponse` into `ApiException`. Transport failures become `NetworkException`. ViewModels handle stable message codes rather than comparing message text.
+
+## Scheduled accounting close
+
+The persistent scheduler registers one monthly accounting-close occurrence at 00:00 Asia/Rangoon on day two. Its handler reuses the existing monthly maintenance and interest services, then calls `MonthlySummaryGenerationService`. `JobsOperationService` records per-attempt history and exposes exhausted failures to managers; retry requests preserve the original `ScheduledForUtc` and period. The desktop header alert uses the client service and shared `ApiClient`, while its End of Day action navigates to the existing EOD page. Database leases continue to prevent concurrent workers from claiming an occurrence.

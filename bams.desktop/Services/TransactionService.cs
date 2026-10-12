@@ -25,6 +25,8 @@ public sealed class TransactionService : ITransactionService
     {
         var query = new QueryString()
             .Add("accountNo", filter.AccountNo)
+            .Add("transactionNo", filter.TransactionNo)
+            .Add("referenceNo", filter.ReferenceNo)
             .Add("type", filter.Type?.ToString())
             .Add("status", filter.Status?.ToString())
             .Add("from", filter.From)

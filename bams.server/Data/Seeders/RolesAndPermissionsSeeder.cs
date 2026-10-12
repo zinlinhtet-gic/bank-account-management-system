@@ -22,6 +22,7 @@ public static class RolesAndPermissionsSeeder
         if (await dbContext.Permissions.AnyAsync())
         {
             // Data already seeded, skip to prevent accidental data loss
+            await EnsureReconciliationPermissionsAsync(dbContext);
             return;
         }
 
@@ -32,6 +33,48 @@ public static class RolesAndPermissionsSeeder
         await SeedRolesAsync(dbContext);
         await SeedRolePermissionsAsync(dbContext);
         await SeedUsersAsync(dbContext);
+    }
+
+    // Adds new feature permissions on upgrades without rebuilding existing users or role assignments.
+    private static async Task EnsureReconciliationPermissionsAsync(ApplicationDbContext dbContext)
+    {
+        var additions = new[]
+        {
+            (SecurityConstants.CashOperations, "cash operations"),
+            (SecurityConstants.ReconciliationInvestigation, "reconciliation investigation"),
+            (SecurityConstants.EndOfDayApproval, "end of day approval"),
+            (SecurityConstants.ScheduledJobManagement, "scheduled job management"),
+            (SecurityConstants.TransactionCorrectionApproval, "transaction correction approval")
+        };
+        var permissions = await dbContext.Permissions.ToListAsync();
+        foreach (var (code, name) in additions)
+            if (!permissions.Any(permission => permission.Code == code))
+                permissions.Add(new Permission { Code = code, Name = name });
+        dbContext.Permissions.UpdateRange(permissions.Where(permission => permission.Id == 0));
+        await dbContext.SaveChangesAsync();
+
+        var rolesByCode = await dbContext.Roles.ToDictionaryAsync(role => role.Code);
+        var permissionIds = await dbContext.Permissions.ToDictionaryAsync(permission => permission.Code, permission => permission.Id);
+        var grants = new[]
+        {
+            (SecurityConstants.ManagerRole, SecurityConstants.CashOperations),
+            (SecurityConstants.ManagerRole, SecurityConstants.ReconciliationInvestigation),
+            (SecurityConstants.ManagerRole, SecurityConstants.EndOfDayApproval),
+            (SecurityConstants.ManagerRole, SecurityConstants.ScheduledJobManagement),
+            (SecurityConstants.ManagerRole, SecurityConstants.TransactionCorrectionApproval),
+            (SecurityConstants.OfficerRole, SecurityConstants.CashOperations),
+            (SecurityConstants.AuditorRole, SecurityConstants.ReconciliationInvestigation)
+        };
+        var existing = await dbContext.RolePermissions.AsNoTracking()
+            .Select(mapping => new { mapping.RoleId, mapping.PermissionId }).ToListAsync();
+        foreach (var (roleCode, permissionCode) in grants)
+        {
+            if (!rolesByCode.TryGetValue(roleCode, out var role) || !permissionIds.TryGetValue(permissionCode, out var permissionId) ||
+                existing.Any(mapping => mapping.RoleId == role.Id && mapping.PermissionId == permissionId))
+                continue;
+            dbContext.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionId = permissionId });
+        }
+        await dbContext.SaveChangesAsync();
     }
 
     /// <summary>
@@ -67,7 +110,12 @@ public static class RolesAndPermissionsSeeder
             new Permission { Code = SecurityConstants.Transactions, Name = "transactions" },
             new Permission { Code = SecurityConstants.TransactionHistory, Name = "transaction history" },
             new Permission { Code = SecurityConstants.Audit, Name = "audit" },
-            new Permission { Code = SecurityConstants.CustomerList, Name = "customer list" }
+            new Permission { Code = SecurityConstants.CustomerList, Name = "customer list" },
+            new Permission { Code = SecurityConstants.CashOperations, Name = "cash operations" },
+            new Permission { Code = SecurityConstants.ReconciliationInvestigation, Name = "reconciliation investigation" },
+            new Permission { Code = SecurityConstants.EndOfDayApproval, Name = "end of day approval" },
+            new Permission { Code = SecurityConstants.ScheduledJobManagement, Name = "scheduled job management" },
+            new Permission { Code = SecurityConstants.TransactionCorrectionApproval, Name = "transaction correction approval" }
         };
 
         await dbContext.Permissions.AddRangeAsync(permissions);
@@ -117,7 +165,12 @@ public static class RolesAndPermissionsSeeder
             SecurityConstants.CustomerKyc,
             SecurityConstants.Accounting,
             SecurityConstants.Configuration,
-            SecurityConstants.Operation
+            SecurityConstants.Operation,
+            SecurityConstants.CashOperations,
+            SecurityConstants.ReconciliationInvestigation,
+            SecurityConstants.EndOfDayApproval,
+            SecurityConstants.ScheduledJobManagement,
+            SecurityConstants.TransactionCorrectionApproval
         };
 
         foreach (var permissionCode in managerPermissionCodes)
@@ -135,7 +188,8 @@ public static class RolesAndPermissionsSeeder
         {
             SecurityConstants.CustomerManagement,
             SecurityConstants.AccountManagement,
-            SecurityConstants.Transactions
+            SecurityConstants.Transactions,
+            SecurityConstants.CashOperations
         };
 
         foreach (var permissionCode in officerPermissionCodes)
@@ -154,7 +208,8 @@ public static class RolesAndPermissionsSeeder
             SecurityConstants.CustomerList,
             SecurityConstants.Accounting,
             SecurityConstants.TransactionHistory,
-            SecurityConstants.Audit
+            SecurityConstants.Audit,
+            SecurityConstants.ReconciliationInvestigation
         };
 
         foreach (var permissionCode in auditorPermissionCodes)

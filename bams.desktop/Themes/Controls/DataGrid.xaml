@@ -146,8 +146,8 @@
         <Setter Property="SelectionMode" Value="Single"/>
         <Setter Property="SelectionUnit" Value="FullRow"/>
         <Setter Property="EnableRowVirtualization" Value="True"/>
-        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource Table.ColumnHeader}"/>
         <Setter Property="CellStyle" Value="{StaticResource Table.Cell}"/>
@@ -156,6 +156,7 @@
 
     <!-- ===== Cell text styles: use as ElementStyle on DataGridTextColumn ===== -->
     <Style x:Key="Table.Text" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>

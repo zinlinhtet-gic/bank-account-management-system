@@ -42,6 +42,8 @@ public static class ApiConstants
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".
     public const string TransactionsEndpoint = "api/transactions";
+    public const string CashOperationsEndpoint = "api/cash-operations";
+    public const string CashHandoffsEndpoint = "api/cash-handoffs";
     public const string DepositEndpoint = TransactionsEndpoint + "/deposit";
     public const string WithdrawalEndpoint = TransactionsEndpoint + "/withdrawal";
     public const string InternalTransferEndpoint = TransactionsEndpoint + "/transfer/internal";
