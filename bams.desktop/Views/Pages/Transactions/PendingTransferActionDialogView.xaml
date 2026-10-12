@@ -46,6 +46,11 @@
                 <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Saved on the refund"
                          Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"/>
             </StackPanel>
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding ShowsCashSession, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="CASH REFUND" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBlock Text="If the sender paid in cash, the refund is recorded in your current open teller session automatically."
+                           Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
+            </StackPanel>
         </StackPanel>
 
         <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,20,0,0" Content="{Binding FormError}"
@@ -55,7 +60,7 @@
             <Button Content="{Binding CancelText}" Style="{StaticResource Button.Secondary}" MinWidth="96" Margin="0,0,8,0"
                     Command="{Binding CancelCommand}"/>
             <Button x:Name="SubmitButton" Content="{Binding SaveText}" Style="{StaticResource Button.Primary}" MinWidth="120" IsDefault="True"
-                    t:ThemeAssist.IsLoading="{Binding IsBusy}"
+                    t:ThemeAssist.IsLoading="{Binding IsBusy}" t:ThemeAssist.RequiresOpenCashSession="True"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </StackPanel>

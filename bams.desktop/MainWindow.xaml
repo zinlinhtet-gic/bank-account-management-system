@@ -17,6 +17,8 @@
         xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting"
         xmlns:operationviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Operations"
         xmlns:operationpages="clr-namespace:bams.desktop.Views.Pages.Operations"
+        xmlns:auditViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Audit"
+        xmlns:auditViews="clr-namespace:bams.desktop.Views.Pages.Audit"
         mc:Ignorable="d"
         Title="{x:Static constants:BrandConstants.BankShortName}" Height="720" Width="1280"
         WindowState="Maximized"
@@ -68,12 +70,33 @@
                         <pages:TransactionHistoryView />
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type auditViewModels:TransactionAuditViewModel}">
+                        <auditViews:TransactionAuditView/>
+                    </DataTemplate>
+
+                    <DataTemplate DataType="{x:Type auditViewModels:TransactionAuditDetailViewModel}">
+                        <auditViews:TransactionAuditDetailView/>
+                    </DataTemplate>
+
                     <DataTemplate DataType="{x:Type accountingViewModels:GeneralLedgerViewModel}">
                         <accountingViews:GeneralLedgerView/>
                     </DataTemplate>
 
+                    <DataTemplate DataType="{x:Type accountingViewModels:GLAccountDetailViewModel}">
+                        <accountingViews:GLAccountDetailView/>
+                    </DataTemplate>
+
                     <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
                         <accountingViews:AccountingEntriesView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationViewModel}">
+                        <accountingViews:ReconciliationView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashReconciliationViewModel}">
+                        <accountingViews:CashReconciliationView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:EndOfDayViewModel}">
+                        <accountingViews:EndOfDayView/>
                     </DataTemplate>
 
                     <!-- Register each real page here, one DataTemplate per page ViewModel, e.g.:

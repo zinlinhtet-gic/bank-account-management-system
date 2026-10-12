@@ -144,7 +144,14 @@
 
                     <DataGrid Style="{StaticResource Table}"
                               BorderThickness="0"
+                              SelectionChanged="AccountsDataGrid_SelectionChanged"
                               ItemsSource="{Binding Accounts}">
+
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource Table.Row}">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Style>
+                        </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
 

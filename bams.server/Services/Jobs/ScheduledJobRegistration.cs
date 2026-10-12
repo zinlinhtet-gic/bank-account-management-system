@@ -7,4 +7,5 @@ public sealed record ScheduledJobRegistration(
     string JobKey,
     string DisplayName,
     JobSchedule Schedule,
-    Func<IServiceProvider, ScheduledJobExecutionContext, CancellationToken, Task> ExecuteAsync);
+    Func<IServiceProvider, ScheduledJobExecutionContext, CancellationToken, Task> ExecuteAsync,
+    Func<IServiceProvider, DateTime, CancellationToken, Task>? ValidateManualRetryAsync = null);

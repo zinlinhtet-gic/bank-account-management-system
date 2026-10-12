@@ -32,6 +32,9 @@ public sealed class Transaction
 
     public DateTime TransactionAt { get; set; }
 
+    /// <summary>Bank posting date captured independently of transaction and creation timestamps.</summary>
+    public DateOnly? BusinessDate { get; set; }
+
     public DateTime? PostedAt { get; set; }
 
     public string? Description { get; set; }

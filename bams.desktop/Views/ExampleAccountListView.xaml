@@ -36,6 +36,8 @@
 
         <DataGrid
             Grid.Row="2"
+            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
             AutoGenerateColumns="False"
             CanUserAddRows="False"
             IsReadOnly="True"

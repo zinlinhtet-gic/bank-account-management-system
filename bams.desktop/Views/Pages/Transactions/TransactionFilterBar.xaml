@@ -4,61 +4,128 @@
              xmlns:t="clr-namespace:bams.desktop.Themes"
              xmlns:search="clr-namespace:bams.desktop.Components.SearchBox">
     <!--
-        Filter bar above a transaction table. DataContext: TransactionFilterViewModel.
-        Shared by the Transactions and Transaction History pages.
+        Shared transaction filter bar.
+        DataContext: TransactionFilterViewModel.
+
+        Identifier filters are searched explicitly with SearchCommand.
+        Type, status and date filters continue to use the ViewModel's
+        existing filter-change behavior.
     -->
     <Border Style="{StaticResource Card.Compact}">
         <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="200" MaxWidth="300"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="160"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="135"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="135"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="16"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="ACCOUNT NUMBER" Style="{StaticResource Text.FieldLabel}"/>
-                <search:SearchBox Text="{Binding AccountNo, Mode=TwoWay}" Placeholder="Account number"
-                                  SearchCommand="{Binding SearchCommand}"
-                                  ToolTip="Exact account number. Press Enter or click the icon."/>
-            </StackPanel>
+            <!-- ===== Identifier filters ===== -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="180"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*" MinWidth="180"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*" MinWidth="180"/>
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="2">
-                <TextBlock Text="TYPE" Style="{StaticResource Text.FieldLabel}"/>
-                <ComboBox Style="{StaticResource Input.Select}"
-                          ItemsSource="{Binding TypeOptions}" DisplayMemberPath="DisplayName"
-                          SelectedItem="{Binding SelectedType, Mode=TwoWay}"/>
-            </StackPanel>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ACCOUNT NUMBER"
+                               Style="{StaticResource Text.FieldLabel}"/>
 
-            <StackPanel Grid.Column="4">
-                <TextBlock Text="STATUS" Style="{StaticResource Text.FieldLabel}"/>
-                <ComboBox Style="{StaticResource Input.Select}"
-                          ItemsSource="{Binding StatusOptions}" DisplayMemberPath="DisplayName"
-                          SelectedItem="{Binding SelectedStatus, Mode=TwoWay}"/>
-            </StackPanel>
+                    <search:SearchBox
+                        Text="{Binding AccountNo, Mode=TwoWay}"
+                        Placeholder="Account number"
+                        SearchCommand="{Binding SearchCommand}"
+                        ToolTip="Exact account number. Press Enter or click the search icon."/>
+                </StackPanel>
 
-            <StackPanel Grid.Column="6">
-                <TextBlock Text="FROM" Style="{StaticResource Text.FieldLabel}"/>
-                <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding DateFrom, Mode=TwoWay}"/>
-            </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="TRANSACTION NUMBER"
+                               Style="{StaticResource Text.FieldLabel}"/>
 
-            <StackPanel Grid.Column="8">
-                <TextBlock Text="TO" Style="{StaticResource Text.FieldLabel}"/>
-                <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding DateTo, Mode=TwoWay}"/>
-            </StackPanel>
+                    <search:SearchBox
+                        Text="{Binding TransactionNo, Mode=TwoWay}"
+                        Placeholder="Transaction number"
+                        SearchCommand="{Binding SearchCommand}"
+                        ToolTip="Exact transaction number. Press Enter or click the search icon."/>
+                </StackPanel>
 
-            <Button Grid.Column="10" Content="Reset" VerticalAlignment="Bottom"
-                    Style="{StaticResource Button.Ghost}" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"
-                    ToolTip="Clear all filters and show every transaction"
-                    Command="{Binding ResetFiltersCommand}"/>
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="REFERENCE NUMBER"
+                               Style="{StaticResource Text.FieldLabel}"/>
+
+                    <search:SearchBox
+                        Text="{Binding ReferenceNo, Mode=TwoWay}"
+                        Placeholder="Reference number"
+                        SearchCommand="{Binding SearchCommand}"
+                        ToolTip="Exact reference number. Press Enter or click the search icon."/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===== Transaction/date filters ===== -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="145"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="145"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="TYPE"
+                               Style="{StaticResource Text.FieldLabel}"/>
+
+                    <ComboBox
+                        Style="{StaticResource Input.Select}"
+                        ItemsSource="{Binding TypeOptions}"
+                        DisplayMemberPath="DisplayName"
+                        SelectedItem="{Binding SelectedType, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="STATUS"
+                               Style="{StaticResource Text.FieldLabel}"/>
+
+                    <ComboBox
+                        Style="{StaticResource Input.Select}"
+                        ItemsSource="{Binding StatusOptions}"
+                        DisplayMemberPath="DisplayName"
+                        SelectedItem="{Binding SelectedStatus, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="FROM"
+                               Style="{StaticResource Text.FieldLabel}"/>
+
+                    <DatePicker
+                        Style="{StaticResource Input.Date}"
+                        SelectedDate="{Binding DateFrom, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="TO"
+                               Style="{StaticResource Text.FieldLabel}"/>
+
+                    <DatePicker
+                        Style="{StaticResource Input.Date}"
+                        SelectedDate="{Binding DateTo, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <Button Grid.Column="8"
+                        Content="Reset"
+                        VerticalAlignment="Bottom"
+                        Style="{StaticResource Button.Ghost}"
+                        t:ThemeAssist.Icon="{StaticResource Icon.Refresh}"
+                        ToolTip="Clear all filters and show every transaction"
+                        Command="{Binding ResetFiltersCommand}"/>
+            </Grid>
         </Grid>
     </Border>
 </UserControl>

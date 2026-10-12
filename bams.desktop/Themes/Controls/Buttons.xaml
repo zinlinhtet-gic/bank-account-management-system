@@ -129,6 +129,14 @@
             </Setter.Value>
         </Setter>
         <Style.Triggers>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding (t:ThemeAssist.RequiresOpenCashSession), RelativeSource={RelativeSource Self}}" Value="True"/>
+                    <Condition Binding="{Binding MainWindow.DataContext.IsOfficerWriteDisabled, Source={x:Static Application.Current}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="IsEnabled" Value="False"/>
+                <Setter Property="ToolTip" Value="Open your teller session before using this action."/>
+            </MultiDataTrigger>
             <Trigger Property="t:ThemeAssist.Size" Value="Small">
                 <Setter Property="Height" Value="28"/>
                 <Setter Property="Padding" Value="12,0"/>

@@ -14,6 +14,7 @@ public sealed class ScheduledTransactionService(ApplicationDbContext dbContext) 
             TransactionNo = $"JOB-{Guid.NewGuid():N}", TransactionType = type,
             TransactionStatus = accrued ? TransactionStatus.Accrued : TransactionStatus.Completed,
             InitiatedBy = actorId, PostedBy = actorId, Amount = amount, TransactionAt = timestamp,
+            BusinessDate = effectiveDate,
             PostedAt = timestamp, CreatedAt = timestamp, UpdatedAt = timestamp, Description = description,
             ReferenceNo = $"JOB-{type}-{accountId}-{effectiveDate:yyyyMMdd}"
         };

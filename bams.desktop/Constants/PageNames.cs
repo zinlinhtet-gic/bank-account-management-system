@@ -17,10 +17,14 @@ public static class PageNames
     public const string Audit = "Audit";
     // Accounting child pages
     public const string GeneralLedger = "General Ledger";
+    public const string GLAccountDetail = "GL Account Detail";
     public const string AccountingEntries = "Accounting Entries";
     public const string Reconciliation = "Reconciliation";
+    public const string CashReconciliation = "Cash Reconciliation";
+    public const string EndOfDay = "End of Day";
     // Audit child pages
     public const string TransactionAudit = "Transaction Audit";
+    public const string TransactionAuditDetail = "Transaction Audit Detail";
     public const string Operations = "Operations";
     // Operations child pages
     public const string OperationInterest = "Interest";

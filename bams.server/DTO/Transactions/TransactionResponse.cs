@@ -13,4 +13,7 @@ public sealed record TransactionResponse(
     string? ReferenceNo,
     long? SourceAccountId,
     long? DestinationAccountId,
-    string? PickupCode);
+    string? PickupCode)
+{
+    public DateOnly? BusinessDate { get; init; }
+}
