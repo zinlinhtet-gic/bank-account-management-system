@@ -26,6 +26,10 @@ public static class PageNames
     public const string TransactionAudit = "Transaction Audit";
     public const string TransactionAuditDetail = "Transaction Audit Detail";
     public const string Operations = "Operations";
+    // Operations child pages
+    public const string OperationInterest = "Interest";
+    public const string OperationFees = "Fees";
+    public const string FixedDepositMaturity = "Fixed Deposit Maturity";
     public const string Configurations = "Configurations";
     public const string CustomerList = "Customer List";
 

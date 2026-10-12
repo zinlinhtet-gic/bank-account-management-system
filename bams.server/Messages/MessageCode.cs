@@ -119,6 +119,8 @@ public enum MessageCode
     TransactionNotFound = 4240,
     OtherBankNotFound = 4241,
     BranchNotFound = 4242,
+    InterestAccrualNotFound = 4243,
+    FeeAccrualNotFound = 4244,
     FixedDepositNotFound = 4205,
     // InterestRateRuleNotFound = 4206,
     PayoutAccountNotFound = 4207,

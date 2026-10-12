@@ -67,7 +67,7 @@ public partial class NavBarViewModel : ObservableObject
             AddNavItem(PageNames.CashReconciliation, "Icon.Finance", Items.Count == 0);
 
         if (flags.CanPerformOperations)
-            AddNavItem(PageNames.Operations, "Icon.Settings");
+            AddNavGroup(PageNames.Operations, "Icon.Settings", PageNames.OperationInterest, PageNames.OperationFees, PageNames.FixedDepositMaturity);
 
         if (flags.CanViewAudit)
         {

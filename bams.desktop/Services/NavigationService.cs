@@ -4,6 +4,7 @@ using bams.desktop.ViewModels.Pages;
 using bams.desktop.ViewModels.Pages.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using bams.desktop.ViewModels.Pages.Accounting;
+using bams.desktop.ViewModels.Pages.Operations;
 using System.Printing;
 using bams.desktop.ViewModels.Pages.Audit;
 namespace bams.desktop.Services;
@@ -43,6 +44,9 @@ public sealed class NavigationService : INavigationService
             PageNames.CashReconciliation => _serviceProvider.GetService<CashReconciliationViewModel>(),
             PageNames.EndOfDay => _serviceProvider.GetService<EndOfDayViewModel>(),
             PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
+            PageNames.OperationInterest => _serviceProvider.GetService<OperationInterestViewModel>(),
+            PageNames.OperationFees => _serviceProvider.GetService<OperationFeesViewModel>(),
+            PageNames.FixedDepositMaturity => _serviceProvider.GetService<FixedDepositMaturityViewModel>(),
             PageNames.Audit => _serviceProvider.GetService<AuditViewModel>(),
             PageNames.TransactionAudit => _serviceProvider.GetService<TransactionAuditViewModel>(),
             PageNames.Configurations => _serviceProvider.GetService<ConfigurationsViewModel>(),
