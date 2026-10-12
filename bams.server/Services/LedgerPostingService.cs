@@ -614,7 +614,8 @@ public sealed class LedgerPostingService
         var ledgerBalanceBefore = account.LedgerBalance;
         var availableBalanceBefore = account.AvailableBalance;
         var signedAmount = entryType == EntryType.Debit ? -entryAmount : entryAmount;
-
+        var postingDate = await GetPostingBusinessDateAsync(now, cancellationToken);
+        transaction.BusinessDate ??= postingDate;
         account.LedgerBalance += signedAmount;
         account.AvailableBalance += signedAmount;
         account.LastActivityAt = now;
