@@ -197,6 +197,28 @@ public sealed class AuthContext : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Raised when the server rejects the signed-in user's token (expired or revoked).
+    /// <see cref="SessionService"/> listens and signs the user out.
+    /// </summary>
+    public event Action? SessionExpired;
+
+    /// <summary>
+    /// Message the sign-in screen shows once, e.g. why the user was signed out. Cleared when read.
+    /// </summary>
+    public string? SignInNotice { get; set; }
+
+    /// <summary>
+    /// Called by the API client when the server answers 401 while a user is signed in.
+    /// </summary>
+    public void NotifySessionExpired()
+    {
+        if (IsAuthenticated)
+        {
+            SessionExpired?.Invoke();
+        }
+    }
+
+    /// <summary>
     /// Checks if the current token is expired.
     /// </summary>
     public bool IsTokenExpired()

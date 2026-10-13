@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     private void ShowLoginView()
     {
         // The previous user's shell must stop its page work before anyone else signs in.
+        CloseOpenDialogs();
         ShutdownMainApplication();
 
         var loginViewModel = _serviceProvider.GetRequiredService<LoginViewModel>();
@@ -93,6 +94,16 @@ public partial class MainWindow : Window
 
         // Keep this user shown as online in User Management while the app is open.
         _sessionService.StartSession();
+    }
+
+    // Closes dialogs left open when the session ends (e.g. an edit form when the token expired), so they do not
+    // stay on top of the sign-in screen. Closing a dialog also closes any dialog it opened.
+    private void CloseOpenDialogs()
+    {
+        foreach (var dialog in OwnedWindows.Cast<Window>().ToList())
+        {
+            dialog.Close();
+        }
     }
 
     // Stops the previous user's shell (page loading, background refresh loops) and drops it as the window's

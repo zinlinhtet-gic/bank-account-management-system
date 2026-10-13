@@ -1,16 +1,18 @@
 <UserControl x:Class="bams.desktop.Views.Pages.Operations.FixedDepositMaturityDetailsDialogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
              xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
              Width="620">
-    <!-- Read-only fixed deposit card, hosted by ModalDialog. DataContext: FixedDepositMaturityDetailsViewModel. -->
+    <!-- Read-only fixed deposit card, hosted by ModalDialog (header and Close button stay put; the details scroll). DataContext: FixedDepositMaturityDetailsViewModel. -->
 
-    <StackPanel>
+    <DockPanel>
         <!-- Header: icon, title, status, current principal -->
-        <Grid>
+        <Grid DockPanel.Dock="Top">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Grid Width="44" Height="44" VerticalAlignment="Top">
@@ -28,10 +30,18 @@
                 <TextBlock Text="{Binding CurrentPrincipal}" Style="{StaticResource Text.MonoLarge}" HorizontalAlignment="Right"/>
                 <TextBlock Text="Current principal" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right"/>
             </StackPanel>
+            <Button Grid.Column="3" Style="{StaticResource Button.Icon}" VerticalAlignment="Top" Margin="16,0,0,0"
+                    t:ThemeAssist.Icon="{StaticResource Icon.Close}" ToolTip="Close"
+                    Command="{Binding CloseCommand}"/>
         </Grid>
 
-        <!-- Scroll when the interest schedule makes the card taller than the window -->
-        <ScrollViewer MaxHeight="480" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0" Margin="0,20,0,0">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Close" Style="{StaticResource Button.Secondary}" MinWidth="96" IsDefault="True" IsCancel="True"
+                    Command="{Binding CloseCommand}"/>
+        </StackPanel>
+
+        <!-- Details fill the space between header and footer and scroll when the window is too short -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0" Margin="0,20,0,0">
             <StackPanel>
                 <ContentControl Content="{Binding Account}" ContentTemplate="{StaticResource OperationAccountCardTemplate}"/>
 
@@ -114,10 +124,5 @@
                 </ItemsControl>
             </StackPanel>
         </ScrollViewer>
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
-            <Button Content="Close" Style="{StaticResource Button.Secondary}" MinWidth="96" IsDefault="True" IsCancel="True"
-                    Command="{Binding CloseCommand}"/>
-        </StackPanel>
-    </StackPanel>
+    </DockPanel>
 </UserControl>

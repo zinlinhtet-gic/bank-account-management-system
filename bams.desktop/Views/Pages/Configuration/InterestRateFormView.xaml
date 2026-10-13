@@ -1,13 +1,15 @@
-<UserControl x:Class="bams.desktop.Views.Pages.Configuration.InterestRateFormDialogView"
+<UserControl x:Class="bams.desktop.Views.Pages.Configuration.InterestRateFormView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:bams.desktop.Themes"
-             xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
-             Width="560">
+             xmlns:icon="clr-namespace:bams.desktop.Components.Icon">
     <!--
-        Create / edit interest rate rule form, hosted by ModalDialog. DataContext: InterestRateFormViewModel.
-        Enter saves (default button); Esc cancels unless a save is running.
+        Create / edit interest rate rule form, shown in place of the list page by its list view. DataContext: InterestRateFormViewModel.
+        Enter saves (default button); Esc cancels (back to the list) unless a save is running.
     -->
+    <UserControl.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}"/>
+    </UserControl.InputBindings>
     <StackPanel>
         <!-- Header: tinted icon + title + subtitle -->
         <Grid>
@@ -31,7 +33,7 @@
         <Grid Margin="0,24,0,0" IsEnabled="{Binding IsNotBusy}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="24"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>

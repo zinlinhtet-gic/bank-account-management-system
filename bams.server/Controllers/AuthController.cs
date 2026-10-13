@@ -84,6 +84,20 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Returns a new token with a fresh expiry. The desktop app calls this only while the user is active,
+    /// so an idle session still expires.
+    /// </summary>
+    [HttpPost("refresh")]
+    [Authorize]
+    public async Task<ActionResult<ApiMessageResponse<RefreshTokenResponse>>> RefreshTokenAsync(
+        CancellationToken cancellationToken)
+    {
+        var response = await _authenticationService.RefreshTokenAsync(User.GetRequiredUserId(), cancellationToken);
+
+        return Ok(ApiMessageResponse<RefreshTokenResponse>.FromCode(MessageCode.Success, response));
+    }
+
+    /// <summary>
     /// Marks the caller offline.
     /// </summary>
     [HttpPost("logout")]

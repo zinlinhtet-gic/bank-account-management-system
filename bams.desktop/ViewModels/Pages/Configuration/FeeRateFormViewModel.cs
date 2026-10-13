@@ -9,10 +9,10 @@ using bams.desktop.Utils;
 namespace bams.desktop.ViewModels.Pages.Configuration;
 
 /// <summary>
-/// The create / edit fee rule form shown in a modal. Closes itself with <c>true</c> after a
+/// The create / edit fee rule form, shown in place of the list page. Closes itself with <c>true</c> after a
 /// successful save; <see cref="SavedFeeRule"/> holds the result.
 /// </summary>
-public sealed class FeeRateFormViewModel : ViewModelBase, IDialogViewModel
+public sealed class FeeRateFormViewModel : ViewModelBase
 {
     public static readonly IReadOnlyList<string> Statuses = ["Active", "Inactive"];
 
@@ -69,10 +69,8 @@ public sealed class FeeRateFormViewModel : ViewModelBase, IDialogViewModel
         }
     }
 
+    /// <summary>Raised to return to the list: true after a successful save, false when cancelled.</summary>
     public event Action<bool>? CloseRequested;
-
-    // A stray click outside must not throw away what was typed.
-    public bool CanCloseOnBackdropClick => false;
 
     public bool CanCancel => !IsBusy;
 
@@ -92,7 +90,7 @@ public sealed class FeeRateFormViewModel : ViewModelBase, IDialogViewModel
 
     public RelayCommand CancelCommand { get; }
 
-    /// <summary>The saved rule, set just before the dialog closes with success.</summary>
+    /// <summary>The saved rule, set just before the form closes with success.</summary>
     public FeeRuleResponse? SavedFeeRule { get; private set; }
 
     public AccountTypeOption? SelectedAccountType

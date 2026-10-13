@@ -13,18 +13,17 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
     private const int PageSize = 10;
 
     private readonly IInterestRateService _interestRateService;
-    private readonly IDialogService _dialogService;
     private IReadOnlyList<AccountTypeOption> _accountTypes = [];
     private string _errorMessage = string.Empty;
     private bool _isLoading;
     private int _page = FirstPage;
     private int _totalCount;
+    private InterestRateFormViewModel? _currentForm;
 
-    public InterestRateViewModel(IInterestRateService interestRateService, IDialogService dialogService)
+    public InterestRateViewModel(IInterestRateService interestRateService)
     {
         // Constructors only store dependencies. No server calls here.
         _interestRateService = interestRateService;
-        _dialogService = dialogService;
 
         RefreshCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None));
         CreateInterestRateCommand = new AsyncRelayCommand(CreateInterestRateAsync);
@@ -37,6 +36,24 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
     public string PageDescription => "Interest rate rules per account type.";
 
     public ObservableCollection<InterestRateRowModel> Rows { get; } = new();
+
+    /// <summary>The create / edit form shown in place of the list, or null while the list is shown.</summary>
+    public InterestRateFormViewModel? CurrentForm
+    {
+        get => _currentForm;
+        private set
+        {
+            if (SetProperty(ref _currentForm, value))
+            {
+                OnPropertyChanged(nameof(IsFormOpen));
+                OnPropertyChanged(nameof(IsListVisible));
+            }
+        }
+    }
+
+    public bool IsFormOpen => CurrentForm is not null;
+
+    public bool IsListVisible => !IsFormOpen;
 
     public AsyncRelayCommand RefreshCommand { get; }
 
@@ -144,7 +161,7 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         }
     }
 
-    // Opens the empty form; after a successful save, reloads the list.
+    // Shows the empty form in place of the list.
     private async Task CreateInterestRateAsync()
     {
         ErrorMessage = string.Empty;
@@ -155,15 +172,10 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         }
 
         var form = new InterestRateFormViewModel(_interestRateService, _accountTypes, existingRate: null);
-        if (!_dialogService.ShowDialog(form))
-        {
-            return;
-        }
-
-        await LoadAsync(CancellationToken.None);
+        OpenForm(form);
     }
 
-    // Opens the form filled with the row's rule; after a successful save, reloads the list.
+    // Shows the form filled with the row's rule in place of the list.
     private async Task EditInterestRateAsync(object? parameter)
     {
         if (parameter is not InterestRateRowModel row)
@@ -179,12 +191,7 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         }
 
         var form = new InterestRateFormViewModel(_interestRateService, _accountTypes, row.Source);
-        if (!_dialogService.ShowDialog(form))
-        {
-            return;
-        }
-
-        await LoadAsync(CancellationToken.None);
+        OpenForm(form);
     }
 
     // Loads the account types once per page visit for the form's drop-down.
@@ -221,6 +228,30 @@ public sealed class InterestRateViewModel : ViewModelBase, IAsyncInitializable
         }
 
         return "-";
+    }
+
+    // Shows the form in place of the list until it is saved or cancelled.
+    private void OpenForm(InterestRateFormViewModel form)
+    {
+        form.CloseRequested += OnFormClosed;
+        CurrentForm = form;
+    }
+
+    // Back to the list; reloads it after a successful save so the change shows.
+    // async void is intentional: an event handler; LoadAsync reports its own failures.
+    private async void OnFormClosed(bool saved)
+    {
+        if (CurrentForm is not null)
+        {
+            CurrentForm.CloseRequested -= OnFormClosed;
+        }
+
+        CurrentForm = null;
+
+        if (saved)
+        {
+            await LoadAsync(CancellationToken.None);
+        }
     }
 
     // The pager text and buttons depend on the page, total and loading state.
