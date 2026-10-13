@@ -1,10 +1,12 @@
 # API Contracts
 
-The machine-readable contract is [AccountsApi.openapi.yaml](AccountsApi.openapi.yaml). This document summarizes the routes currently exposed by account, customer, account-type, interest-rate, accounting, cash-operations, and business-date controllers.
+This page documents selected routes and behavior for accounts, customers, account products, operations, accounting, cash operations, and business dates. It is not a complete inventory of every controller. For a complete current route list, inspect `Controllers/` and each controller's authorization attributes.
+
+The [OpenAPI file](AccountsApi.openapi.yaml) is a machine-readable contract with the coverage stated in its `info` description. Do not assume it covers routes that are absent from its `paths` section. `Accounts.http` contains runnable account examples; `transactions.http` contains transaction examples.
 
 ## Endpoint overview
 
-Every successful endpoint returns `ApiMessageResponse<T>` with the endpoint payload in `data`; this includes list and cursor-paginated responses. The desktop client unwraps this envelope through `ApiClient`.
+Successful API operations generally return `ApiMessageResponse<T>` with the payload in `data`; verify endpoints with special responses such as authentication or file delivery in their controller. Expected errors use `ApiErrorResponse` with a stable code and trace ID. Clients should branch on the numeric code rather than message text. The desktop `ApiClient` handles the common envelope.
 
 | Method | Route | Authentication | Purpose |
 | --- | --- | --- | --- |

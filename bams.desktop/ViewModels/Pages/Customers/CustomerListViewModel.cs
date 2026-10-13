@@ -21,6 +21,7 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly ICustomerService _customerService;
     private readonly IDialogService _dialogService;
+    private readonly AuthContext _authContext;
 
     private CancellationTokenSource? _loadCancellation;
     private string _errorMessage = string.Empty;
@@ -31,7 +32,8 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         CustomerTableViewModel table,
         CustomerCreateViewModel createForm,
         ICustomerService customerService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        AuthContext authContext)
     {
         // Constructors only store dependencies and create commands. No server calls here.
         Filter = filter;
@@ -39,6 +41,7 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         CreateForm = createForm;
         _customerService = customerService;
         _dialogService = dialogService;
+        _authContext = authContext;
 
         // The parent coordinates its components: a filter change reloads the table, and the create
         // form finishing (Cancel or a successful Save) switches the page back to the table.
@@ -53,6 +56,7 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         });
         ShowCustomerDetailsCommand = new AsyncRelayCommand(ShowCustomerDetailsAsync);
         EditCustomerCommand = new AsyncRelayCommand(EditCustomerAsync);
+        ReviewCustomerKycCommand = new AsyncRelayCommand(ReviewCustomerKycAsync);
     }
 
     // Kept for the placeholder view; the header already shows the page name.
@@ -75,6 +79,13 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
     /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>. Opens the same
     /// create form, pre-filled and in edit mode (see <see cref="CustomerCreateViewModel.LoadForEdit"/>).</summary>
     public AsyncRelayCommand EditCustomerCommand { get; }
+
+    /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>. Opens the KYC
+    /// review dialog; shown only for rows with <see cref="CustomerDisplayModel.IsKycPending"/> set.</summary>
+    public AsyncRelayCommand ReviewCustomerKycCommand { get; }
+
+    /// <summary>Whether the signed-in user may review KYC (manager); gates the row's "Review" action.</summary>
+    public bool CanPerformKyc => _authContext.PermissionFlags.CanPerformKYC;
 
     /// <summary>True while the create-customer form replaces the table.</summary>
     public bool IsShowingCreateForm
@@ -203,6 +214,34 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
             var customer = await _customerService.GetCustomerByIdAsync(row.Id, CancellationToken.None);
             CreateForm.LoadForEdit(customer);
             IsShowingCreateForm = true;
+        }
+        catch (AppException exception)
+        {
+            ErrorMessage = exception.Message;
+        }
+    }
+
+    // Loads the full record and photo, then opens the KYC review dialog; refreshes the table so the
+    // row's badge reflects the decision once the dialog closes with a decision made.
+    private async Task ReviewCustomerKycAsync(object? parameter)
+    {
+        if (parameter is not CustomerDisplayModel row)
+        {
+            return;
+        }
+
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var customer = await _customerService.GetCustomerByIdAsync(row.Id, CancellationToken.None);
+            var photo = await TryLoadPhotoAsync(customer);
+
+            var reviewed = _dialogService.ShowDialog(new Customers.CustomerKycReviewViewModel(customer, photo, _customerService, _dialogService));
+            if (reviewed)
+            {
+                await ReloadFirstPageAsync(CancellationToken.None);
+            }
         }
         catch (AppException exception)
         {
