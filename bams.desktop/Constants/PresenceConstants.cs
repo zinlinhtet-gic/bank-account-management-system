@@ -16,6 +16,12 @@ public static class PresenceConstants
     /// </summary>
     public static readonly TimeSpan UserListRefreshInterval = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// Shortest time between token refreshes. While the user keeps using the app the token is renewed at most
+    /// this often, so an idle session expires roughly <c>Jwt:ExpiryMinutes</c> (server) after the last input.
+    /// </summary>
+    public static readonly TimeSpan TokenRefreshMinInterval = TimeSpan.FromMinutes(5);
+
     /// <summary>How long logout waits for the server before signing out locally anyway.</summary>
     public static readonly TimeSpan LogoutRequestTimeout = TimeSpan.FromSeconds(3);
 }

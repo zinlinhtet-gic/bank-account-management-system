@@ -13,21 +13,20 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
     private const int PageSize = 10;
 
     private readonly IBankPolicyService _bankPolicyService;
-    private readonly IDialogService _dialogService;
     private string _errorMessage = string.Empty;
     private bool _isLoading;
     private int _page = FirstPage;
     private int _totalCount;
+    private BankPolicyFormViewModel? _currentForm;
 
-    public BankPoliciesViewModel(IBankPolicyService bankPolicyService, IDialogService dialogService)
+    public BankPoliciesViewModel(IBankPolicyService bankPolicyService)
     {
         // Constructors only store dependencies. No server calls here.
         _bankPolicyService = bankPolicyService;
-        _dialogService = dialogService;
 
         RefreshCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None));
-        CreateBankPolicyCommand = new AsyncRelayCommand(CreateBankPolicyAsync);
-        EditBankPolicyCommand = new AsyncRelayCommand(EditBankPolicyAsync);
+        CreateBankPolicyCommand = new RelayCommand(_ => CreateBankPolicy());
+        EditBankPolicyCommand = new RelayCommand(EditBankPolicy);
         PreviousPageCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None, Page - 1), () => CanGoToPreviousPage);
         NextPageCommand = new AsyncRelayCommand(() => LoadAsync(CancellationToken.None, Page + 1), () => CanGoToNextPage);
     }
@@ -37,12 +36,30 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
 
     public ObservableCollection<BankPolicyRowModel> Rows { get; } = new();
 
+    /// <summary>The create / edit form shown in place of the list, or null while the list is shown.</summary>
+    public BankPolicyFormViewModel? CurrentForm
+    {
+        get => _currentForm;
+        private set
+        {
+            if (SetProperty(ref _currentForm, value))
+            {
+                OnPropertyChanged(nameof(IsFormOpen));
+                OnPropertyChanged(nameof(IsListVisible));
+            }
+        }
+    }
+
+    public bool IsFormOpen => CurrentForm is not null;
+
+    public bool IsListVisible => !IsFormOpen;
+
     public AsyncRelayCommand RefreshCommand { get; }
 
-    public AsyncRelayCommand CreateBankPolicyCommand { get; }
+    public RelayCommand CreateBankPolicyCommand { get; }
 
     /// <summary>Row action: parameter is the row's <see cref="BankPolicyRowModel"/>.</summary>
-    public AsyncRelayCommand EditBankPolicyCommand { get; }
+    public RelayCommand EditBankPolicyCommand { get; }
 
     public AsyncRelayCommand PreviousPageCommand { get; }
 
@@ -142,22 +159,17 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
         }
     }
 
-    // Opens the empty form; after a successful save, reloads the list.
-    private async Task CreateBankPolicyAsync()
+    // Shows the empty form in place of the list.
+    private void CreateBankPolicy()
     {
         ErrorMessage = string.Empty;
 
         var form = new BankPolicyFormViewModel(_bankPolicyService, existingPolicy: null);
-        if (!_dialogService.ShowDialog(form))
-        {
-            return;
-        }
-
-        await LoadAsync(CancellationToken.None);
+        OpenForm(form);
     }
 
-    // Opens the form filled with the row's policy; after a successful save, reloads the list.
-    private async Task EditBankPolicyAsync(object? parameter)
+    // Shows the form filled with the row's policy in place of the list.
+    private void EditBankPolicy(object? parameter)
     {
         if (parameter is not BankPolicyRowModel row)
         {
@@ -167,12 +179,31 @@ public sealed class BankPoliciesViewModel : ViewModelBase, IAsyncInitializable
         ErrorMessage = string.Empty;
 
         var form = new BankPolicyFormViewModel(_bankPolicyService, row.Source);
-        if (!_dialogService.ShowDialog(form))
+        OpenForm(form);
+    }
+
+    // Shows the form in place of the list until it is saved or cancelled.
+    private void OpenForm(BankPolicyFormViewModel form)
+    {
+        form.CloseRequested += OnFormClosed;
+        CurrentForm = form;
+    }
+
+    // Back to the list; reloads it after a successful save so the change shows.
+    // async void is intentional: an event handler; LoadAsync reports its own failures.
+    private async void OnFormClosed(bool saved)
+    {
+        if (CurrentForm is not null)
         {
-            return;
+            CurrentForm.CloseRequested -= OnFormClosed;
         }
 
-        await LoadAsync(CancellationToken.None);
+        CurrentForm = null;
+
+        if (saved)
+        {
+            await LoadAsync(CancellationToken.None);
+        }
     }
 
     // The pager text and buttons depend on the page, total and loading state.

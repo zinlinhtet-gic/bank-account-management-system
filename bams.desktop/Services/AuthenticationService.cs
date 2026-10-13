@@ -78,6 +78,14 @@ public sealed class AuthenticationService : IAuthenticationService
     }
 
     /// <summary>
+    /// Gets a new token with a fresh expiry for the signed-in user.
+    /// </summary>
+    public Task<RefreshTokenResponse> RefreshTokenAsync(CancellationToken cancellationToken)
+    {
+        return _apiClient.PostAsync<RefreshTokenResponse>(ApiConstants.RefreshTokenEndpoint, cancellationToken);
+    }
+
+    /// <summary>
     /// Marks the signed-in user offline on the server.
     /// </summary>
     public Task LogoutAsync(CancellationToken cancellationToken)

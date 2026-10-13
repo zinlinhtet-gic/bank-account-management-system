@@ -9,9 +9,9 @@ namespace bams.desktop.Views.Pages.Configuration;
 /// Create / edit bank policy form. Code-behind only sets the header icon and the initial
 /// keyboard focus, which are view concerns.
 /// </summary>
-public partial class BankPolicyFormDialogView : UserControl
+public partial class BankPolicyFormView : UserControl
 {
-    public BankPolicyFormDialogView()
+    public BankPolicyFormView()
     {
         InitializeComponent();
 

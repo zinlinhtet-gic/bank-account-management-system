@@ -67,21 +67,50 @@ public sealed class AuthenticationService : IAuthenticationService
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var role = user.UserRoles.FirstOrDefault()?.Role?.Code ?? string.Empty;
-        var token = GenerateJwtToken(user, role);
+        var expiresAt = GetTokenExpiry();
+        var token = GenerateJwtToken(user, role, expiresAt);
 
         return new LoginResponse(
             token,
             user.Username,
             user.FullName,
             role.ToLower(),
-            DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Jwt:ExpiryMinutes", 60)),
+            expiresAt,
             requiresPasswordChange);
     }
 
     /// <summary>
+    /// Issues a new token for a user who is still signed in, so an active session does not expire.
+    /// </summary>
+    public async Task<RefreshTokenResponse> RefreshTokenAsync(long userId, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            throw new AuthenticationRequiredException(MessageCode.AuthenticationRequired);
+        }
+
+        // A user locked or deactivated since signing in must not get a new token.
+        user.Status.EnsureCanSignIn();
+
+        // The role is read again, so a role change takes effect on the next refresh.
+        var role = user.UserRoles.FirstOrDefault()?.Role?.Code ?? string.Empty;
+        var expiresAt = GetTokenExpiry();
+
+        return new RefreshTokenResponse(GenerateJwtToken(user, role, expiresAt), expiresAt);
+    }
+
+    private DateTime GetTokenExpiry() =>
+        DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Jwt:ExpiryMinutes", 60));
+
+    /// <summary>
     /// Generates a JWT token for the authenticated user.
     /// </summary>
-    private string GenerateJwtToken(User user, string role)
+    private string GenerateJwtToken(User user, string role, DateTime expiresAt)
     {
         var key = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not found");
         var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT Issuer not found");
@@ -103,7 +132,7 @@ public sealed class AuthenticationService : IAuthenticationService
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Jwt:ExpiryMinutes", 60)),
+            expires: expiresAt,
             signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
 
         return new JwtSecurityTokenHandler().WriteToken(token);

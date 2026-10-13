@@ -6,12 +6,12 @@ using bams.desktop.ViewModels.Pages.Configuration;
 namespace bams.desktop.Views.Pages.Configuration;
 
 /// <summary>
-/// Create / edit fee rule form. Code-behind only sets the header icon and the initial
+/// Create / edit interest rate rule form. Code-behind only sets the header icon and the initial
 /// keyboard focus, which are view concerns.
 /// </summary>
-public partial class FeeRateFormDialogView : UserControl
+public partial class InterestRateFormView : UserControl
 {
-    public FeeRateFormDialogView()
+    public InterestRateFormView()
     {
         InitializeComponent();
 
@@ -20,7 +20,7 @@ public partial class FeeRateFormDialogView : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (DataContext is FeeRateFormViewModel { IsEditMode: true })
+        if (DataContext is InterestRateFormViewModel { IsEditMode: true })
         {
             HeaderIcon.Geometry = (Geometry)FindResource("Icon.Edit");
         }

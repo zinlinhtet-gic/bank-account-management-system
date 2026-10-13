@@ -10,6 +10,11 @@ public interface IAuthenticationService
     Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Issues a new token for a signed-in user (sliding expiration while the app is in use).
+    /// </summary>
+    Task<RefreshTokenResponse> RefreshTokenAsync(long userId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Gets the permissions for a user based on their roles.
     /// </summary>
     Task<PermissionsResponse> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken);
