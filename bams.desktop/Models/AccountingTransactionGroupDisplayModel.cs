@@ -1,4 +1,5 @@
 using bams.desktop.DTOs.Accounting;
+using bams.desktop.Utils;
 
 namespace bams.desktop.Models;
 
@@ -22,9 +23,9 @@ public sealed class AccountingTransactionGroupDisplayModel
 
     public DateTime TransactionAt { get; }
 
-    public string TransactionDate => TransactionAt.ToString("yyyy-MM-dd");
+    public string TransactionDate => DateTimeDisplay.ToLocal(TransactionAt).ToString("dd/MM/yyyy");
 
-    public string TransactionTime => TransactionAt.ToString("HH:mm");
+    public string TransactionTime => DateTimeDisplay.ToLocal(TransactionAt).ToString("HH:mm");
 
     public IReadOnlyList<AccountingEntryResponse> Entries { get; }
 }
