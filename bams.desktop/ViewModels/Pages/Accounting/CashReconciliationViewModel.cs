@@ -4,6 +4,7 @@ using bams.desktop.DTOs.Accounting;
 using bams.desktop.Exceptions;
 using bams.desktop.Services;
 using bams.desktop.Constants;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
@@ -27,6 +28,7 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     private bool _isBusy;
     private readonly AuthContext _authContext;
     private readonly OfficerCashSessionContext _officerCashSessionContext;
+    private readonly IDialogService _dialogService;
     private CashSessionTab _selectedTab = CashSessionTab.Sessions;
     private string _adjustmentAmountText = string.Empty;
     private string _correctionTransactionIdText = string.Empty;
@@ -76,12 +78,13 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     public bool IsAdjustmentsTabSelected { get => _selectedTab == CashSessionTab.Adjustments; set { if (value) SelectTab(CashSessionTab.Adjustments); } }
 
     public CashReconciliationViewModel(ICashOperationsClientService service, IEndOfDayClientService businessDateService,
-        AuthContext authContext, OfficerCashSessionContext officerCashSessionContext)
+        AuthContext authContext, OfficerCashSessionContext officerCashSessionContext, IDialogService dialogService)
     {
         _service = service;
         _businessDateService = businessDateService;
         _authContext = authContext;
         _officerCashSessionContext = officerCashSessionContext;
+        _dialogService = dialogService;
         PositionTypes = authContext.HasPermission(PermissionCodes.EndOfDayApproval)
             ? ["Teller", "Vault"]
             : ["Teller"];
@@ -187,7 +190,10 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         }
         catch (AppException exception)
         {
-            ErrorMessage = exception.Message;
+            if (IsBusinessDateResolutionError(exception))
+                ShowBusinessDateResolutionAlert();
+            else
+                ErrorMessage = exception.Message;
             return;
         }
 
@@ -242,7 +248,13 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
             SelectedHandoff = Handoffs.FirstOrDefault(item => item.Id == SelectedHandoff?.Id) ?? Handoffs.FirstOrDefault();
             ErrorMessage = string.Empty;
         }
-        catch (AppException exception) { ErrorMessage = exception.Message; }
+        catch (AppException exception)
+        {
+            if (IsBusinessDateResolutionError(exception))
+                ShowBusinessDateResolutionAlert();
+            else
+                ErrorMessage = exception.Message;
+        }
         finally { IsBusy = false; }
     }
 
@@ -257,15 +269,47 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
             IsBusy = true;
             var activeBusinessDate = await _businessDateService.GetCurrentBusinessDateAsync(CancellationToken.None);
             ActiveBusinessDate = activeBusinessDate.Date.ToDateTime(TimeOnly.MinValue);
+            if (SelectedBusinessDate.HasValue && DateOnly.FromDateTime(SelectedBusinessDate.Value) != activeBusinessDate.Date)
+            {
+                ErrorMessage = string.Empty;
+                ShowBusinessDateResolutionAlert();
+                return;
+            }
+
             await _service.OpenSessionAsync(new OpenCashSessionRequest(PositionType, opening), _openSessionIdempotencyKey, CancellationToken.None);
             SelectedBusinessDate = ActiveBusinessDate;
+            ErrorMessage = string.Empty;
             if (PositionType == "Teller" && string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase))
                 _officerCashSessionContext.SetStatus(true);
             _openSessionIdempotencyKey = Guid.NewGuid().ToString("N");
             await RefreshAsync();
         }
+        catch (AppException exception) when (IsBusinessDateResolutionError(exception))
+        {
+            ErrorMessage = string.Empty;
+            ShowBusinessDateResolutionAlert();
+        }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }
+    }
+
+    private static bool IsBusinessDateResolutionError(AppException exception)
+    {
+        if (exception.Code is MessageCode.BusinessDateClosed or MessageCode.BusinessDateTransitionConflict)
+            return true;
+
+        var message = exception.Message;
+        return message.Contains("business date", StringComparison.OrdinalIgnoreCase) &&
+               (message.Contains("life cycle", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("lifecycle", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("closed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ShowBusinessDateResolutionAlert()
+    {
+        ErrorMessage = string.Empty;
+        _dialogService.ShowMessage("Business date needs attention",
+            "A cash session cannot be opened for a closed or previous business date, or while multiple business dates are open. Please notify a manager to resolve the business date before trying again.");
     }
 
     private async Task SubmitCountAsync()

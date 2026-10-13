@@ -35,6 +35,18 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
                 throw new ConflictException(MessageCode.IdempotencyKeyReused);
             return ToResponse(priorOpen);
         }
+
+        // A new cash position must not establish a posting date while a prior or duplicate open business date needs EOD resolution.
+        DateOnly today = BusinessTime.Today;
+        List<DateOnly> openBusinessDates = await db.BusinessDates.AsNoTracking()
+            .Where(item => item.Status == OperationsConstants.BusinessDateOpen && item.Date <= today)
+            .OrderBy(item => item.Date)
+            .Take(2)
+            .Select(item => item.Date)
+            .ToListAsync(cancellationToken);
+        if (openBusinessDates.Count > 1 || openBusinessDates.Any(date => date < today))
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+
         var date = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
         priorOpen = (await db.CashPositionSessions.FromSql(
             $"SELECT * FROM CashPositionSessions WHERE OpenedBy = {actorId} AND OpenIdempotencyKey = {key} FOR UPDATE")

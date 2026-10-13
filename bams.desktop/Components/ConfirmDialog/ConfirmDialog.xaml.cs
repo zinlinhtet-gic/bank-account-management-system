@@ -30,6 +30,7 @@ public partial class ConfirmDialog : Window
         MessageText.Text = options.Message;
         ConfirmButton.Content = options.ConfirmText;
         CancelButton.Content = options.CancelText;
+        CancelButton.Visibility = options.IsAcknowledgement ? Visibility.Collapsed : Visibility.Visible;
         Title = options.Title;
 
         var defaultIconKey = options.IsDestructive ? "Icon.AlertCircle" : "Icon.Check";

@@ -59,11 +59,15 @@ public sealed class EndOfDayWorkflowService(
         EndOfDayRun run = CreateForceCloseRun(date, normalizedReason, managerIds, actorId, stages);
         db.EndOfDayRuns.Add(run);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         if (run.Status == "OverrideApproved")
-            return await CloseAsync(run.Id, cancellationToken);
+        {
+            EndOfDayRunResponse closedRun = await CloseWithinTransactionAsync(run.Id, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return closedRun;
+        }
 
+        await transaction.CommitAsync(cancellationToken);
         return ToResponse(run, stages);
     }
 
@@ -273,6 +277,15 @@ public sealed class EndOfDayWorkflowService(
 
     public async Task<EndOfDayRunResponse> CloseAsync(long runId, CancellationToken cancellationToken)
     {
+        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        EndOfDayRunResponse response = await CloseWithinTransactionAsync(runId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return response;
+    }
+
+    // Applies a close inside the caller's transaction so override request, approval, and automatic close commit atomically.
+    private async Task<EndOfDayRunResponse> CloseWithinTransactionAsync(long runId, CancellationToken cancellationToken)
+    {
         long actorId = currentUser.GetCurrentUserId();
         EndOfDayRun initialRun = await db.EndOfDayRuns.AsNoTracking().SingleOrDefaultAsync(item => item.Id == runId, cancellationToken)
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
@@ -282,7 +295,6 @@ public sealed class EndOfDayWorkflowService(
             await IsSoleActiveManagerAsync(actorId, cancellationToken);
         ValidateInitialCloseRun(initialRun, isManagerOverride, isSoleManagerSelfApproval);
 
-        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         EndOfDayRun run = (await db.EndOfDayRuns.FromSql($"SELECT * FROM EndOfDayRuns WHERE Id = {runId} FOR UPDATE").ToListAsync(cancellationToken)).Single();
         BusinessDate businessDate = (await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {run.BusinessDate} FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault()
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
@@ -291,7 +303,6 @@ public sealed class EndOfDayWorkflowService(
         await EnsureCloseAuditAsync(run.BusinessDate, cancellationToken);
         await ApplyBusinessDateCloseAsync(run, businessDate, actorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return ToResponse(run, DeserializeStages(run.StageSummaryJson));
     }
 

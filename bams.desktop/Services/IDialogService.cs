@@ -22,7 +22,8 @@ public sealed record ConfirmDialogOptions(
     string CancelText = "Cancel",
     bool IsDestructive = false,
     Geometry? Icon = null,
-    string? IconKey = null);
+    string? IconKey = null,
+    bool IsAcknowledgement = false);
 
 /// <summary>
 /// Shows themed modal dialogs. Use this instead of <c>MessageBox.Show</c> so every prompt matches the design
@@ -35,6 +36,9 @@ public interface IDialogService
     /// </summary>
     /// <returns>True when the user confirmed; false when they cancelled, pressed Esc, or clicked outside.</returns>
     bool Confirm(ConfirmDialogOptions options);
+
+    /// <summary>Shows a themed, single-button message dialog and waits for acknowledgement.</summary>
+    void ShowMessage(string title, string message);
 
     /// <summary>
     /// Shows a dialog ViewModel (a form, a detail card...) in a themed modal over the blurred main window.
