@@ -54,6 +54,7 @@ This page summarizes invariants enforced by server services. Constants and servi
 ### Cash custody
 
 - Teller cash postings are attached server-side to the actor's open cash session for the active business date. The client does not select the cash session for a transaction.
+- Opening a new cash session is rejected when its selected date is historical or closed, or when prior or duplicate open business dates require manager resolution.
 - Physical counts are immutable observations and do not overwrite expected cash. Adjustments require a signed amount tied to the relevant posted Cash on Hand journal effect and independent approval.
 - Cash movement, transaction posting, and their audit data are coordinated transactionally. Handoffs track custody and require eligible recipients and valid state transitions.
 
@@ -63,7 +64,10 @@ This page summarizes invariants enforced by server services. Constants and servi
 - Journal validation checks the exact GL account, direction, amount, and customer account for every line. Transfer fees add matching customer-deposit and fee-income lines; interbank refunds return the original fee through matching fee-income and customer-deposit lines. Customer-deposit journal lines are reconciled to account transactions by account, direction, and amount.
 - A reconciliation exception can be resolved only after a rerun confirms the difference is cleared; direct resolution is not an allowed substitute for evidence.
 - The business date is persisted and distinct from UTC transaction timestamps. Myanmar local time determines the banking date and relevant calendar boundaries.
+- Scheduled reconciliation, maintenance, and interest use the scheduled occurrence's Myanmar business date; they do not require an open business date or cash session. Scheduled cash operations must still follow the active business-date and cash-session rules.
+- When multiple business dates are open from legacy data or an interrupted close, End of Day must process the oldest open date first; closing a later open date is rejected until earlier dates are closed.
 - End-of-day close is a staged, authorized process with pre-close checks, distinct approval, and final rechecks under lock. Blocking conditions must be resolved or handled through the explicit manager override workflow.
+- A single-manager force-close request and its automatic close are committed in one database transaction, so the override cannot remain approved if the close fails.
 - Monthly accounting close depends on the prior month's final business date being closed. Scheduled-job retry replays an eligible occurrence; it does not close dates or bypass accounting gates.
 
 ## Users, roles, and permissions

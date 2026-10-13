@@ -24,6 +24,13 @@ public sealed class DialogService : IDialogService
     }
 
     /// <inheritdoc />
+    public void ShowMessage(string title, string message)
+    {
+        _ = Confirm(new ConfirmDialogOptions(title, message, "OK", IsAcknowledgement: true,
+            IconKey: "Icon.AlertCircle"));
+    }
+
+    /// <inheritdoc />
     public bool ShowDialog(IDialogViewModel viewModel)
     {
         return ShowOverMainWindow(new ModalDialog(viewModel));

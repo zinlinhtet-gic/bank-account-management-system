@@ -20,11 +20,12 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
 
     public EndOfDayViewModel(IEndOfDayClientService service, AuthContext authContext,
         ICashOperationsClientService cashOperations, IReconciliationService reconciliationService,
-        OfficerCashSessionContext officerCashSessionContext)
+        OfficerCashSessionContext officerCashSessionContext, IDialogService dialogService)
     {
         _service = service;
         _authContext = authContext;
-        CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext, officerCashSessionContext);
+        CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext,
+            officerCashSessionContext, dialogService);
         AccountReconciliation = new AccountReconciliationViewModel(reconciliationService, service, authContext);
         LedgerReconciliation = new LedgerReconciliationViewModel();
         PreCloseChecks = new PreCloseChecksViewModel();
@@ -150,6 +151,17 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         try
         {
             Summary.BusinessDate = await _service.GetCurrentBusinessDateAsync(cancellationToken);
+            if (HasEndOfDayApprovalPermission || CanRunPreClosePermission)
+            {
+                var openDates = await _service.SearchBusinessDatesAsync(null, null, cancellationToken);
+                var oldestOpenDate = openDates
+                    .Where(item => item.Status == "Open")
+                    .OrderBy(item => item.Date)
+                    .FirstOrDefault();
+                if (oldestOpenDate is not null && oldestOpenDate.Date < Summary.BusinessDate.Date)
+                    Summary.BusinessDate = oldestOpenDate;
+            }
+
             SelectedBusinessDate = Summary.BusinessDate.Date.ToDateTime(TimeOnly.MinValue);
             await LoadSupportingViewsAsync(Summary.BusinessDate.Date, cancellationToken);
             var latestRun = await _service.GetLatestRunAsync(Summary.BusinessDate.Date, cancellationToken);
