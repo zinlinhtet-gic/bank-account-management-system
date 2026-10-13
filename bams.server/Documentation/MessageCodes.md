@@ -18,20 +18,20 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 
 ## Success
 
-| Code | Name | HTTP | Meaning |
-| --- | --- | --- | --- |
-| 1000 | Success | 200 | General successful operation. |
-| 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
-| 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
-| 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
-| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted; the endpoint returns this code in `ApiMessageResponse<bool>`. |
-| 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
-| 1400 | InterestRateCreatedSuccessfully | 201 | An interest rate rule was created (Configuration). |
-| 1401 | InterestRateUpdatedSuccessfully | 200 | An interest rate rule was updated. |
-| 1402 | FeeRuleCreatedSuccessfully | 201 | A fee rule was created (Configuration). |
-| 1403 | FeeRuleUpdatedSuccessfully | 200 | A fee rule was updated. |
-| 1404 | BankPolicyCreatedSuccessfully | 201 | A bank policy (account type) was created. |
-| 1405 | BankPolicyUpdatedSuccessfully | 200 | A bank policy (account type) was updated. |
+| Code | Name                            | HTTP | Meaning                                                                                |
+| ---- | ------------------------------- | ---- | -------------------------------------------------------------------------------------- |
+| 1000 | Success                         | 200  | General successful operation.                                                          |
+| 1001 | UserCreatedSuccessfully         | 201  | A staff user was created (User Management).                                            |
+| 1002 | UserUpdatedSuccessfully         | 200  | A staff user was updated.                                                              |
+| 1003 | UserPasswordResetSuccessfully   | 200  | A user's password was reset to their role's default.                                   |
+| 1004 | UserDeletedSuccessfully         | —    | A user was soft-deleted; the endpoint returns this code in `ApiMessageResponse<bool>`. |
+| 1100 | AccountCreatedSuccessfully      | 201  | Account creation succeeded.                                                            |
+| 1400 | InterestRateCreatedSuccessfully | 201  | An interest rate rule was created (Configuration).                                     |
+| 1401 | InterestRateUpdatedSuccessfully | 200  | An interest rate rule was updated.                                                     |
+| 1402 | FeeRuleCreatedSuccessfully      | 201  | A fee rule was created (Configuration).                                                |
+| 1403 | FeeRuleUpdatedSuccessfully      | 200  | A fee rule was updated.                                                                |
+| 1404 | BankPolicyCreatedSuccessfully   | 201  | A bank policy (account type) was created.                                              |
+| 1405 | BankPolicyUpdatedSuccessfully   | 200  | A bank policy (account type) was updated.                                              |
 
 | 1200 | TransactionCompletedSuccessfully | 200 | A deposit, withdrawal, internal transfer or NRC pickup was posted. |
 | 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
@@ -47,7 +47,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 ## Validation
 
 | Code | Name | HTTP | Meaning |
-| --- | --- | --- | --- |
+| ---- | ---- | ---- | ------- |
 
 | 3000 | ValidationFailed | 400 | One or more validation errors occurred. |
 | 3001 | RequiredFieldMissing | 400 | A required field is empty. |
@@ -127,85 +127,85 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3129 | AccountRefererCountInsufficient | 400 | The request supplies fewer referrers than required for the selected account holders. |
 | 3130 | AccountRefererSelectionInvalid | 400 | The referrer list contains a blank or duplicate NRC. |
 | 3131 | AccountRefererMustOwnAccount | 400 | At least one selected referrer does not already own an account. |
-| Code | Name                                 | HTTP | Meaning                                                                                               |
+| Code | Name | HTTP | Meaning |
 | ---- | ------------------------------------ | ---- | ----------------------------------------------------------------------------------------------------- |
-| 1000 | Success                              | 200  | General successful operation.                                                                         |
-| 1100 | AccountCreatedSuccessfully           | 201  | Account creation succeeded.                                                                           |
-| 3000 | ValidationFailed                     | 400  | One or more validation errors occurred.                                                               |
-| 3002 | InvalidRequest                       | 400  | The request shape or content is invalid.                                                              |
-| 3003 | InvalidAmount                        | 400  | A supplied amount is invalid.                                                                         |
-| 3004 | InvalidCredentials                   | 400  | Username or password is wrong (login), or the current password is wrong (change password).            |
-| 3005 | PasswordDoesNotMeetRequirements      | 400  | New password fails the complexity rules.                                                              |
-| 3102 | OpeningBalanceInvalid                | 400  | Opening balance is below the account type's minimum.                                                  |
-| 4000 | AuthenticationRequired               | 401  | No valid JWT, or the token's user no longer exists.                                                   |
-| 4001 | PasswordChangeRequired               | —    | The user must change their password before continuing.                                                |
-| 4002 | PasswordChangedSuccessfully          | 200  | Password change succeeded.                                                                            |
-| 4003 | UserAccountDisabled                  | 403  | The user's `Status` is not `Active`; login and protected endpoints are refused.                       |
-| 4100 | AccessDenied                         | 403  | The user is not allowed to perform the operation.                                                     |
-| 4101 | InsufficientPermission               | 403  | None of the user's roles grants a permission required by `[RequirePermission]`.                       |
-| 4200 | ResourceNotFound                     | 404  | A generic resource was not found.                                                                     |
-| 4201 | AccountNotFound                      | 404  | The requested bank account does not exist.                                                            |
-| 4203 | AccountTypeNotFound                  | 404  | The requested account type does not exist.                                                            |
-| 4204 | UserNotFound                         | 404  | The requested staff user does not exist.                                                              |
-| 4305 | UsernameAlreadyExists                | 409  | Another user already has this username.                                                               |
-| 4306 | EmailAlreadyExists                   | 409  | Another user already has this email.                                                                  |
-| 4400 | BusinessRuleViolation                | 422  | A business rule was violated.                                                                         |
-| 5000 | InternalServerError                  | 500  | An unexpected server error occurred.                                                                  |
-| Code | Name                                 | HTTP | Meaning                                                                                               |
-| ---  | ---                                  | ---  | ---                                                                                                   |
-| 1000 | Success                              | 200  | General successful operation.                                                                         |
-| 1001 | UserCreatedSuccessfully              | 201  | A staff user was created (User Management).                                                           |
-| 1002 | UserUpdatedSuccessfully              | 200  | A staff user was updated.                                                                             |
-| 1003 | UserPasswordResetSuccessfully        | 200  | A user's password was reset to their role's default.                                                  |
-| 1004 | UserDeletedSuccessfully              | —    | A user was soft-deleted (the endpoint returns 204; client-side text).                                 |
-| 1100 | AccountCreatedSuccessfully           | 201  | Account creation succeeded.                                                                           |
-| 3000 | ValidationFailed                     | 400  | One or more validation errors occurred.                                                               |
-| 3001 | RequiredFieldMissing                 | 400  | A required field is empty.                                                                            |
-| 3002 | InvalidRequest                       | 400  | The request shape or content is invalid.                                                              |
-| 3003 | InvalidAmount                        | 400  | A supplied amount is invalid.                                                                         |
-| 3004 | InvalidCredentials                   | 400  | Username or password is wrong (login), or the current password is wrong (change password).            |
-| 3005 | PasswordDoesNotMeetRequirements      | 400  | New password fails the complexity rules.                                                              |
-| 3006 | InvalidEmailFormat                   | 400  | Email is not in the form name@domain.tld.                                                             |
-| 3007 | InvalidUsernameFormat                | 400  | Username is not 3-64 letters, numbers, dot, underscore or hyphen.                                     |
-| 3008 | InvalidPhoneFormat                   | 400  | Phone contains characters other than digits, +, spaces, hyphens or brackets, or has the wrong length. |
-| 3009 | InvalidRole                          | 400  | The role does not exist or cannot be assigned in User Management.                                     |
-| 3010 | FieldTooLong                         | 400  | A field is longer than its column allows.                                                             |
-| 3011 | InvalidDateRange                     | 400  | A "from" date is after the "to" date in a list filter.                                                |
-| 3012 | NewPasswordSameAsCurrent             | 400  | Change password: the new password equals the current one.                                             |
-| 3013 | DefaultPasswordNotAllowed            | 400  | Change password: the new password is one of the role default passwords.                               |
-| 3102 | OpeningBalanceInvalid                | 400  | Opening balance is below the account type's minimum.                                                  |
-| 4000 | AuthenticationRequired               | 401  | No valid JWT, or the token's user no longer exists.                                                   |
-| 4001 | PasswordChangeRequired               | —    | The user must change their password before continuing.                                                |
-| 4002 | PasswordChangedSuccessfully          | 200  | Password change succeeded.                                                                            |
-| 4003 | UserAccountDisabled                  | 403  | The user's `Status` is `Disabled`; login and protected endpoints are refused.                         |
-| 4004 | UserAccountDeleted                   | 403  | The user was soft-deleted; login and protected endpoints are refused.                                 |
-| 4100 | AccessDenied                         | 403  | The user is not allowed to perform the operation.                                                     |
-| 4101 | InsufficientPermission               | 403  | None of the user's roles grants a permission required by `[RequirePermission]`.                       |
-| 4200 | ResourceNotFound                     | 404  | A generic resource was not found.                                                                     |
-| 4201 | AccountNotFound                      | 404  | The requested bank account does not exist.                                                            |
-| 4203 | AccountTypeNotFound                  | 404  | The requested account type does not exist.                                                            |
-| 4204 | UserNotFound                         | 404  | The requested staff user does not exist.                                                              |
-| 4305 | UsernameAlreadyExists                | 409  | Another user already has this username.                                                               |
-| 4306 | EmailAlreadyExists                   | 409  | Another user already has this email.                                                                  |
-| 4400 | BusinessRuleViolation                | 422  | A business rule was violated.                                                                         |
-| 4480 | LastManagerCannotBeRemoved           | 422  | Deleting, or taking the manager role from, the only active manager is refused.                        |
-| 5000 | InternalServerError                  | 500  | An unexpected server error occurred.                                                                  |
-| Code | Name                                 | HTTP | Meaning                                                                                               |
-| ---  | ---                                  | ---  | ---                                                                                                   |
-| 1000 | Success                              | 200  | General successful operation.                                                                         |
-| 1001 | UserCreatedSuccessfully              | 201  | A staff user was created (User Management).                                                           |
-| 1002 | UserUpdatedSuccessfully              | 200  | A staff user was updated.                                                                             |
-| 1003 | UserPasswordResetSuccessfully        | 200  | A user's password was reset to their role's default.                                                  |
-| 1004 | UserDeletedSuccessfully              | —    | A user was soft-deleted (the endpoint returns 204; client-side text).                                 |
-| 1100 | AccountCreatedSuccessfully           | 201  | Account creation succeeded.                                                                           |
-| 1200 | TransactionCompletedSuccessfully     | 200  | A deposit, withdrawal, internal transfer or NRC pickup was posted.                                    |
-| 1201 | TransactionSubmittedSuccessfully     | 200  | An interbank or NRC transfer was accepted and is pending.                                             |
-| 1202 | TransactionRefundedSuccessfully      | 200  | An NRC transfer was cancelled or an interbank transfer failed; the sender was refunded.               |
-| 1203 | InterbankTransferSettledSuccessfully | 200  | A pending interbank transfer was recorded as settled.                                                 |
-| 1101 | AccountStatusUpdatedSuccessfully     | 200  | Account status update succeeded.                                                                      |
-| 1102 | AccountBalanceUpdatedSuccessfully    | 200  | Account balance adjustment succeeded.                                                                 |
-| 1103 | AccountHoldersUpdatedSuccessfully    | 200  | Joint-account holder update succeeded.                                                                |
-| 1104 | FixedDepositUpdatedSuccessfully      | 200  | Fixed-deposit update succeeded.                                                                       |
+| 1000 | Success | 200 | General successful operation. |
+| 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
+| 3000 | ValidationFailed | 400 | One or more validation errors occurred. |
+| 3002 | InvalidRequest | 400 | The request shape or content is invalid. |
+| 3003 | InvalidAmount | 400 | A supplied amount is invalid. |
+| 3004 | InvalidCredentials | 400 | Username or password is wrong (login), or the current password is wrong (change password). |
+| 3005 | PasswordDoesNotMeetRequirements | 400 | New password fails the complexity rules. |
+| 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the account type's minimum. |
+| 4000 | AuthenticationRequired | 401 | No valid JWT, or the token's user no longer exists. |
+| 4001 | PasswordChangeRequired | — | The user must change their password before continuing. |
+| 4002 | PasswordChangedSuccessfully | 200 | Password change succeeded. |
+| 4003 | UserAccountDisabled | 403 | The user's `Status` is not `Active`; login and protected endpoints are refused. |
+| 4100 | AccessDenied | 403 | The user is not allowed to perform the operation. |
+| 4101 | InsufficientPermission | 403 | None of the user's roles grants a permission required by `[RequirePermission]`. |
+| 4200 | ResourceNotFound | 404 | A generic resource was not found. |
+| 4201 | AccountNotFound | 404 | The requested bank account does not exist. |
+| 4203 | AccountTypeNotFound | 404 | The requested account type does not exist. |
+| 4204 | UserNotFound | 404 | The requested staff user does not exist. |
+| 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
+| 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
+| 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
+| 5000 | InternalServerError | 500 | An unexpected server error occurred. |
+| Code | Name | HTTP | Meaning |
+| --- | --- | --- | --- |
+| 1000 | Success | 200 | General successful operation. |
+| 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
+| 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
+| 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
+| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted (the endpoint returns 204; client-side text). |
+| 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
+| 3000 | ValidationFailed | 400 | One or more validation errors occurred. |
+| 3001 | RequiredFieldMissing | 400 | A required field is empty. |
+| 3002 | InvalidRequest | 400 | The request shape or content is invalid. |
+| 3003 | InvalidAmount | 400 | A supplied amount is invalid. |
+| 3004 | InvalidCredentials | 400 | Username or password is wrong (login), or the current password is wrong (change password). |
+| 3005 | PasswordDoesNotMeetRequirements | 400 | New password fails the complexity rules. |
+| 3006 | InvalidEmailFormat | 400 | Email is not in the form name@domain.tld. |
+| 3007 | InvalidUsernameFormat | 400 | Username is not 3-64 letters, numbers, dot, underscore or hyphen. |
+| 3008 | InvalidPhoneFormat | 400 | Phone contains characters other than digits, +, spaces, hyphens or brackets, or has the wrong length. |
+| 3009 | InvalidRole | 400 | The role does not exist or cannot be assigned in User Management. |
+| 3010 | FieldTooLong | 400 | A field is longer than its column allows. |
+| 3011 | InvalidDateRange | 400 | A "from" date is after the "to" date in a list filter. |
+| 3012 | NewPasswordSameAsCurrent | 400 | Change password: the new password equals the current one. |
+| 3013 | DefaultPasswordNotAllowed | 400 | Change password: the new password is one of the role default passwords. |
+| 3102 | OpeningBalanceInvalid | 400 | Opening balance is below the account type's minimum. |
+| 4000 | AuthenticationRequired | 401 | No valid JWT, or the token's user no longer exists. |
+| 4001 | PasswordChangeRequired | — | The user must change their password before continuing. |
+| 4002 | PasswordChangedSuccessfully | 200 | Password change succeeded. |
+| 4003 | UserAccountDisabled | 403 | The user's `Status` is `Disabled`; login and protected endpoints are refused. |
+| 4004 | UserAccountDeleted | 403 | The user was soft-deleted; login and protected endpoints are refused. |
+| 4100 | AccessDenied | 403 | The user is not allowed to perform the operation. |
+| 4101 | InsufficientPermission | 403 | None of the user's roles grants a permission required by `[RequirePermission]`. |
+| 4200 | ResourceNotFound | 404 | A generic resource was not found. |
+| 4201 | AccountNotFound | 404 | The requested bank account does not exist. |
+| 4203 | AccountTypeNotFound | 404 | The requested account type does not exist. |
+| 4204 | UserNotFound | 404 | The requested staff user does not exist. |
+| 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
+| 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
+| 4400 | BusinessRuleViolation | 422 | A business rule was violated. |
+| 4480 | LastManagerCannotBeRemoved | 422 | Deleting, or taking the manager role from, the only active manager is refused. |
+| 5000 | InternalServerError | 500 | An unexpected server error occurred. |
+| Code | Name | HTTP | Meaning |
+| --- | --- | --- | --- |
+| 1000 | Success | 200 | General successful operation. |
+| 1001 | UserCreatedSuccessfully | 201 | A staff user was created (User Management). |
+| 1002 | UserUpdatedSuccessfully | 200 | A staff user was updated. |
+| 1003 | UserPasswordResetSuccessfully | 200 | A user's password was reset to their role's default. |
+| 1004 | UserDeletedSuccessfully | — | A user was soft-deleted (the endpoint returns 204; client-side text). |
+| 1100 | AccountCreatedSuccessfully | 201 | Account creation succeeded. |
+| 1200 | TransactionCompletedSuccessfully | 200 | A deposit, withdrawal, internal transfer or NRC pickup was posted. |
+| 1201 | TransactionSubmittedSuccessfully | 200 | An interbank or NRC transfer was accepted and is pending. |
+| 1202 | TransactionRefundedSuccessfully | 200 | An NRC transfer was cancelled or an interbank transfer failed; the sender was refunded. |
+| 1203 | InterbankTransferSettledSuccessfully | 200 | A pending interbank transfer was recorded as settled. |
+| 1101 | AccountStatusUpdatedSuccessfully | 200 | Account status update succeeded. |
+| 1102 | AccountBalanceUpdatedSuccessfully | 200 | Account balance adjustment succeeded. |
+| 1103 | AccountHoldersUpdatedSuccessfully | 200 | Joint-account holder update succeeded. |
+| 1104 | FixedDepositUpdatedSuccessfully | 200 | Fixed-deposit update succeeded. |
 
 ## Validation
 
@@ -262,7 +262,7 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 3129 | AccountRefererCountInsufficient               | 400  | The request supplies fewer referrers than required for the selected account holders.                  |
 | 3130 | AccountRefererSelectionInvalid                | 400  | The referrer list contains a blank or duplicate NRC.                                                  |
 | 3131 | AccountRefererMustOwnAccount                  | 400  | At least one selected referrer does not already own an account.                                       |
-| 3132 | AccountHolderKycNotVerified                  | 400  | Every account holder must have verified KYC before an account can be opened.                           |
+| 3132 | AccountHolderKycNotVerified                   | 400  | Every account holder must have verified KYC before an account can be opened.                          |
 
 ## Authentication and authorization
 
@@ -287,8 +287,6 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4240 | TransactionNotFound | 404 | The requested transaction (e.g. an NRC transfer for pickup) does not exist. |
 | 4241 | OtherBankNotFound | 404 | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist. |
 | 4242 | BranchNotFound | 404 | The NRC pickup branch does not exist or is not active. |
-| 4243 | InterestAccrualNotFound | 404 | The interest accrual record (Operations › Interest detail) does not exist. |
-| 4244 | FeeAccrualNotFound | 404 | The fee accrual record (Operations › Fees detail) does not exist. |
 | 4305 | UsernameAlreadyExists | 409 | Another user already has this username. |
 | 4306 | EmailAlreadyExists | 409 | Another user already has this email. |
 | 4330 | IdempotencyKeyReused | 409 | The `Idempotency-Key` was already used for a different request payload. |
@@ -331,8 +329,6 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4240 | TransactionNotFound             | 404  | The requested transaction (e.g. an NRC transfer for pickup) does not exist.              |
 | 4241 | OtherBankNotFound               | 404  | The destination bank of an interbank transfer, or an NRC pickup bank, does not exist.    |
 | 4242 | BranchNotFound                  | 404  | The NRC pickup branch does not exist or is not active.                                   |
-| 4243 | InterestAccrualNotFound         | 404  | The interest accrual record (Operations › Interest detail) does not exist.               |
-| 4244 | FeeAccrualNotFound              | 404  | The fee accrual record (Operations › Fees detail) does not exist.                        |
 | 4305 | UsernameAlreadyExists           | 409  | Another user already has this username.                                                  |
 | 4306 | EmailAlreadyExists              | 409  | Another user already has this email.                                                     |
 | 4330 | IdempotencyKeyReused            | 409  | The `Idempotency-Key` was already used for a different request payload. |
@@ -368,43 +364,42 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 
 ## Conflict
 
-
-| Code | Name | HTTP | Meaning |
-| --- | --- | --- | --- |
-| 4304 | ConcurrentModification | 409 | A versioned record changed after the caller read it. |
-| 4305 | UsernameAlreadyExists | 409 | Another user has the username. |
-| 4306 | EmailAlreadyExists | 409 | Another user has the email address. |
-| 4307 | CustomerNrcAlreadyExists | 409 | A customer already exists with the supplied NRC number. |
-| 4308 | EndOfDayAuditAlreadyProcessed | 409 | The end-of-day audit has already been completed for this date. |
+| Code | Name                          | HTTP | Meaning                                                        |
+| ---- | ----------------------------- | ---- | -------------------------------------------------------------- |
+| 4304 | ConcurrentModification        | 409  | A versioned record changed after the caller read it.           |
+| 4305 | UsernameAlreadyExists         | 409  | Another user has the username.                                 |
+| 4306 | EmailAlreadyExists            | 409  | Another user has the email address.                            |
+| 4307 | CustomerNrcAlreadyExists      | 409  | A customer already exists with the supplied NRC number.        |
+| 4308 | EndOfDayAuditAlreadyProcessed | 409  | The end-of-day audit has already been completed for this date. |
 
 ## Business rules
 
-| Code | Name | HTTP | Meaning |
-| --- | --- | --- | --- |
-| 4400 | BusinessRuleViolation | 422 | A general business rule was violated. |
-| 4401 | AccountTypeIdentifierOutOfRange | 422 | The account-type ID cannot fit its account-number segment. |
-| 4402 | AccountNumberSequenceExhausted | 422 | The hourly product sequence is exhausted. |
-| 4403 | AccountStatusTransitionNotAllowed | 422 | The account status transition is forbidden. |
-| 4404 | AccountHolderUpdateNotAllowed | 422 | Holder details cannot be updated for this account. |
-| 4405 | InterestRateRuleNotApplicable | 422 | The selected interest-rate rule is inapplicable. |
-| 4407 | FixedDepositStatusTransitionNotAllowed | 422 | The fixed-deposit transition or update is forbidden. |
-| 4460 | TransactionMissingAccountingEntries | 422 | End-of-day audit found a posted transaction with no accounting entries. |
-| 4461 | TransactionEntriesUnbalanced | 422 | End-of-day audit found a transaction whose debit and credit entries differ. |
-| 4462 | DailyAccountingUnbalanced | 422 | The day's total debits and credits are not equal. |
-| 4463 | AuditUserUnavailable | 422 | No user is available to record the end-of-day reconciliation. |
-| 4464 | UnsupportedGlAccountClass | 422 | A GL account has an account class the reports cannot classify. |
-| 4465 | TransactionAccountingEntriesIncomplete | 422 | A transaction journal is missing required lines, contains duplicate lines, or has non-positive amounts. |
-| 4466 | ReconciliationExceptionNotResolvable | 422 | Reconciliation must confirm the difference is cleared before the exception can be resolved. |
-| 4467 | CashSessionNotOpen | 422 | An open cash session for the teller or vault and business date is required. |
-| 4468 | BusinessDateClosed | 422 | Normal financial posting is not allowed to a closed business date. |
-| 4469 | BusinessDateTransitionConflict | 409 | The requested business-date transition is not valid for the current lifecycle state. |
-| 4470 | ReconciliationBlocked | 422 | The business date cannot advance while blocking reconciliation or pre-close conditions remain. |
-| 4471 | EndOfDayApprovalRequired | 422 | A distinct authorized reviewer must approve the EOD run before it can close. |
-| 4472 | CashAdjustmentApprovalRequired | 422 | Cash adjustment approval requires a distinct authorized reviewer and a matching posted correction transaction. |
-| 4475 | CashSessionAlreadyExists | 409 | This teller or vault position already has an open session for the business date. |
-| 4476 | InsufficientCashPositionBalance | 422 | The current cash session does not have enough available cash for the withdrawal. |
-| 4477 | CashHandoffRecipientRequired | 422 | A positive physical cash count needs an eligible handoff recipient. |
-| 4478 | CashHandoffNotPending | 422 | The handoff is no longer awaiting acknowledgement or reassignment. |
+| Code | Name                                   | HTTP | Meaning                                                                                                        |
+| ---- | -------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------- |
+| 4400 | BusinessRuleViolation                  | 422  | A general business rule was violated.                                                                          |
+| 4401 | AccountTypeIdentifierOutOfRange        | 422  | The account-type ID cannot fit its account-number segment.                                                     |
+| 4402 | AccountNumberSequenceExhausted         | 422  | The hourly product sequence is exhausted.                                                                      |
+| 4403 | AccountStatusTransitionNotAllowed      | 422  | The account status transition is forbidden.                                                                    |
+| 4404 | AccountHolderUpdateNotAllowed          | 422  | Holder details cannot be updated for this account.                                                             |
+| 4405 | InterestRateRuleNotApplicable          | 422  | The selected interest-rate rule is inapplicable.                                                               |
+| 4407 | FixedDepositStatusTransitionNotAllowed | 422  | The fixed-deposit transition or update is forbidden.                                                           |
+| 4460 | TransactionMissingAccountingEntries    | 422  | End-of-day audit found a posted transaction with no accounting entries.                                        |
+| 4461 | TransactionEntriesUnbalanced           | 422  | End-of-day audit found a transaction whose debit and credit entries differ.                                    |
+| 4462 | DailyAccountingUnbalanced              | 422  | The day's total debits and credits are not equal.                                                              |
+| 4463 | AuditUserUnavailable                   | 422  | No user is available to record the end-of-day reconciliation.                                                  |
+| 4464 | UnsupportedGlAccountClass              | 422  | A GL account has an account class the reports cannot classify.                                                 |
+| 4465 | TransactionAccountingEntriesIncomplete | 422  | A transaction journal is missing required lines, contains duplicate lines, or has non-positive amounts.        |
+| 4466 | ReconciliationExceptionNotResolvable   | 422  | Reconciliation must confirm the difference is cleared before the exception can be resolved.                    |
+| 4467 | CashSessionNotOpen                     | 422  | An open cash session for the teller or vault and business date is required.                                    |
+| 4468 | BusinessDateClosed                     | 422  | Normal financial posting is not allowed to a closed business date.                                             |
+| 4469 | BusinessDateTransitionConflict         | 409  | The requested business-date transition is not valid for the current lifecycle state.                           |
+| 4470 | ReconciliationBlocked                  | 422  | The business date cannot advance while blocking reconciliation or pre-close conditions remain.                 |
+| 4471 | EndOfDayApprovalRequired               | 422  | A distinct authorized reviewer must approve the EOD run before it can close.                                   |
+| 4472 | CashAdjustmentApprovalRequired         | 422  | Cash adjustment approval requires a distinct authorized reviewer and a matching posted correction transaction. |
+| 4475 | CashSessionAlreadyExists               | 409  | This teller or vault position already has an open session for the business date.                               |
+| 4476 | InsufficientCashPositionBalance        | 422  | The current cash session does not have enough available cash for the withdrawal.                               |
+| 4477 | CashHandoffRecipientRequired           | 422  | A positive physical cash count needs an eligible handoff recipient.                                            |
+| 4478 | CashHandoffNotPending                  | 422  | The handoff is no longer awaiting acknowledgement or reassignment.                                             |
 
 | Code | Name                     | HTTP | Meaning                                                 |
 | ---- | ------------------------ | ---- | ------------------------------------------------------- |
@@ -424,7 +419,8 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 | 4404 | AccountHolderUpdateNotAllowed          | 422  | Holder details cannot be updated for this account.         |
 | 4405 | InterestRateRuleNotApplicable          | 422  | The selected interest-rate rule is inapplicable.           |
 | 4407 | FixedDepositStatusTransitionNotAllowed | 422  | The fixed-deposit transition or update is forbidden.       |
->>>>>>> origin/feature/customers
+
+> > > > > > > main
 
 ## System and infrastructure
 
@@ -437,94 +433,94 @@ Message codes are stable API contracts. Clients must branch on the numeric code 
 
 The WPF client mirrors server codes below 6000 in `bams.desktop/Utils/MessageCode.cs`. These additional codes never come from the server.
 
-| Code | Name                            | Meaning                                                                        |
-| ---- | ------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 1000 | Success                         | General successful operation.                                                  |
-| 1100 | AccountCreatedSuccessfully      | Account creation succeeded.                                                    |
-| 1300 | CustomerCreatedSuccessfully     | Customer creation succeeded.                                                   |
-| 1301 | CustomerUpdatedSuccessfully     | Customer update succeeded.                                                     |
-| 1302 | CustomerKycReviewedSuccessfully | Customer KYC review decision recorded successfully.                            |
-| 3000 | ValidationFailed                | One or more validation errors occurred.                                        |
-| 3002 | InvalidRequest                  | The request shape or content is invalid.                                       |
-| 3003 | InvalidAmount                   | A supplied amount is invalid.                                                  |
-| 3100 | AccountNameRequired             | Account name is missing.                                                       |
-| 3101 | AccountTypeInvalid              | Account type is invalid.                                                       |
-| 3102 | OpeningBalanceInvalid           | Opening balance is below the allowed minimum.                                  |
-| 3200 | CustomerFullNameRequired        | Customer full name is missing.                                                 |
-| 3201 | CustomerDateOfBirthInvalid      | Customer date of birth is in the future.                                       |
-| 3202 | CustomerBelowMinimumAge         | Customer does not meet the minimum age requirement.                            |
-| 3203 | NrcNumberRequired               | NRC number is required for citizen customers.                                  |
-| 3204 | PassportNumberRequired          | Passport number is required for foreigner customers.                           |
-| 3205 | CustomerDocumentFileEmpty       | An uploaded customer document file is empty.                                   |
-| 3206 | CustomerEmailInvalid            | The supplied customer email address is not a valid format.                     |
-| 3207 | CustomerDocumentTypeRequired    | A new document entry (no Id) must specify a document type.                     |
-| 3208 | InvalidKycReviewStatus          | A KYC review must set the status to Verified or Rejected, not Pending.         |
-| 4100 | AccessDenied                    | The user is not allowed to perform the operation.                              |
-| 4201 | AccountNotFound                 | The requested account does not exist.                                          |
-| 4202 | CustomerNotFound                | The requested customer does not exist.                                         |
-| 4204 | UserNotFound                    | The requested user does not exist.                                             |
-| 4205 | KycReviewerNotFound             | The user performing a KYC review does not exist.                               |
-| 4206 | CustomerDocumentNotFound        | A document Id in an update request does not belong to the customer.            |
-| 4302 | AccountAlreadyExists            | An account conflicts with an existing account.                                 |
-| 4305 | UsernameAlreadyExists           | A user with this username already exists.                                      |
-| 4306 | EmailAlreadyExists              | A user with this email already exists.                                         |
-| 4307 | CustomerAlreadyExists           | A customer with the same NRC number, passport number, or email already exists. |
-| 4400 | BusinessRuleViolation           | A business rule was violated.                                                  |
-| 5000 | InternalServerError             | An unexpected server error occurred.                                           |
-| 6000 | ClientError                     | Unexpected client-side failure.                                                |
-| 6001 | NetworkUnavailable              | The server could not be reached.                                               |
-| 6002 | RequestTimeout                  | The server did not answer in time.                                             |
-| 6003 | InvalidServerResponse           | The server response could not be read.                                         |
-| 6010 | CurrentPasswordIncorrect        | Change-password screen text for a server `InvalidCredentials`.                 |
-| Code | Name                            | HTTP                                                                           | Meaning                                                                                    |
-| ---  | ---                             | ---                                                                            | ---                                                                                        |
-| 1000 | Success                         | 200                                                                            | General successful operation.                                                              |
-| 1100 | AccountCreatedSuccessfully      | 201                                                                            | Account creation succeeded.                                                                |
-| 3000 | ValidationFailed                | 400                                                                            | One or more validation errors occurred.                                                    |
-| 3001 | RequiredFieldMissing            | 400                                                                            | A required field is empty.                                                                 |
-| 3002 | InvalidRequest                  | 400                                                                            | The request shape or content is invalid.                                                   |
-| 3003 | InvalidAmount                   | 400                                                                            | A supplied amount is invalid.                                                              |
-| 3004 | InvalidCredentials              | 400                                                                            | Username or password is wrong (login), or the current password is wrong (change password). |
-| 3005 | PasswordDoesNotMeetRequirements | 400                                                                            | New password fails the complexity rules.                                                   |
-| 3102 | OpeningBalanceInvalid           | 400                                                                            | Opening balance is below the account type's minimum.                                       |
-| 4000 | AuthenticationRequired          | 401                                                                            | No valid JWT, or the token's user no longer exists.                                        |
-| 4001 | PasswordChangeRequired          | —                                                                              | The user must change their password before continuing.                                     |
-| 4002 | PasswordChangedSuccessfully     | 200                                                                            | Password change succeeded.                                                                 |
-| 4003 | UserAccountDisabled             | 403                                                                            | The user's `Status` is not `Active`; login and protected endpoints are refused.            |
-| 4100 | AccessDenied                    | 403                                                                            | The user is not allowed to perform the operation.                                          |
-| 4101 | InsufficientPermission          | 403                                                                            | None of the user's roles grants a permission required by `[RequirePermission]`.            |
-| 4200 | ResourceNotFound                | 404                                                                            | A generic resource was not found.                                                          |
-| 4201 | AccountNotFound                 | 404                                                                            | The requested bank account does not exist.                                                 |
-| 4203 | AccountTypeNotFound             | 404                                                                            | The requested account type does not exist.                                                 |
-| 4204 | UserNotFound                    | 404                                                                            | The requested staff user does not exist.                                                   |
-| 4305 | UsernameAlreadyExists           | 409                                                                            | Another user already has this username.                                                    |
-| 4306 | EmailAlreadyExists              | 409                                                                            | Another user already has this email.                                                       |
-| 4473 | MonthlyAccountingPeriodNotClosed | 422 | Monthly close cannot run until the previous month's final business date is closed through End of Day. |
-| 4474 | ScheduledJobRetryUnavailable | 422 | The failed occurrence is no longer eligible for a manager retry. |
-| 4475 | CashSessionAlreadyExists | 409 | This teller or vault position already has an open session for the business date. |
-| 4477 | CashHandoffRecipientRequired | 422 | A positive physical cash count needs an eligible handoff recipient. |
-| 4478 | CashHandoffNotPending | 422 | The handoff is no longer awaiting acknowledgement or reassignment. |
-| 4476 | InsufficientCashPositionBalance | 422 | A withdrawal would make expected cash negative. |
-| 4400 | BusinessRuleViolation           | 422                                                                            | A business rule was violated.                                                              |
-| 5000 | InternalServerError             | 500                                                                            | An unexpected server error occurred.                                                       |
+| Code | Name                             | Meaning                                                                        |
+| ---- | -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| 1000 | Success                          | General successful operation.                                                  |
+| 1100 | AccountCreatedSuccessfully       | Account creation succeeded.                                                    |
+| 1300 | CustomerCreatedSuccessfully      | Customer creation succeeded.                                                   |
+| 1301 | CustomerUpdatedSuccessfully      | Customer update succeeded.                                                     |
+| 1302 | CustomerKycReviewedSuccessfully  | Customer KYC review decision recorded successfully.                            |
+| 3000 | ValidationFailed                 | One or more validation errors occurred.                                        |
+| 3002 | InvalidRequest                   | The request shape or content is invalid.                                       |
+| 3003 | InvalidAmount                    | A supplied amount is invalid.                                                  |
+| 3100 | AccountNameRequired              | Account name is missing.                                                       |
+| 3101 | AccountTypeInvalid               | Account type is invalid.                                                       |
+| 3102 | OpeningBalanceInvalid            | Opening balance is below the allowed minimum.                                  |
+| 3200 | CustomerFullNameRequired         | Customer full name is missing.                                                 |
+| 3201 | CustomerDateOfBirthInvalid       | Customer date of birth is in the future.                                       |
+| 3202 | CustomerBelowMinimumAge          | Customer does not meet the minimum age requirement.                            |
+| 3203 | NrcNumberRequired                | NRC number is required for citizen customers.                                  |
+| 3204 | PassportNumberRequired           | Passport number is required for foreigner customers.                           |
+| 3205 | CustomerDocumentFileEmpty        | An uploaded customer document file is empty.                                   |
+| 3206 | CustomerEmailInvalid             | The supplied customer email address is not a valid format.                     |
+| 3207 | CustomerDocumentTypeRequired     | A new document entry (no Id) must specify a document type.                     |
+| 3208 | InvalidKycReviewStatus           | A KYC review must set the status to Verified or Rejected, not Pending.         |
+| 4100 | AccessDenied                     | The user is not allowed to perform the operation.                              |
+| 4201 | AccountNotFound                  | The requested account does not exist.                                          |
+| 4202 | CustomerNotFound                 | The requested customer does not exist.                                         |
+| 4204 | UserNotFound                     | The requested user does not exist.                                             |
+| 4205 | KycReviewerNotFound              | The user performing a KYC review does not exist.                               |
+| 4206 | CustomerDocumentNotFound         | A document Id in an update request does not belong to the customer.            |
+| 4302 | AccountAlreadyExists             | An account conflicts with an existing account.                                 |
+| 4305 | UsernameAlreadyExists            | A user with this username already exists.                                      |
+| 4306 | EmailAlreadyExists               | A user with this email already exists.                                         |
+| 4307 | CustomerAlreadyExists            | A customer with the same NRC number, passport number, or email already exists. |
+| 4400 | BusinessRuleViolation            | A business rule was violated.                                                  |
+| 5000 | InternalServerError              | An unexpected server error occurred.                                           |
+| 6000 | ClientError                      | Unexpected client-side failure.                                                |
+| 6001 | NetworkUnavailable               | The server could not be reached.                                               |
+| 6002 | RequestTimeout                   | The server did not answer in time.                                             |
+| 6003 | InvalidServerResponse            | The server response could not be read.                                         |
+| 6010 | CurrentPasswordIncorrect         | Change-password screen text for a server `InvalidCredentials`.                 |
+| Code | Name                             | HTTP                                                                           | Meaning                                                                                               |
+| ---  | ---                              | ---                                                                            | ---                                                                                                   |
+| 1000 | Success                          | 200                                                                            | General successful operation.                                                                         |
+| 1100 | AccountCreatedSuccessfully       | 201                                                                            | Account creation succeeded.                                                                           |
+| 3000 | ValidationFailed                 | 400                                                                            | One or more validation errors occurred.                                                               |
+| 3001 | RequiredFieldMissing             | 400                                                                            | A required field is empty.                                                                            |
+| 3002 | InvalidRequest                   | 400                                                                            | The request shape or content is invalid.                                                              |
+| 3003 | InvalidAmount                    | 400                                                                            | A supplied amount is invalid.                                                                         |
+| 3004 | InvalidCredentials               | 400                                                                            | Username or password is wrong (login), or the current password is wrong (change password).            |
+| 3005 | PasswordDoesNotMeetRequirements  | 400                                                                            | New password fails the complexity rules.                                                              |
+| 3102 | OpeningBalanceInvalid            | 400                                                                            | Opening balance is below the account type's minimum.                                                  |
+| 4000 | AuthenticationRequired           | 401                                                                            | No valid JWT, or the token's user no longer exists.                                                   |
+| 4001 | PasswordChangeRequired           | —                                                                              | The user must change their password before continuing.                                                |
+| 4002 | PasswordChangedSuccessfully      | 200                                                                            | Password change succeeded.                                                                            |
+| 4003 | UserAccountDisabled              | 403                                                                            | The user's `Status` is not `Active`; login and protected endpoints are refused.                       |
+| 4100 | AccessDenied                     | 403                                                                            | The user is not allowed to perform the operation.                                                     |
+| 4101 | InsufficientPermission           | 403                                                                            | None of the user's roles grants a permission required by `[RequirePermission]`.                       |
+| 4200 | ResourceNotFound                 | 404                                                                            | A generic resource was not found.                                                                     |
+| 4201 | AccountNotFound                  | 404                                                                            | The requested bank account does not exist.                                                            |
+| 4203 | AccountTypeNotFound              | 404                                                                            | The requested account type does not exist.                                                            |
+| 4204 | UserNotFound                     | 404                                                                            | The requested staff user does not exist.                                                              |
+| 4305 | UsernameAlreadyExists            | 409                                                                            | Another user already has this username.                                                               |
+| 4306 | EmailAlreadyExists               | 409                                                                            | Another user already has this email.                                                                  |
+| 4473 | MonthlyAccountingPeriodNotClosed | 422                                                                            | Monthly close cannot run until the previous month's final business date is closed through End of Day. |
+| 4474 | ScheduledJobRetryUnavailable     | 422                                                                            | The failed occurrence is no longer eligible for a manager retry.                                      |
+| 4475 | CashSessionAlreadyExists         | 409                                                                            | This teller or vault position already has an open session for the business date.                      |
+| 4477 | CashHandoffRecipientRequired     | 422                                                                            | A positive physical cash count needs an eligible handoff recipient.                                   |
+| 4478 | CashHandoffNotPending            | 422                                                                            | The handoff is no longer awaiting acknowledgement or reassignment.                                    |
+| 4476 | InsufficientCashPositionBalance  | 422                                                                            | A withdrawal would make expected cash negative.                                                       |
+| 4400 | BusinessRuleViolation            | 422                                                                            | A business rule was violated.                                                                         |
+| 5000 | InternalServerError              | 500                                                                            | An unexpected server error occurred.                                                                  |
 
 ## Client-only codes (WPF)
 
-| Code | Name                     | Meaning                                                        |
-| ---- | ------------------------ | -------------------------------------------------------------- |
-| 6000 | ClientError              | Unexpected client-side failure.                                |
-| 6001 | NetworkUnavailable       | The server could not be reached.                               |
-| 6002 | RequestTimeout           | The server did not answer in time.                             |
-| 6003 | InvalidServerResponse    | The server response could not be read.                         |
-| 6020 | ScheduledJobAlertsUnavailable | The desktop could not load scheduled-operation alerts. |
-| Code | Name                     | Meaning                                                        |
-| ---  | ---                      | ---                                                            |
-| 6000 | ClientError              | Unexpected client-side failure.                                |
-| 6001 | NetworkUnavailable       | The server could not be reached.                               |
-| 6002 | RequestTimeout           | The server did not answer in time.                             |
-| 6003 | InvalidServerResponse    | The server response could not be read.                         |
-| 6010 | CurrentPasswordIncorrect | Client text corresponding to server `InvalidCredentials`.      |
-| 6010 | CurrentPasswordIncorrect | Change-password screen text for a server `InvalidCredentials`. |
+| Code | Name                          | Meaning                                                        |
+| ---- | ----------------------------- | -------------------------------------------------------------- |
+| 6000 | ClientError                   | Unexpected client-side failure.                                |
+| 6001 | NetworkUnavailable            | The server could not be reached.                               |
+| 6002 | RequestTimeout                | The server did not answer in time.                             |
+| 6003 | InvalidServerResponse         | The server response could not be read.                         |
+| 6020 | ScheduledJobAlertsUnavailable | The desktop could not load scheduled-operation alerts.         |
+| Code | Name                          | Meaning                                                        |
+| ---  | ---                           | ---                                                            |
+| 6000 | ClientError                   | Unexpected client-side failure.                                |
+| 6001 | NetworkUnavailable            | The server could not be reached.                               |
+| 6002 | RequestTimeout                | The server did not answer in time.                             |
+| 6003 | InvalidServerResponse         | The server response could not be read.                         |
+| 6010 | CurrentPasswordIncorrect      | Client text corresponding to server `InvalidCredentials`.      |
+| 6010 | CurrentPasswordIncorrect      | Change-password screen text for a server `InvalidCredentials`. |
 
 ## Number blocks per feature
 

@@ -21,6 +21,9 @@ public sealed record CustomerDisplayModel(
     string Status,
     string CreatedAt)
 {
+    /// <summary>Whether this customer's KYC review is still outstanding (shows the Review action).</summary>
+    public bool IsKycPending { get; init; }
+
     /// <summary>
     /// Builds a row from the server list item.
     /// </summary>
@@ -37,6 +40,9 @@ public sealed record CustomerDisplayModel(
             customer.KycStatus.ToString(),
             customer.RiskLevel.ToString(),
             customer.Status,
-            DateTimeDisplay.ToLocal(customer.CreatedAt).ToString(DisplayFormats.Date));
+            DateTimeDisplay.ToLocal(customer.CreatedAt).ToString(DisplayFormats.Date))
+        {
+            IsKycPending = customer.KycStatus == DTOs.Customers.KycStatus.Pending
+        };
     }
 }

@@ -41,6 +41,15 @@ public interface ICustomerService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Records a KYC review decision for a customer. Approving (Verified) stamps every one of the
+    /// customer's documents as verified; rejecting only changes the customer's KycStatus.
+    /// </summary>
+    Task<CustomerResponse> ReviewCustomerKycAsync(
+        long id,
+        ReviewCustomerKycRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Downloads one of a customer's documents to a local file path.
     /// </summary>
     Task DownloadCustomerDocumentAsync(
