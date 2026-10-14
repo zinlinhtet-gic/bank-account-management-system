@@ -113,6 +113,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             where item.Type == "AccountBalance" && item.BusinessDate >= request.FromDate &&
                 item.BusinessDate <= request.ToDate && item.Status != "Resolved"
             select item)
+            .AsTracking()
             .OrderByDescending(item => item.Id).ToListAsync(cancellationToken);
         var activeByAccountAndDate = activeExceptions.GroupBy(item => (item.AccountId!.Value, item.BusinessDate))
             .ToDictionary(group => group.Key, group => group.First());

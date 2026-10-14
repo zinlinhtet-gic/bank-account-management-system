@@ -2,6 +2,8 @@ using bams.server.Models.Accounting;
 using bams.server.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 using MySql.EntityFrameworkCore.Extensions;
 
 namespace bams.server.Data.Configurations;
@@ -48,7 +50,9 @@ public sealed class ReconciliationExceptionConfiguration : IEntityTypeConfigurat
     public void Configure(EntityTypeBuilder<ReconciliationException> builder)
     {
         builder.HasKey(item => item.Id);
-        builder.Property(item => item.Id).UseMySQLAutoIncrementColumn("bigint");
+        builder.Property(item => item.Id)
+            .UseMySQLAutoIncrementColumn("bigint")
+            .HasValueGenerator<TemporaryReconciliationExceptionIdGenerator>();
         builder.Property(item => item.Type).IsRequired().HasMaxLength(40);
         builder.Property(item => item.Source).IsRequired().HasMaxLength(40);
         builder.Property(item => item.Severity).IsRequired().HasMaxLength(20);
@@ -64,6 +68,16 @@ public sealed class ReconciliationExceptionConfiguration : IEntityTypeConfigurat
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_RE_PositionSession");
         builder.HasOne<bams.server.Models.Security.User>().WithMany().HasForeignKey(item => item.CreatedBy).OnDelete(DeleteBehavior.Restrict);
     }
+}
+
+/// <summary>Assigns temporary tracking keys; MySQL supplies the persisted AUTO_INCREMENT value.</summary>
+public sealed class TemporaryReconciliationExceptionIdGenerator : ValueGenerator<long>
+{
+    private static long _lastTemporaryId;
+
+    public override bool GeneratesTemporaryValues => true;
+
+    public override long Next(EntityEntry entry) => Interlocked.Decrement(ref _lastTemporaryId);
 }
 
 public sealed class ReconciliationExceptionHistoryConfiguration : IEntityTypeConfiguration<ReconciliationExceptionHistory>
