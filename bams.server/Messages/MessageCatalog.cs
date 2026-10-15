@@ -119,6 +119,8 @@ public static class MessageCatalog
             [MessageCode.EmailAlreadyExists] = "A user with this email already exists.",
             [MessageCode.IdempotencyKeyReused] = "This idempotency key was already used for a different request.",
             [MessageCode.AccountTypeCodeAlreadyExists] = "An account type with this code already exists.",
+            [MessageCode.FeeRuleOverlaps] = "An active fee rule already exists for this account type, fee type and effective period.",
+            [MessageCode.InterestRateRuleOverlaps] = "An active interest rate rule already exists for this account type, term, balance range and effective period.",
             [MessageCode.BusinessRuleViolation] = "The requested operation violates a business rule.",
             [MessageCode.InsufficientBalance] = "The account has insufficient available balance.",
             [MessageCode.AccountNotOperational] = "The account is closed, frozen or suspended and cannot be used for transactions.",

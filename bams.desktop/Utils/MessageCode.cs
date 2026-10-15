@@ -92,6 +92,8 @@ public enum MessageCode
     CustomerAlreadyExists = 4307,
     IdempotencyKeyReused = 4330,
     AccountTypeCodeAlreadyExists = 4340,
+    InterestRateRuleOverlaps = 4341,
+    FeeRuleOverlaps = 4342,
 
     // Business Rules: 4400 - 4499
     InsufficientBalance = 4440,
