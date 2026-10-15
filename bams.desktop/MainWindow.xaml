@@ -95,6 +95,12 @@
                     <DataTemplate DataType="{x:Type accountingViewModels:CashReconciliationViewModel}">
                         <accountingViews:CashReconciliationView/>
                     </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashRequestCenterViewModel}">
+                        <accountingViews:CashRequestCenterView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:BusinessDateOpeningViewModel}">
+                        <accountingViews:BusinessDateOpeningView/>
+                    </DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:EndOfDayViewModel}">
                         <accountingViews:EndOfDayView/>
                     </DataTemplate>

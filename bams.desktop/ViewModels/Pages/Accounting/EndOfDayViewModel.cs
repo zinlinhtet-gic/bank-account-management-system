@@ -308,22 +308,11 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             SuccessMessage = string.Empty;
             var closedDate = Summary.BusinessDate?.Date;
             ApplyRun(await _service.CloseAsync(FinalReview.Run.RunId, CancellationToken.None));
-            var nextDate = closedDate?.AddDays(1);
-            IReadOnlyList<BusinessDateResponse> nextRecords = nextDate.HasValue
-                ? await _service.SearchBusinessDatesAsync(nextDate, nextDate, CancellationToken.None)
-                : Array.Empty<BusinessDateResponse>();
-            BusinessDateResponse? nextBusinessDate = nextRecords.FirstOrDefault();
-            if (nextBusinessDate is null && closedDate.HasValue)
-            {
-                IReadOnlyList<BusinessDateResponse> closedRecords = await _service.SearchBusinessDatesAsync(
-                    closedDate, closedDate, CancellationToken.None);
-                nextBusinessDate = closedRecords.FirstOrDefault();
-            }
-            Summary.BusinessDate = nextBusinessDate ?? await _service.GetCurrentBusinessDateAsync(CancellationToken.None);
+            Summary.BusinessDate = await _service.GetCurrentBusinessDateAsync(CancellationToken.None);
             SelectedBusinessDate = Summary.BusinessDate.Date.ToDateTime(TimeOnly.MinValue);
             SuccessMessage = closedDate.HasValue
-                ? Summary.BusinessDate.Status == "Closed"
-                    ? $"Business date {closedDate.Value:yyyy-MM-dd} closed successfully. No future business date was opened."
+                ? Summary.BusinessDate.Status == "NotStarted"
+                    ? $"Business date {closedDate.Value:yyyy-MM-dd} closed successfully. A manager must start business date {Summary.BusinessDate.Date:yyyy-MM-dd}."
                     : $"Business date {closedDate.Value:yyyy-MM-dd} closed successfully. Business date {Summary.BusinessDate.Date:yyyy-MM-dd} is now selected."
                 : $"Business date closed successfully. Business date {Summary.BusinessDate.Date:yyyy-MM-dd} is now selected.";
             OnPropertyChanged(nameof(BusinessDateStatus));

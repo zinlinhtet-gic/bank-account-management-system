@@ -3,6 +3,7 @@ using bams.server.Data;
 using bams.server.DTO.Accounting;
 using bams.server.Exceptions;
 using bams.server.Messages;
+using bams.server.Models.Accounting;
 using bams.server.Models.Security;
 using bams.server.Services.Interfaces;
 using bams.server.Utils;
@@ -10,89 +11,87 @@ using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
-/// <summary>Provides the persisted bank-wide business date, initializing the first open day when needed.</summary>
+/// <summary>Provides the manager-started, persisted bank-wide business date.</summary>
 public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserService currentUser) : IBusinessDateService
 {
     public async Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken)
     {
-        var businessDate = await GetOrCreateOpenDateAsync(BusinessTime.Today, cancellationToken);
-        return new BusinessDateResponse(businessDate.Date, businessDate.Status, businessDate.OpenedAtUtc, businessDate.ClosedAtUtc);
+        var currentDate = BusinessTime.Today;
+        var businessDate = await db.BusinessDates.AsNoTracking().Where(item => item.Date <= currentDate && item.Status == OperationsConstants.BusinessDateOpen)
+            .OrderBy(item => item.Date).FirstOrDefaultAsync(cancellationToken);
+        if (businessDate is null)
+            businessDate = await db.BusinessDates.AsNoTracking().SingleOrDefaultAsync(item => item.Date == currentDate, cancellationToken);
+        return businessDate is null
+            ? new BusinessDateResponse(currentDate, "NotStarted", DateTime.MinValue, null)
+            : new BusinessDateResponse(businessDate.Date, businessDate.Status, businessDate.OpenedAtUtc, businessDate.ClosedAtUtc);
     }
 
     public async Task<DateOnly> GetOpenBusinessDateValueAsync(CancellationToken cancellationToken) =>
-        (await GetOrCreateOpenDateAsync(BusinessTime.Today, cancellationToken)).Date;
+        await db.BusinessDates.AsNoTracking().Where(item => item.Status == OperationsConstants.BusinessDateOpen && item.Date <= BusinessTime.Today)
+            .OrderBy(item => item.Date).Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken)
+        ?? throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
 
-    /// <summary>Returns the active date for a financial posting and prevents posting into yesterday after midnight until EOD closes it.</summary>
+    /// <summary>Returns today's explicitly opened date and blocks posting until a manager starts it.</summary>
     public async Task<DateOnly> GetPostingBusinessDateValueAsync(DateTime nowUtc, CancellationToken cancellationToken)
     {
-        return (await GetOrCreateOpenDateAsync(BusinessTime.ToBusinessDate(nowUtc), cancellationToken)).Date;
+        var currentDate = BusinessTime.ToBusinessDate(nowUtc);
+        var openDate = await db.BusinessDates.AsNoTracking().SingleOrDefaultAsync(item =>
+            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
+        if (openDate is null || await db.BusinessDates.AnyAsync(item => item.Date < currentDate && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken))
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        return currentDate;
     }
 
-    private async Task<Models.Accounting.BusinessDate> GetOrCreateOpenDateAsync(DateOnly currentDate, CancellationToken cancellationToken)
+    public async Task<BusinessDateResponse> StartCurrentBusinessDateAsync(StartBusinessDateRequest request, CancellationToken cancellationToken)
     {
-        if (currentDate > BusinessTime.Today)
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        if (!request.StartingCash.HasValue)
+            throw new ValidationException(MessageCode.RequiredFieldMissing);
+        if (request.StartingCash.Value < 0m || decimal.Round(request.StartingCash.Value, 2) != request.StartingCash.Value)
+            throw new ValidationException(MessageCode.InvalidAmount);
 
-        var open = await db.BusinessDates.FirstOrDefaultAsync(item =>
-            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-        if (open is not null) return open;
-
-        var currentDateIsClosed = await db.BusinessDates.AnyAsync(item =>
-            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (currentDateIsClosed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);
-        var yesterdayIsNotClosed = await db.BusinessDates.AnyAsync(item =>
-            item.Date == currentDate.AddDays(-1) && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (yesterdayIsNotClosed) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-
+        var date = BusinessTime.Today;
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        open = await db.BusinessDates.FirstOrDefaultAsync(item =>
-            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-        if (open is not null)
+        var previous = (await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {date.AddDays(-1)} FOR UPDATE")
+            .ToListAsync(cancellationToken)).SingleOrDefault();
+        if (previous is not null && previous.Status != OperationsConstants.BusinessDateClosed)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        if (await db.BusinessDates.AnyAsync(item => item.Status == OperationsConstants.BusinessDateOpen && item.Date <= date, cancellationToken))
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        if (await db.BusinessDates.AnyAsync(item => item.Date == date || (item.Date < date && item.Status != OperationsConstants.BusinessDateClosed), cancellationToken))
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        var now = DateTime.UtcNow;
+        var businessDate = new Models.Accounting.BusinessDate
         {
-            await transaction.CommitAsync(cancellationToken);
-            return open;
-        }
-
-        currentDateIsClosed = await db.BusinessDates.AnyAsync(item =>
-            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (currentDateIsClosed) throw new BusinessRuleException(MessageCode.BusinessDateClosed);
-        yesterdayIsNotClosed = await db.BusinessDates.AnyAsync(item =>
-            item.Date == currentDate.AddDays(-1) && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (yesterdayIsNotClosed) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-
-        open = new Models.Accounting.BusinessDate
-        {
-            Date = currentDate, Status = OperationsConstants.BusinessDateOpen,
-            OpenedBy = await GetActorIdAsync(cancellationToken), OpenedAtUtc = DateTime.UtcNow
+            Date = date, Status = OperationsConstants.BusinessDateOpen,
+            OpenedBy = currentUser.GetCurrentUserId(), OpenedAtUtc = now
         };
-        db.BusinessDates.Add(open);
-        try
+        db.BusinessDates.Add(businessDate);
+        db.CashPositionSessions.Add(new CashPositionSession
         {
-            await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return open;
-        }
+            PositionType = OperationsConstants.CashPositionVault,
+            BusinessDate = date,
+            OpeningCash = request.StartingCash.Value,
+            ExpectedClosingCash = request.StartingCash.Value,
+            Status = OperationsConstants.CashSessionOpen,
+            OpenedAtUtc = now,
+            OpenedBy = businessDate.OpenedBy,
+            OpenIdempotencyKey = $"BDVAULT-{date:yyyyMMdd}"
+        });
+        try { await db.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(cancellationToken);
             db.ChangeTracker.Clear();
-            open = await db.BusinessDates.AsNoTracking().FirstOrDefaultAsync(item =>
-                item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-            if (open is not null) return open;
-            throw;
+            var concurrentStart = await db.BusinessDates.AsNoTracking().SingleOrDefaultAsync(item => item.Date == date, cancellationToken);
+            bool vaultExists = await db.CashPositionSessions.AsNoTracking().AnyAsync(session =>
+                session.BusinessDate == date && session.PositionType == OperationsConstants.CashPositionVault &&
+                session.Status == OperationsConstants.CashSessionOpen, cancellationToken);
+            if (concurrentStart?.Status == OperationsConstants.BusinessDateOpen && vaultExists)
+                return new BusinessDateResponse(date, concurrentStart.Status, concurrentStart.OpenedAtUtc, concurrentStart.ClosedAtUtc);
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
         }
+        await transaction.CommitAsync(cancellationToken);
+        return new BusinessDateResponse(date, businessDate.Status, now, null);
     }
 
-    // Scheduled callers without an HTTP identity use only the dedicated disabled system actor.
-    private async Task<long> GetActorIdAsync(CancellationToken cancellationToken)
-    {
-        try { return currentUser.GetCurrentUserId(); }
-        catch (AuthenticationRequiredException)
-        {
-            return await db.Users.AsNoTracking()
-                .Where(user => user.Username == ScheduledJobConstants.SystemActorUsername && user.Status == UserStatus.Disabled)
-                .Select(user => (long?)user.Id).SingleOrDefaultAsync(cancellationToken)
-                ?? throw new BusinessRuleException(MessageCode.AuditUserUnavailable);
-        }
-    }
 }

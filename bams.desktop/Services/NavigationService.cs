@@ -41,6 +41,8 @@ public sealed class NavigationService : INavigationService
             // Placeholder until reconciliation is built (shown by the generic page view).
             PageNames.Reconciliation => _serviceProvider.GetService<ReconciliationViewModel>(),
             PageNames.CashReconciliation => _serviceProvider.GetService<CashReconciliationViewModel>(),
+            PageNames.CashRequests => _serviceProvider.GetService<CashRequestCenterViewModel>(),
+            PageNames.BusinessDateOpening => _serviceProvider.GetService<BusinessDateOpeningViewModel>(),
             PageNames.EndOfDay => _serviceProvider.GetService<EndOfDayViewModel>(),
             PageNames.Operations => _serviceProvider.GetService<OperationsViewModel>(),
             PageNames.OperationInterest => _serviceProvider.GetService<OperationInterestViewModel>(),

@@ -211,6 +211,9 @@ namespace bams.server.Data.Migrations
                     b.Property<DateTime?>("DeclinedAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<long?>("DestinationSessionId")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("RecipientId")
                         .HasColumnType("bigint");
 
@@ -237,6 +240,8 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("CashCountId")
                         .IsUnique()
                         .HasDatabaseName("IX_CH_Count");
+
+                    b.HasIndex("DestinationSessionId");
 
                     b.HasIndex("SenderId");
 
@@ -371,6 +376,9 @@ namespace bams.server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("ActivatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("BusinessDate")
                         .HasColumnType("date");
 
@@ -403,6 +411,16 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<decimal>("ReservedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ScheduledEndAtMyanmar")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ScheduledStartAtMyanmar")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -423,9 +441,75 @@ namespace bams.server.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_CPS_Idem");
 
+                    b.HasIndex("BusinessDate", "TellerId", "Status");
+
                     b.HasIndex("TellerId", "BusinessDate", "Status");
 
                     b.ToTable("CashPositionSessions");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.CashProposal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("ApprovedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsInitialCash")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<long>("OfficerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("RequestedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ResolvedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("SessionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<long>("VaultSessionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedBy");
+
+                    b.HasIndex("OfficerId");
+
+                    b.HasIndex("SessionId", "Status");
+
+                    b.HasIndex("VaultSessionId", "Status");
+
+                    b.ToTable("CashProposals");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.DailySummary", b =>
@@ -490,14 +574,11 @@ namespace bams.server.Data.Migrations
                     b.Property<long?>("ClosedBy")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("PreparedAtUtc")
-                        .HasColumnType("datetime(6)");
+                    b.Property<string>("OverrideApprovalAuditJson")
+                        .HasColumnType("longtext");
 
-                    b.Property<DateTime?>("ReviewedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<long?>("ReviewedBy")
-                        .HasColumnType("bigint");
+                    b.Property<string>("OverrideApprovedUserIdsJson")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("OverrideReason")
                         .HasColumnType("longtext");
@@ -505,13 +586,16 @@ namespace bams.server.Data.Migrations
                     b.Property<string>("OverrideRequiredUserIdsJson")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("OverrideApprovedUserIdsJson")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("OverrideApprovalAuditJson")
-                        .HasColumnType("longtext");
+                    b.Property<DateTime>("PreparedAtUtc")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<long>("PreparedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewedBy")
                         .HasColumnType("bigint");
 
                     b.Property<string>("StageSummaryJson")
@@ -2489,6 +2573,12 @@ namespace bams.server.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_CH_Count");
 
+                    b.HasOne("bams.server.Models.Accounting.CashPositionSession", "DestinationSession")
+                        .WithMany()
+                        .HasForeignKey("DestinationSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CH_Dest");
+
                     b.HasOne("bams.server.Models.Security.User", "Recipient")
                         .WithMany()
                         .HasForeignKey("RecipientId")
@@ -2511,6 +2601,8 @@ namespace bams.server.Data.Migrations
                         .HasConstraintName("FK_CH_Sess");
 
                     b.Navigation("CashCount");
+
+                    b.Navigation("DestinationSession");
 
                     b.Navigation("Recipient");
 
@@ -2595,6 +2687,38 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Teller");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.CashProposal", b =>
+                {
+                    b.HasOne("bams.server.Models.Security.User", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("bams.server.Models.Security.User", "Officer")
+                        .WithMany()
+                        .HasForeignKey("OfficerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("bams.server.Models.Accounting.CashPositionSession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("bams.server.Models.Accounting.CashPositionSession", "VaultSession")
+                        .WithMany()
+                        .HasForeignKey("VaultSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Officer");
+
+                    b.Navigation("Session");
+
+                    b.Navigation("VaultSession");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.DailySummary", b =>

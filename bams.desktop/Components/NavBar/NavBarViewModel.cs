@@ -63,8 +63,15 @@ public partial class NavBarViewModel : ObservableObject
             AddAccountingNavigation(flags);
         }
 
-        if (flags.CanManageCashOperations && !flags.CanAccessAccounting)
-            AddNavItem(PageNames.CashReconciliation, "Icon.Finance", Items.Count == 0);
+        var cashManagementPages = new List<string>();
+        if (flags.CanApproveEndOfDay)
+            cashManagementPages.Add(PageNames.BusinessDateOpening);
+        if (flags.CanManageCashOperations)
+            cashManagementPages.Add(PageNames.CashReconciliation);
+        if (flags.CanApproveEndOfDay)
+            cashManagementPages.Add(PageNames.CashRequests);
+        if (cashManagementPages.Count > 0)
+            AddNavGroup(PageNames.CashManagement, "Icon.Finance", cashManagementPages.ToArray());
 
         if (flags.CanPerformOperations)
             AddNavGroup(PageNames.Operations, "Icon.Settings", PageNames.OperationInterest, PageNames.OperationFees, PageNames.FixedDepositMaturity);
@@ -137,6 +144,7 @@ public partial class NavBarViewModel : ObservableObject
         Items.Add(new() { Label = PageNames.Transactions, IconKey = "Icon.Transactions" });
         Items.Add(new() { Label = PageNames.TransactionHistory, IconKey = "Icon.Reports" });
         Items.Add(new() { Label = PageNames.Accounting, IconKey = "Icon.Finance" });
+        AddNavGroup(PageNames.CashManagement, "Icon.Finance", PageNames.BusinessDateOpening, PageNames.CashReconciliation, PageNames.CashRequests);
         Items.Add(new() { Label = PageNames.Operations, IconKey = "Icon.Settings" });
         Items.Add(new() { Label = PageNames.Audit, IconKey = "Icon.Shield" });
 
@@ -203,8 +211,6 @@ public partial class NavBarViewModel : ObservableObject
             accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
             accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
             accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
-            if (flags.CanManageCashOperations)
-                accounting.Children.Add(CreateChildNavItem(PageNames.CashReconciliation));
         }
         if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
             accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));

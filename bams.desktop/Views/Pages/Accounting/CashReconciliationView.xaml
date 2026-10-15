@@ -51,7 +51,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsSessionsTabSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel MinWidth="0">
                             <TextBlock Text="Business-date sessions" Style="{StaticResource Text.Subheading}" Margin="0,0,0,4" />
-                            <TextBlock Text="Choose a date to review its teller and vault positions. Opening a teller session makes financial write actions available for the officer."
+                                    <TextBlock Text="Choose a date to review its teller and vault positions. Officers can activate assigned sessions during their scheduled time window."
                                        Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,14" />
                             <WrapPanel Margin="0,0,0,14">
                                 <StackPanel Width="220" Margin="0,0,12,8">
@@ -63,23 +63,48 @@
                             </WrapPanel>
 
                             <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,14"
-                                    Visibility="{Binding HasCashOperationsPermission, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    Visibility="{Binding CanApproveAdjustments, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
-                                    <TextBlock Text="Open a session" Style="{StaticResource Text.Subheading}" Margin="0,0,0,4" />
-                                    <TextBlock Text="New sessions use the active business date, regardless of the date selected for the session list."
+                                    <TextBlock Text="Manager session setup" Style="{StaticResource Text.Subheading}" Margin="0,0,0,4" />
+                                    <TextBlock Text="Start the business date first. Teller sessions are assigned to one officer and can be activated during their Myanmar local start and end period. Unactivated sessions close automatically after the end time."
                                                Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,8" />
                                     <TextBlock Text="{Binding ActiveBusinessDate, StringFormat=Active business date: {0:yyyy-MM-dd}}"
                                                Style="{StaticResource Text.Caption}" Margin="0,0,0,12" />
+                                    <TextBlock Text="Teller start and end times use this current business date and Myanmar local time."
+                                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                               Visibility="{Binding IsTellerPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     <WrapPanel>
-                                        <StackPanel Width="210" Margin="0,0,12,8">
+                                        <StackPanel Width="210" Margin="0,0,12,8" Visibility="{Binding IsVaultPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <TextBlock Text="POSITION" Style="{StaticResource Text.FieldLabel}" />
                                             <ComboBox ItemsSource="{Binding PositionTypes}" SelectedItem="{Binding PositionType}" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose teller or vault" />
                                         </StackPanel>
-                                        <StackPanel Width="210" Margin="0,0,12,8">
-                                            <TextBlock Text="OPENING CASH" Style="{StaticResource Text.FieldLabel}" />
+                                        <StackPanel Width="260" Margin="0,0,12,8" Visibility="{Binding IsTellerPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="ASSIGNED OFFICER USER ID" Style="{StaticResource Text.FieldLabel}" />
+                                            <ComboBox ItemsSource="{Binding SessionAssignees}" SelectedItem="{Binding SelectedAssignee}" DisplayMemberPath="FullName" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose officer" />
+                                        </StackPanel>
+                                        <StackPanel Width="250" Margin="0,0,12,8" Visibility="{Binding IsTellerPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="START TIME (MYANMAR)" Style="{StaticResource Text.FieldLabel}" />
+                                            <ComboBox ItemsSource="{Binding ScheduleTimes}" Text="{Binding ScheduledStartText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEditable="True" IsTextSearchEnabled="False" Style="{StaticResource Input.Select}"
+                                                      t:ThemeAssist.Placeholder="Select or enter HH:mm" />
+                                        </StackPanel>
+                                        <StackPanel Width="250" Margin="0,0,12,8" Visibility="{Binding IsTellerPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="END TIME (MYANMAR)" Style="{StaticResource Text.FieldLabel}" />
+                                            <ComboBox ItemsSource="{Binding ScheduleTimes}" Text="{Binding ScheduledEndText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEditable="True" IsTextSearchEnabled="False" Style="{StaticResource Input.Select}"
+                                                      t:ThemeAssist.Placeholder="Select or enter HH:mm" />
+                                        </StackPanel>
+                                        <StackPanel Width="230" Margin="0,0,12,8">
+                                            <TextBlock Text="VAULT OPENING CASH" Style="{StaticResource Text.FieldLabel}"
+                                                       Visibility="{Binding IsVaultPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Text="TELLER STARTING CASH (REQUIRED)" Style="{StaticResource Text.FieldLabel}"
+                                                       Visibility="{Binding IsTellerPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                             <TextBox Text="{Binding OpeningCashText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="0.00" />
                                             <TextBlock Text="{Binding OpeningCashError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" />
                                         </StackPanel>
+                                        <TextBlock Width="290" Text="This amount is approved and reserved from the vault when the manager opens the session. After activation, the officer accepts and signs the receipt to receive it."
+                                                   Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8,12,8"
+                                                   Visibility="{Binding IsTellerPositionSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                         <Button Content="Open Session" Command="{Binding OpenSessionCommand}" Style="{StaticResource Button.Primary}"
                                                 VerticalAlignment="Top" Margin="0,20,0,8" />
                                     </WrapPanel>
@@ -91,17 +116,43 @@
                                     <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
                                         <TextBlock Text="Session register" Style="{StaticResource Text.FieldLabel}" />
                                     </Border>
-                                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" MinHeight="100" MaxHeight="280">
+                                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Sessions}"
+                                          SelectedItem="{Binding SelectedSession, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          SelectionMode="Single" SelectionUnit="FullRow" IsReadOnly="True"
+                                          MinHeight="100" MaxHeight="280">
                                     <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="Officer actions" Width="220" CanUserSort="False">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <Button Content="Activate session" Style="{StaticResource Button.Secondary}"
+                                                                Command="{Binding DataContext.ActivateSessionRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" Margin="0,0,0,4" />
+                                                        <Button Content="Accept &amp; Sign Receipt" Style="{StaticResource Button.Primary}"
+                                                                Command="{Binding DataContext.ReceiveCashForSessionRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" Margin="0,0,0,4" />
+                                                        <Button Content="Request cash" Style="{StaticResource Button.Secondary}"
+                                                                Command="{Binding DataContext.RequestCashRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="Session" Binding="{Binding Id}" />
                                         <DataGridTextColumn Header="Position" Binding="{Binding PositionType}" />
                                         <DataGridTextColumn Header="Teller" Binding="{Binding TellerId}" />
                                         <DataGridTextColumn Header="Business date" Binding="{Binding BusinessDate}" />
-                                        <DataGridTextColumn Header="Opening" Binding="{Binding OpeningCash, StringFormat=N2}" />
-                                        <DataGridTextColumn Header="Expected closing" Binding="{Binding ExpectedClosingCash, StringFormat=N2}" />
+                                        <DataGridTextColumn Header="Initial opening" Binding="{Binding OpeningCash, StringFormat=N2}" />
+                                        <DataGridTextColumn Header="Current expected cash" Binding="{Binding ExpectedClosingCash, StringFormat=N2}" />
                                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
+                                        <DataGridTextColumn Header="Start (Myanmar)" Binding="{Binding ScheduledStartAtMyanmar}" />
+                                        <DataGridTextColumn Header="End (Myanmar)" Binding="{Binding ScheduledEndAtMyanmar}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
+                                <WrapPanel Margin="0,8,0,0">
+                                    <Button Content="Cancel Scheduled Session" Command="{Binding CancelScheduledSessionCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
+                                </WrapPanel>
+                                <TextBlock Text="Request and review additional cash on the Cash Requests page. Approved cash appears here for the assigned officer to accept and sign." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,14,0,0"/>
                                 </DockPanel>
                             </Border>
                         </StackPanel>
@@ -134,6 +185,8 @@
                                         </StackPanel>
                                     </WrapPanel>
                                     <TextBlock Text="COUNT NOTES (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" Margin="0,14,0,4" />
+                                    <TextBlock Text="When a manager receives teller cash, acknowledging the handoff returns it to the vault automatically."
+                                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,8" />
                                     <TextBox Text="{Binding CountNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Add notes about this count" AcceptsReturn="True" />
                                     <TextBlock Text="{Binding CountNotesError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" />
                                     <Button Content="Submit Count and Close Session" Command="{Binding CountCashCommand}"

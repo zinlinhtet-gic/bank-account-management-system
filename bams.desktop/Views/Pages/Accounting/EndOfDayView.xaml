@@ -39,7 +39,7 @@
                             <TextBlock Text="Business date status: " Style="{StaticResource Text.BodyMuted}"/>
                             <TextBlock Text="{Binding BusinessDateStatus}" Style="{StaticResource Text.BodyMuted}"/>
                         </StackPanel>
-                        <TextBlock Text="The date advances only after the close is approved and completed." Style="{StaticResource Text.Caption}" Margin="0,3,0,0"/>
+                        <TextBlock Text="Review this business date, complete the closing checks, and submit the close workflow." Style="{StaticResource Text.Caption}" Margin="0,3,0,0"/>
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <DatePicker SelectedDate="{Binding SelectedBusinessDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         Style="{StaticResource Input.Date}" Width="170"/>

@@ -27,6 +27,9 @@ public sealed class EndOfDayWorkflowService(
     public Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken) =>
         businessDates.GetCurrentBusinessDateAsync(cancellationToken);
 
+    public Task<BusinessDateResponse> StartCurrentBusinessDateAsync(StartBusinessDateRequest request, CancellationToken cancellationToken) =>
+        businessDates.StartCurrentBusinessDateAsync(request, cancellationToken);
+
     public async Task<IReadOnlyList<BusinessDateResponse>> SearchBusinessDatesAsync(DateOnly? fromDate, DateOnly? toDate,
         CancellationToken cancellationToken)
     {
@@ -369,25 +372,6 @@ public sealed class EndOfDayWorkflowService(
         businessDate.ClosedAtUtc = closedAtUtc;
         businessDate.Version++;
 
-        DateOnly nextBusinessDateValue = run.BusinessDate.AddDays(1);
-        BusinessDate? nextBusinessDate = await db.BusinessDates.SingleOrDefaultAsync(
-            item => item.Date == nextBusinessDateValue, cancellationToken);
-        if (nextBusinessDate is null && nextBusinessDateValue <= BusinessTime.Today)
-        {
-            BusinessDate nextBusinessDateRecord = new()
-            {
-                Date = nextBusinessDateValue,
-                Status = OperationsConstants.BusinessDateOpen,
-                OpenedBy = actorId,
-                OpenedAtUtc = closedAtUtc
-            };
-            db.BusinessDates.Add(nextBusinessDateRecord);
-        }
-        else if (nextBusinessDate is not null && nextBusinessDate.Status != OperationsConstants.BusinessDateOpen)
-        {
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        }
-
         run.Status = OperationsConstants.EodClosed;
         run.ClosedBy = actorId;
         run.ClosedAtUtc = closedAtUtc;
@@ -426,9 +410,11 @@ public sealed class EndOfDayWorkflowService(
         long actorId = currentUser.GetCurrentUserId();
         await UpsertLedgerReconciliationExceptionAsync(date, dailyTotals?.Debits ?? 0m, dailyTotals?.Credits ?? 0m,
             ledgerUnbalanced, actorId, cancellationToken);
-        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status == OperationsConstants.CashSessionOpen, cancellationToken);
+        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status != OperationsConstants.CashSessionClosed, cancellationToken);
         int pendingHandoffs = await db.CashHandoffs.CountAsync(item => item.BusinessDate == date &&
               item.Status != OperationsConstants.CashHandoffAccepted, cancellationToken);
+        int pendingCashProposals = await db.CashProposals.CountAsync(item => item.Session!.BusinessDate == date &&
+            (item.Status == "PendingApproval" || item.Status == "PendingReceipt"), cancellationToken);
         List<long> resolvedInUnitOfWork = db.ReconciliationExceptions.Local
             .Where(item => item.BusinessDate == date && item.Severity == "Critical" &&
                 item.Status == OperationsConstants.ExceptionResolved && db.Entry(item).State == EntityState.Modified)
@@ -444,9 +430,9 @@ public sealed class EndOfDayWorkflowService(
             new(OperationsConstants.EodStagePendingApprovals, pendingApprovals == 0 ? "Complete" : "Blocked", pendingApprovals, null),
             new(OperationsConstants.EodStageAccountingEntries, missingEntries + unbalanced == 0 ? "Complete" : "Blocked", missingEntries + unbalanced, null),
             new(OperationsConstants.EodStageLedgerReconciliation, !ledgerUnbalanced ? "Complete" : "Blocked", ledgerUnbalanced ? 1 : 0, null),
-              new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs == 0 ? "Complete" : "Blocked",
-                  openSessions + pendingHandoffs, openSessions + pendingHandoffs == 0 ? null :
-                      $"{openSessions} open cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance or reassignment."),
+            new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs + pendingCashProposals == 0 ? "Complete" : "Blocked",
+                  openSessions + pendingHandoffs + pendingCashProposals, openSessions + pendingHandoffs + pendingCashProposals == 0 ? null :
+                      $"{openSessions} open or scheduled cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance or reassignment; {pendingCashProposals} cash proposal(s) awaiting resolution."),
             new(OperationsConstants.EodStageCriticalExceptions, criticalExceptions == 0 ? "Complete" : "Exceptions", criticalExceptions, null)
         ];
     }

@@ -186,6 +186,8 @@ public partial class App : Application
         services.AddTransient<ReconciliationViewModel>();
         services.AddSingleton<Services.IReconciliationService, Services.ReconciliationService>();
         services.AddTransient<CashReconciliationViewModel>();
+        services.AddTransient<CashRequestCenterViewModel>();
+        services.AddTransient<BusinessDateOpeningViewModel>();
         services.AddSingleton<Services.ICashOperationsClientService, Services.CashOperationsClientService>();
         services.AddTransient<EndOfDayViewModel>();
         services.AddSingleton<Services.IEndOfDayClientService, Services.EndOfDayClientService>();

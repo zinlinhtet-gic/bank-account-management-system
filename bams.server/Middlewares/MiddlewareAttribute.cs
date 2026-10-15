@@ -74,7 +74,7 @@ public sealed class RequirePermissionAttribute : Attribute, IAsyncActionFilter
             var postingDate = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
             var hasOpenSession = await dbContext.CashPositionSessions.AsNoTracking().AnyAsync(session =>
                 session.TellerId == userId && session.PositionType == OperationsConstants.CashPositionTeller &&
-                session.BusinessDate == postingDate && session.Status == OperationsConstants.CashSessionOpen,
+                session.BusinessDate == postingDate && session.Status == OperationsConstants.CashSessionOpen && session.ActivatedAtUtc != null,
                 cancellationToken);
             if (!hasOpenSession)
                 throw new BusinessRuleException(MessageCode.CashSessionNotOpen);

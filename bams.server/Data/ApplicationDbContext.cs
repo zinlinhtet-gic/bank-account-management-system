@@ -82,6 +82,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CashCount> CashCounts => Set<CashCount>();
     public DbSet<CashHandoff> CashHandoffs => Set<CashHandoff>();
     public DbSet<CashHandoffHistory> CashHandoffHistories => Set<CashHandoffHistory>();
+    public DbSet<CashProposal> CashProposals => Set<CashProposal>();
     public DbSet<EndOfDayRun> EndOfDayRuns => Set<EndOfDayRun>();
 
     // Audit

@@ -1,0 +1,47 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.BusinessDateOpeningView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Business Date Opening" Style="{StaticResource Text.Title}"/>
+            <TextBlock Text="Start today’s Myanmar business date and establish its opening vault cash balance."
+                       Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,18"/>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="TODAY’S BUSINESS DATE" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="{Binding BusinessDateSummary}" Style="{StaticResource Text.Heading}" Margin="0,5,0,8"/>
+                    <TextBlock Text="{Binding VaultSummary}" Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
+                    <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}"
+                            HorizontalAlignment="Left" Margin="0,14,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card.Compact}"
+                    Visibility="{Binding ShowStartForm, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="OPEN BUSINESS DATE AND VAULT" Style="{StaticResource Text.Subheading}"/>
+                    <TextBlock Text="Starting cash is required. The business date and vault session will be opened together."
+                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                    <TextBlock Text="STARTING VAULT CASH (REQUIRED)" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBox Text="{Binding StartingCashText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource Input.Text}" Width="280"
+                             IsEnabled="{Binding CanStartBusinessDate}" t:ThemeAssist.Placeholder="0.00"/>
+                    <Button Content="Start Business Date &amp; Open Vault" Command="{Binding StartBusinessDateCommand}"
+                            IsEnabled="{Binding CanStartBusinessDate}" Style="{StaticResource Button.Primary}"
+                            HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card.Compact}" Margin="0,12,0,0"
+                    Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/>
+            </Border>
+            <Border Style="{StaticResource Card.Compact}" Margin="0,12,0,0"
+                    Visibility="{Binding HasSuccess, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="{Binding SuccessMessage}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"/>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

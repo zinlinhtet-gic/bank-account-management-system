@@ -8,6 +8,8 @@ public sealed class CashHandoff
     public long Id { get; set; }
     public long SessionId { get; set; }
     public CashPositionSession? Session { get; set; }
+    public long? DestinationSessionId { get; set; }
+    public CashPositionSession? DestinationSession { get; set; }
     public long CashCountId { get; set; }
     public CashCount? CashCount { get; set; }
     public DateOnly BusinessDate { get; set; }

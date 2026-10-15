@@ -13,6 +13,8 @@ public static class PageNames
     public const string TransactionHistory = "Transaction History";
     // Parent Navigation groups
     public const string Accounting = "Accounting";
+    public const string CashManagement = "Cash Management";
+    public const string BusinessDateOpening = "Business Date Opening";
     public const string Audit = "Audit";
     // Accounting child pages
     public const string GeneralLedger = "General Ledger";
@@ -20,6 +22,7 @@ public static class PageNames
     public const string AccountingEntries = "Accounting Entries";
     public const string Reconciliation = "Reconciliation";
     public const string CashReconciliation = "Cash Reconciliation";
+    public const string CashRequests = "Cash Requests";
     public const string EndOfDay = "End of Day";
     // Audit child pages
     public const string TransactionAudit = "Transaction Audit";

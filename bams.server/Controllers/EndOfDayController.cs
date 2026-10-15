@@ -20,6 +20,15 @@ public sealed class EndOfDayController(IEndOfDayWorkflowService workflow) : Cont
         return Ok(ApiMessageResponse<BusinessDateResponse>.FromCode(MessageCode.Success, result));
     }
 
+    [HttpPost("start")]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
+    public async Task<ActionResult<ApiMessageResponse<BusinessDateResponse>>> StartCurrentBusinessDateAsync(
+        [FromBody] StartBusinessDateRequest request, CancellationToken cancellationToken)
+    {
+        var result = await workflow.StartCurrentBusinessDateAsync(request, cancellationToken);
+        return Ok(ApiMessageResponse<BusinessDateResponse>.FromCode(MessageCode.Success, result));
+    }
+
     [HttpGet("dates")]
     [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<BusinessDateResponse>>>> SearchBusinessDatesAsync(

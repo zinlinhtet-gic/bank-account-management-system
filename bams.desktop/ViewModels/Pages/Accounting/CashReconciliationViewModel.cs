@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using bams.desktop.Commands;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.Exceptions;
@@ -17,6 +18,9 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     private readonly IEndOfDayClientService _businessDateService;
     private string _positionType = "Teller";
     private string _openingCashText = "0";
+    private string? _scheduledStartText;
+    private string? _scheduledEndText;
+    private CashSessionAssigneeResponse? _selectedAssignee;
     private string _actualCashText = string.Empty;
     private string _transferAmountText = string.Empty;
     private string _errorMessage = string.Empty;
@@ -59,9 +63,18 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
     public ObservableCollection<CashAdjustmentResponse> Adjustments { get; } = [];
     public ObservableCollection<CashMovementHistoryResponse> Movements { get; } = [];
     public ObservableCollection<CashCountHistoryResponse> Counts { get; } = [];
+    public ObservableCollection<CashProposalResponse> Proposals { get; } = [];
+    public ObservableCollection<CashSessionAssigneeResponse> SessionAssignees { get; } = [];
     public IReadOnlyList<string> PositionTypes { get; }
+    public IReadOnlyList<string> ScheduleTimes { get; } = Enumerable.Range(0, 24 * 12)
+        .Select(index => TimeOnly.MinValue.AddMinutes(index * 5).ToString("HH:mm", CultureInfo.InvariantCulture))
+        .ToArray();
     public AsyncRelayCommand RefreshCommand { get; }
     public AsyncRelayCommand OpenSessionCommand { get; }
+    public AsyncRelayCommand ActivateSessionRowCommand { get; }
+    public AsyncRelayCommand CancelScheduledSessionCommand { get; }
+    public AsyncRelayCommand RequestCashRowCommand { get; }
+    public AsyncRelayCommand ReceiveCashForSessionRowCommand { get; }
     public AsyncRelayCommand CountCashCommand { get; }
     public AsyncRelayCommand TransferCashCommand { get; }
     public AsyncRelayCommand RequestAdjustmentCommand { get; }
@@ -88,7 +101,22 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         PositionTypes = authContext.HasPermission(PermissionCodes.EndOfDayApproval)
             ? ["Teller", "Vault"]
             : ["Teller"];
-        OpenSessionCommand = new AsyncRelayCommand(OpenSessionAsync, () => HasCashOperationsPermission);
+        OpenSessionCommand = new AsyncRelayCommand(OpenSessionAsync, () => CanApproveAdjustments);
+        ActivateSessionRowCommand = new AsyncRelayCommand(
+            parameter => ActivateSessionAsync(parameter as CashPositionSessionResponse),
+            parameter => parameter is CashPositionSessionResponse session &&
+                session.Status == "Scheduled" && session.TellerId == _authContext.UserId);
+        CancelScheduledSessionCommand = new AsyncRelayCommand(CancelScheduledSessionAsync, () => CanApproveAdjustments && SelectedSession?.Status == "Scheduled");
+        RequestCashRowCommand = new AsyncRelayCommand(
+            parameter => RequestCashAsync(parameter as CashPositionSessionResponse),
+            parameter => parameter is CashPositionSessionResponse session &&
+                session.Status == "Open" && session.PositionType == "Teller" && session.TellerId == _authContext.UserId);
+        ReceiveCashForSessionRowCommand = new AsyncRelayCommand(
+            parameter => ReceiveInitialCashAsync(parameter as CashPositionSessionResponse),
+            parameter => parameter is CashPositionSessionResponse session &&
+                session.Status == "Open" && session.PositionType == "Teller" && session.TellerId == _authContext.UserId &&
+                Proposals.Any(proposal => proposal.SessionId == session.Id && proposal.Status == "PendingReceipt" &&
+                    proposal.OfficerId == _authContext.UserId));
         CountCashCommand = new AsyncRelayCommand(SubmitCountAsync, () => HasCashOperationsPermission);
         TransferCashCommand = new AsyncRelayCommand(TransferCashAsync, () => HasCashOperationsPermission);
         RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => CanViewCashSessions);
@@ -113,7 +141,12 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         OnPropertyChanged(nameof(IsAdjustmentsTabSelected));
     }
 
-    public string PositionType { get => _positionType; set { if (SetProperty(ref _positionType, value)) _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); } }
+    public string PositionType { get => _positionType; set { if (SetProperty(ref _positionType, value)) { _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); OnPropertyChanged(nameof(IsTellerPositionSelected)); OnPropertyChanged(nameof(IsVaultPositionSelected)); } } }
+    public bool IsTellerPositionSelected => PositionType == "Teller";
+    public bool IsVaultPositionSelected => PositionType == "Vault";
+    public CashSessionAssigneeResponse? SelectedAssignee { get => _selectedAssignee; set { if (SetProperty(ref _selectedAssignee, value)) _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); } }
+    public string? ScheduledStartText { get => _scheduledStartText; set { if (SetProperty(ref _scheduledStartText, value)) _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); } }
+    public string? ScheduledEndText { get => _scheduledEndText; set { if (SetProperty(ref _scheduledEndText, value)) _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); } }
     public string OpeningCashText { get => _openingCashText; set { if (SetProperty(ref _openingCashText, value)) { OpeningCashError = string.Empty; _openSessionIdempotencyKey = Guid.NewGuid().ToString("N"); } } }
     public string ActualCashText { get => _actualCashText; set { if (SetProperty(ref _actualCashText, value)) { ActualCashError = string.Empty; _countIdempotencyKey = Guid.NewGuid().ToString("N"); } } }
     public string TransferAmountText { get => _transferAmountText; set { if (SetProperty(ref _transferAmountText, value)) TransferAmountError = string.Empty; } }
@@ -163,8 +196,11 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         set
         {
             var previousId = _selectedSession?.Id;
-            if (SetProperty(ref _selectedSession, value) && previousId != value?.Id)
-                _countIdempotencyKey = Guid.NewGuid().ToString("N");
+            if (SetProperty(ref _selectedSession, value))
+            {
+                if (previousId != value?.Id) _countIdempotencyKey = Guid.NewGuid().ToString("N");
+                CancelScheduledSessionCommand.RaiseCanExecuteChanged();
+            }
         }
     }
     public CashPositionSessionResponse? DestinationSession { get => _destinationSession; set => SetProperty(ref _destinationSession, value); }
@@ -215,6 +251,13 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         {
             IsBusy = true;
             var sessions = await _service.GetSessionsAsync(_businessDateFilter, cancellationToken);
+            if (CanApproveAdjustments)
+            {
+                var assignees = await _service.GetSessionAssigneesAsync(cancellationToken);
+                SessionAssignees.Clear();
+                foreach (var assignee in assignees) SessionAssignees.Add(assignee);
+                SelectedAssignee = SessionAssignees.FirstOrDefault(item => item.UserId == SelectedAssignee?.UserId) ?? SessionAssignees.FirstOrDefault();
+            }
             if (string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase))
             {
                 var currentBusinessDate = await _businessDateService.GetCurrentBusinessDateAsync(cancellationToken);
@@ -228,9 +271,19 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
             foreach (var item in sessions) Sessions.Add(item);
             if (!_businessDateFilter.HasValue && Sessions.Count > 0)
                 SelectedBusinessDate = Sessions[0].BusinessDate.ToDateTime(TimeOnly.MinValue);
-            SelectedSession = Sessions.FirstOrDefault(item => item.Id == selectedSessionId)
-                ?? Sessions.FirstOrDefault(item => item.Status == "Open")
-                ?? Sessions.FirstOrDefault();
+            var previousSelection = Sessions.FirstOrDefault(item => item.Id == selectedSessionId);
+            if (string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedSession = previousSelection is { PositionType: "Teller" } && previousSelection.TellerId == _authContext.UserId
+                    ? previousSelection
+                    : Sessions.FirstOrDefault(item => item.PositionType == "Teller" && item.TellerId == _authContext.UserId);
+            }
+            else
+            {
+                SelectedSession = previousSelection
+                    ?? Sessions.FirstOrDefault(item => item.Status == "Open")
+                    ?? Sessions.FirstOrDefault();
+            }
             DestinationSession = Sessions.FirstOrDefault(item => item.Id == destinationSessionId && item.Id != SelectedSession?.Id)
                 ?? Sessions.FirstOrDefault(item => item.Status == "Open" && item.Id != SelectedSession?.Id);
             if (CanApproveAdjustments)
@@ -246,6 +299,10 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
             Handoffs.Clear();
             foreach (var handoff in handoffs) Handoffs.Add(handoff);
             SelectedHandoff = Handoffs.FirstOrDefault(item => item.Id == SelectedHandoff?.Id) ?? Handoffs.FirstOrDefault();
+            var proposals = await _service.GetCashProposalsAsync(_businessDateFilter, cancellationToken);
+            Proposals.Clear();
+            foreach (var proposal in proposals) Proposals.Add(proposal);
+            ReceiveCashForSessionRowCommand.RaiseCanExecuteChanged();
             ErrorMessage = string.Empty;
         }
         catch (AppException exception)
@@ -260,9 +317,14 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
 
     private async Task OpenSessionAsync()
     {
-        if (!HasCashOperationsPermission || (PositionType == "Vault" && !CanApproveAdjustments)) return;
-        OpeningCashError = !decimal.TryParse(OpeningCashText, out var opening) || opening < 0m || !HasTwoDecimalPlaces(opening)
-            ? "Enter opening cash of 0 or more, using no more than 2 decimal places." : string.Empty;
+        if (!CanApproveAdjustments) return;
+        var hasOpeningAmount = decimal.TryParse(OpeningCashText, out var opening);
+        OpeningCashError = !hasOpeningAmount || opening < 0m ||
+            PositionType == "Teller" && opening <= 0m || !HasTwoDecimalPlaces(opening)
+            ? PositionType == "Teller"
+                ? "Enter a required starting cash amount greater than 0, using no more than 2 decimal places."
+                : "Enter vault opening cash of 0 or more, using no more than 2 decimal places."
+            : string.Empty;
         if (OpeningCashError.Length > 0) return;
         try
         {
@@ -276,7 +338,23 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
                 return;
             }
 
-            await _service.OpenSessionAsync(new OpenCashSessionRequest(PositionType, opening), _openSessionIdempotencyKey, CancellationToken.None);
+            long? tellerId = null;
+            DateTime? scheduledStart = null;
+            DateTime? scheduledEnd = null;
+            if (PositionType == "Teller")
+            {
+                if (SelectedAssignee is null ||
+                    !TimeOnly.TryParseExact(ScheduledStartText, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var startTime) ||
+                    !TimeOnly.TryParseExact(ScheduledEndText, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var endTime) || endTime <= startTime)
+                {
+                    ErrorMessage = "Choose an officer and valid start and end times. The end time must be later than the start time.";
+                    return;
+                }
+                tellerId = SelectedAssignee.UserId;
+                scheduledStart = DateTime.SpecifyKind(activeBusinessDate.Date.ToDateTime(startTime), DateTimeKind.Unspecified);
+                scheduledEnd = DateTime.SpecifyKind(activeBusinessDate.Date.ToDateTime(endTime), DateTimeKind.Unspecified);
+            }
+            await _service.OpenSessionAsync(new OpenCashSessionRequest(PositionType, opening, tellerId, scheduledStart, scheduledEnd), _openSessionIdempotencyKey, CancellationToken.None);
             SelectedBusinessDate = ActiveBusinessDate;
             ErrorMessage = string.Empty;
             if (PositionType == "Teller" && string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase))
@@ -291,6 +369,48 @@ public sealed class CashReconciliationViewModel : ViewModelBase, IAsyncInitializ
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }
+    }
+
+    private async Task RequestCashAsync(CashPositionSessionResponse? session)
+    {
+        if (session is null) return;
+        var sessionTitle = $"Teller session #{session.Id} · {session.BusinessDate:yyyy-MM-dd}";
+        if (_dialogService.ShowDialog(new CashRequestDialogViewModel(_service, session.Id, sessionTitle)))
+            await RefreshAsync();
+    }
+
+    private async Task ActivateSessionAsync(CashPositionSessionResponse? session)
+    {
+        if (session is null) return;
+        try
+        {
+            await _service.ActivateSessionAsync(session.Id, new ActivateCashSessionRequest(session.Version), CancellationToken.None);
+            await RefreshAsync();
+            ErrorMessage = string.Empty;
+        }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+    }
+
+    private async Task CancelScheduledSessionAsync()
+    {
+        if (SelectedSession is null) return;
+        try { await _service.CancelScheduledSessionAsync(SelectedSession.Id, CancellationToken.None); await RefreshAsync(); ErrorMessage = string.Empty; }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+    }
+
+    private async Task ReceiveCashAsync(CashProposalResponse? proposal)
+    {
+        if (proposal is null) return;
+        try { await _service.ReceiveCashProposalAsync(proposal.Id, new CashProposalActionRequest(proposal.Version, null), CancellationToken.None); await RefreshAsync(); ErrorMessage = string.Empty; }
+        catch (AppException exception) { ErrorMessage = exception.Message; }
+    }
+
+    private async Task ReceiveInitialCashAsync(CashPositionSessionResponse? session)
+    {
+        if (session is null) return;
+        var proposal = Proposals.FirstOrDefault(item => item.SessionId == session.Id &&
+            item.Status == "PendingReceipt" && item.OfficerId == _authContext.UserId);
+        await ReceiveCashAsync(proposal);
     }
 
     private static bool IsBusinessDateResolutionError(AppException exception)
