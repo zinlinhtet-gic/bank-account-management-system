@@ -135,130 +135,162 @@ public sealed class LedgerPostingService
         }
     }
 
-    /// <summary>Ensures a posted transaction has a complete, positive, balanced double-entry journal before commit.</summary>
+    /// <summary>Ensures a posted transaction has the exact positive, balanced double-entry journal before commit.</summary>
     public async Task ValidateTransactionAccountingEntriesAsync(long transactionId, CancellationToken cancellationToken)
     {
         var transaction = await _dbContext.Transactions.AsNoTracking()
             .Where(item => item.Id == transactionId)
-            .Select(item => new { item.TransactionType, item.TransactionStatus, item.Amount, item.ReversalOfTransactionId })
+            .Select(item => new
+            {
+                item.TransactionType,
+                item.TransactionStatus,
+                item.Amount,
+                item.FeeAmount,
+                item.ReversalOfTransactionId
+            })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException(MessageCode.TransactionNotFound);
-        var totals = await _dbContext.TransactionEntries
-            .AsNoTracking()
-            .Where(entry => entry.TransactionId == transactionId)
-            .GroupBy(entry => entry.EntryType)
-            .Select(group => new
-            {
-                EntryType = group.Key,
-                Count = group.Count(),
-                Total = group.Sum(entry => entry.Amount),
-                Minimum = group.Min(entry => entry.Amount),
-                Maximum = group.Max(entry => entry.Amount)
-            })
-            .ToListAsync(cancellationToken);
-        var lineCount = totals.Sum(item => item.Count);
-        var expectedLineCount = GetExpectedJournalLineCount(transaction.TransactionType, transaction.TransactionStatus);
-
-        var debit = totals.SingleOrDefault(item => item.EntryType == EntryType.Debit);
-        var credit = totals.SingleOrDefault(item => item.EntryType == EntryType.Credit);
-        if (totals.Count != 2 || debit is null || credit is null || debit.Count == 0 || credit.Count == 0 ||
-            debit.Minimum != transaction.Amount || debit.Maximum != transaction.Amount ||
-            credit.Minimum != transaction.Amount || credit.Maximum != transaction.Amount || lineCount != expectedLineCount ||
-            debit.Total != transaction.Amount * debit.Count || credit.Total != transaction.Amount * credit.Count)
-        {
-            throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
-        }
-
-        var expectedLines = await GetExpectedJournalLinesAsync(transactionId, transaction.TransactionType,
-            transaction.TransactionStatus, transaction.ReversalOfTransactionId, cancellationToken);
-        var expectedShape = expectedLines.GroupBy(line => (line.GlCode, line.EntryType))
-            .ToDictionary(group => group.Key, group => group.Count());
         var actualLines = await (from entry in _dbContext.TransactionEntries.AsNoTracking()
             join glAccount in _dbContext.GlAccounts.AsNoTracking() on entry.GlAccountId equals glAccount.Id
             where entry.TransactionId == transactionId
-            select new { GlCode = glAccount.Code, entry.EntryType, entry.CustomerAccountId })
+            select new JournalLine(glAccount.Code, entry.EntryType, entry.Amount, entry.CustomerAccountId))
             .ToListAsync(cancellationToken);
-        var actualShape = actualLines.GroupBy(line => (line.GlCode, line.EntryType))
-            .ToDictionary(group => group.Key, group => group.Count());
-        if (actualShape.Count != expectedShape.Count || expectedShape.Any(pair =>
-                !actualShape.TryGetValue(pair.Key, out var actualCount) || actualCount != pair.Value))
+
+        if (actualLines.Any(line => line.Amount <= 0m))
+            throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
+        if (transaction.FeeAmount < 0m)
+            throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
+
+        var refundedFeeAmount = transaction.TransactionType == TransactionType.Reversal && transaction.ReversalOfTransactionId.HasValue
+            ? await _dbContext.Transactions.AsNoTracking()
+                .Where(item => item.Id == transaction.ReversalOfTransactionId.Value)
+                .Select(item => item.FeeAmount).SingleOrDefaultAsync(cancellationToken)
+            : 0m;
+        var expectedLines = await GetExpectedJournalLinesAsync(transactionId, transaction.TransactionType,
+            transaction.TransactionStatus, transaction.Amount, transaction.FeeAmount,
+            transaction.ReversalOfTransactionId, refundedFeeAmount, cancellationToken);
+        if (expectedLines.Count != GetExpectedJournalLineCount(transaction.TransactionType,
+                transaction.TransactionStatus, transaction.FeeAmount, refundedFeeAmount) ||
+            actualLines.Count != expectedLines.Count)
+            throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
+
+        var debitTotal = actualLines.Where(line => line.EntryType == EntryType.Debit).Sum(line => line.Amount);
+        var creditTotal = actualLines.Where(line => line.EntryType == EntryType.Credit).Sum(line => line.Amount);
+        if (debitTotal != creditTotal)
+            throw new BusinessRuleException(MessageCode.TransactionEntriesUnbalanced);
+
+        if (!HasSameJournalLines(actualLines, expectedLines))
             throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
 
         if (transaction.TransactionType is not (TransactionType.InterestAccrual or TransactionType.MaintenanceAccrual or TransactionType.DormantPenaltyAccrual))
         {
-            var customerLedgerAccounts = actualLines.Where(line => line.GlCode == AccountingConstants.CustomerDepositsGlCode)
-                .GroupBy(line => (line.CustomerAccountId, line.EntryType))
-                .ToDictionary(group => group.Key, group => group.Count());
-            var operationalAccounts = await _dbContext.AccountTransactions.AsNoTracking()
+            var customerLedgerLines = actualLines
+                .Where(line => line.GlCode == AccountingConstants.CustomerDepositsGlCode)
+                .Select(line => new OperationalLine(line.CustomerAccountId, line.EntryType, line.Amount))
+                .ToList();
+            var operationalLines = await _dbContext.AccountTransactions.AsNoTracking()
                 .Where(entry => entry.TransactionId == transactionId)
-                .GroupBy(entry => new { entry.AccountId, entry.EntryType })
-                .Select(group => new { AccountId = (long?)group.Key.AccountId, group.Key.EntryType, Count = group.Count() })
-                .ToDictionaryAsync(item => (item.AccountId, item.EntryType), item => item.Count, cancellationToken);
-            if (customerLedgerAccounts.Count != operationalAccounts.Count || customerLedgerAccounts.Any(pair =>
-                    !operationalAccounts.TryGetValue(pair.Key, out var operationalCount) || operationalCount != pair.Value))
+                .Select(entry => new OperationalLine(entry.AccountId, entry.EntryType, entry.Amount))
+                .ToListAsync(cancellationToken);
+            if (customerLedgerLines.Any(line => !line.AccountId.HasValue) ||
+                !HasSameOperationalLines(customerLedgerLines, operationalLines))
                 throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
         }
 
         if (transaction.TransactionType == TransactionType.InternalTransfer)
         {
-            var customerLines = await _dbContext.TransactionEntries.AsNoTracking()
-                .Where(entry => entry.TransactionId == transactionId && entry.CustomerAccountId.HasValue)
-                .Select(entry => new { entry.CustomerAccountId, entry.EntryType }).ToListAsync(cancellationToken);
-            if (customerLines.Count != 2 || customerLines.Select(entry => entry.CustomerAccountId).Distinct().Count() != 2 ||
-                customerLines.Count(entry => entry.EntryType == EntryType.Debit) != 1 ||
-                customerLines.Count(entry => entry.EntryType == EntryType.Credit) != 1)
+            var customerLines = actualLines.Where(line => line.GlCode == AccountingConstants.CustomerDepositsGlCode).ToList();
+            var sourceId = customerLines.FirstOrDefault(line => line.EntryType == EntryType.Debit && line.Amount == transaction.Amount)?.CustomerAccountId;
+            var destinationId = customerLines.FirstOrDefault(line => line.EntryType == EntryType.Credit && line.Amount == transaction.Amount)?.CustomerAccountId;
+            if (!sourceId.HasValue || !destinationId.HasValue || sourceId == destinationId ||
+                customerLines.Count != (transaction.FeeAmount > 0m ? 3 : 2) ||
+                customerLines.Any(line => line.CustomerAccountId != sourceId && line.CustomerAccountId != destinationId) ||
+                customerLines.Count(line => line.CustomerAccountId == sourceId && line.EntryType == EntryType.Debit && line.Amount == transaction.Amount) != 1 ||
+                customerLines.Count(line => line.CustomerAccountId == destinationId && line.EntryType == EntryType.Credit && line.Amount == transaction.Amount) != 1 ||
+                (transaction.FeeAmount > 0m && customerLines.Count(line =>
+                    line.CustomerAccountId == sourceId && line.EntryType == EntryType.Debit && line.Amount == transaction.FeeAmount) != 1))
                 throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
         }
 
-        if (debit.Total != credit.Total)
-        {
-            throw new BusinessRuleException(MessageCode.TransactionEntriesUnbalanced);
-        }
     }
 
-    // Internal transfers use two customer-liability lines; completed interbank/NRC transfers add two settlement lines
-    // to the two lines recorded when the transfer was initiated.
-    private static int GetExpectedJournalLineCount(TransactionType transactionType, TransactionStatus transactionStatus) =>
-        transactionStatus == TransactionStatus.Completed &&
-        transactionType is (TransactionType.InterbankTransfer or TransactionType.NrcTransfer)
-            ? 4
-            : 2;
+    private sealed record JournalLine(string GlCode, EntryType EntryType, decimal Amount, long? CustomerAccountId);
+    private sealed record OperationalLine(long? AccountId, EntryType EntryType, decimal Amount);
 
-    private async Task<IReadOnlyList<(string GlCode, EntryType EntryType)>> GetExpectedJournalLinesAsync(
-        long transactionId, TransactionType transactionType, TransactionStatus status, long? reversalOfTransactionId,
-        CancellationToken cancellationToken)
+    private static int GetExpectedJournalLineCount(TransactionType transactionType, TransactionStatus status,
+        decimal feeAmount, decimal refundedFeeAmount) => transactionType switch
     {
-        var lines = new List<(string GlCode, EntryType EntryType)>();
-        void Add(string code, EntryType entryType) => lines.Add((code, entryType));
+        TransactionType.InternalTransfer => 2 + (feeAmount > 0m ? 2 : 0),
+        TransactionType.InterbankTransfer => 2 + (status == TransactionStatus.Completed ? 2 : 0) + (feeAmount > 0m ? 2 : 0),
+        TransactionType.NrcTransfer => status == TransactionStatus.Completed ? 4 : 2,
+        TransactionType.Reversal => 2 + (refundedFeeAmount > 0m ? 2 : 0),
+        _ => 2
+    };
+
+    private static bool HasSameJournalLines(IReadOnlyCollection<JournalLine> actual, IReadOnlyCollection<JournalLine> expected) =>
+        actual.Count == expected.Count &&
+        expected.GroupBy(line => line).All(group => actual.Count(line => line == group.Key) == group.Count());
+
+    private static bool HasSameOperationalLines(IReadOnlyCollection<OperationalLine> customerLines,
+        IReadOnlyCollection<OperationalLine> operationalLines) =>
+        customerLines.Count == operationalLines.Count &&
+        customerLines.GroupBy(line => line).All(group => operationalLines.Count(line => line == group.Key) == group.Count());
+
+    private async Task<IReadOnlyList<JournalLine>> GetExpectedJournalLinesAsync(
+        long transactionId, TransactionType transactionType, TransactionStatus status, decimal amount, decimal feeAmount,
+        long? reversalOfTransactionId, decimal refundedFeeAmount, CancellationToken cancellationToken)
+    {
+        var lines = new List<JournalLine>();
+        void Add(string code, EntryType entryType, decimal lineAmount, long? accountId = null) =>
+            lines.Add(new JournalLine(code, entryType, lineAmount, accountId));
+        async Task<long?> FindAccountIdAsync(EntryType entryType, decimal lineAmount) =>
+            await _dbContext.AccountTransactions.AsNoTracking()
+                .Where(entry => entry.TransactionId == transactionId && entry.EntryType == entryType && entry.Amount == lineAmount)
+                .Select(entry => (long?)entry.AccountId).FirstOrDefaultAsync(cancellationToken);
+        var sourceAccountId = await FindAccountIdAsync(EntryType.Debit, amount);
         switch (transactionType)
         {
             case TransactionType.CashDeposit:
-                Add(AccountingConstants.CashOnHandGlCode, EntryType.Debit);
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit);
+                Add(AccountingConstants.CashOnHandGlCode, EntryType.Debit, amount);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit, amount,
+                    await FindAccountIdAsync(EntryType.Credit, amount));
                 break;
             case TransactionType.CashWithdrawal:
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit);
-                Add(AccountingConstants.CashOnHandGlCode, EntryType.Credit);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.CashOnHandGlCode, EntryType.Credit, amount);
                 break;
             case TransactionType.InternalTransfer:
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit);
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit);
+            {
+                var destinationAccountId = await FindAccountIdAsync(EntryType.Credit, amount);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit, amount, destinationAccountId);
+                if (feeAmount > 0m)
+                {
+                    Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, feeAmount, sourceAccountId);
+                    Add(AccountingConstants.TransferFeeIncomeGlCode, EntryType.Credit, feeAmount);
+                }
                 break;
+            }
             case TransactionType.InterbankTransfer:
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit);
-                Add(AccountingConstants.InterbankClearingGlCode, EntryType.Credit);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.InterbankClearingGlCode, EntryType.Credit, amount);
+                if (feeAmount > 0m)
+                {
+                    Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, feeAmount, sourceAccountId);
+                    Add(AccountingConstants.TransferFeeIncomeGlCode, EntryType.Credit, feeAmount);
+                }
                 if (status == TransactionStatus.Completed)
                 {
-                    Add(AccountingConstants.InterbankClearingGlCode, EntryType.Debit);
-                    Add(AccountingConstants.DueFromOtherBanksGlCode, EntryType.Credit);
+                    Add(AccountingConstants.InterbankClearingGlCode, EntryType.Debit, amount);
+                    Add(AccountingConstants.DueFromOtherBanksGlCode, EntryType.Credit, amount);
                 }
                 break;
             case TransactionType.NrcTransfer:
             {
-                var accountFunded = await _dbContext.AccountTransactions.AsNoTracking()
-                    .AnyAsync(entry => entry.TransactionId == transactionId && entry.EntryType == EntryType.Debit, cancellationToken);
-                Add(accountFunded ? AccountingConstants.CustomerDepositsGlCode : AccountingConstants.CashOnHandGlCode, EntryType.Debit);
-                Add(AccountingConstants.NrcTransfersPayableGlCode, EntryType.Credit);
+                var accountFunded = sourceAccountId.HasValue;
+                Add(accountFunded ? AccountingConstants.CustomerDepositsGlCode : AccountingConstants.CashOnHandGlCode,
+                    EntryType.Debit, amount, accountFunded ? sourceAccountId : null);
+                Add(AccountingConstants.NrcTransfersPayableGlCode, EntryType.Credit, amount);
                 if (status == TransactionStatus.Completed)
                 {
                     var deliveryType = await _dbContext.NrcCashTransferDetails.AsNoTracking()
@@ -266,35 +298,36 @@ public sealed class LedgerPostingService
                         .Select(detail => detail.DeliveryType).SingleOrDefaultAsync(cancellationToken);
                     if (deliveryType is not (TransactionConstants.NrcDeliveryAtBranch or TransactionConstants.NrcDeliveryAtOtherBank))
                         throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
-                    Add(AccountingConstants.NrcTransfersPayableGlCode, EntryType.Debit);
+                    Add(AccountingConstants.NrcTransfersPayableGlCode, EntryType.Debit, amount);
                     Add(deliveryType == TransactionConstants.NrcDeliveryAtBranch
-                        ? AccountingConstants.CashOnHandGlCode : AccountingConstants.DueFromOtherBanksGlCode, EntryType.Credit);
+                        ? AccountingConstants.CashOnHandGlCode : AccountingConstants.DueFromOtherBanksGlCode, EntryType.Credit, amount);
                 }
                 break;
             }
             case TransactionType.InterestAccrual:
-                Add(AccountingConstants.InterestExpenseGlCode, EntryType.Debit);
-                Add(AccountingConstants.InterestPayableGlCode, EntryType.Credit);
+                Add(AccountingConstants.InterestExpenseGlCode, EntryType.Debit, amount);
+                Add(AccountingConstants.InterestPayableGlCode, EntryType.Credit, amount);
                 break;
             case TransactionType.MaintenanceAccrual:
-                Add(AccountingConstants.MaintenanceFeeReceivableGlCode, EntryType.Debit);
-                Add(AccountingConstants.MaintenanceFeeIncomeGlCode, EntryType.Credit);
+                Add(AccountingConstants.MaintenanceFeeReceivableGlCode, EntryType.Debit, amount);
+                Add(AccountingConstants.MaintenanceFeeIncomeGlCode, EntryType.Credit, amount);
                 break;
             case TransactionType.DormantPenaltyAccrual:
-                Add(AccountingConstants.DormantPenaltyReceivableGlCode, EntryType.Debit);
-                Add(AccountingConstants.DormantPenaltyIncomeGlCode, EntryType.Credit);
+                Add(AccountingConstants.DormantPenaltyReceivableGlCode, EntryType.Debit, amount);
+                Add(AccountingConstants.DormantPenaltyIncomeGlCode, EntryType.Credit, amount);
                 break;
             case TransactionType.InterestCredit:
-                Add(AccountingConstants.InterestPayableGlCode, EntryType.Debit);
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit);
+                Add(AccountingConstants.InterestPayableGlCode, EntryType.Debit, amount);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit, amount,
+                    await FindAccountIdAsync(EntryType.Credit, amount));
                 break;
             case TransactionType.MaintenanceFee:
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit);
-                Add(AccountingConstants.MaintenanceFeeReceivableGlCode, EntryType.Credit);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.MaintenanceFeeReceivableGlCode, EntryType.Credit, amount);
                 break;
             case TransactionType.Penalty:
-                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit);
-                Add(AccountingConstants.DormantPenaltyReceivableGlCode, EntryType.Credit);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.DormantPenaltyReceivableGlCode, EntryType.Credit, amount);
                 break;
             case TransactionType.Reversal:
             {
@@ -302,18 +335,28 @@ public sealed class LedgerPostingService
                     throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
                 var originalType = await _dbContext.Transactions.AsNoTracking()
                     .Where(item => item.Id == reversalOfTransactionId.Value)
-                    .Select(item => (TransactionType?)item.TransactionType).SingleOrDefaultAsync(cancellationToken)
+                    .Select(item => (TransactionType?)item.TransactionType)
+                    .SingleOrDefaultAsync(cancellationToken)
                     ?? throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
                 var sourceAccountExists = await _dbContext.AccountTransactions.AsNoTracking()
                     .AnyAsync(entry => entry.TransactionId == reversalOfTransactionId.Value && entry.EntryType == EntryType.Debit, cancellationToken);
+                var originalSourceAccountId = await _dbContext.AccountTransactions.AsNoTracking()
+                    .Where(entry => entry.TransactionId == reversalOfTransactionId.Value && entry.EntryType == EntryType.Debit && entry.Amount == amount)
+                    .Select(entry => (long?)entry.AccountId).FirstOrDefaultAsync(cancellationToken);
                 var clearingCode = originalType switch
                 {
                     TransactionType.InterbankTransfer => AccountingConstants.InterbankClearingGlCode,
                     TransactionType.NrcTransfer => AccountingConstants.NrcTransfersPayableGlCode,
                     _ => throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete)
                 };
-                Add(clearingCode, EntryType.Debit);
-                Add(sourceAccountExists ? AccountingConstants.CustomerDepositsGlCode : AccountingConstants.CashOnHandGlCode, EntryType.Credit);
+                Add(clearingCode, EntryType.Debit, amount);
+                Add(sourceAccountExists ? AccountingConstants.CustomerDepositsGlCode : AccountingConstants.CashOnHandGlCode,
+                    EntryType.Credit, amount, sourceAccountExists ? originalSourceAccountId : null);
+                if (originalType == TransactionType.InterbankTransfer && refundedFeeAmount > 0m)
+                {
+                    Add(AccountingConstants.TransferFeeIncomeGlCode, EntryType.Debit, refundedFeeAmount);
+                    Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit, refundedFeeAmount, originalSourceAccountId);
+                }
                 break;
             }
             default:

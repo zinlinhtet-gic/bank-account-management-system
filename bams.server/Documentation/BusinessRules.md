@@ -60,6 +60,7 @@ This page summarizes invariants enforced by server services. Constants and servi
 ## Accounting and business dates
 
 - Every posted financial transaction has balanced journal entries. Reconciliation compares operational account balances with customer-liability ledger balances and retains run/result snapshots and exception history.
+- Journal validation checks the exact GL account, direction, amount, and customer account for every line. Transfer fees add matching customer-deposit and fee-income lines; interbank refunds return the original fee through matching fee-income and customer-deposit lines. Customer-deposit journal lines are reconciled to account transactions by account, direction, and amount.
 - A reconciliation exception can be resolved only after a rerun confirms the difference is cleared; direct resolution is not an allowed substitute for evidence.
 - The business date is persisted and distinct from UTC transaction timestamps. Myanmar local time determines the banking date and relevant calendar boundaries.
 - End-of-day close is a staged, authorized process with pre-close checks, distinct approval, and final rechecks under lock. Blocking conditions must be resolved or handled through the explicit manager override workflow.
