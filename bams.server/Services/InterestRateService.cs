@@ -13,6 +13,7 @@ namespace bams.server.Services;
 public sealed class InterestRateService : IInterestRateService
 {
     private const int PageSize = 10;
+    private const string ActiveStatus = "Active";
 
     private readonly ApplicationDbContext _dbContext;
 
@@ -71,6 +72,10 @@ public sealed class InterestRateService : IInterestRateService
             request.AnnualRate, request.EarlyWithdrawalRate, request.EffectiveFrom, request.EffectiveTo,
             request.Status, cancellationToken);
 
+        await ValidateNoOverlappingActiveRuleAsync(null, request.AccountTypeId, request.TermDays,
+            request.TermMonths, request.BalanceMin, request.BalanceMax, request.EffectiveFrom,
+            request.EffectiveTo, request.Status, cancellationToken);
+
         var rule = new InterestRateRule
         {
             AccountTypeId = request.AccountTypeId,
@@ -112,6 +117,10 @@ public sealed class InterestRateService : IInterestRateService
         await ValidateAsync(request.AccountTypeId, request.BalanceMin, request.BalanceMax,
             request.AnnualRate, request.EarlyWithdrawalRate, request.EffectiveFrom, request.EffectiveTo,
             request.Status, cancellationToken);
+
+        await ValidateNoOverlappingActiveRuleAsync(rule.Id, request.AccountTypeId, request.TermDays,
+            request.TermMonths, request.BalanceMin, request.BalanceMax, request.EffectiveFrom,
+            request.EffectiveTo, request.Status, cancellationToken);
 
         rule.AccountTypeId = request.AccountTypeId;
         rule.TermDays = request.TermDays;
@@ -172,6 +181,50 @@ public sealed class InterestRateService : IInterestRateService
         if (!accountTypeExists)
         {
             throw new NotFoundException(MessageCode.AccountTypeNotFound);
+        }
+    }
+
+    // Rejects an active rule that would collide with another active rule of the same account type
+    // and term. Two rules collide when both their balance ranges and effective periods overlap,
+    // because an account opened in that overlap would match more than one rate. A null bound means
+    // "unbounded". excludedRuleId lets an update skip the rule being edited.
+    private async Task ValidateNoOverlappingActiveRuleAsync(
+        long? excludedRuleId,
+        long accountTypeId,
+        int? termDays,
+        int? termMonths,
+        decimal? balanceMin,
+        decimal? balanceMax,
+        DateOnly effectiveFrom,
+        DateOnly? effectiveTo,
+        string status,
+        CancellationToken cancellationToken)
+    {
+        // Inactive rules are never applied, so they cannot collide with anything.
+        if (status.Trim() != ActiveStatus)
+        {
+            return;
+        }
+
+        var hasOverlap = await _dbContext.InterestRateRules
+            .AsNoTracking()
+            .Where(existing =>
+                existing.Status == ActiveStatus &&
+                existing.AccountTypeId == accountTypeId &&
+                (excludedRuleId == null || existing.Id != excludedRuleId) &&
+                existing.TermDays == termDays &&
+                existing.TermMonths == termMonths &&
+                // Balance ranges overlap.
+                (existing.BalanceMin == null || balanceMax == null || existing.BalanceMin <= balanceMax) &&
+                (balanceMin == null || existing.BalanceMax == null || balanceMin <= existing.BalanceMax) &&
+                // Effective periods overlap.
+                (existing.EffectiveTo == null || existing.EffectiveTo >= effectiveFrom) &&
+                (effectiveTo == null || existing.EffectiveFrom <= effectiveTo))
+            .AnyAsync(cancellationToken);
+
+        if (hasOverlap)
+        {
+            throw new ConflictException(MessageCode.InterestRateRuleOverlaps);
         }
     }
 }

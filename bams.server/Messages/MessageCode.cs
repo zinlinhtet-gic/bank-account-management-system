@@ -139,6 +139,8 @@ public enum MessageCode
     CustomerAlreadyExists = 4309,
     IdempotencyKeyReused = 4330,
     AccountTypeCodeAlreadyExists = 4340,
+    InterestRateRuleOverlaps = 4341,
+    FeeRuleOverlaps = 4342,
 
     // Business Rules: 4400 - 4499
     BusinessRuleViolation = 4400,

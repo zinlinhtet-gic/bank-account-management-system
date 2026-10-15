@@ -13,6 +13,7 @@ namespace bams.server.Services;
 public sealed class FeeRateService : IFeeRateService
 {
     private const int PageSize = 10;
+    private const string ActiveStatus = "Active";
 
     private readonly ApplicationDbContext _dbContext;
 
@@ -68,6 +69,9 @@ public sealed class FeeRateService : IFeeRateService
             request.MinimumFee, request.MaximumFee, request.TaxRate, request.EffectiveFrom, request.EffectiveTo,
             request.Status, cancellationToken);
 
+        await ValidateNoOverlappingActiveRuleAsync(null, request.AccountTypeId, request.FeeType,
+            request.EffectiveFrom, request.EffectiveTo, request.Status, cancellationToken);
+
         var rule = new FeeRule
         {
             AccountTypeId = request.AccountTypeId,
@@ -109,6 +113,9 @@ public sealed class FeeRateService : IFeeRateService
         await ValidateAsync(request.AccountTypeId, request.FeeType, request.Amount, request.Percentage,
             request.MinimumFee, request.MaximumFee, request.TaxRate, request.EffectiveFrom, request.EffectiveTo,
             request.Status, cancellationToken);
+
+        await ValidateNoOverlappingActiveRuleAsync(rule.Id, request.AccountTypeId, request.FeeType,
+            request.EffectiveFrom, request.EffectiveTo, request.Status, cancellationToken);
 
         rule.AccountTypeId = request.AccountTypeId;
         rule.FeeType = request.FeeType;
@@ -176,6 +183,43 @@ public sealed class FeeRateService : IFeeRateService
         if (!accountTypeExists)
         {
             throw new NotFoundException(MessageCode.AccountTypeNotFound);
+        }
+    }
+
+    // Rejects an active rule that would collide with another active rule of the same account type
+    // and fee type. Fee lookups pick a single rule for a date, so two rules whose effective periods
+    // overlap would make the charged fee ambiguous. Minimum/maximum fee only clamp the charged
+    // amount and do not decide applicability, so they are not part of the overlap test. A null
+    // EffectiveTo means "no end date". excludedRuleId lets an update skip the rule being edited.
+    private async Task ValidateNoOverlappingActiveRuleAsync(
+        long? excludedRuleId,
+        long accountTypeId,
+        FeeType feeType,
+        DateOnly effectiveFrom,
+        DateOnly? effectiveTo,
+        string status,
+        CancellationToken cancellationToken)
+    {
+        // Inactive rules are never applied, so they cannot collide with anything.
+        if (status.Trim() != ActiveStatus)
+        {
+            return;
+        }
+
+        var hasOverlap = await _dbContext.FeeRules
+            .AsNoTracking()
+            .Where(existing =>
+                existing.Status == ActiveStatus &&
+                existing.AccountTypeId == accountTypeId &&
+                existing.FeeType == feeType &&
+                (excludedRuleId == null || existing.Id != excludedRuleId) &&
+                (existing.EffectiveTo == null || existing.EffectiveTo >= effectiveFrom) &&
+                (effectiveTo == null || existing.EffectiveFrom <= effectiveTo))
+            .AnyAsync(cancellationToken);
+
+        if (hasOverlap)
+        {
+            throw new ConflictException(MessageCode.FeeRuleOverlaps);
         }
     }
 }

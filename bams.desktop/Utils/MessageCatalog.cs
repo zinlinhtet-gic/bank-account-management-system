@@ -106,6 +106,8 @@ public static class MessageCatalog
             [MessageCode.UsernameAlreadyExists] = "A user with this username already exists.",
             [MessageCode.EmailAlreadyExists] = "A user with this email already exists.",
             [MessageCode.AccountTypeCodeAlreadyExists] = "An account type with this code already exists.",
+            [MessageCode.FeeRuleOverlaps] = "An active fee rule already exists for this account type, fee type and effective period.",
+            [MessageCode.InterestRateRuleOverlaps] = "An active interest rate rule already exists for this account type, term, balance range and effective period.",
             [MessageCode.InternalServerError] = "An unexpected server error occurred.",
             [MessageCode.ClientError] = "The application could not complete the request.",
             [MessageCode.NetworkUnavailable] = "The server cannot currently be reached. Please check your connection and try again.",
