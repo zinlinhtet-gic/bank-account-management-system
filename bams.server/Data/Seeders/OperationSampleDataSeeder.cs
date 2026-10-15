@@ -3,6 +3,7 @@ using bams.server.Constants;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
 using bams.server.Models.Products;
+using bams.server.Models.Transactions;
 using bams.server.Services;
 using bams.server.Services.Jobs;
 using bams.server.Utils;
@@ -94,8 +95,10 @@ public sealed class OperationSampleDataSeeder
 
             var accountType = accountTypesByCode[seed.AccountTypeCode];
             var accountNo = FormatAccountNo(accountType.Id, seed.CustomerIndex, seed.AccountSequence);
-            if (await _dbContext.Accounts.AnyAsync(account => account.AccountNo == accountNo, cancellationToken))
+            var existingAccount = await _dbContext.Accounts.SingleOrDefaultAsync(account => account.AccountNo == accountNo, cancellationToken);
+            if (existingAccount is not null)
             {
+                await EnsureOpeningEntriesAsync(existingAccount, seed.Principal, cancellationToken);
                 continue;
             }
 
@@ -125,6 +128,7 @@ public sealed class OperationSampleDataSeeder
         account.AccountHolders.Add(CreatePrimaryHolder(customerId, openedAt));
         _dbContext.Accounts.Add(account);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await EnsureOpeningEntriesAsync(account, seed.Principal, cancellationToken);
 
         // Deposits start Active so the replayed interest job accrues them; maturity statuses are applied afterwards.
         _dbContext.FixedDeposits.Add(new FixedDeposit
@@ -162,8 +166,10 @@ public sealed class OperationSampleDataSeeder
 
         var accountType = accountTypesByCode[DormantSaving.AccountTypeCode];
         var accountNo = FormatAccountNo(accountType.Id, DormantSaving.CustomerIndex, DormantSaving.AccountSequence);
-        if (await _dbContext.Accounts.AnyAsync(account => account.AccountNo == accountNo, cancellationToken))
+        var existingAccount = await _dbContext.Accounts.SingleOrDefaultAsync(account => account.AccountNo == accountNo, cancellationToken);
+        if (existingAccount is not null)
         {
+            await EnsureOpeningEntriesAsync(existingAccount, DormantSaving.Balance, cancellationToken);
             return;
         }
 
@@ -171,6 +177,101 @@ public sealed class OperationSampleDataSeeder
         account.DormantAt = DormantSaving.DormantAt;
         account.AccountHolders.Add(CreatePrimaryHolder(customer.Id, SeededAt));
         _dbContext.Accounts.Add(account);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await EnsureOpeningEntriesAsync(account, DormantSaving.Balance, cancellationToken);
+    }
+
+    // Records each sample account's seeded balance on both the operational ledger and the balanced GL journal.
+    // Checking each row independently also repairs partially seeded opening transactions on a later startup.
+    private async Task EnsureOpeningEntriesAsync(Account account, decimal amount, CancellationToken cancellationToken)
+    {
+        if (amount <= 0m)
+        {
+            return;
+        }
+
+        var transactionNo = $"SAMPLE-OPENING-{account.AccountNo}";
+        var transaction = await _dbContext.Transactions.SingleOrDefaultAsync(
+            item => item.TransactionNo == transactionNo, cancellationToken);
+        var businessDate = BusinessTime.ToBusinessDate(account.OpenedAt);
+        if (transaction is null)
+        {
+            var actorId = await _dbContext.Users
+                .Where(user => user.Username == "manager")
+                .Select(user => (long?)user.Id)
+                .SingleOrDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException("The manager seed user is required for sample opening entries.");
+            transaction = new Transaction
+            {
+                TransactionNo = transactionNo,
+                TransactionType = TransactionType.CashDeposit,
+                TransactionStatus = TransactionStatus.Completed,
+                InitiatedBy = actorId,
+                PostedBy = actorId,
+                Amount = amount,
+                TransactionAt = account.OpenedAt,
+                BusinessDate = businessDate,
+                PostedAt = account.OpenedAt,
+                Description = "Sample account opening balance",
+                ReferenceNo = account.AccountNo,
+                CreatedAt = account.OpenedAt,
+                UpdatedAt = account.OpenedAt
+            };
+            _dbContext.Transactions.Add(transaction);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var accountEntryExists = await _dbContext.AccountTransactions.AnyAsync(
+            item => item.TransactionId == transaction.Id && item.AccountId == account.Id, cancellationToken);
+        if (!accountEntryExists)
+        {
+            _dbContext.AccountTransactions.Add(new AccountTransaction
+            {
+                TransactionId = transaction.Id,
+                AccountId = account.Id,
+                EntryType = EntryType.Credit,
+                Amount = amount,
+                LedgerBalanceBefore = 0m,
+                LedgerBalanceAfter = amount,
+                AvailableBalanceBefore = 0m,
+                AvailableBalanceAfter = amount,
+                ValueDate = businessDate,
+                PostingDate = businessDate,
+                Description = transaction.Description,
+                ReferenceNo = transaction.TransactionNo,
+                Status = TransactionConstants.CompletedStatus,
+                CreatedAt = account.OpenedAt
+            });
+        }
+
+        var cashAccount = await _dbContext.GlAccounts.SingleAsync(
+            item => item.Code == AccountingConstants.CashOnHandGlCode, cancellationToken);
+        var depositsAccount = await _dbContext.GlAccounts.SingleAsync(
+            item => item.Code == AccountingConstants.CustomerDepositsGlCode, cancellationToken);
+        var hasCashDebit = await _dbContext.TransactionEntries.AnyAsync(item =>
+            item.TransactionId == transaction.Id && item.GlAccountId == cashAccount.Id &&
+            item.EntryType == EntryType.Debit && item.CustomerAccountId == null, cancellationToken);
+        var hasCustomerCredit = await _dbContext.TransactionEntries.AnyAsync(item =>
+            item.TransactionId == transaction.Id && item.GlAccountId == depositsAccount.Id &&
+            item.EntryType == EntryType.Credit && item.CustomerAccountId == account.Id, cancellationToken);
+        if (!hasCashDebit)
+        {
+            _dbContext.TransactionEntries.Add(new TransactionEntry
+            {
+                TransactionId = transaction.Id, GlAccountId = cashAccount.Id, EntryType = EntryType.Debit,
+                Amount = amount, PostingDate = businessDate, Description = transaction.Description, CreatedAt = account.OpenedAt
+            });
+        }
+        if (!hasCustomerCredit)
+        {
+            _dbContext.TransactionEntries.Add(new TransactionEntry
+            {
+                TransactionId = transaction.Id, GlAccountId = depositsAccount.Id, CustomerAccountId = account.Id,
+                EntryType = EntryType.Credit, Amount = amount, PostingDate = businessDate,
+                Description = transaction.Description, CreatedAt = account.OpenedAt
+            });
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
