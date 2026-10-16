@@ -17,7 +17,9 @@ public static class ChartOfAccountsSeeder
         (AccountingConstants.CustomerDepositsGlCode, "Customer Deposits", GlAccountClass.Liability),
         (AccountingConstants.InterbankClearingGlCode, "Interbank Clearing", GlAccountClass.Liability),
         (AccountingConstants.NrcTransfersPayableGlCode, "NRC Transfers Payable", GlAccountClass.Liability),
-        (AccountingConstants.TransferFeeIncomeGlCode, "Transfer Fee Income", GlAccountClass.Income)
+        (AccountingConstants.TransferFeeIncomeGlCode, "Transfer Fee Income", GlAccountClass.Income),
+        (AccountingConstants.BankOperatingExpenseGlCode, "Bank Operating Expense", GlAccountClass.Expense),
+        (AccountingConstants.CashOverShortGlCode, "Cash Over/Short", GlAccountClass.Expense)
     ];
 
     /// <summary>

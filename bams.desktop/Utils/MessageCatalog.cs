@@ -92,6 +92,8 @@ public static class MessageCatalog
             [MessageCode.CustomerAlreadyExists] = "A customer with the same NRC number, passport number, or email already exists.",
             [MessageCode.UserAccountDeleted] = "This user account has been deleted. Please contact your administrator.",
             [MessageCode.LastManagerCannotBeRemoved] = "This is the only active manager. Add another manager first.",
+            [MessageCode.BusinessDateClosed] = "Normal financial posting is not allowed to a closed business date.",
+            [MessageCode.CorrectionProposalStale] = "The source records changed. Refresh the correction preview and submit a new proposal.",
             [MessageCode.AuthenticationRequired] = "Your session has expired. Please log in again.",
             [MessageCode.PasswordChangeRequired] = "You must change your password before continuing.",
             [MessageCode.PasswordChangedSuccessfully] = "Password changed successfully.",

@@ -392,7 +392,7 @@ public sealed class TransactionQueryService : ITransactionQueryService
                 entry.Transaction!.TransactionType,
                 entry.EntryType,
                 entry.Amount,
-                entry.LedgerBalanceAfter,
+                _dbContext.EffectiveAccountBalances.Where(x => x.AccountTransactionId == entry.Id).OrderByDescending(x => x.Id).Select(x => (decimal?)x.BalanceAfter).FirstOrDefault() ?? entry.LedgerBalanceAfter,
                 entry.AvailableBalanceAfter,
                 entry.PostingDate,
                 entry.CreatedAt,

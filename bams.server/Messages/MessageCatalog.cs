@@ -5,6 +5,11 @@ public static class MessageCatalog
     private static readonly IReadOnlyDictionary<MessageCode, string> Messages =
         new Dictionary<MessageCode, string>
         {
+            [MessageCode.Conflict] = "The operation conflicts with the current state. Refresh and try again.",
+            [MessageCode.CorrectionProposalStale] = "The source records changed. Refresh the correction preview and submit a new proposal.",
+            [MessageCode.CorrectionAlreadyApplied] = "A correction has already been applied to these source records.",
+            [MessageCode.CorrectionLegacyResubmit] = "Submit this correction through the discrepancy proposal workflow.",
+            [MessageCode.CorrectionEvidenceRequired] = "Investigation findings and a supporting evidence reference are required.",
             [MessageCode.Success] = "Operation completed successfully.",
             [MessageCode.UserCreatedSuccessfully] = "User created successfully.",
             [MessageCode.UserUpdatedSuccessfully] = "User updated successfully.",

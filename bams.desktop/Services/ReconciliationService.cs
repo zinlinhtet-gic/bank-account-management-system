@@ -23,7 +23,7 @@ public sealed class ReconciliationService(ApiClient apiClient) : IReconciliation
         apiClient.PatchAsync<UpdateReconciliationExceptionRequest, ReconciliationExceptionResponse>($"/api/accounting/reconciliation/exceptions/{id}", request, cancellationToken);
 
     public Task<ReconciliationExceptionDetailResponse> GetExceptionByIdAsync(long id, CancellationToken cancellationToken) =>
-        apiClient.GetAsync<ReconciliationExceptionDetailResponse>($"/api/accounting/reconciliation/exceptions/{id}", cancellationToken);
+        apiClient.GetAsync<ReconciliationExceptionDetailResponse>($"/api/reconciliation/exceptions/{id}/detail", cancellationToken);
 
     public Task<ReconciliationExceptionResponse> RequestTransactionCorrectionAsync(long id, RequestTransactionCorrectionRequest request, CancellationToken cancellationToken) =>
         apiClient.PostAsync<RequestTransactionCorrectionRequest, ReconciliationExceptionResponse>($"/api/accounting/reconciliation/exceptions/{id}/correction-requests", request, cancellationToken);
@@ -37,9 +37,9 @@ public sealed class ReconciliationService(ApiClient apiClient) : IReconciliation
     public Task<IReadOnlyList<ReconciliationAccountOptionResponse>> SearchAccountsAsync(string? search, CancellationToken cancellationToken)
     {
         var suffix = string.IsNullOrWhiteSpace(search) ? string.Empty : $"?search={Uri.EscapeDataString(search.Trim())}";
-        return apiClient.GetAsync<IReadOnlyList<ReconciliationAccountOptionResponse>>($"/api/accounting/reconciliation/account-options{suffix}", cancellationToken);
+        return apiClient.GetAsync<IReadOnlyList<ReconciliationAccountOptionResponse>>($"/api/reconciliation/account-options{suffix}", cancellationToken);
     }
 
     public Task<IReadOnlyList<ReconciliationStaffOptionResponse>> GetInvestigatorOptionsAsync(CancellationToken cancellationToken) =>
-        apiClient.GetAsync<IReadOnlyList<ReconciliationStaffOptionResponse>>("/api/accounting/reconciliation/staff-options", cancellationToken);
+        apiClient.GetAsync<IReadOnlyList<ReconciliationStaffOptionResponse>>("/api/reconciliation/staff-options", cancellationToken);
 }

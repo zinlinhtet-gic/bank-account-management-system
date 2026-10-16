@@ -132,6 +132,10 @@ public enum MessageCode
     CashHandoffRecipientRequired = 4477,
     CashHandoffNotPending = 4478,
     LastManagerCannotBeRemoved = 4480,
+    CorrectionProposalStale = 4490,
+    CorrectionAlreadyApplied = 4491,
+    CorrectionLegacyResubmit = 4492,
+    CorrectionEvidenceRequired = 4493,
 
     // Server / Infrastructure: 5000 - 5999
     InternalServerError = 5000,

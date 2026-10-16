@@ -17,11 +17,14 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ReconciliationExclusionService _exclusions;
 
-    public EndOfDayAuditService(ApplicationDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    public EndOfDayAuditService(ApplicationDbContext dbContext, IHttpContextAccessor httpContextAccessor,
+        ReconciliationExclusionService exclusions)
     {
         _dbContext = dbContext;
         _httpContextAccessor = httpContextAccessor;
+        _exclusions = exclusions;
     }
 
     /// <summary>
@@ -48,7 +51,7 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
 
         // 2. Include only valid posted financial transactions.
         var includedTransactions = transactions
-            .Where(IsValidPostedTransaction)
+            .Where(transaction => IsValidPostedTransaction(transaction) && transaction.TransactionType != TransactionType.AccountPostingRepair && transaction.AccountingRootTransactionId == null)
             .ToList();
 
         var excludedTransactionCount =transactions.Count - includedTransactions.Count;
@@ -65,7 +68,9 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         // 5. Ensure each included transaction actually has GL entries.
         var transactionsWithoutEntries = GetTransactionIdsWithoutAccountingEntries(includedTransactions, transactionEntries);
 
-        if (transactionsWithoutEntries.Count > 0)
+        HashSet<long> waivedTransactions = await _exclusions.ActiveSourceIdsAsync(auditDate, "Transaction", cancellationToken);
+        HashSet<long> waivedLines = await _exclusions.ActiveSourceIdsAsync(auditDate, "GL", cancellationToken);
+        if (transactionsWithoutEntries.Any(id => !waivedTransactions.Contains(id)))
         {
             throw new BusinessRuleException(MessageCode.TransactionMissingAccountingEntries);
         }
@@ -73,7 +78,7 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         // 6. Find transaction-level debit/credit mismatches.
         var unbalancedTransactionIds = GetUnbalancedTransactionIds(transactionEntries);
 
-        if (unbalancedTransactionIds.Count > 0)
+        if (unbalancedTransactionIds.Any(id => !waivedTransactions.Contains(id)))
         {
             throw new BusinessRuleException(MessageCode.TransactionEntriesUnbalanced);
         }
@@ -93,7 +98,9 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
         var totalCredit = CalculateTotalCredit(accountingEntries);
 
         // 10. Final double-entry balance check.
-        var isBalanced =totalDebit == totalCredit;
+        List<TransactionEntry> effectiveEntries = accountingEntries.Where(entry =>
+            !waivedLines.Contains(entry.Id) && !waivedTransactions.Contains(entry.Transaction!.AccountingRootTransactionId ?? entry.TransactionId)).ToList();
+        bool isBalanced = CalculateTotalDebit(effectiveEntries) == CalculateTotalCredit(effectiveEntries);
 
         if (!isBalanced)
         {
@@ -182,25 +189,15 @@ public sealed class EndOfDayAuditService: IEndOfDayAuditService
 
     // Retrieves accounting entries belonging to included transactions.
     private async Task<IReadOnlyList<TransactionEntry>> GetAccountingEntriesAsync(
-            IReadOnlyCollection<Transaction> transactions,
-            CancellationToken cancellationToken)
+        IReadOnlyCollection<Transaction> transactions, CancellationToken cancellationToken)
     {
-        if (transactions.Count == 0)
-        {
-            return Array.Empty<TransactionEntry>();
-        }
-
-        var transactionIds = transactions
-            .Select(transaction => transaction.Id)
-            .ToList();
-
-        return await _dbContext.TransactionEntries
-            .AsNoTracking()
-            .Where(entry =>
-                transactionIds.Contains(
-                    entry.TransactionId))
-            .ToListAsync(
-                cancellationToken);
+        var ids = transactions.Select(x => x.Id).ToList();
+        var entries = await _dbContext.TransactionEntries.AsNoTracking().Include(x => x.Transaction)
+            .Where(x => ids.Contains(x.TransactionId) || x.Transaction!.AccountingRootTransactionId.HasValue && ids.Contains(x.Transaction.AccountingRootTransactionId.Value))
+            .ToListAsync(cancellationToken);
+        foreach (var entry in entries)
+            entry.TransactionId = entry.Transaction?.AccountingRootTransactionId ?? entry.TransactionId;
+        return entries;
     }
 
     // Finds transactions that have no accounting entries.

@@ -6,6 +6,8 @@ public sealed class BusinessDate
     public long Id { get; set; }
     public DateOnly Date { get; set; }
     public string Status { get; set; } = "Open";
+    // Only this open date accepts ordinary operational postings.
+    public bool IsActive { get; set; }
     public DateTime OpenedAtUtc { get; set; }
     public long OpenedBy { get; set; }
     public DateTime? ClosedAtUtc { get; set; }

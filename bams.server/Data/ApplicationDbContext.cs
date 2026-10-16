@@ -71,6 +71,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Accounting / reporting
     public DbSet<GlAccount> GlAccounts => Set<GlAccount>();
     public DbSet<DailySummary> DailySummaries => Set<DailySummary>();
+    public DbSet<CorrectionProposal> CorrectionProposals => Set<CorrectionProposal>();
+    public DbSet<CashCorrectionProposal> CashCorrectionProposals => Set<CashCorrectionProposal>();
+    public DbSet<ReconciliationExclusion> ReconciliationExclusions => Set<ReconciliationExclusion>();
+    public DbSet<ReconciliationExcludedSource> ReconciliationExcludedSources => Set<ReconciliationExcludedSource>();
+    public DbSet<BankExpenseRequest> BankExpenseRequests => Set<BankExpenseRequest>();
+    public DbSet<EffectiveAccountBalance> EffectiveAccountBalances => Set<EffectiveAccountBalance>();
+    public DbSet<DailySummaryRevision> DailySummaryRevisions => Set<DailySummaryRevision>();
     public DbSet<MonthlySummary> MonthlySummaries => Set<MonthlySummary>();
     public DbSet<BusinessDate> BusinessDates => Set<BusinessDate>();
     public DbSet<AccountReconciliationRun> AccountReconciliationRuns => Set<AccountReconciliationRun>();

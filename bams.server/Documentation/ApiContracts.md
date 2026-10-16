@@ -186,6 +186,40 @@ The manager permission `scheduled_job_management` protects these endpoints:
 
 For an open previous-month business date, the response includes `BusinessDateToClose`; close it through the existing `/api/operations/business-date` pre-close, approval, and close workflow before retrying. The retry endpoint does not close dates or bypass EOD gates. A retry rejection uses `ScheduledJobRetryUnavailable`; an unclosed month uses `MonthlyAccountingPeriodNotClosed`.
 
+## Unified reconciliation and cash correction
+
+The desktop reconciliation workspace and End of Day use these unified endpoints. A check produces account/GL and cash exceptions; listing returns results for the requested date range. The UI presents active items in separate tabs. Assignment is restricted to authorized staff, investigators retrieve only their assigned tasks, and Force Pass requires manager approval permission and a reason. A Force Passed exception is excluded while the captured source remains unchanged; source changes can create a new exception.
+
+| Method | Route | Permission | Purpose |
+| --- | --- | --- | --- |
+| POST | `/api/reconciliation/checks` | `accounting`, `audit`, or `end_of_day_approval` | Run account/GL and cash reconciliation for the request scope. |
+| GET | `/api/reconciliation/exceptions?fromDate={date}&toDate={date}` | `accounting`, `audit`, or `end_of_day_approval` | Read reconciliation results for a date range. |
+| GET | `/api/reconciliation/exceptions/{id}/detail` | `accounting`, `reconciliation_investigation`, or `end_of_day_approval` | Load exception details, subject to assignment/access rules. |
+| POST | `/api/reconciliation/exceptions/{id}/assign` | `accounting` or `transaction_correction_approval` | Assign an eligible investigator. |
+| GET | `/api/reconciliation/tasks/mine` | `reconciliation_investigation` | List the caller's assigned investigation tasks. |
+| POST | `/api/reconciliation/exceptions/{id}/force-pass` | `transaction_correction_approval` | Force Pass an exception with a required reason. |
+| GET | `/api/reconciliation/account-options?search={term}` | `accounting` or `reconciliation_investigation` | Search reconciliation account options. |
+| GET | `/api/reconciliation/staff-options` | `accounting` or `transaction_correction_approval` | List eligible staff for assignment. |
+| GET | `/api/reconciliation/cash/discrepancies` | `reconciliation_investigation` | List cash discrepancy types and their input definitions. |
+| POST | `/api/reconciliation/cash/exceptions/{id}/preview` | `reconciliation_investigation` | Validate diagnosis inputs and calculate a suggested correction. |
+| POST | `/api/reconciliation/cash/exceptions/{id}/proposals` | `reconciliation_investigation` | Submit cash correction inputs and expected source hash. |
+| GET | `/api/reconciliation/cash/proposals/pending` | `transaction_correction_approval` | List cash proposals awaiting manager review. |
+| POST | `/api/reconciliation/cash/proposals/{id}/review` | `transaction_correction_approval` | Approve/post or reject a cash proposal. |
+| POST | `/api/reconciliation/cash/proposals/{id}/verify` | `reconciliation_investigation` | Re-run verification after posting. |
+| POST | `/api/reconciliation/vault/final-count` | `end_of_day_approval` | Record the final physical vault count for a business date. |
+
+Account/GL diagnosis and proposal routes are documented in [Account reconciliation correction workflow](#account-reconciliation-correction-workflow). Approval appends linked financial/accounting/GL records where appropriate; original records are preserved. Cash count observations do not overwrite expected cash. A count-entry error is resolved by recount. Other cash corrections use server-calculated previews and manager-approved operational postings. If the cash proposal source hash has changed by manager review, the proposal is marked `Superseded`, the API returns `CorrectionProposalStale`, and the investigator may submit a refreshed proposal. A closed business date returns `BusinessDateClosed`. A sole active Manager may self-approve only when that manager is also the proposal author and holds the required permission.
+
+## Bank expense recording
+
+| Method | Route | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/cash-operations/expenses?date={date}` | `cash_operations`, `end_of_day_approval`, or `audit` | List bank expenses, optionally for one date. |
+| POST | `/api/cash-operations/expenses` | `cash_operations` or `end_of_day_approval` | Record an expense request with session, amount, payee, purpose, and receipt or missing-receipt reason. |
+| POST | `/api/cash-operations/expenses/{id}/review` | `end_of_day_approval` | Approve or reject the expense. Approval posts balanced expense and cash entries. |
+| GET | `/api/cash-operations/expenses/{id}/receipt` | `cash_operations`, `end_of_day_approval`, or `audit` | Download an authorized expense receipt. |
+
+Receipt uploads accept the implemented image/PDF formats and size limit; when no receipt is supplied, a reason is required. Approval creates the Bank Operating Expense debit, Cash on Hand credit, and corresponding cash movement atomically.
 ## Teller session cash handoffs
 
 Cash session close counts may include `handoffRecipientUserId` when `actualAmount` is positive. This closes the session and creates a pending custody transfer in the same database transaction. A positive count without a valid eligible recipient is rejected; a zero count needs no recipient. Recounting an already closed session does not create a second handoff.
@@ -202,3 +236,32 @@ Session opening and count-close requests require the standard `Idempotency-Key` 
 | PUT | `/api/cash-handoffs/{id}/recipient` | Sender or audit/EOD reviewer assigns an eligible recipient; status becomes pending. |
 
 All routes require at least one of `cash_operations`, `audit`, or `end_of_day_approval`; business authorization is further restricted by actor and handoff state in the service. `CashHandoffRecipientRequired` and `CashHandoffNotPending` are stable error codes.
+
+
+## Account reconciliation correction workflow
+
+All routes below also require `accounting`. Investigation endpoints require `reconciliation_investigation`; approval requires `transaction_correction_approval`. Request and response bodies use the DTOs shown in their route handlers.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/accounting/reconciliation/workflow/discrepancies` | Returns discrepancy types and required proposal inputs. |
+| POST | `/api/accounting/reconciliation/workflow/checks` | Runs account, journal, and daily debit/credit checks; creates or updates exceptions. |
+| POST | `/api/accounting/reconciliation/workflow/exceptions/{id}/investigation` | Assigns an active investigator and records findings, diagnosis, and review date. |
+| GET | `/api/accounting/reconciliation/workflow/transactions/{id}/evidence` | Returns original account and GL entries, including linked journal repairs. |
+| GET | `/api/accounting/reconciliation/workflow/gl-options` | Lists active GL accounts for investigator input. |
+| POST | `/api/accounting/reconciliation/workflow/exceptions/{id}/preview` | Validates diagnosis inputs and returns a server-calculated correction preview and source hash. |
+| POST | `/api/accounting/reconciliation/workflow/exceptions/{id}/proposals` | Saves a draft or submits an immutable proposal. Supply the preview source hash when submitting. |
+| POST | `/api/accounting/reconciliation/workflow/exceptions/{id}/proposals/{draftId}` | Saves changes to the proposer?s draft. Submitted proposals cannot be edited. |
+| GET | `/api/accounting/reconciliation/workflow/proposals` | Lists proposal history, optionally filtered by exception. |
+| GET | `/api/accounting/reconciliation/workflow/proposals/{id}` | Gets proposal evidence, preview, review, execution, and verification status. |
+| POST | `/api/accounting/reconciliation/workflow/proposals/{id}/review` | Approves and executes atomically, or rejects with a reason. |
+| POST | `/api/accounting/reconciliation/workflow/proposals/{id}/verify` | Retries verification without replaying the financial posting. |
+| GET | `/api/accounting/reconciliation/workflow/summaries?date=YYYY-MM-DD` | Lists provisional and final summary revisions. |
+| POST | `/api/accounting/reconciliation/workflow/summaries/{date}/refresh` | Creates new provisional revisions for open dates from the given date forward. |
+
+`CorrectionInputs` selects the discrepancy kind and supplies investigation findings, evidence reference, source transaction, and any case-specific correction inputs. The client never supplies authoritative journal lines. Approval revalidates the proposal source hash. A changed source requires a refreshed proposal and manager review.
+
+Legacy `/correction-requests` and `/correction-review` routes reject new calls with `CorrectionLegacyResubmit`; pending legacy requests are marked superseded during migration. Historical correction records remain available.
+
+
+`BusinessDateResponse` includes `isActive` and `canStartNewDate`. Only the active open date accepts ordinary postings. A new date can be started while an earlier date remains open; that prior date becomes inactive and awaits investigation/EOD finalization.

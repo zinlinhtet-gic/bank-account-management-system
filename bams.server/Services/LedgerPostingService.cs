@@ -259,6 +259,19 @@ public sealed class LedgerPostingService
                 Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
                 Add(AccountingConstants.CashOnHandGlCode, EntryType.Credit, amount);
                 break;
+            case TransactionType.BankCashExpense:
+                Add(AccountingConstants.BankOperatingExpenseGlCode, EntryType.Debit, amount);
+                Add(AccountingConstants.CashOnHandGlCode, EntryType.Credit, amount);
+                break;
+            case TransactionType.CashOverShort:
+                string? movementType = await _dbContext.CashMovements.AsNoTracking()
+                    .Where(movement => movement.TransactionId == transactionId)
+                    .Select(movement => movement.Type).SingleOrDefaultAsync(cancellationToken);
+                if (movementType is not ("CorrectionIn" or "CorrectionOut"))
+                    throw new BusinessRuleException(MessageCode.TransactionEntriesUnbalanced);
+                Add(AccountingConstants.CashOnHandGlCode, movementType == "CorrectionIn" ? EntryType.Debit : EntryType.Credit, amount);
+                Add(AccountingConstants.CashOverShortGlCode, movementType == "CorrectionIn" ? EntryType.Credit : EntryType.Debit, amount);
+                break;
             case TransactionType.InternalTransfer:
             {
                 var destinationAccountId = await FindAccountIdAsync(EntryType.Credit, amount);

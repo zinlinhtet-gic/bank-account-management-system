@@ -63,6 +63,12 @@ public partial class NavBarViewModel : ObservableObject
             AddAccountingNavigation(flags);
         }
 
+        List<string> reconciliationPages = new();
+        if (flags.CanAccessAccounting || flags.CanApproveEndOfDay || flags.CanViewAudit) reconciliationPages.Add(PageNames.ReconciliationMaster);
+        if (flags.CanInvestigateReconciliation) reconciliationPages.Add(PageNames.AssignedReconciliationTasks);
+        if (flags.CanApproveCorrections) reconciliationPages.Add(PageNames.ReconcileProposals);
+        if (reconciliationPages.Count > 0) AddNavGroup(PageNames.Reconciliation, "Icon.Reports", reconciliationPages.ToArray());
+
         var cashManagementPages = new List<string>();
         if (flags.CanApproveEndOfDay)
             cashManagementPages.Add(PageNames.BusinessDateOpening);
@@ -70,6 +76,7 @@ public partial class NavBarViewModel : ObservableObject
             cashManagementPages.Add(PageNames.CashReconciliation);
         if (flags.CanApproveEndOfDay)
             cashManagementPages.Add(PageNames.CashRequests);
+        if (flags.CanManageCashOperations || flags.CanApproveEndOfDay) cashManagementPages.Add(PageNames.BankExpenses);
         if (cashManagementPages.Count > 0)
             AddNavGroup(PageNames.CashManagement, "Icon.Finance", cashManagementPages.ToArray());
 
@@ -210,7 +217,7 @@ public partial class NavBarViewModel : ObservableObject
         {
             accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
             accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
-            accounting.Children.Add(CreateChildNavItem(PageNames.Reconciliation));
+
         }
         if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
             accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));

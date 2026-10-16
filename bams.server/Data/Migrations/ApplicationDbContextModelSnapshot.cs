@@ -101,11 +101,98 @@ namespace bams.server.Data.Migrations
                     b.ToTable("AccountReconciliationRuns");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Accounting.BankExpenseRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("CashProposalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ExceptionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MissingReceiptReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Payee")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("ReceiptContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<byte[]>("ReceiptData")
+                        .HasColumnType("longblob");
+
+                    b.Property<string>("ReceiptFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("RequestedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SessionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<long?>("TransactionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("TransactionId");
+
+                    b.HasIndex("BusinessDate", "Status");
+
+                    b.ToTable("BankExpenseRequests");
+                });
+
             modelBuilder.Entity("bams.server.Models.Accounting.BusinessDate", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
+
+                    b.Property<int?>("ActiveDateKey")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("int")
+                        .HasComputedColumnSql("CASE WHEN `IsActive` = 1 THEN 1 ELSE NULL END", true);
 
                     b.Property<DateTime?>("ClosedAtUtc")
                         .HasColumnType("datetime(6)");
@@ -115,6 +202,9 @@ namespace bams.server.Data.Migrations
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("OpenedAtUtc")
                         .HasColumnType("datetime(6)");
@@ -132,12 +222,84 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActiveDateKey")
+                        .IsUnique();
+
                     b.HasIndex("Date")
                         .IsUnique();
 
                     b.HasIndex("Status");
 
-                    b.ToTable("BusinessDates");
+                    b.ToTable("BusinessDates", t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessDates_ActiveOpen", "`IsActive` = 0 OR `Status` = 'Open'");
+                        });
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.CashCorrectionProposal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ExceptionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ExecutionTransactionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("InputsJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<long>("ProposerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Verification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("VerificationNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime?>("VerifiedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExceptionId", "Status");
+
+                    b.ToTable("CashCorrectionProposals");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.CashCount", b =>
@@ -512,6 +674,82 @@ namespace bams.server.Data.Migrations
                     b.ToTable("CashProposals");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Accounting.CorrectionProposal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ExceptionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ExecutionTransactionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("InputsJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PreviewJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<long>("ProposerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(3000)
+                        .HasColumnType("varchar(3000)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("SoleManagerApproval")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Verification")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VerificationNote")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("VerifiedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExceptionId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "Verification");
+
+                    b.ToTable("CorrectionProposals");
+                });
+
             modelBuilder.Entity("bams.server.Models.Accounting.DailySummary", b =>
                 {
                     b.Property<long>("Id")
@@ -551,6 +789,86 @@ namespace bams.server.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("DailySummaries");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.DailySummaryRevision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExceptionsJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("GeneratedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsFinal")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsStale")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDate", "Revision")
+                        .IsUnique();
+
+                    b.ToTable("DailySummaryRevisions");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.EffectiveAccountBalance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AccountTransactionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("BalanceAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BalanceBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CalculatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ProposalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProposalSource")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasDefaultValue("Account");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountTransactionId", "Id");
+
+                    b.HasIndex("ProposalSource", "ProposalId", "AccountTransactionId")
+                        .IsUnique();
+
+                    b.ToTable("EffectiveAccountBalances");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.EndOfDayRun", b =>
@@ -759,6 +1077,9 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("DiscrepancyKind")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("ExpectedAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -775,6 +1096,9 @@ namespace bams.server.Data.Migrations
 
                     b.Property<long?>("RequestedCorrectionTransactionId")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ReviewDueDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("Severity")
                         .IsRequired()
@@ -854,6 +1178,68 @@ namespace bams.server.Data.Migrations
                     b.HasIndex("ExceptionId", "CreatedAtUtc");
 
                     b.ToTable("ReconciliationExceptionHistories");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.ReconciliationExcludedSource", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ExclusionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SourceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExclusionId", "SourceType", "SourceId")
+                        .IsUnique();
+
+                    b.ToTable("ReconciliationExcludedSources");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.ReconciliationExclusion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ExceptionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ManagerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("SourceIdsJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExceptionId")
+                        .IsUnique();
+
+                    b.ToTable("ReconciliationExclusions");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>
@@ -2387,6 +2773,9 @@ namespace bams.server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("AccountingRootTransactionId")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -2543,6 +2932,35 @@ namespace bams.server.Data.Migrations
                         .HasForeignKey("ScheduledJobExecutionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_ARR_ScheduledExec");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.BankExpenseRequest", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounting.CashPositionSession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("bams.server.Models.Transactions.Transaction", "Transaction")
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Session");
+
+                    b.Navigation("Transaction");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.CashCorrectionProposal", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounting.ReconciliationException", "Exception")
+                        .WithMany()
+                        .HasForeignKey("ExceptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Exception");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounting.CashCount", b =>
@@ -2721,6 +3139,17 @@ namespace bams.server.Data.Migrations
                     b.Navigation("VaultSession");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Accounting.CorrectionProposal", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounting.ReconciliationException", "Exception")
+                        .WithMany()
+                        .HasForeignKey("ExceptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Exception");
+                });
+
             modelBuilder.Entity("bams.server.Models.Accounting.DailySummary", b =>
                 {
                     b.HasOne("bams.server.Models.Accounting.GlAccount", "GlAccount")
@@ -2838,6 +3267,28 @@ namespace bams.server.Data.Migrations
                         .HasConstraintName("FK_REH_Exception");
 
                     b.Navigation("Actor");
+
+                    b.Navigation("Exception");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.ReconciliationExcludedSource", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounting.ReconciliationExclusion", "Exclusion")
+                        .WithMany("Sources")
+                        .HasForeignKey("ExclusionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Exclusion");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.ReconciliationExclusion", b =>
+                {
+                    b.HasOne("bams.server.Models.Accounting.ReconciliationException", "Exception")
+                        .WithMany()
+                        .HasForeignKey("ExceptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Exception");
                 });
@@ -3365,6 +3816,11 @@ namespace bams.server.Data.Migrations
             modelBuilder.Entity("bams.server.Models.Accounting.ReconciliationException", b =>
                 {
                     b.Navigation("History");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Accounting.ReconciliationExclusion", b =>
+                {
+                    b.Navigation("Sources");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.Account", b =>

@@ -17,13 +17,26 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     private int _selectedStageIndex;
     private DateTime? _selectedBusinessDate;
     private string _forceCloseReason = string.Empty;
+    private readonly UnifiedReconciliationClient _unifiedClient;
+    private string _vaultActual = "", _vaultNote = "";
+    public UnifiedReconciliationViewModel Reconciliation { get; }
+    public event Action<ReconciliationRoute>? NavigateRequested;
+    public string VaultActual { get => _vaultActual; set => SetProperty(ref _vaultActual, value); }
+    public string VaultNote { get => _vaultNote; set => SetProperty(ref _vaultNote, value); }
+    public AsyncRelayCommand FinalVaultCountCommand { get; }
 
     public EndOfDayViewModel(IEndOfDayClientService service, AuthContext authContext,
         ICashOperationsClientService cashOperations, IReconciliationService reconciliationService,
-        OfficerCashSessionContext officerCashSessionContext, IDialogService dialogService)
+        OfficerCashSessionContext officerCashSessionContext, IDialogService dialogService,
+        UnifiedReconciliationViewModel reconciliation, UnifiedReconciliationClient unifiedClient)
     {
         _service = service;
         _authContext = authContext;
+        _unifiedClient = unifiedClient;
+        Reconciliation = reconciliation;
+        Reconciliation.IsEmbedded = true;
+        Reconciliation.NavigateRequested += route => NavigateRequested?.Invoke(route);
+        FinalVaultCountCommand = new AsyncRelayCommand(FinalVaultCountAsync, () => HasEndOfDayApprovalPermission && !IsBusy);
         CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext,
             officerCashSessionContext, dialogService);
         AccountReconciliation = new AccountReconciliationViewModel(reconciliationService, service, authContext);
@@ -151,17 +164,6 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         try
         {
             Summary.BusinessDate = await _service.GetCurrentBusinessDateAsync(cancellationToken);
-            if (HasEndOfDayApprovalPermission || CanRunPreClosePermission)
-            {
-                var openDates = await _service.SearchBusinessDatesAsync(null, null, cancellationToken);
-                var oldestOpenDate = openDates
-                    .Where(item => item.Status == "Open")
-                    .OrderBy(item => item.Date)
-                    .FirstOrDefault();
-                if (oldestOpenDate is not null && oldestOpenDate.Date < Summary.BusinessDate.Date)
-                    Summary.BusinessDate = oldestOpenDate;
-            }
-
             SelectedBusinessDate = Summary.BusinessDate.Date.ToDateTime(TimeOnly.MinValue);
             await LoadSupportingViewsAsync(Summary.BusinessDate.Date, cancellationToken);
             var latestRun = await _service.GetLatestRunAsync(Summary.BusinessDate.Date, cancellationToken);
@@ -217,11 +219,24 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
 
     private async Task LoadSupportingViewsAsync(DateOnly date, CancellationToken cancellationToken)
     {
-        await AccountReconciliation.Results.InitializeForBusinessDateAsync(date, cancellationToken);
-        if (CashReconciliation.CanViewCashSessions)
-            await CashReconciliation.InitializeForBusinessDateAsync(date, cancellationToken);
-        await CashHandoffs.LoadForBusinessDateAsync(date, cancellationToken);
-        await ExceptionCenter.Investigation.InitializeForBusinessDateAsync(date, cancellationToken);
+        Reconciliation.FromDate = date.ToDateTime(TimeOnly.MinValue);
+        Reconciliation.ToDate = date.ToDateTime(TimeOnly.MinValue);
+        await Reconciliation.InitializeAsync(cancellationToken);
+    }
+
+    private async Task FinalVaultCountAsync()
+    {
+        if (Summary.BusinessDate is null || !decimal.TryParse(VaultActual, out decimal actual))
+        { ErrorMessage = "Enter the vault's physical cash amount."; return; }
+        try
+        {
+            IsBusy = true;
+            await _unifiedClient.FinalCountAsync(Summary.BusinessDate.Date, actual, VaultNote);
+            await LoadSupportingViewsAsync(Summary.BusinessDate.Date, default);
+            SuccessMessage = "Final vault count recorded. Run checks to refresh the closing approval.";
+        }
+        catch (AppException error) { ErrorMessage = error.Message; }
+        finally { IsBusy = false; }
     }
 
     private async Task RunPreCloseAsync()
@@ -232,6 +247,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             IsBusy = true;
             var run = await _service.RunPreCloseAsync(Summary.BusinessDate.Date, CancellationToken.None);
             ApplyRun(run);
+            await LoadSupportingViewsAsync(Summary.BusinessDate.Date, default);
             SuccessMessage = run.Status == "ReadyForApproval"
                 ? "Checks are complete. The close request is ready for manager review."
                 : "Checks are complete. Resolve the listed blockers and run the checks again.";

@@ -864,7 +864,7 @@ public sealed class CashOperationsService(ApplicationDbContext db, ICurrentUserS
     private async Task<DateOnly> GetOpenBusinessDateAsync(CancellationToken cancellationToken)
     {
         var today = BusinessTime.Today;
-        var open = await db.BusinessDates.AsNoTracking().Where(item => item.Status == "Open" && item.Date <= today)
+        var open = await db.BusinessDates.AsNoTracking().Where(item => item.IsActive && item.Status == "Open" && item.Date <= today)
             .OrderByDescending(item => item.Date).Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken);
         return open ?? BusinessTime.Today;
     }

@@ -36,6 +36,8 @@ public sealed class ReconciliationException
     public string? CorrectionExternalRecoveryReference { get; set; }
     public string? CorrectionReviewNote { get; set; }
     public string? Notes { get; set; }
+    public DiscrepancyKind? DiscrepancyKind { get; set; }
+    public DateOnly? ReviewDueDate { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public long CreatedBy { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
