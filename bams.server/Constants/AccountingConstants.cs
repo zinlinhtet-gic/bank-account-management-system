@@ -37,5 +37,7 @@ public static class AccountingConstants
 
     // Expenses
     public const string InterestExpenseGlCode = "6001";
+    public const string BankOperatingExpenseGlCode = "6002";
+    public const string CashOverShortGlCode = "6003";
 
 }

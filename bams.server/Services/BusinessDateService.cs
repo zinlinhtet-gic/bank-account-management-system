@@ -17,17 +17,17 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
     public async Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken)
     {
         var currentDate = BusinessTime.Today;
-        var businessDate = await db.BusinessDates.AsNoTracking().Where(item => item.Date <= currentDate && item.Status == OperationsConstants.BusinessDateOpen)
+        var businessDate = await db.BusinessDates.AsNoTracking().Where(item => item.IsActive && item.Date <= currentDate && item.Status == OperationsConstants.BusinessDateOpen)
             .OrderBy(item => item.Date).FirstOrDefaultAsync(cancellationToken);
         if (businessDate is null)
             businessDate = await db.BusinessDates.AsNoTracking().SingleOrDefaultAsync(item => item.Date == currentDate, cancellationToken);
         return businessDate is null
-            ? new BusinessDateResponse(currentDate, "NotStarted", DateTime.MinValue, null)
-            : new BusinessDateResponse(businessDate.Date, businessDate.Status, businessDate.OpenedAtUtc, businessDate.ClosedAtUtc);
+            ? new BusinessDateResponse(currentDate, "NotStarted", DateTime.MinValue, null, false, true)
+            : new BusinessDateResponse(businessDate.Date, businessDate.Status, businessDate.OpenedAtUtc, businessDate.ClosedAtUtc, businessDate.IsActive, businessDate.Date < currentDate);
     }
 
     public async Task<DateOnly> GetOpenBusinessDateValueAsync(CancellationToken cancellationToken) =>
-        await db.BusinessDates.AsNoTracking().Where(item => item.Status == OperationsConstants.BusinessDateOpen && item.Date <= BusinessTime.Today)
+        await db.BusinessDates.AsNoTracking().Where(item => item.IsActive && item.Status == OperationsConstants.BusinessDateOpen && item.Date <= BusinessTime.Today)
             .OrderBy(item => item.Date).Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken)
         ?? throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
 
@@ -36,8 +36,8 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
     {
         var currentDate = BusinessTime.ToBusinessDate(nowUtc);
         var openDate = await db.BusinessDates.AsNoTracking().SingleOrDefaultAsync(item =>
-            item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-        if (openDate is null || await db.BusinessDates.AnyAsync(item => item.Date < currentDate && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken))
+            item.IsActive && item.Date == currentDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
+        if (openDate is null)
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
         return currentDate;
     }
@@ -51,18 +51,16 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
 
         var date = BusinessTime.Today;
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var previous = (await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {date.AddDays(-1)} FOR UPDATE")
-            .ToListAsync(cancellationToken)).SingleOrDefault();
-        if (previous is not null && previous.Status != OperationsConstants.BusinessDateClosed)
+        // Serialize date switches; the generated unique key also protects an empty-table race.
+        var activeDates = await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE IsActive = 1 FOR UPDATE").ToListAsync(cancellationToken);
+        if (await db.BusinessDates.AnyAsync(item => item.Date == date, cancellationToken))
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        if (await db.BusinessDates.AnyAsync(item => item.Status == OperationsConstants.BusinessDateOpen && item.Date <= date, cancellationToken))
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        if (await db.BusinessDates.AnyAsync(item => item.Date == date || (item.Date < date && item.Status != OperationsConstants.BusinessDateClosed), cancellationToken))
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        foreach (var prior in activeDates) { prior.IsActive = false; prior.Version++; }
+        await db.SaveChangesAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var businessDate = new Models.Accounting.BusinessDate
         {
-            Date = date, Status = OperationsConstants.BusinessDateOpen,
+            Date = date, Status = OperationsConstants.BusinessDateOpen, IsActive = true,
             OpenedBy = currentUser.GetCurrentUserId(), OpenedAtUtc = now
         };
         db.BusinessDates.Add(businessDate);
@@ -87,11 +85,11 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
                 session.BusinessDate == date && session.PositionType == OperationsConstants.CashPositionVault &&
                 session.Status == OperationsConstants.CashSessionOpen, cancellationToken);
             if (concurrentStart?.Status == OperationsConstants.BusinessDateOpen && vaultExists)
-                return new BusinessDateResponse(date, concurrentStart.Status, concurrentStart.OpenedAtUtc, concurrentStart.ClosedAtUtc);
+                return new BusinessDateResponse(date, concurrentStart.Status, concurrentStart.OpenedAtUtc, concurrentStart.ClosedAtUtc, concurrentStart.IsActive);
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
         }
         await transaction.CommitAsync(cancellationToken);
-        return new BusinessDateResponse(date, businessDate.Status, now, null);
+        return new BusinessDateResponse(date, businessDate.Status, now, null, true);
     }
 
 }

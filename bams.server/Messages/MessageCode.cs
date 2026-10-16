@@ -197,6 +197,12 @@ public enum MessageCode
     // Users: 4480 - 4489
     LastManagerCannotBeRemoved = 4480,
 
+    // Reconciliation correction workflow.
+    CorrectionProposalStale = 4490,
+    CorrectionAlreadyApplied = 4491,
+    CorrectionLegacyResubmit = 4492,
+    CorrectionEvidenceRequired = 4493,
+
     // System / Infrastructure: 5000 - 5999
     InternalServerError = 5000,
     FileStorageFailed = 5001

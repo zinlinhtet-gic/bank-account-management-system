@@ -51,8 +51,8 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
             RefreshCommand?.RaiseCanExecuteChanged();
         }
     }
-    public bool CanStartBusinessDate => !IsBusy && HasManagerPermission && BusinessDate?.Status == "NotStarted";
-    public bool ShowStartForm => HasManagerPermission && BusinessDate?.Status == "NotStarted";
+    public bool CanStartBusinessDate => !IsBusy && HasManagerPermission && BusinessDate?.CanStartNewDate == true;
+    public bool ShowStartForm => HasManagerPermission && BusinessDate?.CanStartNewDate == true;
     public bool HasManagerPermission => _authContext.HasPermission(PermissionCodes.EndOfDayApproval);
     public string BusinessDateSummary => BusinessDate is null ? "Loading business date…" :
         $"{BusinessDate.Date:yyyy-MM-dd} · {BusinessDate.Status}";

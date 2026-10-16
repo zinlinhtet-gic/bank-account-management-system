@@ -17,6 +17,7 @@ public static class OperationsConstants
     public const string ExceptionUnderInvestigation = "UnderInvestigation";
     public const string ExceptionAdjustmentRequired = "AdjustmentRequired";
     public const string ExceptionResolved = "Resolved";
+    public const string ExceptionForcePassed = "ForcePassed";
     public const string ExceptionAccountBalance = "AccountBalance";
     public const string ExceptionCashBalance = "CashBalance";
     public const string ExceptionLedgerBalance = "LedgerBalance";

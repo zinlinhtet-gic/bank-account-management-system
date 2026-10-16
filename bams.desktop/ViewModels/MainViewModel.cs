@@ -100,7 +100,7 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>
     /// Navigates to a page based on the navigation item label.
     /// </summary>
-    private void NavigateToPage(object? parameter)
+    private async void NavigateToPage(object? parameter)
     {
         if (parameter == null)
             return;
@@ -110,7 +110,7 @@ public sealed class MainViewModel : ViewModelBase
             return;
 
         if (IsOfficer && CurrentPage is CashReconciliationViewModel &&
-            pageLabel != PageNames.CashReconciliation && !_cashSessionContext.HasOpenSession)
+            pageLabel != PageNames.CashReconciliation && pageLabel != PageNames.AssignedReconciliationTasks && !_cashSessionContext.HasOpenSession)
         {
             var continueNavigation = _dialogService.Confirm(new ConfirmDialogOptions(
                 "Cash session required",
@@ -121,9 +121,14 @@ public sealed class MainViewModel : ViewModelBase
                 return;
         }
 
+        if (CurrentPage is ReconciliationProposalEditorViewModel editor && !await editor.ConfirmLeaveAsync()) return;
         var viewModel = _navigationService.GetPageViewModel(pageLabel);
         if (viewModel != null)
         {
+            if (viewModel is ReconciliationOperationViewModel operation)
+                operation.NavigateRequested += OpenReconciliationOperation;
+            if (viewModel is EndOfDayViewModel endOfDay)
+                endOfDay.NavigateRequested += OpenReconciliationOperation;
             if (viewModel is GeneralLedgerViewModel generalLedger)
             {
                 generalLedger.DetailRequested += OpenGlAccountDetail;
@@ -146,6 +151,22 @@ public sealed class MainViewModel : ViewModelBase
 
         // No page is mapped to this label: keep the current page and nav highlight instead of showing nothing.
         AppLog.WriteInformation($"Navigation to page '{pageLabel}' ignored because no page is registered for it.");
+    }
+
+    // Operation routes carry explicit IDs and preserve the originating page instance and filters.
+    private async void OpenReconciliationOperation(ReconciliationRoute route)
+    {
+        if (CurrentPage is ReconciliationProposalEditorViewModel editor && !await editor.ConfirmLeaveAsync()) return;
+        if (_navigationService.GetPageViewModel(route.Page) is not ReconciliationOperationViewModel next) return;
+        next.SetRoute(route);
+        next.NavigateRequested += OpenReconciliationOperation;
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = next;
+        _currentPageLabel = route.Page;
+        ActiveItem = route.Page is PageNames.ReconciliationProposalEditor or PageNames.CashProposalEditor
+            ? PageNames.AssignedReconciliationTasks : route.Page;
+        StartPageInitialization(next);
     }
 
     private void OpenGlAccountDetail(long accountId)

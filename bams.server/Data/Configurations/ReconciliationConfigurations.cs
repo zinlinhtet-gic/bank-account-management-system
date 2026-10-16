@@ -16,6 +16,9 @@ public sealed class BusinessDateConfiguration : IEntityTypeConfiguration<Busines
         builder.HasKey(item => item.Id);
         builder.HasIndex(item => item.Date).IsUnique();
         builder.HasIndex(item => item.Status);
+        builder.Property<int?>("ActiveDateKey").HasComputedColumnSql("CASE WHEN `IsActive` = 1 THEN 1 ELSE NULL END", stored: true);
+        builder.HasIndex("ActiveDateKey").IsUnique();
+        builder.ToTable(t => t.HasCheckConstraint("CK_BusinessDates_ActiveOpen", "`IsActive` = 0 OR `Status` = 'Open'"));
         builder.Property(item => item.Status).IsRequired().HasMaxLength(20);
     }
 }

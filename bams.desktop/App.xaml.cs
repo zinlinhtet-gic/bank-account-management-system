@@ -184,6 +184,22 @@ public partial class App : Application
         services.AddTransient<GeneralLedgerViewModel>();
         services.AddTransient<GLAccountDetailViewModel>();
         services.AddTransient<ReconciliationViewModel>();
+        services.AddSingleton<ReconciliationWorkflowClient>();
+        services.AddTransient<ReconciliationChecksViewModel>();
+        services.AddSingleton<Services.UnifiedReconciliationClient>();
+        services.AddTransient<UnifiedReconciliationViewModel>();
+        services.AddTransient<AssignedReconciliationTasksViewModel>();
+        services.AddTransient<ReconcileProposalsViewModel>();
+        services.AddTransient<CashProposalEditorViewModel>();
+        services.AddTransient<BankExpensesViewModel>();
+        services.AddTransient<ReconciliationExceptionsViewModel>();
+        services.AddTransient<ReconciliationInvestigationsViewModel>();
+        services.AddTransient<ReconciliationProposalsViewModel>();
+        services.AddTransient<ReconciliationApprovalsViewModel>();
+        services.AddTransient<ReconciliationVerificationViewModel>();
+        services.AddTransient<ReconciliationHistoryViewModel>();
+        services.AddTransient<ReconciliationProposalEditorViewModel>();
+
         services.AddSingleton<Services.IReconciliationService, Services.ReconciliationService>();
         services.AddTransient<CashReconciliationViewModel>();
         services.AddTransient<CashRequestCenterViewModel>();
