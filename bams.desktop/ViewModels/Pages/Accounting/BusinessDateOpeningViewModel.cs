@@ -19,6 +19,27 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
     private string _successMessage = string.Empty;
     private bool _isBusy;
 
+    private int _step = 1;
+    private readonly string _openingKey = Guid.NewGuid().ToString("N");
+    public SessionScheduleEditorViewModel Editor { get; } = new();
+    public int Step { get => _step; private set { if (SetProperty(ref _step, value)) { OnPropertyChanged(nameof(IsStepOne)); OnPropertyChanged(nameof(IsStepTwo)); OnPropertyChanged(nameof(IsStepThree)); OnPropertyChanged(nameof(ReviewSummary)); NextCommand?.RaiseCanExecuteChanged(); PreviousCommand?.RaiseCanExecuteChanged(); } } }
+    public bool IsStepOne => Step == 1;
+    public bool IsStepTwo => Step == 2;
+    public bool IsStepThree => Step == 3;
+    public string TodayLabel => (BusinessDate?.Today ?? BusinessDate?.Date)?.ToString("yyyy-MM-dd") ?? "Loading";
+    public string ReviewSummary => $"Date: {TodayLabel}   |   Vault cash: {StartingCashText}   |   Officer sessions: {Editor.Rows.Count}";
+    public RelayCommand NextCommand { get; }
+    public RelayCommand PreviousCommand { get; }
+    // Checks required values before advancing the opening stepper.
+    private void AdvanceStep()
+    {
+        if (!decimal.TryParse(StartingCashText, out var cash) || cash < 0 || decimal.Round(cash, 2) != cash)
+        { ErrorMessage = "Enter non-negative vault cash with at most two decimal places."; return; }
+        if (Step == 2 && !Editor.TryBuild(BusinessDate!.Today ?? BusinessDate.Date, out _, out var error)) { ErrorMessage = error; return; }
+        ErrorMessage = "";
+        if (Step < 3) Step++;
+    }
+
     public AsyncRelayCommand StartBusinessDateCommand { get; }
     public AsyncRelayCommand RefreshCommand { get; }
 
@@ -28,6 +49,8 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
         _businessDates = businessDates;
         _cashOperations = cashOperations;
         _authContext = authContext;
+        NextCommand = new(_ => AdvanceStep(), _ => !IsBusy && CanStartBusinessDate && Step < 3);
+        PreviousCommand = new(_ => { if (Step > 1) Step--; }, _ => !IsBusy && Step > 1);
         StartBusinessDateCommand = new AsyncRelayCommand(StartBusinessDateAsync, () => CanStartBusinessDate);
         RefreshCommand = new AsyncRelayCommand(() => InitializeAsync(CancellationToken.None), () => !IsBusy);
     }
@@ -37,6 +60,7 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
     public string StartingCashText { get => _startingCashText; set { if (SetProperty(ref _startingCashText, value)) ErrorMessage = string.Empty; } }
     public string ErrorMessage { get => _errorMessage; private set { if (SetProperty(ref _errorMessage, value)) OnPropertyChanged(nameof(HasError)); } }
     public string SuccessMessage { get => _successMessage; private set { if (SetProperty(ref _successMessage, value)) OnPropertyChanged(nameof(HasSuccess)); } }
+    public bams.desktop.Utils.MessageCode? ErrorCode => HasError ? bams.desktop.Utils.MessageCode.ValidationFailed : null;
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasSuccess => !string.IsNullOrWhiteSpace(SuccessMessage);
     public bool IsBusy
@@ -49,6 +73,8 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
             OnPropertyChanged(nameof(ShowStartForm));
             StartBusinessDateCommand?.RaiseCanExecuteChanged();
             RefreshCommand?.RaiseCanExecuteChanged();
+            NextCommand?.RaiseCanExecuteChanged();
+            PreviousCommand?.RaiseCanExecuteChanged();
         }
     }
     public bool CanStartBusinessDate => !IsBusy && HasManagerPermission && BusinessDate?.CanStartNewDate == true;
@@ -66,6 +92,8 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
         {
             IsBusy = true;
             BusinessDate = await _businessDates.GetCurrentBusinessDateAsync(cancellationToken);
+            if (HasManagerPermission) await Editor.LoadAsync(_cashOperations, cancellationToken);
+            OnPropertyChanged(nameof(TodayLabel));
             VaultSession = null;
             if (BusinessDate.Status == "Open")
             {
@@ -95,11 +123,12 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
             return;
         }
 
+        if (!Editor.TryBuild(BusinessDate!.Today ?? BusinessDate.Date, out var schedules, out var scheduleError)) { ErrorMessage = scheduleError; return; }
         try
         {
             IsBusy = true;
             BusinessDate = await _businessDates.StartCurrentBusinessDateAsync(
-                new StartBusinessDateRequest(startingCash), CancellationToken.None);
+                new StartBusinessDateRequest(startingCash, schedules, _openingKey, BusinessDate.Today ?? BusinessDate.Date), CancellationToken.None);
             OnPropertyChanged(nameof(BusinessDateSummary));
             OnPropertyChanged(nameof(CanStartBusinessDate));
             OnPropertyChanged(nameof(ShowStartForm));

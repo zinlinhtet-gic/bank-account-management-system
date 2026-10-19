@@ -8,6 +8,7 @@ public static class OperationsConstants
     public const string BusinessDateClosed = "Closed";
     public const string CashPositionTeller = "Teller";
     public const string CashPositionVault = "Vault";
+    public const string CashSessionCancelled = "Cancelled";
     public const string CashSessionScheduled = "Scheduled";
     public const string CashSessionOpen = "Open";
     public const string CashSessionClosed = "Closed";

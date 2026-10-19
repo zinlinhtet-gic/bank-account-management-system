@@ -12,7 +12,7 @@
                         <TextBlock Text="BUSINESS DATE" Style="{StaticResource Text.FieldLabel}" />
                         <DatePicker SelectedDate="{Binding SelectedDate}" Style="{StaticResource Input.Date}" />
                     </StackPanel>
-                    <Button Content="Load Requests" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" VerticalAlignment="Bottom" />
+                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="180" Margin="0,0,10,0" VerticalAlignment="Bottom"/><Button Content="Load Requests" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" VerticalAlignment="Bottom" />
                 </WrapPanel>
             </Border>
             <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,10" />
@@ -28,22 +28,7 @@
                     <DataGridTextColumn Header="Reason" Binding="{Binding Note}" Width="2*" />
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
                     <DataGridTextColumn Header="Approved amount" Binding="{Binding ApprovedAmount, StringFormat=N2}" />
+                    <DataGridTemplateColumn Header="Actions"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Button Content="Accept" Command="{Binding DataContext.AcceptRowCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/><Button Content="Reject" Command="{Binding DataContext.RejectRowCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource Button.Secondary}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
-            <Border Style="{StaticResource Card.Compact}" Margin="0,12,0,0">
-                <StackPanel>
-                    <TextBlock Text="Review selected request" Style="{StaticResource Text.Subheading}" Margin="0,0,0,8" />
-                    <TextBlock Text="Enter the approved amount. If the officer left the amount blank, choose an amount here." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                    <StackPanel Width="280" Margin="0,0,0,10">
-                        <TextBlock Text="APPROVED AMOUNT" Style="{StaticResource Text.FieldLabel}" />
-                        <TextBox Text="{Binding ApprovedAmountText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Amount" />
-                    </StackPanel>
-                    <WrapPanel>
-                        <Button Content="Approve and reserve cash" Command="{Binding ApproveCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0" />
-                        <Button Content="Reject request" Command="{Binding RejectCommand}" Style="{StaticResource Button.Danger}" />
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
-</UserControl>
+        </StackPanel></ScrollViewer></UserControl>

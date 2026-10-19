@@ -132,3 +132,14 @@ Cash approval retries of an Executed proposal return the persisted execution, da
 Apply ReconciliationForcePassHistory before storing a second Force Pass decision for an exception. The migration replaces the unique ExceptionId index with a normal index; it does not remove decision history or change financial data.
 
 ReconciliationForcePassHistory creates a temporary supporting ExceptionId index before replacing the unique index, then drops the supporting index. Both upgrade and downgrade keep the foreign key indexed and enforced throughout the replacement, as required by MySQL.
+
+
+## Business dates and session management
+
+Only today's Myanmar date can be opened, once. Opening creates the vault and optional officer schedules atomically and deactivates prior active dates without closing them. Older open dates support reconciliation, checks, counts, settlement and closure. Scheduled reconciliation retains its explicit-date behavior.
+
+Schedules require an active officer, same-day start before end, positive two-decimal starting cash, non-overlapping officer periods, and sufficient available vault cash for all rows. Adjacent periods are valid. Acceptance activates and receives initial cash exactly once. Cancellation retains actor/time and resolves the reservation; Cancelled sessions are excluded from closing blockers.
+
+New posting, activation and cash requests require today's active date. Existing older-date requests can settle while their date remains open. Counts and handoffs enforce ownership and state independently of the current-date teller gate.
+
+Only the selected recipient can acknowledge a handoff. Today's officer recipients need an active same-date session at creation and receipt; acceptance creates paired transfers. Older-date recipients are restricted to managers/auditors. Manager receipt of teller cash credits the source date's open vault; auditor receipt is custody-only. Discrepancies survive cash transfers. Pending or declined handoffs block normal closing.

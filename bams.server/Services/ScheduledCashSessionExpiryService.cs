@@ -23,6 +23,8 @@ public sealed class ScheduledCashSessionExpiryService(ApplicationDbContext db)
         foreach (var id in expiredIds)
         {
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+            var date = await db.CashPositionSessions.AsNoTracking().Where(item => item.Id == id).Select(item => item.BusinessDate).SingleAsync(cancellationToken);
+            await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {date} FOR UPDATE").ToListAsync(cancellationToken);
             var session = (await db.CashPositionSessions
                 .FromSql($"SELECT * FROM CashPositionSessions WHERE Id = {id} FOR UPDATE")
                 .ToListAsync(cancellationToken)).SingleOrDefault();

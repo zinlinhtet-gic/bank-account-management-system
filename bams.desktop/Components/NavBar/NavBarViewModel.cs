@@ -73,8 +73,9 @@ public partial class NavBarViewModel : ObservableObject
         var cashManagementPages = new List<string>();
         if (flags.CanApproveEndOfDay)
             cashManagementPages.Add(PageNames.BusinessDateOpening);
-        if (flags.CanManageCashOperations)
+        if (flags.CanManageCashOperations || flags.CanApproveEndOfDay || flags.CanViewAudit)
             cashManagementPages.Add(PageNames.CashReconciliation);
+        if (flags.CanManageCashOperations || flags.CanApproveEndOfDay || flags.CanViewAudit) cashManagementPages.Add(PageNames.SessionHandoffs);
         if (flags.CanApproveEndOfDay)
             cashManagementPages.Add(PageNames.CashRequests);
         if (flags.CanManageCashOperations || flags.CanApproveEndOfDay) cashManagementPages.Add(PageNames.BankExpenses);

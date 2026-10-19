@@ -201,7 +201,10 @@ public partial class App : Application
         services.AddTransient<ReconciliationProposalEditorViewModel>();
 
         services.AddSingleton<Services.IReconciliationService, Services.ReconciliationService>();
-        services.AddTransient<CashReconciliationViewModel>();
+        services.AddTransient<SessionManagementViewModel>();
+        services.AddTransient<SessionCreationViewModel>();
+        services.AddTransient<SessionDetailViewModel>();
+        services.AddTransient<CashHandoffCenterViewModel>();
         services.AddTransient<CashRequestCenterViewModel>();
         services.AddTransient<BusinessDateOpeningViewModel>();
         services.AddSingleton<Services.ICashOperationsClientService, Services.CashOperationsClientService>();

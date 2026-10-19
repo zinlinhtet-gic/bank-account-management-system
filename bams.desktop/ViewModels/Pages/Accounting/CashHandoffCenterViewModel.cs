@@ -8,7 +8,7 @@ using bams.desktop.Services;
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
 /// <summary>Presentation state and commands for acknowledging or reassigning session cash handoffs.</summary>
-public sealed class CashHandoffCenterViewModel : ViewModelBase
+public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializable
 {
     private readonly ICashOperationsClientService _service;
     private readonly AuthContext _auth;
@@ -54,10 +54,12 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase
         _auth = auth;
         RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => HasAccess);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync, () => HasAccess && SelectedHandoff is not null);
-        AcceptCommand = new AsyncRelayCommand(AcceptAsync, () => HasAccess && SelectedHandoff?.Status == "PendingAcceptance");
-        DeclineCommand = new AsyncRelayCommand(DeclineAsync, () => HasAccess && SelectedHandoff?.Status == "PendingAcceptance");
+        AcceptCommand = new AsyncRelayCommand(AcceptAsync, () => HasAccess && SelectedHandoff?.RecipientUserId == _auth.UserId && SelectedHandoff?.Status == "PendingAcceptance");
+        DeclineCommand = new AsyncRelayCommand(DeclineAsync, () => HasAccess && SelectedHandoff?.RecipientUserId == _auth.UserId && SelectedHandoff?.Status == "PendingAcceptance");
         ReassignCommand = new AsyncRelayCommand(ReassignAsync, () => HasAccess && SelectedHandoff?.Status != "Accepted" && SelectedRecipient is not null);
     }
+
+    public Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
     public bool HasAccess => _auth.HasPermission(PermissionCodes.CashOperations) ||
         _auth.HasPermission(PermissionCodes.Audit) || _auth.HasPermission(PermissionCodes.EndOfDayApproval);

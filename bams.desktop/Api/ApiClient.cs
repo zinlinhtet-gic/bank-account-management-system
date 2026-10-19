@@ -257,6 +257,8 @@ public sealed class ApiClient
     private static bool IsCashSessionBootstrapEndpoint(string endpoint)
     {
         var path = endpoint.TrimStart('/').Split('?', 2)[0];
+        if (IsEndpointOrChild(endpoint, ApiConstants.CashHandoffsEndpoint) ||
+            path.StartsWith(ApiConstants.CashOperationsEndpoint + "/proposals/", StringComparison.OrdinalIgnoreCase)) return true;
         var sessionsEndpoint = ApiConstants.CashOperationsEndpoint + "/sessions";
         if (path.Equals(sessionsEndpoint, StringComparison.OrdinalIgnoreCase))
             return true;
@@ -267,7 +269,7 @@ public sealed class ApiClient
 
         var route = path[sessionPrefix.Length..].Split('/');
         return route.Length == 2 && long.TryParse(route[0], out _) &&
-            route[1].Equals("activate", StringComparison.OrdinalIgnoreCase);
+            (route[1].Equals("activate", StringComparison.OrdinalIgnoreCase) || route[1].Equals("count", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

@@ -6,6 +6,10 @@ namespace bams.desktop.Services;
 
 public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOperationsClientService
 {
+    /// <summary>Submits a complete schedule batch with a stable retry key.</summary>
+    public Task<IReadOnlyList<CashPositionSessionResponse>> CreateSchedulesAsync(CreateSessionSchedulesRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CreateSessionSchedulesRequest, IReadOnlyList<CashPositionSessionResponse>>("/api/cash-operations/sessions/schedules", request, cancellationToken);
+
     public Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? date, CancellationToken cancellationToken)
     {
         var endpoint = "/api/cash-operations/sessions";
@@ -54,8 +58,8 @@ public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOper
         apiClient.PostAsync<SubmitCashCountRequest, CashCountResponse>($"/api/cash-operations/sessions/{sessionId}/count", request,
             new Dictionary<string, string> { [ApiConstants.IdempotencyKeyHeader] = idempotencyKey }, cancellationToken);
 
-    public Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken) =>
-        apiClient.GetAsync<IReadOnlyList<CashHandoffRecipientResponse>>("/api/cash-handoffs/recipients", cancellationToken);
+    public Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken, long? sourceSessionId = null) =>
+        apiClient.GetAsync<IReadOnlyList<CashHandoffRecipientResponse>>("/api/cash-handoffs/recipients" + (sourceSessionId.HasValue ? $"?sourceSessionId={sourceSessionId}" : ""), cancellationToken);
 
     public Task<IReadOnlyList<CashHandoffResponse>> GetCashHandoffsAsync(DateOnly? date, CancellationToken cancellationToken)
     {

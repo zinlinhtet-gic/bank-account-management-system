@@ -12,6 +12,16 @@ namespace bams.server.Controllers;
 [Route("api/cash-operations")]
 public sealed class CashOperationsController(ICashOperationsService cashOperations) : ControllerBase
 {
+    /// <summary>Creates a manager's additional schedules as a single batch.</summary>
+    [HttpPost("sessions/schedules")]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashPositionSessionResponse>>>> CreateSchedulesAsync(
+        CreateSessionSchedulesRequest request, CancellationToken cancellationToken)
+    {
+        var result = await cashOperations.CreateSchedulesAsync(request, cancellationToken);
+        return Ok(ApiMessageResponse<IReadOnlyList<CashPositionSessionResponse>>.FromCode(MessageCode.Success, result));
+    }
+
     [HttpGet("sessions")]
     [RequirePermission(SecurityConstants.CashOperations, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashPositionSessionResponse>>>> GetSessionsAsync(
@@ -96,6 +106,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("proposals/{id:long}/receive")]
+    [AllowWithoutOpenCashSession]
     [RequirePermission(SecurityConstants.CashOperations)]
     public async Task<ActionResult<ApiMessageResponse<CashProposalResponse>>> ReceiveCashProposalAsync(
         long id, CashProposalActionRequest request, CancellationToken cancellationToken)
@@ -105,6 +116,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("proposals/{id:long}/reject")]
+    [AllowWithoutOpenCashSession]
     [RequirePermission(SecurityConstants.CashOperations, SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<CashProposalResponse>>> RejectCashProposalAsync(
         long id, CashProposalActionRequest request, CancellationToken cancellationToken)
@@ -123,6 +135,7 @@ public sealed class CashOperationsController(ICashOperationsService cashOperatio
     }
 
     [HttpPost("sessions/{id:long}/count")]
+    [AllowWithoutOpenCashSession]
     [RequirePermission(SecurityConstants.CashOperations)]
     public async Task<ActionResult<ApiMessageResponse<CashCountResponse>>> SubmitCountAsync(
         long id, SubmitCashCountRequest request, [FromHeader(Name = TransactionConstants.IdempotencyKeyHeaderName)] string? idempotencyKey,

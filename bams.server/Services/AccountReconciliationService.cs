@@ -56,6 +56,9 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         if (request.ToDate.DayNumber - request.FromDate.DayNumber + 1 > OperationsConstants.MaximumReconciliationRangeDays)
             throw new ValidationException(MessageCode.ReconciliationDateRangeTooLong);
 
+        // Historical verification remains available after a force close; manual checks cannot target future dates.
+        if (!scheduledJobExecutionId.HasValue && request.ToDate > BusinessTime.Today)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
         await _exclusions.ValidateAsync(request.FromDate, request.ToDate, cancellationToken);
         var accountsQuery = _db.Accounts.AsNoTracking().AsQueryable();
         if (request.AccountId.HasValue)

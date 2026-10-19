@@ -54,7 +54,10 @@ public sealed class NavigationService : INavigationService
             PageNames.ReconciliationHistory => _serviceProvider.GetService<ReconciliationHistoryViewModel>(),
             PageNames.ReconciliationProposalEditor => _serviceProvider.GetService<ReconciliationProposalEditorViewModel>(),
 
-            PageNames.CashReconciliation => _serviceProvider.GetService<CashReconciliationViewModel>(),
+            PageNames.CashReconciliation => _serviceProvider.GetService<SessionManagementViewModel>(),
+            PageNames.SessionCreation => _serviceProvider.GetService<SessionCreationViewModel>(),
+            PageNames.SessionDetail => _serviceProvider.GetService<SessionDetailViewModel>(),
+            PageNames.SessionHandoffs => _serviceProvider.GetService<CashHandoffCenterViewModel>(),
             PageNames.CashRequests => _serviceProvider.GetService<CashRequestCenterViewModel>(),
             PageNames.BusinessDateOpening => _serviceProvider.GetService<BusinessDateOpeningViewModel>(),
             PageNames.EndOfDay => _serviceProvider.GetService<EndOfDayViewModel>(),

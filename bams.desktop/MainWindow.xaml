@@ -105,9 +105,11 @@
                     <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationViewModel}">
                         <accountingViews:ReconciliationView/>
                     </DataTemplate>
-                    <DataTemplate DataType="{x:Type accountingViewModels:CashReconciliationViewModel}">
-                        <accountingViews:CashReconciliationView/>
-                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionManagementViewModel}"><accountingViews:SessionManagementView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionCreationViewModel}"><accountingViews:SessionCreationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionDetailViewModel}"><accountingViews:SessionDetailView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashHandoffCenterViewModel}"><accountingViews:SessionHandoffRequestsView/></DataTemplate>
+
                     <DataTemplate DataType="{x:Type accountingViewModels:CashRequestCenterViewModel}">
                         <accountingViews:CashRequestCenterView/>
                     </DataTemplate>

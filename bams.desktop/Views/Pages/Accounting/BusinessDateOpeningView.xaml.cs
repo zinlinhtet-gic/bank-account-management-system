@@ -1,8 +1,4 @@
 using System.Windows.Controls;
-
 namespace bams.desktop.Views.Pages.Accounting;
-
-public partial class BusinessDateOpeningView : UserControl
-{
-    public BusinessDateOpeningView() => InitializeComponent();
-}
+/// <summary>Presentation-only view for session workflows.</summary>
+public partial class BusinessDateOpeningView : UserControl { public BusinessDateOpeningView() => InitializeComponent(); }

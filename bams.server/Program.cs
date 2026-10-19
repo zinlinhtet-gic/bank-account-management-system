@@ -140,6 +140,7 @@ builder.Services.AddScoped<CashCorrectionService>();
 
 builder.Services.AddScoped<ICashOperationsService, CashOperationsService>();
 builder.Services.AddScoped<ScheduledCashSessionExpiryService>();
+builder.Services.AddScoped<CashSessionSchedulingService>();
 builder.Services.AddScoped<IBusinessDateService, BusinessDateService>();
 builder.Services.AddScoped<IEndOfDayWorkflowService, EndOfDayWorkflowService>();
 builder.Services.AddScoped<IAuditService, AuditService>();

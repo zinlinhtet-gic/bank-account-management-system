@@ -20,7 +20,14 @@ public sealed record CashAdjustmentResponse(long Id, long SessionId, decimal Sig
 public sealed record CashPositionSessionResponse(long Id, string PositionType, long? TellerId,
     DateOnly BusinessDate, decimal OpeningCash, decimal ExpectedClosingCash, string Status, long Version,
     DateTime? ScheduledStartAtMyanmar = null, DateTime? ScheduledEndAtMyanmar = null,
-    DateTime? ActivatedAtUtc = null, decimal ReservedCash = 0m);
+    DateTime? ActivatedAtUtc = null, decimal ReservedCash = 0m, string? OfficerName = null, DateTime? ClosedAtUtc = null, long? ClosedBy = null)
+{
+    public decimal ScheduledStartingCash { get; init; }
+    public bool CanAccept { get; init; }
+    public bool CanRequestCash { get; init; }
+    public bool CanClose { get; init; }
+    public bool CanCancel { get; init; }
+}
 public sealed record CashCountResponse(long Id, long SessionId, decimal ExpectedAmount, decimal ActualAmount,
     decimal Difference, string Status, DateTime CountedAtUtc, long? HandoffId = null, string? HandoffStatus = null);
 public sealed record CashHandoffRecipientResponse(long UserId, string FullName, string Username);
@@ -39,4 +46,8 @@ public sealed record CashMovementHistoryResponse(long Id, string Type, string St
 public sealed record CashCountHistoryResponse(long Id, decimal ExpectedAmount, decimal ActualAmount,
     decimal Difference, long CountedBy, DateTime CountedAtUtc, string? Notes);
 public sealed record CashPositionSessionDetailResponse(CashPositionSessionResponse Session,
-    IReadOnlyList<CashMovementHistoryResponse> Movements, IReadOnlyList<CashCountHistoryResponse> Counts);
+    IReadOnlyList<CashMovementHistoryResponse> Movements, IReadOnlyList<CashCountHistoryResponse> Counts, IReadOnlyList<SessionTransactionResponse>? Transactions = null, IReadOnlyList<CashProposalResponse>? Requests = null);
+
+public sealed record ScheduledCashSessionRequest(long OfficerId, DateTime StartAtMyanmar, DateTime EndAtMyanmar, decimal StartingCash);
+public sealed record CreateSessionSchedulesRequest(IReadOnlyList<ScheduledCashSessionRequest> Sessions, string IdempotencyKey, DateOnly? ExpectedDate = null);
+public sealed record SessionTransactionResponse(long Id, string TransactionNo, string Type, string Status, decimal Amount, DateTime TransactionAt);

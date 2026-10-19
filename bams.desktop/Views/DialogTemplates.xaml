@@ -10,6 +10,14 @@
                     xmlns:operationviews="clr-namespace:bams.desktop.Views.Pages.Operations"
                     xmlns:accounting="clr-namespace:bams.desktop.ViewModels.Pages.Accounting"
                     xmlns:accountingviews="clr-namespace:bams.desktop.Views.Pages.Accounting">
+    <DataTemplate DataType="{x:Type accounting:CloseSessionDialogViewModel}">
+      <StackPanel Width="580" Margin="24"><TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}"/><TextBlock Text="{Binding ExpectedCash,StringFormat=Expected cash: {0:N2}}" Margin="0,8,0,16"/>
+      <TabControl><TabItem Header="Count"><StackPanel Margin="12"><TextBlock Text="Actual cash" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding Amount,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/><TextBlock Text="Notes" Margin="0,12,0,4"/><TextBox Text="{Binding Notes,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="90" MaxLength="2000" Style="{StaticResource Input.Text}"/></StackPanel></TabItem>
+      <TabItem Header="Handover"><StackPanel Margin="12"><TextBlock Text="Choose the receiving officer, manager or auditor. A nonzero count requires a recipient." TextWrapping="Wrap" Margin="0,0,0,12"/><ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Recipients}" SelectedItem="{Binding Recipient}" DisplayMemberPath="FullName" MinWidth="300"/></StackPanel></TabItem></TabControl>
+      <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,12"/><WrapPanel><Button Content="Submit count and close" Command="{Binding SubmitCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/><Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel></StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type accounting:CashAmountDialogViewModel}"><StackPanel Width="400" Margin="24"><TextBlock Text="Approve cash amount" Style="{StaticResource Text.Heading}"/><TextBox Text="{Binding AmountText,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="0,16"/><TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/><WrapPanel Margin="0,16,0,0"><Button Content="Accept" Command="{Binding ConfirmCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/><Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel></StackPanel></DataTemplate>
+
 
     <BooleanToVisibilityConverter x:Key="DialogBooleanToVisibilityConverter"/>
 

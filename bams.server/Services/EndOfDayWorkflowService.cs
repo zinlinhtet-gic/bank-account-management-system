@@ -536,7 +536,7 @@ public sealed class EndOfDayWorkflowService(
         if (persistLedgerException)
             await UpsertLedgerReconciliationExceptionAsync(date, dailyTotals?.Debits ?? 0m, dailyTotals?.Credits ?? 0m,
                 ledgerUnbalanced, actorId, cancellationToken);
-        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status != OperationsConstants.CashSessionClosed, cancellationToken);
+        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status != OperationsConstants.CashSessionClosed && item.Status != OperationsConstants.CashSessionCancelled, cancellationToken);
         bool hasFinalVaultCount = await db.CashPositionSessions.AnyAsync(item => item.BusinessDate == date &&
             item.PositionType == OperationsConstants.CashPositionVault && item.Status == OperationsConstants.CashSessionClosed &&
             db.CashCounts.Any(count => count.SessionId == item.Id), cancellationToken);
@@ -655,7 +655,7 @@ public sealed class EndOfDayWorkflowService(
 
     private async Task EnsureDateOpenAsync(DateOnly date, CancellationToken cancellationToken)
     {
-        bool isOpen = await db.BusinessDates.AnyAsync(item => item.Date == date &&
+        bool isOpen = date <= BusinessTime.Today && await db.BusinessDates.AnyAsync(item => item.Date == date &&
             item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
         if (!isOpen) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
     }

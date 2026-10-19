@@ -47,8 +47,6 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         Reconciliation.IsEmbedded = true;
         Reconciliation.NavigateRequested += route => NavigateRequested?.Invoke(route);
         FinalVaultCountCommand = new AsyncRelayCommand(FinalVaultCountAsync, () => CanRecordVaultCount);
-        CashReconciliation = new CashReconciliationViewModel(cashOperations, service, authContext,
-            officerCashSessionContext, dialogService);
         AccountReconciliation = new AccountReconciliationViewModel(reconciliationService, service, authContext);
         LedgerReconciliation = new LedgerReconciliationViewModel();
         PreCloseChecks = new PreCloseChecksViewModel();
@@ -82,7 +80,6 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
 
     public EndOfDaySummaryViewModel Summary { get; }
     public PreCloseChecksViewModel PreCloseChecks { get; }
-    public CashReconciliationViewModel CashReconciliation { get; }
     public LedgerReconciliationViewModel LedgerReconciliation { get; }
     public AccountReconciliationViewModel AccountReconciliation { get; }
     public ExceptionCenterViewModel ExceptionCenter { get; }
@@ -159,7 +156,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public bool CanReviewPreClose => !IsBusy && Summary.BusinessDate?.Status == "Open" &&
         FinalReview.Run?.Status == "ReadyForApproval" &&
         HasEndOfDayApprovalPermission;
-    public bool CanViewCashSessions => CashReconciliation.CanViewCashSessions;
+    public bool CanViewCashSessions => _authContext.HasPermission(PermissionCodes.CashOperations) || _authContext.HasPermission(PermissionCodes.Audit) || HasEndOfDayApprovalPermission;
     public bool CanRunPreClose => !IsBusy && Summary.BusinessDate?.Status == "Open" &&
         FinalReview.Run?.Status != "OverrideApproved" && CanRunPreClosePermission;
     public string BusinessDateStatus => Summary.BusinessDate?.Status ?? "Loading";

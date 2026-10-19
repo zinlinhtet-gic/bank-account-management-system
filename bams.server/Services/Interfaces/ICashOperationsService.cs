@@ -5,6 +5,8 @@ namespace bams.server.Services.Interfaces;
 
 public interface ICashOperationsService
 {
+    Task<IReadOnlyList<CashPositionSessionResponse>> CreateSchedulesAsync(CreateSessionSchedulesRequest request, CancellationToken cancellationToken);
+
     Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, string? idempotencyKey, CancellationToken cancellationToken);
     Task<CashPositionSessionResponse> ActivateSessionAsync(long sessionId, ActivateCashSessionRequest request, CancellationToken cancellationToken);
     Task<CashPositionSessionResponse> CancelScheduledSessionAsync(long sessionId, CancellationToken cancellationToken);
@@ -15,7 +17,7 @@ public interface ICashOperationsService
     Task<CashProposalResponse> ReceiveCashProposalAsync(long proposalId, CashProposalActionRequest request, CancellationToken cancellationToken);
     Task<CashProposalResponse> RejectCashProposalAsync(long proposalId, CashProposalActionRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? businessDate, CancellationToken cancellationToken);
-    Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken, long? sourceSessionId = null);
     Task<CashPositionSessionDetailResponse> GetSessionDetailAsync(long sessionId, CancellationToken cancellationToken);
     Task<CashPositionSessionResponse> TransferCashAsync(long sessionId, TransferCashRequest request, CancellationToken cancellationToken);
     Task<CashCountResponse> SubmitCountAsync(long sessionId, SubmitCashCountRequest request, string? idempotencyKey, CancellationToken cancellationToken);

@@ -109,7 +109,7 @@ public sealed class MainViewModel : ViewModelBase
         if (string.IsNullOrEmpty(pageLabel))
             return;
 
-        if (IsOfficer && CurrentPage is CashReconciliationViewModel &&
+        if (IsOfficer && CurrentPage is SessionManagementViewModel &&
             pageLabel != PageNames.CashReconciliation && pageLabel != PageNames.AssignedReconciliationTasks && !_cashSessionContext.HasOpenSession)
         {
             var continueNavigation = _dialogService.Confirm(new ConfirmDialogOptions(
@@ -125,6 +125,7 @@ public sealed class MainViewModel : ViewModelBase
         var viewModel = _navigationService.GetPageViewModel(pageLabel);
         if (viewModel != null)
         {
+            if (viewModel is SessionPageViewModel sessionPage) sessionPage.NavigateRequested += OpenSessionPage;
             if (viewModel is ReconciliationOperationViewModel operation)
                 operation.NavigateRequested += OpenReconciliationOperation;
             if (viewModel is EndOfDayViewModel endOfDay)
@@ -151,6 +152,20 @@ public sealed class MainViewModel : ViewModelBase
 
         // No page is mapped to this label: keep the current page and nav highlight instead of showing nothing.
         AppLog.WriteInformation($"Navigation to page '{pageLabel}' ignored because no page is registered for it.");
+    }
+
+    // Session routes carry session identity independently of any selected row or date filter.
+    private void OpenSessionPage(string page, long? sessionId)
+    {
+        if (_navigationService.GetPageViewModel(page) is not SessionPageViewModel next) return;
+        next.SessionId = sessionId;
+        next.NavigateRequested += OpenSessionPage;
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = next;
+        _currentPageLabel = page;
+        ActiveItem = PageNames.CashReconciliation;
+        StartPageInitialization(next);
     }
 
     // Operation routes carry explicit IDs and preserve the originating page instance and filters.
@@ -318,7 +333,7 @@ public sealed class MainViewModel : ViewModelBase
             var sessions = await _cashOperationsService.GetSessionsAsync(null, CancellationToken.None);
             var hasOpenSession = sessions.Any(session => session.PositionType == "Teller" && session.Status == "Open");
             _cashSessionContext.SetStatus(hasOpenSession);
-            if (hasOpenSession && CurrentPage is CashReconciliationViewModel)
+            if (hasOpenSession && CurrentPage is SessionManagementViewModel)
                 NavigateToPage(GetDefaultPageForRole());
         }
         catch (AppException exception)

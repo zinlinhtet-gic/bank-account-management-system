@@ -34,7 +34,10 @@ public static class PageNames
     public const string ReconcileProposals = "Reconcile Proposals";
     public const string CashProposalEditor = "Perform Cash Reconciliation";
     public const string BankExpenses = "Bank Expense Recording";
-    public const string CashReconciliation = "Cash Reconciliation";
+    public const string CashReconciliation = "Session Management";
+    public const string SessionCreation = "Session Creation";
+    public const string SessionDetail = "Session Detail";
+    public const string SessionHandoffs = "Session Handoff Requests";
     public const string CashRequests = "Cash Requests";
     public const string EndOfDay = "End of Day";
     // Audit child pages
