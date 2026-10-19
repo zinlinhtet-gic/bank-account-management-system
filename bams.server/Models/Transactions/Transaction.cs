@@ -45,6 +45,8 @@ public sealed class Transaction
     public string? IdempotencyKey { get; set; }
 
     public long? ReversalOfTransactionId { get; set; }
+    // Repair components are validated with this original journal, never independently.
+    public long? AccountingRootTransactionId { get; set; }
 
     public Transaction? ReversalOfTransaction { get; set; }
 

@@ -89,11 +89,32 @@
                     <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
                         <accountingViews:AccountingEntriesView />
                     </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:UnifiedReconciliationViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:AssignedReconciliationTasksViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconcileProposalsViewModel}"><accountingViews:ReconcileProposalsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashProposalEditorViewModel}"><accountingViews:CashProposalEditorView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:BankExpensesViewModel}"><accountingViews:BankExpensesView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationChecksViewModel}"><accountingViews:ReconciliationChecksView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationExceptionsViewModel}"><accountingViews:ReconciliationExceptionsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationInvestigationsViewModel}"><accountingViews:ReconciliationInvestigationsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationProposalsViewModel}"><accountingViews:ReconciliationProposalsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationApprovalsViewModel}"><accountingViews:ReconciliationApprovalsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationVerificationViewModel}"><accountingViews:ReconciliationVerificationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationHistoryViewModel}"><accountingViews:ReconciliationHistoryView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationProposalEditorViewModel}"><accountingViews:ReconciliationProposalEditorView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationViewModel}">
                         <accountingViews:ReconciliationView/>
                     </DataTemplate>
-                    <DataTemplate DataType="{x:Type accountingViewModels:CashReconciliationViewModel}">
-                        <accountingViews:CashReconciliationView/>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionManagementViewModel}"><accountingViews:SessionManagementView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionCreationViewModel}"><accountingViews:SessionCreationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionDetailViewModel}"><accountingViews:SessionDetailView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashHandoffCenterViewModel}"><accountingViews:SessionHandoffRequestsView/></DataTemplate>
+
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashRequestCenterViewModel}">
+                        <accountingViews:CashRequestCenterView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:BusinessDateOpeningViewModel}">
+                        <accountingViews:BusinessDateOpeningView/>
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:EndOfDayViewModel}">
                         <accountingViews:EndOfDayView/>

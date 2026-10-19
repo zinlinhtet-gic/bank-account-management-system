@@ -1,4 +1,4 @@
-﻿# Message codes
+# Message codes
 
 Message codes are stable client/server contracts. Clients must branch on the numeric code, not display text. Keep a code's name and numeric value stable after release; add new codes instead of reusing retired values.
 
@@ -30,3 +30,8 @@ The enums are the complete registry. This page intentionally does not duplicate 
 2. Add the server enum value and catalog text when the server returns the code. Add the matching desktop enum value and user-facing handling where needed.
 3. Map the server code to the correct HTTP status through the exception/response handling path.
 4. Update API documentation when callers can observe the new behavior. Do not make clients parse the message string.
+
+
+The reconciliation proposal workflow adds stable business-rule codes 4490 through 4493: `CorrectionProposalStale`, `CorrectionAlreadyApplied`, `CorrectionLegacyResubmit`, and `CorrectionEvidenceRequired`.
+
+EOD uses the existing stable error codes: ReconciliationBlocked for unresolved normal-close readiness, EndOfDayApprovalRequired for approval rules, and BusinessDateTransitionConflict for invalid date transitions. Force-close bypass does not suppress infrastructure errors. Audit batch/item statuses (CompletedWithExceptions, Exception, Waived) are persisted outcomes rather than new message codes.

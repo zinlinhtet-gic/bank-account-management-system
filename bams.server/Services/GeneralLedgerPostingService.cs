@@ -16,21 +16,23 @@ public sealed class GeneralLedgerPostingService(ApplicationDbContext dbContext) 
         decimal amount, string description, DateOnly postingDate, DateTime createdAt, CancellationToken cancellationToken)
     {
         await EnsurePostingDateIsOpenAsync(postingDate, cancellationToken);
-        var (debitCode, debitClass, creditCode, creditClass, creditCustomerId) = type switch
+        var (debitCode, debitClass, creditCode, creditClass) = type switch
         {
             TransactionType.InterestAccrual => (AccountingConstants.InterestExpenseGlCode, GlAccountClass.Expense,
-                AccountingConstants.InterestPayableGlCode, GlAccountClass.Liability, (long?)accountId),
+                AccountingConstants.InterestPayableGlCode, GlAccountClass.Liability),
             TransactionType.MaintenanceAccrual => (AccountingConstants.MaintenanceFeeReceivableGlCode, GlAccountClass.Asset,
-                AccountingConstants.MaintenanceFeeIncomeGlCode, GlAccountClass.Income, null),
+                AccountingConstants.MaintenanceFeeIncomeGlCode, GlAccountClass.Income),
             TransactionType.DormantPenaltyAccrual => (AccountingConstants.DormantPenaltyReceivableGlCode, GlAccountClass.Asset,
-                AccountingConstants.DormantPenaltyIncomeGlCode, GlAccountClass.Income, null),
+                AccountingConstants.DormantPenaltyIncomeGlCode, GlAccountClass.Income),
             _ => throw new InvalidOperationException($"Transaction type '{type}' is not an accrual type.")
         };
         var debit = await GetAsync(debitCode, debitClass, cancellationToken);
         var credit = await GetAsync(creditCode, creditClass, cancellationToken);
         dbContext.TransactionEntries.AddRange(
-            CreateEntry(transaction.Id, debit.Id, accountId, EntryType.Debit, amount, postingDate, description, createdAt),
-            CreateEntry(transaction.Id, credit.Id, creditCustomerId, EntryType.Credit, amount, postingDate, description, createdAt));
+            // Accrual control-account journal lines are bank-level GL entries. The customer account is
+            // represented by the linked accrual/operational transaction, not duplicated on either GL line.
+            CreateEntry(transaction.Id, debit.Id, null, EntryType.Debit, amount, postingDate, description, createdAt),
+            CreateEntry(transaction.Id, credit.Id, null, EntryType.Credit, amount, postingDate, description, createdAt));
     }
 
     public async Task AddPostingEntriesAsync(Transaction transaction, long accountId, TransactionType type,

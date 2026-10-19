@@ -8,6 +8,9 @@ public sealed class EndOfDayClientService(ApiClient apiClient) : IEndOfDayClient
     public Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken) =>
         apiClient.GetAsync<BusinessDateResponse>("/api/operations/business-date", cancellationToken);
 
+    public Task<BusinessDateResponse> StartCurrentBusinessDateAsync(StartBusinessDateRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<StartBusinessDateRequest, BusinessDateResponse>("/api/operations/business-date/start", request, cancellationToken);
+
     public Task<IReadOnlyList<BusinessDateResponse>> SearchBusinessDatesAsync(DateOnly? fromDate, DateOnly? toDate, CancellationToken cancellationToken)
     {
         var query = new List<string>();

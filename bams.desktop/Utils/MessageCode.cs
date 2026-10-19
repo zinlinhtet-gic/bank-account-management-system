@@ -92,6 +92,8 @@ public enum MessageCode
     CustomerAlreadyExists = 4307,
     IdempotencyKeyReused = 4330,
     AccountTypeCodeAlreadyExists = 4340,
+    InterestRateRuleOverlaps = 4341,
+    FeeRuleOverlaps = 4342,
 
     // Business Rules: 4400 - 4499
     InsufficientBalance = 4440,
@@ -130,6 +132,10 @@ public enum MessageCode
     CashHandoffRecipientRequired = 4477,
     CashHandoffNotPending = 4478,
     LastManagerCannotBeRemoved = 4480,
+    CorrectionProposalStale = 4490,
+    CorrectionAlreadyApplied = 4491,
+    CorrectionLegacyResubmit = 4492,
+    CorrectionEvidenceRequired = 4493,
 
     // Server / Infrastructure: 5000 - 5999
     InternalServerError = 5000,

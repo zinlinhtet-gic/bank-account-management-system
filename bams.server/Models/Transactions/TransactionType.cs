@@ -16,5 +16,10 @@ public enum TransactionType
     Reversal = 15,
     InterestAccrual = 12,
     MaintenanceAccrual = 13,
-    DormantPenaltyAccrual = 14
+    DormantPenaltyAccrual = 14,
+    ReconciliationAdjustment = 16,
+    ReconciliationRepair = 17,
+    AccountPostingRepair = 18,
+    BankCashExpense = 19,
+    CashOverShort = 20
 }

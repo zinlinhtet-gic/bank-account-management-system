@@ -8,6 +8,7 @@ using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using bams.server.Utils;
 namespace bams.server.Services;
 
@@ -16,12 +17,16 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
 {
     private readonly ApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly ReconciliationExclusionService _exclusions;
 
-    public AccountReconciliationService(ApplicationDbContext db, ICurrentUserService currentUser)
+    public AccountReconciliationService(ApplicationDbContext db, ICurrentUserService currentUser, ReconciliationExclusionService exclusions)
     {
         _db = db;
         _currentUser = currentUser;
+        _exclusions = exclusions;
     }
+
+    private sealed record WaivedAccountAmount(long AccountId, decimal Net);
 
     public async Task<AccountReconciliationRunResponse> ReconcileAccountsAsync(AccountReconciliationRequest request, CancellationToken cancellationToken)
         => await RunReconciliationAsync(request, _currentUser.GetCurrentUserId(), null, cancellationToken);
@@ -51,6 +56,10 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         if (request.ToDate.DayNumber - request.FromDate.DayNumber + 1 > OperationsConstants.MaximumReconciliationRangeDays)
             throw new ValidationException(MessageCode.ReconciliationDateRangeTooLong);
 
+        // Historical verification remains available after a force close; manual checks cannot target future dates.
+        if (!scheduledJobExecutionId.HasValue && request.ToDate > BusinessTime.Today)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        await _exclusions.ValidateAsync(request.FromDate, request.ToDate, cancellationToken);
         var accountsQuery = _db.Accounts.AsNoTracking().AsQueryable();
         if (request.AccountId.HasValue)
             accountsQuery = accountsQuery.Where(account => account.Id == request.AccountId.Value);
@@ -94,9 +103,23 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             join latest in baselineOperationalDates on new { entry.AccountId, entry.PostingDate } equals new { latest.AccountId, latest.PostingDate }
             group entry by entry.AccountId into accountTransactions
             select accountTransactions.Max(entry => entry.Id);
-        var operationalBalances = await _db.AccountTransactions.AsNoTracking()
+        var operationalBalances = await _db.AccountTransactions
+            .AsNoTracking()
             .Where(entry => baselineOperationalIds.Contains(entry.Id))
-            .ToDictionaryAsync(entry => entry.AccountId, entry => entry.LedgerBalanceAfter, cancellationToken);
+            .Select(entry => new
+            {
+                entry.AccountId,
+                Balance = _db.EffectiveAccountBalances
+                    .Where(balance =>
+                        balance.AccountTransactionId == entry.Id)
+                    .OrderByDescending(balance => balance.Id)
+                    .Select(balance => (decimal?)balance.BalanceAfter)
+                    .FirstOrDefault() ?? entry.LedgerBalanceAfter
+            })
+            .ToDictionaryAsync(
+                entry => entry.AccountId,
+                entry => entry.Balance,
+                cancellationToken);
         var dailyOperationalIds = from entry in _db.AccountTransactions.AsNoTracking()
             join account in accountsQuery on entry.AccountId equals account.Id
             where entry.PostingDate >= request.FromDate && entry.PostingDate <= request.ToDate
@@ -104,7 +127,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             select accountTransactions.Max(entry => entry.Id);
         var dailyOperational = await _db.AccountTransactions.AsNoTracking()
             .Where(entry => dailyOperationalIds.Contains(entry.Id))
-            .Select(entry => new { entry.AccountId, entry.PostingDate, entry.LedgerBalanceAfter })
+            .Select(entry => new { entry.AccountId, entry.PostingDate, LedgerBalanceAfter = _db.EffectiveAccountBalances.Where(x => x.AccountTransactionId == entry.Id).OrderByDescending(x => x.Id).Select(x => (decimal?)x.BalanceAfter).FirstOrDefault() ?? entry.LedgerBalanceAfter })
             .ToListAsync(cancellationToken);
 
         var now = DateTime.UtcNow;
@@ -113,9 +136,12 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             where item.Type == "AccountBalance" && item.BusinessDate >= request.FromDate &&
                 item.BusinessDate <= request.ToDate && item.Status != "Resolved"
             select item)
+            .AsTracking()
             .OrderByDescending(item => item.Id).ToListAsync(cancellationToken);
         var activeByAccountAndDate = activeExceptions.GroupBy(item => (item.AccountId!.Value, item.BusinessDate))
             .ToDictionary(group => group.Key, group => group.First());
+        HashSet<(long AccountId, DateOnly BusinessDate)> correctedClosedSources =
+            await GetVerifiedClosedSourcesAsync(request, cancellationToken);
         var approvedCorrectionExceptions = await _db.ReconciliationExceptions
             .Include(item => item.CorrectionTransaction)
             .Where(item => item.AccountId.HasValue && item.Status != OperationsConstants.ExceptionResolved &&
@@ -149,12 +175,34 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             {
                 foreach (var item in dayOperational) operationalBalances[item.Key] = item.Value;
             }
+            // Compare effective balances after subtracting only explicitly waived financial source effects.
+            // Raw balances and original records remain available in every result.
+            HashSet<long> waivedTransactions = await _exclusions.ActiveSourceIdsAsync(date, "Transaction", cancellationToken);
+            HashSet<long> waivedLines = await _exclusions.ActiveSourceIdsAsync(date, "GL", cancellationToken);
+            Dictionary<long, decimal> waivedOperational = await _db.AccountTransactions.AsNoTracking()
+                .Where(entry => entry.PostingDate <= date && waivedTransactions.Contains(entry.TransactionId))
+                .GroupBy(entry => entry.AccountId).Select(group => new WaivedAccountAmount(group.Key,
+                    group.Where(entry => entry.EntryType == EntryType.Credit).Sum(entry => entry.Amount) -
+                    group.Where(entry => entry.EntryType == EntryType.Debit).Sum(entry => entry.Amount)))
+                .ToDictionaryAsync(effect => effect.AccountId, effect => effect.Net, cancellationToken);
+            Dictionary<long, decimal> waivedLedger = await _db.TransactionEntries.AsNoTracking()
+                .Where(entry => entry.PostingDate <= date && entry.CustomerAccountId.HasValue &&
+                    entry.GlAccount!.Code == AccountingConstants.CustomerDepositsGlCode &&
+                    (waivedTransactions.Contains(entry.TransactionId) || waivedLines.Contains(entry.Id)))
+                .GroupBy(entry => entry.CustomerAccountId!.Value).Select(group => new WaivedAccountAmount(group.Key,
+                    group.Where(entry => entry.EntryType == EntryType.Credit).Sum(entry => entry.Amount) -
+                    group.Where(entry => entry.EntryType == EntryType.Debit).Sum(entry => entry.Amount)))
+                .ToDictionaryAsync(effect => effect.AccountId, effect => effect.Net, cancellationToken);
             foreach (var account in accounts)
             {
                 var operational = operationalBalances.GetValueOrDefault(account.Id);
                 var ledger = ledgerBalances.GetValueOrDefault(account.Id);
                 var difference = operational - ledger;
-                var status = difference == 0m ? "Matched" : "Unmatched";
+                bool waived = activeByAccountAndDate.TryGetValue((account.Id, date), out ReconciliationException? waivedSource) && waivedSource.Status == OperationsConstants.ExceptionForcePassed;
+                decimal effectiveOperational = operational - waivedOperational.GetValueOrDefault(account.Id);
+                decimal effectiveLedger = ledger - waivedLedger.GetValueOrDefault(account.Id);
+                decimal effectiveDifference = effectiveOperational - effectiveLedger;
+                string status = waived || difference != 0m && effectiveDifference == 0m ? "Waived" : effectiveDifference == 0m ? "Matched" : "Unmatched";
                 run.Results.Add(new AccountReconciliationResult
                 {
                     AccountId = account.Id,
@@ -164,10 +212,19 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
                     Difference = difference,
                     Status = status
                 });
-                UpsertAccountException(account.Id, date, operational, ledger, difference, actorId, now, activeByAccountAndDate);
+                if (correctedClosedSources.Contains((account.Id, date)))
+                {
+                    // Preserve the historical observation; a verified later posting is its resolution evidence.
+                    if (activeByAccountAndDate.TryGetValue((account.Id, date), out ReconciliationException? correctedSource) &&
+                        correctedSource.Status != OperationsConstants.ExceptionForcePassed)
+                        AddHistoryAndSetStatus(correctedSource, OperationsConstants.ExceptionResolved,
+                            "A verified correction on a later business date resolved this historical discrepancy.", actorId, now);
+                }
+                else
+                    UpsertAccountException(account.Id, date, effectiveOperational, effectiveLedger, effectiveDifference, actorId, now, activeByAccountAndDate);
                 // Closed periods stay unchanged: a current-date match after the linked reversal is the resolution evidence.
                 if (difference == 0m && approvedCorrectionsByAccount.TryGetValue(account.Id, out var correctedExceptions))
-                    foreach (var correctedException in correctedExceptions.Where(item => item.Status != OperationsConstants.ExceptionResolved &&
+                    foreach (var correctedException in correctedExceptions.Where(item => item.Status != OperationsConstants.ExceptionResolved && item.Status != OperationsConstants.ExceptionForcePassed &&
                                  item.CorrectionTransaction?.BusinessDate is { } reversalDate && reversalDate <= date))
                         AddHistoryAndSetStatus(correctedException, OperationsConstants.ExceptionResolved,
                             "A reconciliation run on or after the posted reversal date confirmed that account and ledger balances match.", actorId, now);
@@ -177,6 +234,30 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
 
         await _db.SaveChangesAsync(cancellationToken);
         return new AccountReconciliationRunResponse(run.Id, request.FromDate, request.ToDate, run.Status, now, responses);
+    }
+
+    // Verified current-date proposals resolve their closed source observations without rewriting dated balances.
+    private async Task<HashSet<(long AccountId, DateOnly BusinessDate)>> GetVerifiedClosedSourcesAsync(
+        AccountReconciliationRequest request, CancellationToken ct)
+    {
+        List<CorrectionProposal> corrections = await _db.CorrectionProposals.AsNoTracking().Include(proposal => proposal.Exception)
+            .Where(proposal => proposal.Status == ProposalStatus.Executed && proposal.Verification == VerificationStatus.Passed &&
+                proposal.Exception!.BusinessDate >= request.FromDate && proposal.Exception.BusinessDate <= request.ToDate &&
+                _db.BusinessDates.Any(day => day.Date == proposal.Exception.BusinessDate && day.Status == OperationsConstants.BusinessDateClosed))
+            .ToListAsync(ct);
+        HashSet<(long AccountId, DateOnly BusinessDate)> sources = [];
+        foreach (CorrectionProposal correction in corrections)
+        {
+            CorrectionPreview? preview = JsonSerializer.Deserialize<CorrectionPreview>(correction.PreviewJson);
+            if (preview is null || preview.PostingDate <= correction.Exception!.BusinessDate) continue;
+            IEnumerable<long> accountIds = preview.Balances.Select(balance => balance.AccountId)
+                .Concat(preview.Lines.Where(line => line.CustomerAccountId.HasValue).Select(line => line.CustomerAccountId!.Value));
+            if (correction.Exception.AccountId.HasValue)
+                accountIds = accountIds.Append(correction.Exception.AccountId.Value);
+            foreach (long accountId in accountIds.Distinct())
+                sources.Add((accountId, correction.Exception.BusinessDate));
+        }
+        return sources;
     }
 
     private static List<DateOnly> EnumerateDates(DateOnly fromDate, DateOnly toDate)
@@ -221,7 +302,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
                 item.Notes, item.CreatedAtUtc, item.UpdatedAtUtc, item.CorrectionRequestStatus,
                 item.RequestedCorrectionTransactionId, item.CorrectionRequestedBy, item.CorrectionRequestedAtUtc,
                 item.CorrectionReviewedBy, item.CorrectionReviewedAtUtc, item.CorrectionRequestReason,
-                item.CorrectionExternalRecoveryReference, item.CorrectionReviewNote)).ToListAsync(cancellationToken);
+                item.CorrectionExternalRecoveryReference, item.CorrectionReviewNote, item.DiscrepancyKind, item.ReviewDueDate)).ToListAsync(cancellationToken);
         return new PagedResponse<ReconciliationExceptionResponse>(items, resolvedPage, resolvedSize, count,
             (int)Math.Ceiling(count / (double)resolvedSize));
     }
@@ -237,7 +318,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
                 item.Notes, item.CreatedAtUtc, item.UpdatedAtUtc, item.CorrectionRequestStatus,
                 item.RequestedCorrectionTransactionId, item.CorrectionRequestedBy, item.CorrectionRequestedAtUtc,
                 item.CorrectionReviewedBy, item.CorrectionReviewedAtUtc, item.CorrectionRequestReason,
-                item.CorrectionExternalRecoveryReference, item.CorrectionReviewNote))
+                item.CorrectionExternalRecoveryReference, item.CorrectionReviewNote, item.DiscrepancyKind, item.ReviewDueDate))
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         var timeline = await _db.ReconciliationExceptionHistories.AsNoTracking()
@@ -297,159 +378,12 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
     }
 
     /// <summary>Requests a full reversal of a posted account transaction from its reconciliation exception.</summary>
-    public async Task<ReconciliationExceptionResponse> RequestTransactionCorrectionAsync(long exceptionId, RequestTransactionCorrectionRequest request, CancellationToken cancellationToken)
-    {
-        if (request.TransactionId <= 0 || string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 2000)
-            throw new ValidationException(MessageCode.InvalidRequest);
-        if (request.ExternalRecoveryReference?.Trim().Length > 200)
-            throw new ValidationException(MessageCode.FieldTooLong);
-        await using var dbTransaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var exception = (await _db.ReconciliationExceptions.FromSql($"SELECT * FROM ReconciliationExceptions WHERE Id = {exceptionId} FOR UPDATE")
-            .ToListAsync(cancellationToken)).SingleOrDefault() ?? throw new NotFoundException(MessageCode.ResourceNotFound);
-        if (exception.Status == OperationsConstants.ExceptionResolved || exception.CorrectionRequestStatus == "Pending")
-            throw new BusinessRuleException(MessageCode.InvalidRequest);
-        if (exception.AccountId is null || !await _db.AccountTransactions.AnyAsync(item => item.TransactionId == request.TransactionId && item.AccountId == exception.AccountId, cancellationToken))
-            throw new BusinessRuleException(MessageCode.InvalidRequest);
-        var transaction = (await _db.Transactions.FromSql($"SELECT * FROM Transactions WHERE Id = {request.TransactionId} FOR UPDATE")
-            .ToListAsync(cancellationToken)).SingleOrDefault(item => item.PostedAt != null &&
-            (item.TransactionStatus == TransactionStatus.Posted || item.TransactionStatus == TransactionStatus.Completed || item.TransactionStatus == TransactionStatus.Accrued))
-            ?? throw new NotFoundException(MessageCode.TransactionNotFound);
-        if (await _db.Transactions.AnyAsync(item => item.ReversalOfTransactionId == transaction.Id, cancellationToken))
-            throw new BusinessRuleException(MessageCode.InvalidRequest);
-        if (await _db.ReconciliationExceptions.AnyAsync(item => item.Id != exception.Id &&
-                item.RequestedCorrectionTransactionId == transaction.Id && item.CorrectionRequestStatus == "Pending", cancellationToken))
-            throw new BusinessRuleException(MessageCode.InvalidRequest);
-        if (transaction.TransactionType is TransactionType.InterbankTransfer or TransactionType.NrcTransfer && transaction.TransactionStatus == TransactionStatus.Completed &&
-            string.IsNullOrWhiteSpace(request.ExternalRecoveryReference))
-            throw new ValidationException(MessageCode.RequiredFieldMissing);
-        exception.RequestedCorrectionTransactionId = transaction.Id;
-        exception.CorrectionRequestStatus = "Pending";
-        var oldExceptionStatus = exception.Status;
-        exception.CorrectionRequestedBy = _currentUser.GetCurrentUserId();
-        exception.CorrectionRequestedAtUtc = DateTime.UtcNow;
-        exception.CorrectionRequestReason = request.Reason.Trim();
-        exception.CorrectionExternalRecoveryReference = string.IsNullOrWhiteSpace(request.ExternalRecoveryReference) ? null : request.ExternalRecoveryReference.Trim();
-        exception.CorrectionReviewedBy = null;
-        exception.CorrectionReviewedAtUtc = null;
-        exception.CorrectionReviewNote = null;
-        exception.Status = OperationsConstants.ExceptionAdjustmentRequired;
-        exception.UpdatedAtUtc = DateTime.UtcNow;
-        _db.ReconciliationExceptionHistories.Add(new ReconciliationExceptionHistory
-        {
-            Exception = exception, OldStatus = oldExceptionStatus,
-            NewStatus = exception.Status, Note = $"Correction reversal requested for transaction {transaction.TransactionNo}: {exception.CorrectionRequestReason}",
-            ActorId = exception.CorrectionRequestedBy.Value, CreatedAtUtc = exception.CorrectionRequestedAtUtc.Value
-        });
-        await _db.SaveChangesAsync(cancellationToken);
-        await dbTransaction.CommitAsync(cancellationToken);
-        return await GetExceptionResponseAsync(exceptionId, cancellationToken);
-    }
+    public Task<ReconciliationExceptionResponse> RequestTransactionCorrectionAsync(long exceptionId, RequestTransactionCorrectionRequest request, CancellationToken cancellationToken)
+        => throw new BusinessRuleException(MessageCode.CorrectionLegacyResubmit);
 
-    /// <summary>Approves and posts a balanced full reversal, or rejects a correction request with a reason.</summary>
-    public async Task<ReconciliationExceptionResponse> ReviewTransactionCorrectionAsync(long exceptionId, ReviewTransactionCorrectionRequest request, CancellationToken cancellationToken)
-    {
-        var reviewerId = _currentUser.GetCurrentUserId();
-        if (string.IsNullOrWhiteSpace(request.Note) || request.Note.Trim().Length > 2000)
-            throw new ValidationException(MessageCode.RequiredFieldMissing);
-        await using var dbTransaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var exception = (await _db.ReconciliationExceptions.FromSql($"SELECT * FROM ReconciliationExceptions WHERE Id = {exceptionId} FOR UPDATE")
-            .ToListAsync(cancellationToken)).SingleOrDefault() ?? throw new NotFoundException(MessageCode.ResourceNotFound);
-        if (exception.CorrectionRequestStatus != "Pending")
-            throw new BusinessRuleException(MessageCode.CashAdjustmentApprovalRequired);
-        if (reviewerId == exception.CorrectionRequestedBy)
-            throw new BusinessRuleException(MessageCode.CashAdjustmentApprovalRequired);
-        var now = DateTime.UtcNow;
-        if (!request.Approve)
-        {
-            exception.CorrectionRequestStatus = "Rejected";
-            exception.CorrectionReviewNote = request.Note.Trim();
-            exception.CorrectionReviewedBy = reviewerId;
-            exception.CorrectionReviewedAtUtc = now;
-            exception.UpdatedAtUtc = now;
-            _db.ReconciliationExceptionHistories.Add(new ReconciliationExceptionHistory
-            {
-                Exception = exception, OldStatus = exception.Status, NewStatus = exception.Status,
-                Note = $"Correction request rejected: {exception.CorrectionReviewNote}", ActorId = reviewerId, CreatedAtUtc = now
-            });
-            await _db.SaveChangesAsync(cancellationToken);
-            await dbTransaction.CommitAsync(cancellationToken);
-            return await GetExceptionResponseAsync(exceptionId, cancellationToken);
-        }
-        if (exception.CorrectionExternalRecoveryReference is not null && string.IsNullOrWhiteSpace(request.RecoveryAttestation))
-            throw new ValidationException(MessageCode.RequiredFieldMissing);
-        if (request.RecoveryAttestation?.Trim().Length > 1000)
-            throw new ValidationException(MessageCode.FieldTooLong);
-
-        var originalId = exception.RequestedCorrectionTransactionId!.Value;
-        var original = (await _db.Transactions.FromSql($"SELECT * FROM Transactions WHERE Id = {originalId} FOR UPDATE")
-            .ToListAsync(cancellationToken)).Single();
-        if (original.TransactionStatus is not (TransactionStatus.Posted or TransactionStatus.Completed or TransactionStatus.Accrued))
-            throw new BusinessRuleException(MessageCode.InvalidRequest);
-        if (await _db.Transactions.AnyAsync(item => item.ReversalOfTransactionId == original.Id, cancellationToken))
-            throw new BusinessRuleException(MessageCode.InvalidRequest);
-        var accountEntries = await _db.AccountTransactions.Where(item => item.TransactionId == originalId).ToListAsync(cancellationToken);
-        var glEntries = await _db.TransactionEntries.Where(item => item.TransactionId == originalId).ToListAsync(cancellationToken);
-        if (accountEntries.Count == 0 || glEntries.Count == 0)
-            throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
-        var today = BusinessTime.Today;
-        var openBusinessDate = await _db.BusinessDates.Where(item => item.Status == "Open" && item.Date <= today).OrderByDescending(item => item.Date)
-            .Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken);
-        if (openBusinessDate is null)
-            throw new BusinessRuleException(MessageCode.BusinessDateClosed);
-        var businessDate = openBusinessDate.Value;
-        var reversal = LedgerPostingService.CreateTransaction(original.TransactionType, TransactionStatus.Completed, original.Amount,
-            $"Reviewed reversal of transaction {original.TransactionNo}", exception.CorrectionExternalRecoveryReference,
-            null, reviewerId, now);
-        reversal.BusinessDate = businessDate;
-        reversal.AuthorizedBy = reviewerId;
-        reversal.AuthorizedAt = now;
-        reversal.ReversalOfTransactionId = original.Id;
-        _db.Transactions.Add(reversal);
-        foreach (var item in accountEntries)
-        {
-            var account = await _db.Accounts.SingleAsync(account => account.Id == item.AccountId, cancellationToken);
-            var debit = item.EntryType == EntryType.Credit;
-            if (debit && (account.LedgerBalance < item.Amount || account.AvailableBalance < item.Amount))
-                throw new BusinessRuleException(MessageCode.InsufficientBalance);
-            var beforeLedger = account.LedgerBalance;
-            var beforeAvailable = account.AvailableBalance;
-            account.LedgerBalance += debit ? -item.Amount : item.Amount;
-            account.AvailableBalance += debit ? -item.Amount : item.Amount;
-            account.UpdatedAt = now;
-            _db.AccountTransactions.Add(new AccountTransaction
-            {
-                Transaction = reversal, AccountId = account.Id, EntryType = debit ? EntryType.Debit : EntryType.Credit,
-                Amount = item.Amount, LedgerBalanceBefore = beforeLedger, LedgerBalanceAfter = account.LedgerBalance,
-                AvailableBalanceBefore = beforeAvailable, AvailableBalanceAfter = account.AvailableBalance,
-                ValueDate = businessDate, PostingDate = businessDate, Description = reversal.Description,
-                ReferenceNo = original.TransactionNo, Status = TransactionConstants.CompletedStatus, CreatedAt = now
-            });
-        }
-        foreach (var item in glEntries)
-            _db.TransactionEntries.Add(new TransactionEntry
-            {
-                Transaction = reversal, GlAccountId = item.GlAccountId, CustomerAccountId = item.CustomerAccountId,
-                EntryType = item.EntryType == EntryType.Debit ? EntryType.Credit : EntryType.Debit,
-                Amount = item.Amount, PostingDate = businessDate, Description = reversal.Description, CreatedAt = now
-            });
-        original.TransactionStatus = TransactionStatus.Reversed;
-        original.UpdatedAt = now;
-        exception.CorrectionRequestStatus = "Approved";
-        exception.CorrectionTransaction = reversal;
-        exception.CorrectionReviewedBy = reviewerId;
-        exception.CorrectionReviewedAtUtc = now;
-        exception.CorrectionReviewNote = request.Note.Trim() + (string.IsNullOrWhiteSpace(request.RecoveryAttestation) ? string.Empty : $"\nRecovery attested: {request.RecoveryAttestation.Trim()}");
-        exception.UpdatedAtUtc = now;
-        _db.ReconciliationExceptionHistories.Add(new ReconciliationExceptionHistory
-        {
-            Exception = exception, OldStatus = exception.Status, NewStatus = exception.Status,
-            Note = $"Correction approved; reversal transaction {reversal.TransactionNo} posted. {exception.CorrectionReviewNote}",
-            ActorId = reviewerId, CreatedAtUtc = now
-        });
-        await _db.SaveChangesAsync(cancellationToken);
-        await dbTransaction.CommitAsync(cancellationToken);
-        return await GetExceptionResponseAsync(exceptionId, cancellationToken);
-    }
+    // Legacy reversal requests must be resubmitted through the versioned proposal workflow.
+    public Task<ReconciliationExceptionResponse> ReviewTransactionCorrectionAsync(long exceptionId, ReviewTransactionCorrectionRequest request, CancellationToken cancellationToken)
+        => throw new BusinessRuleException(MessageCode.CorrectionLegacyResubmit);
 
     private async Task<ReconciliationExceptionResponse> GetExceptionResponseAsync(long id, CancellationToken cancellationToken) =>
         await _db.ReconciliationExceptions.AsNoTracking().Where(item => item.Id == id).Select(item => new ReconciliationExceptionResponse(
@@ -458,7 +392,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             item.CorrectionTransactionId, item.Notes, item.CreatedAtUtc, item.UpdatedAtUtc, item.CorrectionRequestStatus,
             item.RequestedCorrectionTransactionId, item.CorrectionRequestedBy, item.CorrectionRequestedAtUtc,
             item.CorrectionReviewedBy, item.CorrectionReviewedAtUtc, item.CorrectionRequestReason,
-            item.CorrectionExternalRecoveryReference, item.CorrectionReviewNote)).SingleAsync(cancellationToken);
+            item.CorrectionExternalRecoveryReference, item.CorrectionReviewNote, item.DiscrepancyKind, item.ReviewDueDate)).SingleAsync(cancellationToken);
 
     /// <summary>Lists posted transactions that affected the selected exception's customer account with journal summaries.</summary>
     public async Task<IReadOnlyList<CorrectionTransactionCandidateResponse>> GetCorrectionCandidatesAsync(long exceptionId, CancellationToken cancellationToken)
@@ -521,11 +455,13 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         decimal difference, long actorId, DateTime now,
         IReadOnlyDictionary<(long AccountId, DateOnly BusinessDate), ReconciliationException> activeByAccountAndDate)
     {
-        activeByAccountAndDate.TryGetValue((accountId, date), out var existing);
+        activeByAccountAndDate.TryGetValue((accountId, date), out ReconciliationException? existing);
+        if (existing?.Status == OperationsConstants.ExceptionForcePassed) return;
         if (difference == 0m)
         {
-            if (existing is not null)
-                AddHistoryAndSetStatus(existing, "Resolved", "Account and ledger balances now match.", actorId, now);
+            if (existing is not null && !_db.CorrectionProposals.Any(x => x.ExceptionId == existing.Id &&
+                (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed)))
+                AddHistoryAndSetStatus(existing, "Resolved", "Effective account and ledger balances match after explicit source waivers, if any.", actorId, now);
             return;
         }
 

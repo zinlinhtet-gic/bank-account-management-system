@@ -128,7 +128,19 @@ builder.Services.AddScoped<IAccountStatusHistoryService, AccountStatusHistorySer
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
 builder.Services.AddScoped<IAccountReconciliationService, AccountReconciliationService>();
+builder.Services.AddScoped<CorrectionPlanningService>();
+builder.Services.AddScoped<ReconciliationProjectionService>();
+builder.Services.AddScoped<ReconciliationCorrectionService>();
+builder.Services.AddScoped<ReconciliationCheckService>();
+builder.Services.AddScoped<ReconciliationReadService>();
+builder.Services.AddScoped<BankExpenseService>();
+builder.Services.AddScoped<ReconciliationExclusionService>();
+builder.Services.AddScoped<UnifiedReconciliationService>();
+builder.Services.AddScoped<CashCorrectionService>();
+
 builder.Services.AddScoped<ICashOperationsService, CashOperationsService>();
+builder.Services.AddScoped<ScheduledCashSessionExpiryService>();
+builder.Services.AddScoped<CashSessionSchedulingService>();
 builder.Services.AddScoped<IBusinessDateService, BusinessDateService>();
 builder.Services.AddScoped<IEndOfDayWorkflowService, EndOfDayWorkflowService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -182,6 +194,12 @@ builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
             (service, execution, cancellationToken) => service.ExecuteAsync(execution, cancellationToken));
     }
 
+    jobs.Add<ScheduledCashSessionExpiryService>(
+        "cash-session-expiry",
+        "Unactivated Cash Session Expiry",
+        JobSchedule.Every(TimeSpan.FromMinutes(15)),
+        (service, execution, cancellationToken) => service.ExecuteAsync(execution, cancellationToken));
+
     var monthlyAtMyanmarMidnight = JobSchedule.Monthly(2, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
     jobs.Add<MonthlyAccountingCloseService>(
         ScheduledJobConstants.MonthlyAccountingCloseJobKey,
@@ -198,7 +216,6 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
-
     // Security data must be seeded before any other seeder adds users: on an empty database it clears the
     // Users table, which would otherwise delete the scheduled-jobs system actor created by ProductSeeder.
     await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);

@@ -63,6 +63,7 @@ public static class RolesAndPermissionsSeeder
             (SecurityConstants.ManagerRole, SecurityConstants.ScheduledJobManagement),
             (SecurityConstants.ManagerRole, SecurityConstants.TransactionCorrectionApproval),
             (SecurityConstants.OfficerRole, SecurityConstants.CashOperations),
+            (SecurityConstants.OfficerRole, SecurityConstants.ReconciliationInvestigation),
             (SecurityConstants.AuditorRole, SecurityConstants.ReconciliationInvestigation)
         };
         var existing = await dbContext.RolePermissions.AsNoTracking()
@@ -189,7 +190,8 @@ public static class RolesAndPermissionsSeeder
             SecurityConstants.CustomerManagement,
             SecurityConstants.AccountManagement,
             SecurityConstants.Transactions,
-            SecurityConstants.CashOperations
+            SecurityConstants.CashOperations,
+            SecurityConstants.ReconciliationInvestigation
         };
 
         foreach (var permissionCode in officerPermissionCodes)

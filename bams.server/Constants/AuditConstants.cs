@@ -35,6 +35,9 @@ public static class AuditConstants
     public const string EndOfDayReconciliationType = "EndOfDay";
 
     public const string ReconciliationCompletedStatus = "Completed";
+    public const string ReconciliationCompletedWithExceptionsStatus = "CompletedWithExceptions";
+    public const string ReconciliationExceptionStatus = "Exception";
+    public const string ReconciliationWaivedStatus = "Waived";
 
     public const string ReconciliationMatchedStatus = "Matched";
 

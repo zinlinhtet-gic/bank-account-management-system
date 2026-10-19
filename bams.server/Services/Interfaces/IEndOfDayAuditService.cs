@@ -9,5 +9,6 @@ public interface IEndOfDayAuditService
     /// <summary>
     /// Audits accounting activity for the specified accounting date.
     /// </summary>
-    Task<EndOfDayAuditResult> RunEndOfDayAuditAsync(DateOnly auditDate, CancellationToken cancellationToken);
+    Task<EndOfDayAuditResult> RunEndOfDayAuditAsync(DateOnly auditDate, CancellationToken cancellationToken,
+        bool allowAccountingExceptions = false);
 }

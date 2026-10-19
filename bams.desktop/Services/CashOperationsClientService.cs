@@ -6,6 +6,10 @@ namespace bams.desktop.Services;
 
 public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOperationsClientService
 {
+    /// <summary>Submits a complete schedule batch with a stable retry key.</summary>
+    public Task<IReadOnlyList<CashPositionSessionResponse>> CreateSchedulesAsync(CreateSessionSchedulesRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CreateSessionSchedulesRequest, IReadOnlyList<CashPositionSessionResponse>>("/api/cash-operations/sessions/schedules", request, cancellationToken);
+
     public Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? date, CancellationToken cancellationToken)
     {
         var endpoint = "/api/cash-operations/sessions";
@@ -20,6 +24,33 @@ public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOper
         apiClient.PostAsync<OpenCashSessionRequest, CashPositionSessionResponse>("/api/cash-operations/sessions", request,
             new Dictionary<string, string> { [ApiConstants.IdempotencyKeyHeader] = idempotencyKey }, cancellationToken);
 
+    public Task<CashPositionSessionResponse> ActivateSessionAsync(long sessionId, ActivateCashSessionRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<ActivateCashSessionRequest, CashPositionSessionResponse>($"/api/cash-operations/sessions/{sessionId}/activate", request, cancellationToken);
+
+    public Task<CashPositionSessionResponse> CancelScheduledSessionAsync(long sessionId, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CashPositionSessionResponse>($"/api/cash-operations/sessions/{sessionId}/cancel-scheduled", cancellationToken);
+
+    public Task<IReadOnlyList<CashSessionAssigneeResponse>> GetSessionAssigneesAsync(CancellationToken cancellationToken) =>
+        apiClient.GetAsync<IReadOnlyList<CashSessionAssigneeResponse>>("/api/cash-operations/session-assignees", cancellationToken);
+
+    public Task<CashProposalResponse> CreateCashProposalAsync(long sessionId, CreateCashProposalRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CreateCashProposalRequest, CashProposalResponse>($"/api/cash-operations/sessions/{sessionId}/proposals", request, cancellationToken);
+
+    public Task<IReadOnlyList<CashProposalResponse>> GetCashProposalsAsync(DateOnly? date, CancellationToken cancellationToken)
+    {
+        var suffix = date.HasValue ? $"?businessDate={date.Value:yyyy-MM-dd}" : string.Empty;
+        return apiClient.GetAsync<IReadOnlyList<CashProposalResponse>>("/api/cash-operations/proposals" + suffix, cancellationToken);
+    }
+
+    public Task<CashProposalResponse> ApproveCashProposalAsync(long id, ApproveCashProposalRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<ApproveCashProposalRequest, CashProposalResponse>($"/api/cash-operations/proposals/{id}/approve", request, cancellationToken);
+
+    public Task<CashProposalResponse> ReceiveCashProposalAsync(long id, CashProposalActionRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CashProposalActionRequest, CashProposalResponse>($"/api/cash-operations/proposals/{id}/receive", request, cancellationToken);
+
+    public Task<CashProposalResponse> RejectCashProposalAsync(long id, CashProposalActionRequest request, CancellationToken cancellationToken) =>
+        apiClient.PostAsync<CashProposalActionRequest, CashProposalResponse>($"/api/cash-operations/proposals/{id}/reject", request, cancellationToken);
+
     public Task<CashPositionSessionResponse> TransferCashAsync(long sessionId, TransferCashRequest request, CancellationToken cancellationToken) =>
         apiClient.PostAsync<TransferCashRequest, CashPositionSessionResponse>($"/api/cash-operations/sessions/{sessionId}/transfers", request, cancellationToken);
 
@@ -27,8 +58,8 @@ public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOper
         apiClient.PostAsync<SubmitCashCountRequest, CashCountResponse>($"/api/cash-operations/sessions/{sessionId}/count", request,
             new Dictionary<string, string> { [ApiConstants.IdempotencyKeyHeader] = idempotencyKey }, cancellationToken);
 
-    public Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken) =>
-        apiClient.GetAsync<IReadOnlyList<CashHandoffRecipientResponse>>("/api/cash-handoffs/recipients", cancellationToken);
+    public Task<IReadOnlyList<CashHandoffRecipientResponse>> GetHandoffRecipientsAsync(CancellationToken cancellationToken, long? sourceSessionId = null) =>
+        apiClient.GetAsync<IReadOnlyList<CashHandoffRecipientResponse>>("/api/cash-handoffs/recipients" + (sourceSessionId.HasValue ? $"?sourceSessionId={sourceSessionId}" : ""), cancellationToken);
 
     public Task<IReadOnlyList<CashHandoffResponse>> GetCashHandoffsAsync(DateOnly? date, CancellationToken cancellationToken)
     {

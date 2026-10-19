@@ -13,13 +13,32 @@ public static class PageNames
     public const string TransactionHistory = "Transaction History";
     // Parent Navigation groups
     public const string Accounting = "Accounting";
+    public const string CashManagement = "Cash Management";
+    public const string BusinessDateOpening = "Business Date Opening";
     public const string Audit = "Audit";
     // Accounting child pages
     public const string GeneralLedger = "General Ledger";
     public const string GLAccountDetail = "GL Account Detail";
     public const string AccountingEntries = "Accounting Entries";
+    public const string ReconciliationChecks = "Run Checks";
+    public const string ReconciliationExceptions = "Exceptions & Assignment";
+    public const string ReconciliationInvestigations = "Investigations";
+    public const string ReconciliationProposals = "Correction Proposals";
+    public const string ReconciliationApprovals = "Manager Approvals";
+    public const string ReconciliationVerification = "Verification";
+    public const string ReconciliationHistory = "Reconciliation History";
+    public const string ReconciliationProposalEditor = "Prepare Correction Proposal";
     public const string Reconciliation = "Reconciliation";
-    public const string CashReconciliation = "Cash Reconciliation";
+    public const string ReconciliationMaster = "Reconciliation Checks";
+    public const string AssignedReconciliationTasks = "Assigned Reconciliation Tasks";
+    public const string ReconcileProposals = "Reconcile Proposals";
+    public const string CashProposalEditor = "Perform Cash Reconciliation";
+    public const string BankExpenses = "Bank Expense Recording";
+    public const string CashReconciliation = "Session Management";
+    public const string SessionCreation = "Session Creation";
+    public const string SessionDetail = "Session Detail";
+    public const string SessionHandoffs = "Session Handoff Requests";
+    public const string CashRequests = "Cash Requests";
     public const string EndOfDay = "End of Day";
     // Audit child pages
     public const string TransactionAudit = "Transaction Audit";

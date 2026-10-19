@@ -1,0 +1,35 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.CashRequestDialogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             Width="520">
+    <StackPanel>
+        <TextBlock Text="Request cash from vault" Style="{StaticResource Text.Heading}" />
+        <TextBlock Text="{Binding SessionTitle}" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,0" />
+        <TextBlock Text="The manager will review this request. Cash is added to your session after approval and receipt." 
+                   Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8,0,20" />
+
+        <TextBlock Text="AMOUNT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" />
+        <TextBox Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Leave blank for the manager to choose" />
+        <TextBlock Text="{Binding AmountError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                   Visibility="{Binding HasAmountError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <TextBlock Text="REASON" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,0" />
+        <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" MaxLength="500"
+                 VerticalScrollBarVisibility="Auto" t:ThemeAssist.Placeholder="Explain why you need the cash" />
+        <TextBlock Text="{Binding ReasonError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                   Visibility="{Binding HasReasonError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <ContentControl Style="{StaticResource Alert.Danger}" Margin="0,16,0,0" Content="{Binding FormError}"
+                        Visibility="{Binding HasFormError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button Content="Cancel" Style="{StaticResource Button.Secondary}" MinWidth="96" Margin="0,0,8,0"
+                    Command="{Binding CancelCommand}" />
+            <Button Content="Submit request" Style="{StaticResource Button.Primary}" MinWidth="132"
+                    IsDefault="True" t:ThemeAssist.IsLoading="{Binding IsBusy}" Command="{Binding SubmitCommand}" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

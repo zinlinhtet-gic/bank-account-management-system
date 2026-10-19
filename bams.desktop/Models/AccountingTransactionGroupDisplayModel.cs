@@ -23,9 +23,9 @@ public sealed class AccountingTransactionGroupDisplayModel
 
     public DateTime TransactionAt { get; }
 
-    public string TransactionDate => DateTimeDisplay.ToLocal(TransactionAt).ToString("dd/MM/yyyy");
+    public string TransactionDate => MyanmarTimeDisplay.ToMyanmarTime(TransactionAt).ToString("dd/MM/yyyy");
 
-    public string TransactionTime => DateTimeDisplay.ToLocal(TransactionAt).ToString("HH:mm");
+    public string TransactionTime => MyanmarTimeDisplay.ToMyanmarTime(TransactionAt).ToString("HH:mm");
 
     public IReadOnlyList<AccountingEntryResponse> Entries { get; }
 }

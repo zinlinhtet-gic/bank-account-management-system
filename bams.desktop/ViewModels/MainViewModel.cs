@@ -100,7 +100,7 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>
     /// Navigates to a page based on the navigation item label.
     /// </summary>
-    private void NavigateToPage(object? parameter)
+    private async void NavigateToPage(object? parameter)
     {
         if (parameter == null)
             return;
@@ -109,8 +109,8 @@ public sealed class MainViewModel : ViewModelBase
         if (string.IsNullOrEmpty(pageLabel))
             return;
 
-        if (IsOfficer && CurrentPage is CashReconciliationViewModel &&
-            pageLabel != PageNames.CashReconciliation && !_cashSessionContext.HasOpenSession)
+        if (IsOfficer && CurrentPage is SessionManagementViewModel &&
+            pageLabel != PageNames.CashReconciliation && pageLabel != PageNames.AssignedReconciliationTasks && !_cashSessionContext.HasOpenSession)
         {
             var continueNavigation = _dialogService.Confirm(new ConfirmDialogOptions(
                 "Cash session required",
@@ -121,9 +121,15 @@ public sealed class MainViewModel : ViewModelBase
                 return;
         }
 
+        if (CurrentPage is ReconciliationProposalEditorViewModel editor && !await editor.ConfirmLeaveAsync()) return;
         var viewModel = _navigationService.GetPageViewModel(pageLabel);
         if (viewModel != null)
         {
+            if (viewModel is SessionPageViewModel sessionPage) sessionPage.NavigateRequested += OpenSessionPage;
+            if (viewModel is ReconciliationOperationViewModel operation)
+                operation.NavigateRequested += OpenReconciliationOperation;
+            if (viewModel is EndOfDayViewModel endOfDay)
+                endOfDay.NavigateRequested += OpenReconciliationOperation;
             if (viewModel is GeneralLedgerViewModel generalLedger)
             {
                 generalLedger.DetailRequested += OpenGlAccountDetail;
@@ -146,6 +152,36 @@ public sealed class MainViewModel : ViewModelBase
 
         // No page is mapped to this label: keep the current page and nav highlight instead of showing nothing.
         AppLog.WriteInformation($"Navigation to page '{pageLabel}' ignored because no page is registered for it.");
+    }
+
+    // Session routes carry session identity independently of any selected row or date filter.
+    private void OpenSessionPage(string page, long? sessionId)
+    {
+        if (_navigationService.GetPageViewModel(page) is not SessionPageViewModel next) return;
+        next.SessionId = sessionId;
+        next.NavigateRequested += OpenSessionPage;
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = next;
+        _currentPageLabel = page;
+        ActiveItem = PageNames.CashReconciliation;
+        StartPageInitialization(next);
+    }
+
+    // Operation routes carry explicit IDs and preserve the originating page instance and filters.
+    private async void OpenReconciliationOperation(ReconciliationRoute route)
+    {
+        if (CurrentPage is ReconciliationProposalEditorViewModel editor && !await editor.ConfirmLeaveAsync()) return;
+        if (_navigationService.GetPageViewModel(route.Page) is not ReconciliationOperationViewModel next) return;
+        next.SetRoute(route);
+        next.NavigateRequested += OpenReconciliationOperation;
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = next;
+        _currentPageLabel = route.Page;
+        ActiveItem = route.Page is PageNames.ReconciliationProposalEditor or PageNames.CashProposalEditor
+            ? PageNames.AssignedReconciliationTasks : route.Page;
+        StartPageInitialization(next);
     }
 
     private void OpenGlAccountDetail(long accountId)
@@ -297,7 +333,7 @@ public sealed class MainViewModel : ViewModelBase
             var sessions = await _cashOperationsService.GetSessionsAsync(null, CancellationToken.None);
             var hasOpenSession = sessions.Any(session => session.PositionType == "Teller" && session.Status == "Open");
             _cashSessionContext.SetStatus(hasOpenSession);
-            if (hasOpenSession && CurrentPage is CashReconciliationViewModel)
+            if (hasOpenSession && CurrentPage is SessionManagementViewModel)
                 NavigateToPage(GetDefaultPageForRole());
         }
         catch (AppException exception)

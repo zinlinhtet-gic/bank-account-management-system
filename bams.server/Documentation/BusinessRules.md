@@ -1,4 +1,4 @@
-﻿# Business rules
+# Business rules
 
 This page summarizes invariants enforced by server services. Constants and service validation are authoritative when a value changes. HTTP routes and request shapes are documented in [API Contracts](ApiContracts.md).
 
@@ -53,16 +53,38 @@ This page summarizes invariants enforced by server services. Constants and servi
 
 ### Cash custody
 
-- Teller cash postings are attached server-side to the actor's open cash session for the active business date. The client does not select the cash session for a transaction.
+- A manager explicitly starts the current Myanmar business date, entering the starting vault cash in the same operation; the date and its vault session are created atomically. Only one open business date is active for ordinary posting. Starting a new date deactivates the previous open date without closing it.
+- Managers create teller sessions assigned to one active officer. Teller sessions include Myanmar local start and end times; an officer can activate only within that period, and unactivated sessions automatically close after the end time. An officer can have multiple assigned sessions but only one active session at a time.
+- Teller cash postings are attached server-side to the actor's active teller session for the active business date. The client does not select the cash session for a transaction. Until activation, reads and self password changes remain available while session-gated writes are rejected.
+- Cash proposals reserve available vault cash when approved. Receipt transfers reserved cash to the teller; rejection releases the reservation. Every vault decrease preserves a nonnegative available balance, including funds reserved for other proposals.
+- Closing a teller session can route counted cash to the vault through a manager-acknowledged handoff. The vault is credited only on acknowledgement; existing teller-to-teller cash movements and handoffs remain supported.
 - Physical counts are immutable observations and do not overwrite expected cash. Adjustments require a signed amount tied to the relevant posted Cash on Hand journal effect and independent approval.
 - Cash movement, transaction posting, and their audit data are coordinated transactionally. Handoffs track custody and require eligible recipients and valid state transitions.
 
 ## Accounting and business dates
 
-- Every posted financial transaction has balanced journal entries. Reconciliation compares operational account balances with customer-liability ledger balances and retains run/result snapshots and exception history.
-- A reconciliation exception can be resolved only after a rerun confirms the difference is cleared; direct resolution is not an allowed substitute for evidence.
+- Cash discrepancies use separate planning, execution and verification functions for each case. Movement repairs preserve original records and link appended movements to their proposal and corrected source. Transfers and accepted handoffs require explicit counterpart evidence and verification of both positions. See [Cash discrepancy correction operations](CashDiscrepancyCorrections.md) for inputs, supported source types and posting rules.
+
+- The unified reconciliation check evaluates account/GL consistency and cash custody discrepancies, including physical cash versus the server-calculated expected cash position. Each run retains its result snapshot and exception history.
+- Journal validation checks the exact GL account, direction, amount, and customer account for every line. Transfer fees add matching customer-deposit and fee-income lines; interbank refunds return the original fee through matching fee-income and customer-deposit lines. Customer-deposit journal lines are reconciled to account transactions by account, direction, and amount.
+- Active exceptions are grouped by account/GL and cash discrepancy in the reconciliation workspace. An investigator must be assigned before investigation; only the assignee can prepare the corresponding correction. Diagnosis is separate from the detected condition, and a proposal contains evidence, typed inputs, a server-generated preview, and the source revision.
+- Submitted correction proposals are immutable. An authorized manager must approve or reject the exact preview. A proposer may self-approve only when they are the sole active Manager system-wide and hold correction approval permission.
+- Approval, correction records, live account effects, and audit history commit atomically. A failed operation leaves no partial financial posting. Successful retries return the existing execution.
+- Cash correction approval releases its committed posting transaction before running verification. Verification uses a separate transaction and does not replay the financial posting.
+- Posted account/GL and cash corrections with pending or failed verification remain in the Verification queue even when an earlier check already marked their exception resolved. Assigned investigators can retry their own tasks; correction approvers can retry all tasks. Retries never post financial records, successful tasks leave the queue, failed tasks retain their latest result, and Force Passed exceptions are excluded. Repeating an already-passed verification returns its existing result.
+- Historical corrections may post to an earlier open business date. Original transactions and GL entries remain unchanged. Approved financial corrections append new linked transactions and accounting/GL entries; balance snapshot repairs use audited calculation records without inventing financial activity.
+- Missing journal components are linked to their original transaction and validated as one effective journal. Financial corrections create new transactions; balance snapshot repairs create audited calculation records without synthetic financial entries.
+- A reconciliation exception blocks date closure until it is corrected and verified or explicitly Force Passed by an authorized manager. Force Pass records the reason and decision against the observed source; it is excluded from later checks while that source remains unchanged. A changed source can produce a new active exception. Source transactions and evidence remain available for audit.
 - The business date is persisted and distinct from UTC transaction timestamps. Myanmar local time determines the banking date and relevant calendar boundaries.
-- End-of-day close is a staged, authorized process with pre-close checks, distinct approval, and final rechecks under lock. Blocking conditions must be resolved or handled through the explicit manager override workflow.
+- Scheduled reconciliation, maintenance, and interest use the scheduled occurrence's Myanmar business date; they do not require an open business date or cash session. Scheduled cash operations must still follow the active business-date and cash-session rules.
+- At most one open date is active for ordinary posting. Starting a new date deactivates the previous open date but does not close it. Historical open dates remain available for investigation and approved corrections; there is no oldest-open-date prerequisite for closing the active date.
+- Any earlier open date can complete EOD review and normal or authorized force close while a newer date is active. Closing it updates only that date and its EOD run; the newer active date continues accepting ordinary postings.
+- Pending or newly investigated corrections for a force-closed date post financial transactions, account entries, and GL entries on the current active open date. The original exception, source session, expense date, financial entries, and finalized summaries retain their source identity. Cash-position corrections append evidence against the source session without paying out the cash again from today's session. Approval stays pending if no active date is open. Ordinary closed dates are not eligible for this override.
+- Journal repair components posted after force close remain grouped with the original journal for reconciliation checks. Their financial posting date and summary amounts remain on the active date; closed-source account exceptions use verified current-date evidence rather than rewriting historical balances.
+- The EOD workspace runs the unified reconciliation check, shows active exceptions by account/GL and cash tabs, requires final physical vault cash validation, and then supports date close and the manager force-close request workflow. Close rechecks blockers under lock. Open teller sessions and unresolved cash handoffs remain blockers unless handled by the authorized override workflow.
+- A cash count is an immutable observation and never overwrites expected cash. A count-entry error is handled by recounting. Other diagnosed cash variances use case-specific inputs and a server-calculated proposal; manager approval posts the appropriate linked cash movement and, where financial, balanced accounting and GL entries. The exception is cleared only after verification.
+- Approved bank expense recording posts a new expense transaction: debit Bank Operating Expense and credit Cash on Hand, with the corresponding cash movement and expected-position effect. Expenses require purpose/payee and either a validated receipt or a reason no receipt is available, and remain subject to manager review.
+- Force close bypasses all EOD readiness, reconciliation, unresolved exception, pending proposal, and accounting-integrity blockers after the required manager approvals. It still records the observed blocker summary, creates the EOD audit and daily summaries (including actual debit/credit differences), and closes the date atomically. The override does not resolve or approve outstanding exceptions or proposals. A single-manager force-close request and its automatic close are committed in one database transaction, so the override cannot remain approved if the close fails.
 - Monthly accounting close depends on the prior month's final business date being closed. Scheduled-job retry replays an eligible occurrence; it does not close dates or bypass accounting gates.
 
 ## Users, roles, and permissions
@@ -81,3 +103,43 @@ This page summarizes invariants enforced by server services. Constants and servi
 ## Change checklist
 
 When changing a rule, update its service/constants first, then the relevant API contract and this page. Update [Message Codes](MessageCodes.md) if callers receive a new or changed code. Keep the OpenAPI contract in sync with public request/response changes.
+
+### Normal and forced EOD close
+
+- Normal close retains preparation, independent manager recheck/approval (sole eligible manager exception), and a final readiness check under the business-date lock. Open sessions, pending handoffs/funding/expenses, missing final vault validation, unresolved exceptions/proposals or failed correction verification, and accounting inequalities block closure.
+- Final vault count requires an open business date and vault, other cash sessions closed, no reserved vault cash, accepted handoffs and no pending cash funding/receipt or expense requests. It appends the count, closes the vault and then runs reconciliation. A count mismatch does not silently approve the business-date close.
+- Force close bypasses readiness, reconciliation and accounting validation blockers. The request captures the required eligible managers and counts the requester as approved. The last required manager approval performs audit, final summaries and date closure atomically; a sole-manager request does the same immediately. Permission and persistence failures still roll back the transaction. Blocker snapshots are refreshed at execution without resolving investigations or approving pending proposals.
+- EOD mutations acquire open business-date locks in date order before locking the run. Repeating a completed close, or an already-recorded force approval, returns the persisted result without creating another audit or summary. A persisted EOD batch without DailySummary rows is valid for a date without financial activity.
+- EOD audit FindingsJson preserves missing-journal transaction IDs, unbalanced raw and combined journals, actual debit/credit totals, effective validation totals, explicit waiver source IDs, override mode and reconciliation outcome. Missing journals are findings rather than invented transaction-entry rows. CompletedWithExceptions and item Exception/Waived statuses retain inequalities and exclusions; journal repair components validate with their original root while summaries retain their actual posting dates. IsReconciled requires both complete and balanced effective journals; offsetting unbalanced journals do not produce a successful reconciliation result merely because daily totals balance.
+- Apply the EndOfDayAuditFindings migration to add the nullable JSON snapshot and widen batch status to 30 characters. Migration preparation does not update the database.
+
+### Competing normal and force-close operations
+
+- Normal preparation, review and approval may proceed while a force-close request awaits manager approval. A pending override alone does not bypass any normal-close readiness requirement.
+- Successful normal close atomically marks pending requests for the same date OverrideCancelled. Their reason and approvals remain in history; a cancellation stage identifies the normal-close run, actor and timestamp. Cancelled requests cannot be approved or executed.
+- Successful force close atomically marks unfinished normal-close runs for that date Superseded, recording the winning force-close run, actor and timestamp. Their remaining operations are rejected. Business-date locks serialize competing operations: the successful closure decides which path stops. A failed closure rolls back cancellation/supersession.
+- Financial reconciliation approval after force close uses the current active open date strictly later than the source date. It never posts into the closed source date or auto-opens another date. When no eligible active date exists, a manager must start the next date before posting. Physical recounts and movement-only repairs retain source links without inventing new financial transactions.
+- Latest-run reads prioritize the completed closure over later-created cancelled/superseded attempts. While the date is open, a separate pendingForceClose response property preserves access to override approval when a newer normal-close run is displayed.
+
+### Exact source waivers and repeated Force Pass
+
+Force Pass decisions are append-only. Reopening a changed source and passing it again creates a new exclusion with its own manager, reason, timestamp, source set and hash; previous decisions remain available. Only the latest decision for a currently Force Passed exception is eligible, and its live source hash must still match. Validation is serialized with business dates; read-only audit consumers also refuse stale waivers. Earlier valid decisions apply to their exact source IDs in later effective comparisons.
+
+Journal, daily ledger, account and missing-cash-movement checks use the recorded source exclusions. Effective account comparisons subtract explicitly waived operational and customer-GL effects; result rows retain raw balances and show Waived when an exclusion explains the inequality. Physical-count discrepancies remain independent observations and require their own resolution/waiver. No waiver invents a financial posting or edits original transactions/GL entries. Account waiver snapshots include dated source entries and effective balance values, so unrelated later live-account activity does not invalidate a historical observation. Linked journal repairs participate in the snapshot.
+
+Cash approval retries of an Executed proposal return the persisted execution, dates and verification state after manager authorization, without executing or verifying again. Rejecting an already executed proposal is still forbidden; verification retry uses the separate recovery endpoint.
+
+Apply ReconciliationForcePassHistory before storing a second Force Pass decision for an exception. The migration replaces the unique ExceptionId index with a normal index; it does not remove decision history or change financial data.
+
+ReconciliationForcePassHistory creates a temporary supporting ExceptionId index before replacing the unique index, then drops the supporting index. Both upgrade and downgrade keep the foreign key indexed and enforced throughout the replacement, as required by MySQL.
+
+
+## Business dates and session management
+
+Only today's Myanmar date can be opened, once. Opening creates the vault and optional officer schedules atomically and deactivates prior active dates without closing them. Older open dates support reconciliation, checks, counts, settlement and closure. Scheduled reconciliation retains its explicit-date behavior.
+
+Schedules require an active officer, same-day start before end, positive two-decimal starting cash, non-overlapping officer periods, and sufficient available vault cash for all rows. Adjacent periods are valid. Acceptance activates and receives initial cash exactly once. Cancellation retains actor/time and resolves the reservation; Cancelled sessions are excluded from closing blockers.
+
+New posting, activation and cash requests require today's active date. Existing older-date requests can settle while their date remains open. Counts and handoffs enforce ownership and state independently of the current-date teller gate.
+
+Only the selected recipient can acknowledge a handoff. Today's officer recipients need an active same-date session at creation and receipt; acceptance creates paired transfers. Older-date recipients are restricted to managers/auditors. Manager receipt of teller cash credits the source date's open vault; auditor receipt is custody-only. Discrepancies survive cash transfers. Pending or declined handoffs block normal closing.

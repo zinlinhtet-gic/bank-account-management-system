@@ -233,7 +233,7 @@ public sealed class ApiClient
     private void EnsureWriteAllowed(string endpoint)
     {
         if (!string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase) ||
-            _cashSessionContext.HasOpenSession || !RequiresTellerSession(endpoint) || IsOpeningCashSessionEndpoint(endpoint))
+            _cashSessionContext.HasOpenSession || !RequiresTellerSession(endpoint) || IsCashSessionBootstrapEndpoint(endpoint))
             return;
 
         throw new ApiException(MessageCode.CashSessionNotOpen,
@@ -253,9 +253,24 @@ public sealed class ApiClient
                path.StartsWith(endpointRoot + "/", StringComparison.OrdinalIgnoreCase);
     }
 
-    // Allows session creation so an officer can satisfy the session requirement after signing in.
-    private static bool IsOpeningCashSessionEndpoint(string endpoint) =>
-        endpoint.TrimStart('/').Split('?', 2)[0].Equals(ApiConstants.CashOperationsEndpoint + "/sessions", StringComparison.OrdinalIgnoreCase);
+    // Allows an officer to open a scheduled session, or activate it before the first open session exists.
+    private static bool IsCashSessionBootstrapEndpoint(string endpoint)
+    {
+        var path = endpoint.TrimStart('/').Split('?', 2)[0];
+        if (IsEndpointOrChild(endpoint, ApiConstants.CashHandoffsEndpoint) ||
+            path.StartsWith(ApiConstants.CashOperationsEndpoint + "/proposals/", StringComparison.OrdinalIgnoreCase)) return true;
+        var sessionsEndpoint = ApiConstants.CashOperationsEndpoint + "/sessions";
+        if (path.Equals(sessionsEndpoint, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var sessionPrefix = sessionsEndpoint + "/";
+        if (!path.StartsWith(sessionPrefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var route = path[sessionPrefix.Length..].Split('/');
+        return route.Length == 2 && long.TryParse(route[0], out _) &&
+            (route[1].Equals("activate", StringComparison.OrdinalIgnoreCase) || route[1].Equals("count", StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>
     /// Downloads a file response (not the JSON envelope) to a local path.

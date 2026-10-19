@@ -7,13 +7,48 @@
                     xmlns:transactions="clr-namespace:bams.desktop.ViewModels.Pages.Transactions"
                     xmlns:transactionviews="clr-namespace:bams.desktop.Views.Pages.Transactions"
                     xmlns:operations="clr-namespace:bams.desktop.ViewModels.Pages.Operations"
-                    xmlns:operationviews="clr-namespace:bams.desktop.Views.Pages.Operations">
+                    xmlns:operationviews="clr-namespace:bams.desktop.Views.Pages.Operations"
+                    xmlns:accounting="clr-namespace:bams.desktop.ViewModels.Pages.Accounting"
+                    xmlns:accountingviews="clr-namespace:bams.desktop.Views.Pages.Accounting">
+    <DataTemplate DataType="{x:Type accounting:CloseSessionDialogViewModel}">
+      <StackPanel Width="580" Margin="24"><TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}"/><TextBlock Text="{Binding ExpectedCash,StringFormat=Expected cash: {0:N2}}" Margin="0,8,0,16"/>
+      <TabControl><TabItem Header="Count"><StackPanel Margin="12"><TextBlock Text="Actual cash" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding Amount,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/><TextBlock Text="Notes" Margin="0,12,0,4"/><TextBox Text="{Binding Notes,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="90" MaxLength="2000" Style="{StaticResource Input.Text}"/></StackPanel></TabItem>
+      <TabItem Header="Handover"><StackPanel Margin="12"><TextBlock Text="Choose the receiving officer, manager or auditor. A nonzero count requires a recipient." TextWrapping="Wrap" Margin="0,0,0,12"/><ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Recipients}" SelectedItem="{Binding Recipient}" DisplayMemberPath="FullName" MinWidth="300"/></StackPanel></TabItem></TabControl>
+      <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,12"/><WrapPanel><Button Content="Submit count and close" Command="{Binding SubmitCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/><Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel></StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type accounting:CashAmountDialogViewModel}"><StackPanel Width="400" Margin="24"><TextBlock Text="Approve cash amount" Style="{StaticResource Text.Heading}"/><TextBox Text="{Binding AmountText,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="0,16"/><TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/><WrapPanel Margin="0,16,0,0"><Button Content="Accept" Command="{Binding ConfirmCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/><Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel></StackPanel></DataTemplate>
+
+
+    <BooleanToVisibilityConverter x:Key="DialogBooleanToVisibilityConverter"/>
 
     <!--
         Dialog ViewModel → dialog View, used by IDialogService.ShowDialog (Components/ModalDialog).
         Loaded once by App.xaml. Add one DataTemplate per dialog ViewModel, grouped by feature.
     -->
 
+    <DataTemplate DataType="{x:Type accounting:ReconciliationReviewDialog}">
+      <ScrollViewer MaxHeight="780" VerticalScrollBarVisibility="Auto"><StackPanel Width="900" Margin="24">
+       <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}" TextWrapping="Wrap"/>
+       <TextBlock Text="{Binding Warning}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,10"/>
+       <TextBlock Text="Investigation findings" Style="{StaticResource Text.FieldLabel}"/><TextBlock Text="{Binding Findings}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"/>
+       <TextBlock Text="Evidence reference" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,0"/><TextBlock Text="{Binding Evidence}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"/>
+       <TextBlock Text="{Binding Explanation}" Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,10"/>
+<TextBlock Text="Original journal" Style="{StaticResource Text.Subheading}" Margin="0,12,0,6"/><Border Style="{StaticResource Card.Flush}"><DataGrid Style="{StaticResource Table}" ItemsSource="{Binding OriginalJournal}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180"><DataGrid.Columns><DataGridTextColumn Header="Account" Binding="{Binding Account}" Width="*"/><DataGridTextColumn Header="Direction" Binding="{Binding Direction}" Width="*"/><DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="*"/><DataGridTextColumn Header="Context" Binding="{Binding Context}" Width="*"/></DataGrid.Columns></DataGrid></Border><TextBlock Text="Proposed posting" Style="{StaticResource Text.Subheading}" Margin="0,12,0,6"/><Border Style="{StaticResource Card.Flush}"><DataGrid Style="{StaticResource Table}" ItemsSource="{Binding ProposedJournal}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180"><DataGrid.Columns><DataGridTextColumn Header="Account" Binding="{Binding Account}" Width="*"/><DataGridTextColumn Header="Direction" Binding="{Binding Direction}" Width="*"/><DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="*"/><DataGridTextColumn Header="Context" Binding="{Binding Context}" Width="*"/></DataGrid.Columns></DataGrid></Border><TextBlock Text="Customer balances" Style="{StaticResource Text.Subheading}" Margin="0,12,0,6"/><Border Style="{StaticResource Card.Flush}"><DataGrid Style="{StaticResource Table}" ItemsSource="{Binding AccountBalances}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180"><DataGrid.Columns><DataGridTextColumn Header="Account" Binding="{Binding Account}" Width="*"/><DataGridTextColumn Header="Before" Binding="{Binding Before}" Width="*"/><DataGridTextColumn Header="Change" Binding="{Binding Change}" Width="*"/><DataGridTextColumn Header="After" Binding="{Binding After}" Width="*"/></DataGrid.Columns></DataGrid></Border><TextBlock Text="Cash positions (both ends)" Style="{StaticResource Text.Subheading}" Margin="0,12,0,6"/><Border Style="{StaticResource Card.Flush}"><DataGrid Style="{StaticResource Table}" ItemsSource="{Binding CashPositions}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180"><DataGrid.Columns><DataGridTextColumn Header="Session" Binding="{Binding SessionId}" Width="*"/><DataGridTextColumn Header="Expected before" Binding="{Binding BeforeExpected}" Width="*"/><DataGridTextColumn Header="Change" Binding="{Binding CashChange}" Width="*"/><DataGridTextColumn Header="Expected after" Binding="{Binding AfterExpected}" Width="*"/><DataGridTextColumn Header="Physical before" Binding="{Binding BeforeCounted}" Width="*"/><DataGridTextColumn Header="Physical after" Binding="{Binding AfterCounted}" Width="*"/></DataGrid.Columns></DataGrid></Border><TextBlock Text="Manager decision notes (at least 5 characters)" Style="{StaticResource Text.FieldLabel}" Margin="0,16,0,6"/>
+       <TextBox Style="{StaticResource Input.Text}" Text="{Binding Note,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70" MaxLength="2000"/>
+       <WrapPanel Margin="0,16"><Button Content="Accept proposal" Command="{Binding AcceptCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/><Button Content="Reject proposal" Command="{Binding RejectCommand}" Style="{StaticResource Button.Danger}" Margin="0,0,8,0"/><Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type accounting:ReconciliationActionDialog}">
+        <StackPanel Width="460" Margin="24">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Heading}" Margin="0,0,0,16"/>
+            <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Staff}" SelectedItem="{Binding SelectedStaff}" DisplayMemberPath="FullName"
+                      Visibility="{Binding IsAssignment,Converter={StaticResource DialogBooleanToVisibilityConverter}}"/>
+            <TextBlock Text="Reason / review notes (at least 5 characters)" Margin="0,12,0,6"/>
+            <TextBox Style="{StaticResource Input.Text}" Text="{Binding Note,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxLength="2000"/>
+            <WrapPanel Margin="0,16,0,0"><Button Content="Confirm" Command="{Binding ConfirmCommand}" Style="{StaticResource Button.Primary}"/>
+                <Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}" Margin="8,0"/></WrapPanel>
+        </StackPanel>
+    </DataTemplate>
     <!-- User Management -->
     <DataTemplate DataType="{x:Type users:UserFormViewModel}">
         <userviews:UserFormDialogView/>
@@ -41,6 +76,11 @@
     </DataTemplate>
     <DataTemplate DataType="{x:Type transactions:PendingTransferActionViewModel}">
         <transactionviews:PendingTransferActionDialogView/>
+    </DataTemplate>
+
+    <!-- Accounting -->
+    <DataTemplate DataType="{x:Type accounting:CashRequestDialogViewModel}">
+        <accountingviews:CashRequestDialogView/>
     </DataTemplate>
     <DataTemplate DataType="{x:Type transactions:AccountStatementViewModel}">
         <transactionviews:AccountStatementDialogView/>

@@ -14,9 +14,9 @@ namespace bams.server.Controllers;
 public sealed class CashHandoffsController(ICashOperationsService cashOperations) : ControllerBase
 {
     [HttpGet("recipients")]
-    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashHandoffRecipientResponse>>>> GetRecipientsAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CashHandoffRecipientResponse>>>> GetRecipientsAsync(CancellationToken cancellationToken, [FromQuery] long? sourceSessionId = null)
     {
-        var recipients = await cashOperations.GetHandoffRecipientsAsync(cancellationToken);
+        var recipients = await cashOperations.GetHandoffRecipientsAsync(cancellationToken, sourceSessionId);
         return Ok(ApiMessageResponse<IReadOnlyList<CashHandoffRecipientResponse>>.FromCode(MessageCode.Success, recipients));
     }
 
@@ -34,6 +34,7 @@ public sealed class CashHandoffsController(ICashOperationsService cashOperations
         return Ok(ApiMessageResponse<CashHandoffDetailResponse>.FromCode(MessageCode.Success, item));
     }
 
+    [AllowWithoutOpenCashSession]
     [HttpPost("{id:long}/accept")]
     public async Task<ActionResult<ApiMessageResponse<CashHandoffResponse>>> AcceptAsync(long id, CashHandoffActionRequest request, CancellationToken cancellationToken)
     {
@@ -41,6 +42,7 @@ public sealed class CashHandoffsController(ICashOperationsService cashOperations
         return Ok(ApiMessageResponse<CashHandoffResponse>.FromCode(MessageCode.Success, item));
     }
 
+    [AllowWithoutOpenCashSession]
     [HttpPost("{id:long}/decline")]
     public async Task<ActionResult<ApiMessageResponse<CashHandoffResponse>>> DeclineAsync(long id, CashHandoffActionRequest request, CancellationToken cancellationToken)
     {
@@ -48,6 +50,7 @@ public sealed class CashHandoffsController(ICashOperationsService cashOperations
         return Ok(ApiMessageResponse<CashHandoffResponse>.FromCode(MessageCode.Success, item));
     }
 
+    [AllowWithoutOpenCashSession]
     [HttpPut("{id:long}/recipient")]
     public async Task<ActionResult<ApiMessageResponse<CashHandoffResponse>>> ReassignAsync(long id, ReassignCashHandoffRequest request, CancellationToken cancellationToken)
     {
