@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:t="clr-namespace:bams.desktop.Themes" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="bams.desktop.Views.Pages.AccountCreateView" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:t="clr-namespace:bams.desktop.Themes" xmlns:ap="clr-namespace:bams.desktop.Components.AccountPicker" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="bams.desktop.Views.Pages.AccountCreateView" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
   <UserControl.Resources>
     <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Base}" />
   </UserControl.Resources>
@@ -139,7 +139,7 @@
                 <TextBlock Text="Interest rate rule" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                 <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.InterestRateRules}" SelectedItem="{Binding Workflow.SelectedInterestRateRule}" DisplayMemberPath="DisplayName" />
                 <TextBlock Text="Payout account" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.PayoutAccounts}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding Workflow.PayoutAccountId}" />
+                <ap:AccountPicker ItemsSource="{Binding Workflow.PayoutAccounts}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding Workflow.PayoutAccountId}" />
                 <TextBlock Text="Renewal instruction" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                 <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.RenewalInstructions}" SelectedItem="{Binding Workflow.RenewalInstruction}" />
                 <CheckBox Content="Calculate interest from current principal" IsChecked="{Binding Workflow.CalculateFromCurrent}" Margin="0,10,0,0" Style="{StaticResource Input.Check}" />
