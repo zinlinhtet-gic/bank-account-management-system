@@ -111,49 +111,110 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Session register -->
                             <Border Style="{StaticResource Card.Flush}">
-                                <DockPanel>
-                                    <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
-                                        <TextBlock Text="Session register" Style="{StaticResource Text.FieldLabel}" />
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header -->
+                                    <Border Grid.Row="0"
+                                            Style="{StaticResource Card.Caption}">
+                                        <TextBlock Text="Session register"
+                                                Style="{StaticResource Text.FieldLabel}"/>
                                     </Border>
-                                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Sessions}"
-                                          SelectedItem="{Binding SelectedSession, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          SelectionMode="Single" SelectionUnit="FullRow" IsReadOnly="True"
-                                          MinHeight="100" MaxHeight="280">
-                                    <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="Officer actions" Width="220" CanUserSort="False">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel>
-                                                        <Button Content="Activate session" Style="{StaticResource Button.Secondary}"
-                                                                Command="{Binding DataContext.ActivateSessionRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding}" Margin="0,0,0,4" />
-                                                        <Button Content="Accept &amp; Sign Receipt" Style="{StaticResource Button.Primary}"
-                                                                Command="{Binding DataContext.ReceiveCashForSessionRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding}" Margin="0,0,0,4" />
-                                                        <Button Content="Request cash" Style="{StaticResource Button.Secondary}"
-                                                                Command="{Binding DataContext.RequestCashRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding}" />
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Session" Binding="{Binding Id}" />
-                                        <DataGridTextColumn Header="Position" Binding="{Binding PositionType}" />
-                                        <DataGridTextColumn Header="Teller" Binding="{Binding TellerId}" />
-                                        <DataGridTextColumn Header="Business date" Binding="{Binding BusinessDate}" />
-                                        <DataGridTextColumn Header="Initial opening" Binding="{Binding OpeningCash, StringFormat=N2}" />
-                                        <DataGridTextColumn Header="Current expected cash" Binding="{Binding ExpectedClosingCash, StringFormat=N2}" />
-                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
-                                        <DataGridTextColumn Header="Start (Myanmar)" Binding="{Binding ScheduledStartAtMyanmar}" />
-                                        <DataGridTextColumn Header="End (Myanmar)" Binding="{Binding ScheduledEndAtMyanmar}" />
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                                <WrapPanel Margin="0,8,0,0">
-                                    <Button Content="Cancel Scheduled Session" Command="{Binding CancelScheduledSessionCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
-                                </WrapPanel>
-                                <TextBlock Text="Request and review additional cash on the Cash Requests page. Approved cash appears here for the assigned officer to accept and sign." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,14,0,0"/>
-                                </DockPanel>
+
+                                    <!-- Sessions table -->
+                                    <DataGrid Grid.Row="1"
+                                            Style="{StaticResource Table}"
+                                            ItemsSource="{Binding Sessions}"
+                                            SelectedItem="{Binding SelectedSession, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            SelectionMode="Single"
+                                            SelectionUnit="FullRow"
+                                            IsReadOnly="True"
+                                            VerticalAlignment="Top"
+                                            MinHeight="100"
+                                            MaxHeight="280">
+
+                                        <DataGrid.Columns>
+
+                                            <DataGridTemplateColumn Header="Officer actions"
+                                                                    Width="220"
+                                                                    CanUserSort="False">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <Button Content="Activate session"
+                                                                    Style="{StaticResource Button.Secondary}"
+                                                                    Command="{Binding DataContext.ActivateSessionRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Margin="0,0,0,4"/>
+
+                                                            <Button Content="Accept &amp; Sign Receipt"
+                                                                    Style="{StaticResource Button.Primary}"
+                                                                    Command="{Binding DataContext.ReceiveCashForSessionRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Margin="0,0,0,4"/>
+
+                                                            <Button Content="Request cash"
+                                                                    Style="{StaticResource Button.Secondary}"
+                                                                    Command="{Binding DataContext.RequestCashRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <DataGridTextColumn Header="Session"
+                                                                Binding="{Binding Id}"/>
+
+                                            <DataGridTextColumn Header="Position"
+                                                                Binding="{Binding PositionType}"/>
+
+                                            <DataGridTextColumn Header="Teller"
+                                                                Binding="{Binding TellerId}"/>
+
+                                            <DataGridTextColumn Header="Business date"
+                                                                Binding="{Binding BusinessDate}"/>
+
+                                            <DataGridTextColumn Header="Initial opening"
+                                                                Binding="{Binding OpeningCash, StringFormat=N2}"/>
+
+                                            <DataGridTextColumn Header="Current expected cash"
+                                                                Binding="{Binding ExpectedClosingCash, StringFormat=N2}"/>
+
+                                            <DataGridTextColumn Header="Status"
+                                                                Binding="{Binding Status}"/>
+
+                                            <DataGridTextColumn Header="Start (Myanmar)"
+                                                                Binding="{Binding ScheduledStartAtMyanmar}"/>
+
+                                            <DataGridTextColumn Header="End (Myanmar)"
+                                                                Binding="{Binding ScheduledEndAtMyanmar}"/>
+
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <!-- Actions -->
+                                    <WrapPanel Grid.Row="2"
+                                            Margin="0,8,0,0">
+                                        <Button Content="Cancel Scheduled Session"
+                                                Command="{Binding CancelScheduledSessionCommand}"
+                                                Style="{StaticResource Button.Secondary}"
+                                                Margin="0,0,8,0"/>
+                                    </WrapPanel>
+
+                                    <!-- Helper text -->
+                                    <TextBlock Grid.Row="3"
+                                            Text="Request and review additional cash on the Cash Requests page. Approved cash appears here for the assigned officer to accept and sign."
+                                            Style="{StaticResource Text.BodyMuted}"
+                                            TextWrapping="Wrap"
+                                            Margin="0,14,0,0"/>
+                                </Grid>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
