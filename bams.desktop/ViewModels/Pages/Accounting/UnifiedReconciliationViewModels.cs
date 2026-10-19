@@ -46,6 +46,7 @@ public class UnifiedReconciliationViewModel : ReconciliationOperationViewModel
     public bool IsCashTabSelected { get=>_isCashTabSelected; set { if(SetProperty(ref _isCashTabSelected,value) && value) IsAccountTabSelected=false; } }
     public ObservableCollection<UnifiedExceptionRow> AccountExceptions { get; }=[];
     public ObservableCollection<UnifiedExceptionRow> CashExceptions { get; }=[];
+    public AsyncRelayCommand PollCommand { get; }
     public AsyncRelayCommand CheckCommand { get; }
     public AsyncRelayCommand RefreshCommand { get; }
     public AsyncRelayCommand AssignCommand { get; }
@@ -55,6 +56,7 @@ public class UnifiedReconciliationViewModel : ReconciliationOperationViewModel
         UnifiedReconciliationClient unified,IDialogService dialogs):base(c,e,a)
     {
         _unified=unified;
+        PollCommand = new(() => InitializeAsync(), () => !IsBusy);
         CheckCommand=new(()=>RunAsync(async()=>Apply(await unified.CheckAsync(DateOnly.FromDateTime(FromDate),DateOnly.FromDateTime(ToDate)))));
         RefreshCommand=new(()=>InitializeAsync());
         PerformCommand=new(value=> { if(value is UnifiedExceptionRow row && row.AssignedTo==Auth.UserId)
@@ -103,6 +105,7 @@ public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
 {
     private readonly UnifiedReconciliationClient _unified;
     public ObservableCollection<ReconcileProposalRow> Proposals { get; }=[];
+    public AsyncRelayCommand PollCommand { get; }
     public AsyncRelayCommand AcceptCommand { get; }
     public AsyncRelayCommand RejectCommand { get; }
     public AsyncRelayCommand RefreshCommand { get; }
@@ -111,6 +114,7 @@ public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
         UnifiedReconciliationClient u,IDialogService dialogs):base(c,e,a)
     {
         _unified=u;
+        PollCommand = new(() => InitializeAsync(), () => !IsBusy);
         AcceptCommand=new(value=>ReviewAsync(value,true,dialogs),_=>CanApprove);
         RejectCommand=new(value=>ReviewAsync(value,false,dialogs),_=>CanApprove);
         RefreshCommand=new(()=>InitializeAsync());
@@ -125,10 +129,37 @@ public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
     private Task ReviewAsync(object? value,bool approve,IDialogService dialogs)=>RunAsync(async()=>
     {
         if(value is not ReconcileProposalRow row) return;
-        ReconciliationActionDialog dialog=new(approve?"Accept reconciliation proposal":"Reject reconciliation proposal",false);
-        if(!dialogs.ShowDialog(dialog)) return;
-        if(row.IsCash) await _unified.ReviewAsync(row.Id,approve,dialog.Note);
-        else await Client.ReviewAsync(row.Id,new(approve,dialog.Note),default);
+        ReconciliationReviewDialog dialog;
+        if (row.IsCash)
+        {
+            CashProposalEvidence evidence = await _unified.CashEvidenceAsync(row.Id);
+            CashCorrectionPreview? preview = evidence.Preview;
+            dialog = new($"Review cash proposal #{row.Id} - {row.Discrepancy}", evidence.Proposal.Inputs.Findings,
+                evidence.Proposal.Inputs.EvidenceReference, $"{preview?.Explanation}\nPosting date: {preview?.PostingDate:yyyy-MM-dd}\n{row.Details}", evidence.Warning,
+                evidence.OriginalJournal.Select(line => new ReviewJournalRow(line.GlCode, line.Direction, line.Amount, $"Transaction #{line.TransactionId}")).ToList(),
+                preview?.JournalLines.Select(line => new ReviewJournalRow(line.GlCode, line.Direction, line.Amount, $"Customer #{line.CustomerAccountId}")).ToList() ?? [],
+                preview?.AccountEffects.SelectMany(effect => new ReviewBalanceRow[]
+                {
+                    new($"Ledger account #{effect.AccountId}", effect.Before, effect.Change, effect.After),
+                    new($"Available account #{effect.AccountId}", effect.BeforeAvailable, effect.Change, effect.AfterAvailable)
+                }).ToList() ?? [],
+                preview?.PositionEffects ?? [], evidence.SourceUnchanged && evidence.Proposal.Status == ProposalStatus.PendingApproval);
+        }
+        else
+        {
+            CorrectionProposalResponse proposal = await Client.ProposalAsync(row.Id, default);
+            CorrectionEvidence evidence = await Client.EvidenceAsync(proposal.Inputs.TransactionId, default);
+            CorrectionPreview? preview = proposal.Preview;
+            dialog = new($"Review account/GL proposal #{row.Id} - {row.Discrepancy}", proposal.Inputs.Findings,
+                proposal.Inputs.EvidenceReference, $"{preview?.Explanation}\nPosting date: {preview?.PostingDate:yyyy-MM-dd}", null,
+                evidence.JournalEntries.Select(line => new ReviewJournalRow($"GL #{line.GlAccountId}", line.EntryType.ToString(), line.Amount, $"{line.PostingDate:yyyy-MM-dd} / customer #{line.CustomerAccountId}")).ToList(),
+                preview?.Lines.Select(line => new ReviewJournalRow($"{line.Ledger} #{line.AccountId}", line.Direction.ToString(), line.Amount, $"{line.PostingDate:yyyy-MM-dd} / customer #{line.CustomerAccountId}")).ToList() ?? [],
+                preview?.Balances.Select(effect => new ReviewBalanceRow($"Account #{effect.AccountId}", effect.Before, effect.Change, effect.After)).ToList() ?? [],
+                [], proposal.Status == ProposalStatus.PendingApproval && preview is not null);
+        }
+        if (!dialogs.ShowDialog(dialog)) return;
+        if(row.IsCash) await _unified.ReviewAsync(row.Id,dialog.Approved,dialog.Note);
+        else await Client.ReviewAsync(row.Id,new(dialog.Approved,dialog.Note),default);
         await LoadAsync(default);
     });
     private async Task LoadAsync(CancellationToken ct)
@@ -136,11 +167,11 @@ public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
         Proposals.Clear();
         foreach(CorrectionProposalResponse p in (await Client.ProposalsAsync(null,ct)).Where(x=>x.Status==ProposalStatus.PendingApproval))
             Proposals.Add(new(p.Id,p.ExceptionId,"Account / GL",p.Kind.ToString(),p.Inputs.Findings,p.Inputs.EvidenceReference,
-                p.Preview is null ? "" : p.Preview.Explanation + "\n" + string.Join("\n",p.Preview.Lines.Select(line=>$"{line.Direction} {line.Amount:N2} GL {line.AccountId} / customer {line.CustomerAccountId}")),
+                p.Preview is null ? "" : p.Preview.Explanation + $"\nPosting date: {p.Preview.PostingDate:yyyy-MM-dd}" + "\n" + string.Join("\n",p.Preview.Lines.Select(line=>$"{line.Direction} {line.Amount:N2} GL {line.AccountId} / customer {line.CustomerAccountId}")),
                 p.Preview?.SuggestedAmount,p.ProposerId,false));
         foreach(CashCorrectionProposalResponse p in await _unified.PendingAsync(ct))
             Proposals.Add(new(p.Id,p.ExceptionId,"Cash",p.Kind.ToString(),p.Inputs.Findings,p.Inputs.EvidenceReference,
-                $"Payee: {p.Inputs.Payee}; Purpose: {p.Inputs.Purpose}; Receipt: {p.Inputs.ReceiptFileName}; Missing receipt reason: {p.Inputs.MissingReceiptReason}",
+                $"Source date: {p.SourceBusinessDate:yyyy-MM-dd}; Posting date: {p.PostingDate:yyyy-MM-dd}; Account: {p.Inputs.AccountId}; Transaction: {p.Inputs.TransactionId}; Movement: {p.Inputs.MovementId}; Counterpart/retained: {p.Inputs.CounterpartMovementId}; Handoff: {p.Inputs.HandoffId}; Destination: {p.Inputs.DestinationSessionId}; Payee: {p.Inputs.Payee}; Purpose: {p.Inputs.Purpose}; Receipt: {p.Inputs.ReceiptFileName}; Missing receipt reason: {p.Inputs.MissingReceiptReason}",
                 p.Inputs.Amount,p.ProposerId,true,p.Inputs.ReceiptFileName,p.Inputs.ReceiptBase64));
     }
     public override Task InitializeAsync(CancellationToken ct=default)=>RunAsync(()=>LoadAsync(ct));

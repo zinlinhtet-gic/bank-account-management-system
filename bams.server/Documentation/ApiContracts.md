@@ -202,15 +202,18 @@ The desktop reconciliation workspace and End of Day use these unified endpoints.
 | GET | `/api/reconciliation/staff-options` | `accounting` or `transaction_correction_approval` | List eligible staff for assignment. |
 | GET | `/api/reconciliation/cash/discrepancies` | `reconciliation_investigation` | List cash discrepancy types and their input definitions. |
 | POST | `/api/reconciliation/cash/exceptions/{id}/preview` | `reconciliation_investigation` | Validate diagnosis inputs and calculate a suggested correction. |
-| POST | `/api/reconciliation/cash/exceptions/{id}/proposals` | `reconciliation_investigation` | Submit cash correction inputs and expected source hash. |
+| POST | `/api/reconciliation/cash/exceptions/{id}/proposals` | `reconciliation_investigation` | Submit cash correction inputs and the preview hash returned by the preview endpoint. |
 | GET | `/api/reconciliation/cash/proposals/pending` | `transaction_correction_approval` | List cash proposals awaiting manager review. |
 | POST | `/api/reconciliation/cash/proposals/{id}/review` | `transaction_correction_approval` | Approve/post or reject a cash proposal. |
-| POST | `/api/reconciliation/cash/proposals/{id}/verify` | `reconciliation_investigation` | Re-run verification after posting. |
+| GET | `/api/reconciliation/verification` | `reconciliation_investigation` or `transaction_correction_approval` | List executed account/GL and cash corrections with pending or failed verification; investigators see assigned work and approvers see all tasks. |
+| POST | `/api/reconciliation/cash/proposals/{id}/verify` | `reconciliation_investigation` or `transaction_correction_approval` | Retry checks after posting, restricted to the assignee or a correction approver. No financial posting is replayed. |
 | POST | `/api/reconciliation/vault/final-count` | `end_of_day_approval` | Record the final physical vault count for a business date. |
 
-Account/GL diagnosis and proposal routes are documented in [Account reconciliation correction workflow](#account-reconciliation-correction-workflow). Approval appends linked financial/accounting/GL records where appropriate; original records are preserved. Cash count observations do not overwrite expected cash. A count-entry error is resolved by recount. Other cash corrections use server-calculated previews and manager-approved operational postings. If the cash proposal source hash has changed by manager review, the proposal is marked `Superseded`, the API returns `CorrectionProposalStale`, and the investigator may submit a refreshed proposal. A closed business date returns `BusinessDateClosed`. A sole active Manager may self-approve only when that manager is also the proposal author and holds the required permission.
+Account/GL diagnosis and proposal routes are documented in [Account reconciliation correction workflow](#account-reconciliation-correction-workflow). Approval appends linked financial/accounting/GL records where appropriate; original records are preserved. Cash count observations do not overwrite expected cash. A count-entry error is resolved by recount. Other cash corrections use server-calculated previews and manager-approved operational postings. Preview hashes bind the submitted inputs to the displayed preview; stored proposal source hashes track source records only, independent of JSON input serialization. If the cash proposal source hash has changed by manager review, the proposal is marked `Superseded`, the API returns `CorrectionProposalStale`, and the investigator may submit a refreshed proposal. A normally closed business date returns `BusinessDateClosed`; a force-closed source redirects financial posting to the active open date. A sole active Manager may self-approve only when that manager is also the proposal author and holds the required permission.
 
 ## Bank expense recording
+
+Corrections for force-closed dates post on the current active open date. Cash previews return `postingDate` separately from their source `businessDate`; cash proposal responses expose `sourceBusinessDate` and `postingDate`. Expense responses retain `businessDate` as the source date and expose the financial `postingDate`. Account/GL proposal lists display the effective execution date in their preview; approval persists the executed plan and links the transaction to the original exception. A missing active date blocks approval without changing the pending proposal. Financial records and finalized summaries of the closed date are preserved.
 
 | Method | Route | Permission | Purpose |
 | --- | --- | --- | --- |
@@ -255,7 +258,7 @@ All routes below also require `accounting`. Investigation endpoints require `rec
 | GET | `/api/accounting/reconciliation/workflow/proposals` | Lists proposal history, optionally filtered by exception. |
 | GET | `/api/accounting/reconciliation/workflow/proposals/{id}` | Gets proposal evidence, preview, review, execution, and verification status. |
 | POST | `/api/accounting/reconciliation/workflow/proposals/{id}/review` | Approves and executes atomically, or rejects with a reason. |
-| POST | `/api/accounting/reconciliation/workflow/proposals/{id}/verify` | Retries verification without replaying the financial posting. |
+| POST | `/api/accounting/reconciliation/workflow/proposals/{id}/verify` | Retries verification without replaying the financial posting; requires investigation or correction approval permission and assignment or correction approver access. |
 | GET | `/api/accounting/reconciliation/workflow/summaries?date=YYYY-MM-DD` | Lists provisional and final summary revisions. |
 | POST | `/api/accounting/reconciliation/workflow/summaries/{date}/refresh` | Creates new provisional revisions for open dates from the given date forward. |
 
@@ -265,3 +268,23 @@ Legacy `/correction-requests` and `/correction-review` routes reject new calls w
 
 
 `BusinessDateResponse` includes `isActive` and `canStartNewDate`. Only the active open date accepts ordinary postings. A new date can be started while an earlier date remains open; that prior date becomes inactive and awaits investigation/EOD finalization.
+
+### Cash correction source evidence
+
+`CashCorrectionInputs` for `/api/reconciliation/cash/exceptions/{id}/preview` and `/proposals` now includes nullable `counterpartMovementId` and `handoffId`. Counterpart is required for duplicate, transfer and handoff discrepancies; for duplicates it identifies the retained movement. Handoff discrepancies additionally require an accepted handoff ID. Unrelated source identifiers are rejected. `CashCorrectionPreview.positionEffects` lists `{ sessionId, cashChange }` for every affected position, including the destination. Amount corrections specify a corrected total rather than a signed delta. See [cash discrepancy operations](CashDiscrepancyCorrections.md) for complete validation and verification rules.
+
+### EOD approval and close responses
+
+`POST /api/operations/business-date/runs/{id}/force-close-approve` returns a Closed run when the last required approval also completes closure. Clients must reload the selected business-date record after any force-close request/approval returning Closed. The same run is returned on a completed-close retry; duplicate force-approval retries do not append approvals or repeat financial finalization. The pre-close action also accepts end_of_day_approval permission so an eligible manager can prepare and complete the sole-manager flow. Normal approval and normal Close remain separate operations.
+
+`EndOfDayRunResponse.pendingForceClose` optionally carries the still-pending override when latest-run returns a newer normal run. Clients can run normal checks alongside pending override approval, but cannot create another pending override. On successful normal close the pending override becomes OverrideCancelled; on successful force close unfinished normal attempts become Superseded. Attempts to operate a stopped run are rejected with existing transition/approval codes. Latest-run prefers the completed closure after either path wins.
+
+### Investigator sources, manager evidence and persisted audits
+
+| Method | Route | Permission and response |
+| --- | --- | --- |
+| GET | `/api/reconciliation/cash/exceptions/{id}/sources?search=...` | reconciliation_investigation plus assigned/accounting access to the exception. Returns CashSourceCatalog with active customer accounts, missing-movement transactions, eligible original movements, same-date positions, accepted handoffs and source journal lines. Search matches source IDs, account/transaction numbers or movement types; lists are limited to 500 per category. |
+| GET | `/api/reconciliation/cash/proposals/{id}/evidence` | transaction_correction_approval. Returns original journal lines, current server preview, source-hash comparison and warning. An outdated preview is read-only evidence; it cannot authorize approval. |
+| GET | `/api/reconciliation/audit/{date}` | accounting, audit or end_of_day_approval. Returns a nullable EndOfDayAuditReport with raw/effective totals, reconciliation status and typed missing-journal, raw/combined journal and waiver findings. It reads persisted results and never reruns EOD. |
+
+CashCorrectionPreview now includes server-calculated JournalLines, AccountEffects and PositionEffects with before/after expected and counted cash. Position effects use the original custody occurrence time when predicting the counted-cash result. CashSourceCatalog selections do not grant posting permission: the server still validates every source and approval. A repeated cash approval of an already Executed proposal returns its existing execution and verification state; no records are reposted.

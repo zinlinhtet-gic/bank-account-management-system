@@ -67,6 +67,7 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanAccessAccounting || flags.CanApproveEndOfDay || flags.CanViewAudit) reconciliationPages.Add(PageNames.ReconciliationMaster);
         if (flags.CanInvestigateReconciliation) reconciliationPages.Add(PageNames.AssignedReconciliationTasks);
         if (flags.CanApproveCorrections) reconciliationPages.Add(PageNames.ReconcileProposals);
+        if (flags.CanInvestigateReconciliation || flags.CanApproveCorrections) reconciliationPages.Add(PageNames.ReconciliationVerification);
         if (reconciliationPages.Count > 0) AddNavGroup(PageNames.Reconciliation, "Icon.Reports", reconciliationPages.ToArray());
 
         var cashManagementPages = new List<string>();

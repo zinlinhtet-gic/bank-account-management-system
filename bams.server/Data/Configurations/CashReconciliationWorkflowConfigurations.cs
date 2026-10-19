@@ -26,7 +26,7 @@ public sealed class ReconciliationExclusionConfiguration : IEntityTypeConfigurat
     public void Configure(EntityTypeBuilder<ReconciliationExclusion> b)
     {
         b.HasKey(x => x.Id);
-        b.HasIndex(x => x.ExceptionId).IsUnique();
+        b.HasIndex(x => x.ExceptionId);
         b.Property(x => x.SourceHash).HasMaxLength(64);
         b.Property(x => x.SourceIdsJson).HasColumnType("json");
         b.Property(x => x.Reason).HasMaxLength(2000);

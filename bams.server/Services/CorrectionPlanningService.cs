@@ -8,12 +8,13 @@ using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
+using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
 /// <summary>Builds deterministic correction previews. No financial records are changed here.</summary>
-public sealed class CorrectionPlanningService(ApplicationDbContext db)
+public sealed class CorrectionPlanningService(ApplicationDbContext db, IBusinessDateService businessDates)
 {
     public const string CustomerLedger = "Customer";
     public const string GeneralLedger = "GL";
@@ -69,7 +70,20 @@ public sealed class CorrectionPlanningService(ApplicationDbContext db)
         };
         var journalRepair = input.Kind is DiscrepancyKind.MissingGlPosting or DiscrepancyKind.IncompleteJournal;
         var balanceRepair = input.Kind == DiscrepancyKind.BalanceSnapshot;
-        await ValidateLinesAsync(context, lines, journalRepair, balanceRepair, ct);
+        DateOnly postingDate = await businessDates.GetCorrectionPostingDateAsync(exception.BusinessDate, ct);
+        // A forced closed period is immutable; the correction keeps its source links and posts on the active date.
+        if (postingDate != exception.BusinessDate)
+            lines = lines.Select(line => line with { PostingDate = postingDate }).ToList();
+        else
+        {
+            foreach (DateOnly lineDate in lines.Select(line => line.PostingDate).Distinct().ToList())
+            {
+                DateOnly effectiveDate = await businessDates.GetCorrectionPostingDateAsync(lineDate, ct);
+                if (effectiveDate != lineDate)
+                    lines = lines.Select(line => line.PostingDate == lineDate ? line with { PostingDate = effectiveDate } : line).ToList();
+            }
+        }
+        await ValidateLinesAsync(context, lines, journalRepair, balanceRepair, postingDate, ct);
         var ids = lines.Where(x => x.Ledger == CustomerLedger).Select(x => x.AccountId)
             .Concat(balanceRepair ? new[] { exception.AccountId ?? throw new ValidationException(MessageCode.InvalidRequest) } : []).Distinct().Order().ToList();
         var balances = await db.Accounts.AsNoTracking().Where(x => ids.Contains(x.Id)).OrderBy(x => x.Id).ToListAsync(ct);
@@ -95,7 +109,7 @@ public sealed class CorrectionPlanningService(ApplicationDbContext db)
             Balances = balances.Select(x => new { x.Id, x.Version, x.LedgerBalance, x.AvailableBalance }), Input = input
         }))));
         var amount = lines.Count == 0 ? impacts.Sum(x => Math.Abs(x.Change)) : lines.Max(x => x.Amount);
-        return new(input.Kind, exception.BusinessDate, amount,
+        return new(input.Kind, postingDate, amount,
             balanceRepair ? "Rebuild derived balances from verified account movements; original snapshots remain intact." :
             journalRepair ? "Append the missing journal components and validate them together with the original journal." :
             "Apply only the displayed differences. Customer and GL effects are shown separately.", hash, lines, impacts, journalRepair, balanceRepair);
@@ -244,11 +258,12 @@ public sealed class CorrectionPlanningService(ApplicationDbContext db)
     }
 
     // Reject unsafe or incomplete posting plans before either submission or approval.
-    private async Task ValidateLinesAsync(Context c, List<CorrectionLine> lines, bool repair, bool balance, CancellationToken ct)
+    private async Task ValidateLinesAsync(Context c, List<CorrectionLine> lines, bool repair, bool balance,
+        DateOnly postingDate, CancellationToken ct)
     {
         if ((!balance && lines.Count == 0) || lines.Any(x => x.Amount <= 0 || decimal.Round(x.Amount, 2) != x.Amount))
             throw new ValidationException(MessageCode.InvalidAmount);
-        foreach (var date in lines.Select(x => x.PostingDate).Append(c.Exception.BusinessDate).Distinct())
+        foreach (DateOnly date in lines.Select(x => x.PostingDate).Append(postingDate).Distinct())
             if (!await db.BusinessDates.AnyAsync(x => x.Date == date && x.Status == OperationsConstants.BusinessDateOpen, ct))
                 throw new BusinessRuleException(MessageCode.BusinessDateClosed);
         foreach (var id in lines.Where(x => x.Ledger == GeneralLedger).Select(x => x.AccountId).Distinct())

@@ -1,4 +1,4 @@
-﻿using bams.server.Constants;
+using bams.server.Constants;
 using bams.server.Data;
 using bams.server.DTO.Accounting;
 using bams.server.Models.Accounting;
@@ -9,30 +9,41 @@ namespace bams.server.Services;
 
 /// <summary>Persists journal exceptions as well as account mismatches; repairs are grouped with their source journal.</summary>
 public sealed class ReconciliationCheckService(ApplicationDbContext db, IAccountReconciliationService accounts,
-    ICurrentUserService user, ReconciliationProjectionService projections)
+    ICurrentUserService user, ReconciliationProjectionService projections, ReconciliationExclusionService exclusions)
 {
     public async Task<AccountReconciliationRunResponse> RunAsync(AccountReconciliationRequest request, CancellationToken ct)
     {
-        var result = await accounts.ReconcileAccountsAsync(request, ct);
-        var transactions = await db.Transactions.AsNoTracking().Where(x => x.PostedAt != null &&
+        await exclusions.ValidateAsync(request.FromDate, request.ToDate, ct);
+        AccountReconciliationRunResponse result = await accounts.ReconcileAccountsAsync(request, ct);
+        List<Transaction> transactions = await db.Transactions.AsNoTracking().Where(x => x.PostedAt != null &&
             (x.BusinessDate >= request.FromDate && x.BusinessDate <= request.ToDate ||
-             db.TransactionEntries.Any(e => e.TransactionId == x.Id && e.PostingDate >= request.FromDate && e.PostingDate <= request.ToDate)))
+             db.TransactionEntries.Any(e => (e.TransactionId == x.Id || e.Transaction!.AccountingRootTransactionId == x.Id) &&
+                e.PostingDate >= request.FromDate && e.PostingDate <= request.ToDate)))
             .ToListAsync(ct);
-        foreach (var transaction in transactions.Where(x => x.AccountingRootTransactionId == null &&
+        foreach (Transaction transaction in transactions.Where(x => x.AccountingRootTransactionId == null &&
             x.TransactionType != TransactionType.AccountPostingRepair))
         {
-            var lines = await db.TransactionEntries.AsNoTracking().Where(x => x.TransactionId == transaction.Id ||
+            DateOnly sourceDate = transaction.BusinessDate ?? request.FromDate;
+            HashSet<long> waivedTransactions = await exclusions.ActiveSourceIdsAsync(sourceDate, "Transaction", ct);
+            HashSet<long> waivedLines = await exclusions.ActiveSourceIdsAsync(sourceDate, "GL", ct);
+            if (waivedTransactions.Contains(transaction.Id)) continue;
+            List<TransactionEntry> lines = await db.TransactionEntries.AsNoTracking().Where(x => x.TransactionId == transaction.Id ||
                 db.Transactions.Any(t => t.Id == x.TransactionId && t.AccountingRootTransactionId == transaction.Id)).ToListAsync(ct);
-            var debit = lines.Where(x => x.EntryType == EntryType.Debit).Sum(x => x.Amount);
-            var credit = lines.Where(x => x.EntryType == EntryType.Credit).Sum(x => x.Amount);
-            var date = transaction.BusinessDate ?? request.FromDate;
-            await UpsertAsync("JournalIntegrity", date, transaction.Id, debit, credit, lines.Count == 0 || debit != credit, ct);
+            bool journalMissing = lines.Count == 0;
+            lines = lines.Where(line => !waivedLines.Contains(line.Id)).ToList();
+            decimal debit = lines.Where(x => x.EntryType == EntryType.Debit).Sum(x => x.Amount);
+            decimal credit = lines.Where(x => x.EntryType == EntryType.Credit).Sum(x => x.Amount);
+            DateOnly date = transaction.BusinessDate ?? request.FromDate;
+            await UpsertAsync("JournalIntegrity", date, transaction.Id, debit, credit, journalMissing || debit != credit, ct);
         }
-        for (var date = request.FromDate; date <= request.ToDate; date = date.AddDays(1))
+        for (DateOnly date = request.FromDate; date <= request.ToDate; date = date.AddDays(1))
         {
-            var lines = await db.TransactionEntries.AsNoTracking().Where(x => x.PostingDate == date).ToListAsync(ct);
-            var debit = lines.Where(x => x.EntryType == EntryType.Debit).Sum(x => x.Amount);
-            var credit = lines.Where(x => x.EntryType == EntryType.Credit).Sum(x => x.Amount);
+            HashSet<long> waivedTransactions = await exclusions.ActiveSourceIdsAsync(date, "Transaction", ct);
+            HashSet<long> waivedLines = await exclusions.ActiveSourceIdsAsync(date, "GL", ct);
+            List<ReconciliationLedgerAmount> lines = await ReconciliationLedgerQueries.Amounts(db)
+                .Where(line => line.ReconciliationDate == date && !waivedTransactions.Contains(line.RootTransactionId) && !waivedLines.Contains(line.Id)).ToListAsync(ct);
+            decimal debit = lines.Where(line => line.Direction == EntryType.Debit).Sum(line => line.Amount);
+            decimal credit = lines.Where(line => line.Direction == EntryType.Credit).Sum(line => line.Amount);
             await UpsertAsync(OperationsConstants.ExceptionLedgerBalance, date, null, debit, credit, debit != credit, ct);
         }
         await db.SaveChangesAsync(ct);
@@ -42,7 +53,7 @@ public sealed class ReconciliationCheckService(ApplicationDbContext db, IAccount
 
     private async Task UpsertAsync(string type, DateOnly date, long? transactionId, decimal debit, decimal credit, bool failed, CancellationToken ct)
     {
-        var existing = await db.ReconciliationExceptions.Where(x => x.Type == type && x.BusinessDate == date &&
+        ReconciliationException? existing = await db.ReconciliationExceptions.Where(x => x.Type == type && x.BusinessDate == date &&
             x.RelatedTransactionId == transactionId && x.Status != OperationsConstants.ExceptionResolved).OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
         if (existing == null && !failed) return;
         if (existing?.Status == OperationsConstants.ExceptionForcePassed) return;
@@ -53,7 +64,7 @@ public sealed class ReconciliationCheckService(ApplicationDbContext db, IAccount
                 CreatedBy = user.GetCurrentUserId(), CreatedAtUtc = DateTime.UtcNow };
             db.ReconciliationExceptions.Add(existing);
         }
-        var old = existing.Status;
+        string old = existing.Status;
         existing.ExpectedAmount = debit; existing.ActualAmount = credit; existing.Difference = debit - credit;
         if (!failed && !await db.CorrectionProposals.AnyAsync(x => x.ExceptionId == existing.Id &&
             (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), ct))

@@ -8,6 +8,7 @@ using bams.server.Models.Accounting;
 using bams.server.Models.Transactions;
 using bams.server.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using bams.server.Utils;
 namespace bams.server.Services;
 
@@ -16,12 +17,16 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
 {
     private readonly ApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly ReconciliationExclusionService _exclusions;
 
-    public AccountReconciliationService(ApplicationDbContext db, ICurrentUserService currentUser)
+    public AccountReconciliationService(ApplicationDbContext db, ICurrentUserService currentUser, ReconciliationExclusionService exclusions)
     {
         _db = db;
         _currentUser = currentUser;
+        _exclusions = exclusions;
     }
+
+    private sealed record WaivedAccountAmount(long AccountId, decimal Net);
 
     public async Task<AccountReconciliationRunResponse> ReconcileAccountsAsync(AccountReconciliationRequest request, CancellationToken cancellationToken)
         => await RunReconciliationAsync(request, _currentUser.GetCurrentUserId(), null, cancellationToken);
@@ -51,6 +56,7 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         if (request.ToDate.DayNumber - request.FromDate.DayNumber + 1 > OperationsConstants.MaximumReconciliationRangeDays)
             throw new ValidationException(MessageCode.ReconciliationDateRangeTooLong);
 
+        await _exclusions.ValidateAsync(request.FromDate, request.ToDate, cancellationToken);
         var accountsQuery = _db.Accounts.AsNoTracking().AsQueryable();
         if (request.AccountId.HasValue)
             accountsQuery = accountsQuery.Where(account => account.Id == request.AccountId.Value);
@@ -131,6 +137,8 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             .OrderByDescending(item => item.Id).ToListAsync(cancellationToken);
         var activeByAccountAndDate = activeExceptions.GroupBy(item => (item.AccountId!.Value, item.BusinessDate))
             .ToDictionary(group => group.Key, group => group.First());
+        HashSet<(long AccountId, DateOnly BusinessDate)> correctedClosedSources =
+            await GetVerifiedClosedSourcesAsync(request, cancellationToken);
         var approvedCorrectionExceptions = await _db.ReconciliationExceptions
             .Include(item => item.CorrectionTransaction)
             .Where(item => item.AccountId.HasValue && item.Status != OperationsConstants.ExceptionResolved &&
@@ -164,12 +172,34 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
             {
                 foreach (var item in dayOperational) operationalBalances[item.Key] = item.Value;
             }
+            // Compare effective balances after subtracting only explicitly waived financial source effects.
+            // Raw balances and original records remain available in every result.
+            HashSet<long> waivedTransactions = await _exclusions.ActiveSourceIdsAsync(date, "Transaction", cancellationToken);
+            HashSet<long> waivedLines = await _exclusions.ActiveSourceIdsAsync(date, "GL", cancellationToken);
+            Dictionary<long, decimal> waivedOperational = await _db.AccountTransactions.AsNoTracking()
+                .Where(entry => entry.PostingDate <= date && waivedTransactions.Contains(entry.TransactionId))
+                .GroupBy(entry => entry.AccountId).Select(group => new WaivedAccountAmount(group.Key,
+                    group.Where(entry => entry.EntryType == EntryType.Credit).Sum(entry => entry.Amount) -
+                    group.Where(entry => entry.EntryType == EntryType.Debit).Sum(entry => entry.Amount)))
+                .ToDictionaryAsync(effect => effect.AccountId, effect => effect.Net, cancellationToken);
+            Dictionary<long, decimal> waivedLedger = await _db.TransactionEntries.AsNoTracking()
+                .Where(entry => entry.PostingDate <= date && entry.CustomerAccountId.HasValue &&
+                    entry.GlAccount!.Code == AccountingConstants.CustomerDepositsGlCode &&
+                    (waivedTransactions.Contains(entry.TransactionId) || waivedLines.Contains(entry.Id)))
+                .GroupBy(entry => entry.CustomerAccountId!.Value).Select(group => new WaivedAccountAmount(group.Key,
+                    group.Where(entry => entry.EntryType == EntryType.Credit).Sum(entry => entry.Amount) -
+                    group.Where(entry => entry.EntryType == EntryType.Debit).Sum(entry => entry.Amount)))
+                .ToDictionaryAsync(effect => effect.AccountId, effect => effect.Net, cancellationToken);
             foreach (var account in accounts)
             {
                 var operational = operationalBalances.GetValueOrDefault(account.Id);
                 var ledger = ledgerBalances.GetValueOrDefault(account.Id);
                 var difference = operational - ledger;
-                var status = difference == 0m ? "Matched" : "Unmatched";
+                bool waived = activeByAccountAndDate.TryGetValue((account.Id, date), out ReconciliationException? waivedSource) && waivedSource.Status == OperationsConstants.ExceptionForcePassed;
+                decimal effectiveOperational = operational - waivedOperational.GetValueOrDefault(account.Id);
+                decimal effectiveLedger = ledger - waivedLedger.GetValueOrDefault(account.Id);
+                decimal effectiveDifference = effectiveOperational - effectiveLedger;
+                string status = waived || difference != 0m && effectiveDifference == 0m ? "Waived" : effectiveDifference == 0m ? "Matched" : "Unmatched";
                 run.Results.Add(new AccountReconciliationResult
                 {
                     AccountId = account.Id,
@@ -179,10 +209,19 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
                     Difference = difference,
                     Status = status
                 });
-                UpsertAccountException(account.Id, date, operational, ledger, difference, actorId, now, activeByAccountAndDate);
+                if (correctedClosedSources.Contains((account.Id, date)))
+                {
+                    // Preserve the historical observation; a verified later posting is its resolution evidence.
+                    if (activeByAccountAndDate.TryGetValue((account.Id, date), out ReconciliationException? correctedSource) &&
+                        correctedSource.Status != OperationsConstants.ExceptionForcePassed)
+                        AddHistoryAndSetStatus(correctedSource, OperationsConstants.ExceptionResolved,
+                            "A verified correction on a later business date resolved this historical discrepancy.", actorId, now);
+                }
+                else
+                    UpsertAccountException(account.Id, date, effectiveOperational, effectiveLedger, effectiveDifference, actorId, now, activeByAccountAndDate);
                 // Closed periods stay unchanged: a current-date match after the linked reversal is the resolution evidence.
                 if (difference == 0m && approvedCorrectionsByAccount.TryGetValue(account.Id, out var correctedExceptions))
-                    foreach (var correctedException in correctedExceptions.Where(item => item.Status != OperationsConstants.ExceptionResolved &&
+                    foreach (var correctedException in correctedExceptions.Where(item => item.Status != OperationsConstants.ExceptionResolved && item.Status != OperationsConstants.ExceptionForcePassed &&
                                  item.CorrectionTransaction?.BusinessDate is { } reversalDate && reversalDate <= date))
                         AddHistoryAndSetStatus(correctedException, OperationsConstants.ExceptionResolved,
                             "A reconciliation run on or after the posted reversal date confirmed that account and ledger balances match.", actorId, now);
@@ -192,6 +231,30 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
 
         await _db.SaveChangesAsync(cancellationToken);
         return new AccountReconciliationRunResponse(run.Id, request.FromDate, request.ToDate, run.Status, now, responses);
+    }
+
+    // Verified current-date proposals resolve their closed source observations without rewriting dated balances.
+    private async Task<HashSet<(long AccountId, DateOnly BusinessDate)>> GetVerifiedClosedSourcesAsync(
+        AccountReconciliationRequest request, CancellationToken ct)
+    {
+        List<CorrectionProposal> corrections = await _db.CorrectionProposals.AsNoTracking().Include(proposal => proposal.Exception)
+            .Where(proposal => proposal.Status == ProposalStatus.Executed && proposal.Verification == VerificationStatus.Passed &&
+                proposal.Exception!.BusinessDate >= request.FromDate && proposal.Exception.BusinessDate <= request.ToDate &&
+                _db.BusinessDates.Any(day => day.Date == proposal.Exception.BusinessDate && day.Status == OperationsConstants.BusinessDateClosed))
+            .ToListAsync(ct);
+        HashSet<(long AccountId, DateOnly BusinessDate)> sources = [];
+        foreach (CorrectionProposal correction in corrections)
+        {
+            CorrectionPreview? preview = JsonSerializer.Deserialize<CorrectionPreview>(correction.PreviewJson);
+            if (preview is null || preview.PostingDate <= correction.Exception!.BusinessDate) continue;
+            IEnumerable<long> accountIds = preview.Balances.Select(balance => balance.AccountId)
+                .Concat(preview.Lines.Where(line => line.CustomerAccountId.HasValue).Select(line => line.CustomerAccountId!.Value));
+            if (correction.Exception.AccountId.HasValue)
+                accountIds = accountIds.Append(correction.Exception.AccountId.Value);
+            foreach (long accountId in accountIds.Distinct())
+                sources.Add((accountId, correction.Exception.BusinessDate));
+        }
+        return sources;
     }
 
     private static List<DateOnly> EnumerateDates(DateOnly fromDate, DateOnly toDate)
@@ -389,12 +452,13 @@ public sealed class AccountReconciliationService : IAccountReconciliationService
         decimal difference, long actorId, DateTime now,
         IReadOnlyDictionary<(long AccountId, DateOnly BusinessDate), ReconciliationException> activeByAccountAndDate)
     {
-        activeByAccountAndDate.TryGetValue((accountId, date), out var existing);
+        activeByAccountAndDate.TryGetValue((accountId, date), out ReconciliationException? existing);
+        if (existing?.Status == OperationsConstants.ExceptionForcePassed) return;
         if (difference == 0m)
         {
             if (existing is not null && !_db.CorrectionProposals.Any(x => x.ExceptionId == existing.Id &&
                 (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed)))
-                AddHistoryAndSetStatus(existing, "Resolved", "Account and ledger balances now match.", actorId, now);
+                AddHistoryAndSetStatus(existing, "Resolved", "Effective account and ledger balances match after explicit source waivers, if any.", actorId, now);
             return;
         }
 

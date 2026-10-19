@@ -6,6 +6,7 @@ public sealed record EndOfDayStageResponse(string Name, string Status, int Issue
 public sealed record EndOfDayRunResponse(long RunId, DateOnly BusinessDate, string Status, DateTime PreparedAtUtc,
     IReadOnlyList<EndOfDayStageResponse> Stages, long PreparedBy, long? ApprovedBy, long? ClosedBy)
 {
+    public EndOfDayRunResponse? PendingForceClose { get; init; }
     public long? ReviewedBy { get; init; }
     public DateTime? ReviewedAtUtc { get; init; }
     public string? OverrideReason { get; init; }

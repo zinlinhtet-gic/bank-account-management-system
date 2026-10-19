@@ -177,8 +177,6 @@ public sealed class ReconciliationProposalsViewModel(ReconciliationWorkflowClien
 { protected override bool Include(CorrectionProposalResponse p) => p.ProposerId == Auth.UserId; }
 public sealed class ReconciliationApprovalsViewModel(ReconciliationWorkflowClient c,IReconciliationService e,AuthContext a) : ReconciliationProposalQueueViewModel(c,e,a)
 { protected override bool Include(CorrectionProposalResponse p) => p.Status == ProposalStatus.PendingApproval; }
-public sealed class ReconciliationVerificationViewModel(ReconciliationWorkflowClient c,IReconciliationService e,AuthContext a) : ReconciliationProposalQueueViewModel(c,e,a)
-{ protected override bool Include(CorrectionProposalResponse p) => p.Status == ProposalStatus.Executed; }
 public sealed class ReconciliationHistoryViewModel(ReconciliationWorkflowClient c,IReconciliationService e,AuthContext a) : ReconciliationProposalQueueViewModel(c,e,a)
 { protected override bool Include(CorrectionProposalResponse p) => true; }
 

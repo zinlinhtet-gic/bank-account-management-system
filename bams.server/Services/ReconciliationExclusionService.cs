@@ -29,6 +29,7 @@ public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICur
             select ur.UserId).AnyAsync(ct))
             throw new ForbiddenException(MessageCode.InsufficientPermission);
         await using IDbContextTransaction tx = await db.Database.BeginTransactionAsync(ct);
+        await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Status = 'Open' ORDER BY Date FOR UPDATE").ToListAsync(ct);
         ReconciliationException exception = (await db.ReconciliationExceptions.FromSql($"SELECT * FROM ReconciliationExceptions WHERE Id = {exceptionId} FOR UPDATE").ToListAsync(ct)).SingleOrDefault()
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         if (exception.Status is OperationsConstants.ExceptionResolved or OperationsConstants.ExceptionForcePassed)
@@ -58,8 +59,11 @@ public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICur
 
     public async Task ValidateAsync(DateOnly fromDate, DateOnly toDate, CancellationToken ct)
     {
+        bool ownsTransaction = db.Database.CurrentTransaction is null;
+        await using IDbContextTransaction? transaction = ownsTransaction ? await db.Database.BeginTransactionAsync(ct) : null;
+        await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Status = 'Open' ORDER BY Date FOR UPDATE").ToListAsync(ct);
         List<ReconciliationExclusion> exclusions = await db.ReconciliationExclusions.Include(x => x.Exception)
-            .Where(x => x.Exception!.BusinessDate >= fromDate && x.Exception.BusinessDate <= toDate &&
+            .Where(x => x.Exception!.BusinessDate <= toDate &&
                 x.Exception.Status == OperationsConstants.ExceptionForcePassed &&
                 !db.ReconciliationExclusions.Any(newer => newer.ExceptionId == x.ExceptionId && newer.Id > x.Id)).ToListAsync(ct);
         foreach (ReconciliationExclusion exclusion in exclusions)
@@ -74,14 +78,24 @@ public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICur
             exception.UpdatedAtUtc = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
     }
 
-    public async Task<HashSet<long>> ActiveSourceIdsAsync(DateOnly date, string sourceType, CancellationToken ct) =>
-        (await db.ReconciliationExcludedSources.AsNoTracking().Where(x => x.SourceType == sourceType &&
-            x.Exclusion!.Exception!.BusinessDate == date && x.Exclusion.Exception.Status == OperationsConstants.ExceptionForcePassed &&
-            (x.Exclusion.Exception.Type == "JournalIntegrity" || x.Exclusion.Exception.Type == OperationsConstants.ExceptionLedgerBalance) &&
-            !db.ReconciliationExclusions.Any(newer => newer.ExceptionId == x.Exclusion.ExceptionId && newer.Id > x.ExclusionId))
-            .Select(x => x.SourceId).ToListAsync(ct)).ToHashSet();
+    // Read-only callers, including force-close audit, must never apply a stale waiver merely because its status was not refreshed yet.
+    public async Task<HashSet<long>> ActiveSourceIdsAsync(DateOnly date, string sourceType, CancellationToken ct)
+    {
+        List<ReconciliationExclusion> exclusions = await db.ReconciliationExclusions.AsNoTracking()
+            .Include(x => x.Exception).Include(x => x.Sources)
+            .Where(x => x.Exception!.BusinessDate <= date && x.Exception.Status == OperationsConstants.ExceptionForcePassed &&
+                !db.ReconciliationExclusions.Any(newer => newer.ExceptionId == x.ExceptionId && newer.Id > x.Id)).ToListAsync(ct);
+        HashSet<long> ids = [];
+        foreach (ReconciliationExclusion exclusion in exclusions)
+        {
+            if (Hash(await SnapshotAsync(exclusion.Exception!, ct)) != exclusion.SourceHash) continue;
+            ids.UnionWith(exclusion.Sources.Where(source => source.SourceType == sourceType).Select(source => source.SourceId));
+        }
+        return ids;
+    }
 
     private async Task<List<SourceRef>> SnapshotAsync(ReconciliationException exception, CancellationToken ct)
     {
@@ -91,37 +105,46 @@ public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICur
         if (exception.AccountId.HasValue)
         {
             bams.server.Models.Accounts.Account? account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == exception.AccountId, ct);
-            if (account is not null) refs.Add(new("Account", account.Id, $"{account.LedgerBalance}:{account.AvailableBalance}:{account.Version}"));
+            if (account is not null) refs.Add(new("Account", account.Id, account.AccountNo));
             List<bams.server.Models.Transactions.AccountTransaction> entries = await db.AccountTransactions.AsNoTracking().Where(x => x.AccountId == exception.AccountId && x.PostingDate <= exception.BusinessDate).ToListAsync(ct);
+            List<long> entryIds = entries.Select(x => x.Id).ToList();
+            IQueryable<long> latestBalanceIds = db.EffectiveAccountBalances.AsNoTracking().Where(x => entryIds.Contains(x.AccountTransactionId))
+                .GroupBy(x => x.AccountTransactionId).Select(group => group.Max(x => x.Id));
+            Dictionary<long, EffectiveAccountBalance> balances = await db.EffectiveAccountBalances.AsNoTracking().Where(x => latestBalanceIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.AccountTransactionId, ct);
             foreach (bams.server.Models.Transactions.AccountTransaction entry in entries)
             {
-                refs.Add(new("AccountEntry", entry.Id, $"{entry.TransactionId}:{entry.Amount}:{entry.EntryType}:{entry.PostingDate}"));
+                balances.TryGetValue(entry.Id, out EffectiveAccountBalance? effective);
+                refs.Add(new("AccountEntry", entry.Id, FormattableString.Invariant($"{entry.TransactionId}:{entry.Amount}:{entry.EntryType}:{entry.PostingDate}:{entry.LedgerBalanceBefore}:{entry.LedgerBalanceAfter}:{effective?.BalanceBefore ?? entry.LedgerBalanceBefore}:{effective?.BalanceAfter ?? entry.LedgerBalanceAfter}")));
                 transactionIds.Add(entry.TransactionId);
             }
         }
         if (exception.PositionSessionId.HasValue)
         {
             CashPositionSession? session = await db.CashPositionSessions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == exception.PositionSessionId, ct);
-            if (session is not null) refs.Add(new("Session", session.Id, $"{session.ExpectedClosingCash}:{session.Version}:{session.Status}"));
+            if (session is not null) refs.Add(new("Session", session.Id, FormattableString.Invariant($"{session.ExpectedClosingCash}:{session.Version}:{session.Status}")));
             foreach (CashMovement movement in await db.CashMovements.AsNoTracking().Where(x => x.SessionId == exception.PositionSessionId || x.DestinationSessionId == exception.PositionSessionId).ToListAsync(ct))
             {
-                refs.Add(new("Movement", movement.Id, $"{movement.Type}:{movement.Status}:{movement.Amount}:{movement.TransactionId}:{movement.DestinationSessionId}"));
+                refs.Add(new("Movement", movement.Id, FormattableString.Invariant($"{movement.Type}:{movement.Status}:{movement.Amount}:{movement.TransactionId}:{movement.DestinationSessionId}")));
                 if (movement.TransactionId.HasValue) transactionIds.Add(movement.TransactionId.Value);
             }
             foreach (CashCount count in await db.CashCounts.AsNoTracking().Where(x => x.SessionId == exception.PositionSessionId).ToListAsync(ct))
-                refs.Add(new("Count", count.Id, $"{count.ExpectedAmount}:{count.ActualAmount}:{count.CountedAtUtc.Ticks}"));
+                refs.Add(new("Count", count.Id, FormattableString.Invariant($"{count.ExpectedAmount}:{count.ActualAmount}:{count.CountedAtUtc.Ticks}")));
             foreach (CashHandoff handoff in await db.CashHandoffs.AsNoTracking().Where(x => x.SessionId == exception.PositionSessionId || x.DestinationSessionId == exception.PositionSessionId).ToListAsync(ct))
-                refs.Add(new("Handoff", handoff.Id, $"{handoff.Status}:{handoff.Amount}:{handoff.Version}"));
+                refs.Add(new("Handoff", handoff.Id, FormattableString.Invariant($"{handoff.Status}:{handoff.Amount}:{handoff.Version}")));
         }
         if (!exception.AccountId.HasValue && !exception.PositionSessionId.HasValue && !exception.RelatedTransactionId.HasValue)
             foreach (long id in await db.TransactionEntries.AsNoTracking().Where(x => x.PostingDate == exception.BusinessDate)
                 .Select(x => x.TransactionId).Distinct().ToListAsync(ct)) transactionIds.Add(id);
         if (transactionIds.Count > 0)
         {
+            List<long> rootIds = transactionIds.ToList();
+            foreach (long repairId in await db.Transactions.AsNoTracking().Where(x => x.AccountingRootTransactionId.HasValue &&
+                rootIds.Contains(x.AccountingRootTransactionId.Value)).Select(x => x.Id).ToListAsync(ct)) transactionIds.Add(repairId);
             foreach (bams.server.Models.Transactions.Transaction transaction in await db.Transactions.AsNoTracking().Where(x => transactionIds.Contains(x.Id)).ToListAsync(ct))
-                refs.Add(new("Transaction", transaction.Id, $"{transaction.TransactionStatus}:{transaction.Amount}:{transaction.BusinessDate}:{transaction.UpdatedAt.Ticks}"));
+                refs.Add(new("Transaction", transaction.Id, FormattableString.Invariant($"{transaction.TransactionStatus}:{transaction.Amount}:{transaction.BusinessDate}:{transaction.UpdatedAt.Ticks}")));
             foreach (bams.server.Models.Transactions.TransactionEntry line in await db.TransactionEntries.AsNoTracking().Where(x => transactionIds.Contains(x.TransactionId)).ToListAsync(ct))
-                refs.Add(new("GL", line.Id, $"{line.TransactionId}:{line.GlAccountId}:{line.CustomerAccountId}:{line.EntryType}:{line.Amount}:{line.PostingDate}"));
+                refs.Add(new("GL", line.Id, FormattableString.Invariant($"{line.TransactionId}:{line.GlAccountId}:{line.CustomerAccountId}:{line.EntryType}:{line.Amount}:{line.PostingDate}")));
         }
         return refs.OrderBy(x => x.Type).ThenBy(x => x.Id).ToList();
     }

@@ -33,3 +33,5 @@ The enums are the complete registry. This page intentionally does not duplicate 
 
 
 The reconciliation proposal workflow adds stable business-rule codes 4490 through 4493: `CorrectionProposalStale`, `CorrectionAlreadyApplied`, `CorrectionLegacyResubmit`, and `CorrectionEvidenceRequired`.
+
+EOD uses the existing stable error codes: ReconciliationBlocked for unresolved normal-close readiness, EndOfDayApprovalRequired for approval rules, and BusinessDateTransitionConflict for invalid date transitions. Force-close bypass does not suppress infrastructure errors. Audit batch/item statuses (CompletedWithExceptions, Exception, Waived) are persisted outcomes rather than new message codes.

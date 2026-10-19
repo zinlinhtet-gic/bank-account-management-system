@@ -60,7 +60,7 @@ public sealed class ReconciliationWorkflowController(ReconciliationCorrectionSer
         Ok(ApiMessageResponse<CorrectionProposalResponse>.FromCode(MessageCode.Success, await corrections.ReviewAsync(id, request, ct)));
 
     [HttpPost("proposals/{id:long}/verify")]
-    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation, SecurityConstants.TransactionCorrectionApproval)]
     public async Task<IActionResult> Verify(long id, CancellationToken ct) =>
         Ok(ApiMessageResponse<CorrectionProposalResponse>.FromCode(MessageCode.Success, await corrections.VerifyAsync(id, ct)));
 

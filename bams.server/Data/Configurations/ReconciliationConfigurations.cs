@@ -133,6 +133,8 @@ public sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashMov
         builder.HasOne(item => item.DestinationSession).WithMany().HasForeignKey(item => item.DestinationSessionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Transaction).WithMany().HasForeignKey(item => item.TransactionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.CorrectionTransaction).WithMany().HasForeignKey(item => item.CorrectionTransactionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.CashCorrectionProposal).WithMany().HasForeignKey(item => item.CashCorrectionProposalId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.CorrectsMovement).WithMany().HasForeignKey(item => item.CorrectsMovementId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Actor).WithMany().HasForeignKey(item => item.ActorId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Approver).WithMany().HasForeignKey(item => item.ApprovedBy).OnDelete(DeleteBehavior.Restrict);
     }

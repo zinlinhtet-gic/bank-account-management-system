@@ -14,14 +14,40 @@ namespace bams.server.Services;
 
 /// <summary>Owns proposal review transactions and dispatches case-specific correction operations.</summary>
 public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICurrentUserService user,
-    CorrectionPlanningService planner, ReconciliationProjectionService projections, ReconciliationCheckService checks)
+    CorrectionPlanningService planner, ReconciliationProjectionService projections, ReconciliationCheckService checks,
+    UnifiedReconciliationService unified)
 {
     /// <summary>Returns proposal history without exposing persistence entities.</summary>
     public async Task<IReadOnlyList<CorrectionProposalResponse>> ListAsync(long? exceptionId, CancellationToken ct)
     {
-        var query = db.CorrectionProposals.AsNoTracking().AsQueryable();
+        IQueryable<CorrectionProposal> query = db.CorrectionProposals.AsNoTracking().Include(proposal => proposal.Exception);
         if (exceptionId.HasValue) query = query.Where(x => x.ExceptionId == exceptionId);
-        return (await query.OrderByDescending(x => x.Id).Take(500).ToListAsync(ct)).Select(ToResponse).ToList();
+        List<CorrectionProposal> proposals = await query.OrderByDescending(proposal => proposal.Id).Take(500).ToListAsync(ct);
+        List<BusinessDate> dates = await db.BusinessDates.AsNoTracking().ToListAsync(ct);
+        DateOnly? activeDate = dates.Where(day => day.IsActive && day.Status == OperationsConstants.BusinessDateOpen &&
+                day.Date <= bams.server.Utils.BusinessTime.Today).Select(day => (DateOnly?)day.Date).SingleOrDefault();
+        List<CorrectionProposalResponse> responses = [];
+        foreach (CorrectionProposal proposal in proposals)
+        {
+            CorrectionProposalResponse response = ToResponse(proposal);
+            if (proposal.Status == ProposalStatus.PendingApproval && response.Preview is not null &&
+                dates.Any(day => day.Date == proposal.Exception!.BusinessDate && day.Status == OperationsConstants.BusinessDateClosed))
+            {
+                response = response with
+                {
+                    Preview = activeDate.HasValue
+                        ? response.Preview with
+                        {
+                            PostingDate = activeDate.Value,
+                            Lines = response.Preview.Lines.Select(line => line with { PostingDate = activeDate.Value }).ToList(),
+                            Explanation = response.Preview.Explanation + $" Source date {proposal.Exception!.BusinessDate:yyyy-MM-dd} is closed; posting uses the active date."
+                        }
+                        : response.Preview with { Explanation = response.Preview.Explanation + " Start an active business date before approval." }
+                };
+            }
+            responses.Add(response);
+        }
+        return responses;
     }
 
     public async Task<CorrectionProposalResponse> GetAsync(long id, CancellationToken ct) =>
@@ -130,12 +156,16 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
             if (preview.SourceHash != proposal.SourceHash) throw new ConflictException(MessageCode.CorrectionProposalStale);
             if (await db.CorrectionProposals.AnyAsync(x => x.Id != id && x.Status == ProposalStatus.Executed && x.SourceHash == proposal.SourceHash, ct))
                 throw new ConflictException(MessageCode.Conflict);
+            // Persist the actual execution plan if force close redirected the original proposal to the active date.
+            proposal.PreviewJson = JsonSerializer.Serialize(preview);
             await ExecuteDiscrepancyAsync(proposal, input, preview, ct);
+            if (proposal.ExecutionTransactionId.HasValue)
+                exception.CorrectionTransactionId = proposal.ExecutionTransactionId;
             proposal.Status = ProposalStatus.Executed;
             proposal.Verification = VerificationStatus.Pending;
             proposal.ReviewNote += string.IsNullOrWhiteSpace(request.RecoveryAttestation) ? "" : "\nRecovery: " + request.RecoveryAttestation;
             AddHistory(exception, OperationsConstants.ExceptionAdjustmentRequired,
-                $"Proposal {id} executed; verification pending. Sole-manager approval: {proposal.SoleManagerApproval}.");
+                $"Proposal {id} executed on {preview.PostingDate:yyyy-MM-dd} for source date {exception.BusinessDate:yyyy-MM-dd}; verification pending. Sole-manager approval: {proposal.SoleManagerApproval}.");
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -247,10 +277,17 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
         var proposal = (await db.CorrectionProposals.FromSql($"SELECT * FROM CorrectionProposals WHERE Id = {id} FOR UPDATE").ToListAsync(ct)).SingleOrDefault()
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         if (proposal.Status != ProposalStatus.Executed) throw new BusinessRuleException(MessageCode.InvalidRequest);
-        var exception = await db.ReconciliationExceptions.SingleAsync(x => x.Id == proposal.ExceptionId, ct);
+        ReconciliationException exception = await LockExceptionAsync(proposal.ExceptionId, ct);
+        await unified.RequireVerificationAccessAsync(exception, ct);
+        if (proposal.Verification == VerificationStatus.Passed) return ToResponse(proposal);
         var preview = JsonSerializer.Deserialize<CorrectionPreview>(proposal.PreviewJson)!;
         var end = await db.BusinessDates.MaxAsync(x => x.Date, ct);
         var start = preview.Lines.Select(x => x.PostingDate).Append(exception.BusinessDate).Min();
+        bool sourceIsClosed = await db.BusinessDates.AnyAsync(day => day.Date == exception.BusinessDate &&
+            day.Status == OperationsConstants.BusinessDateClosed, ct);
+        // Historical snapshots retain the original mismatch; current-date evidence verifies the later correction.
+        if (sourceIsClosed)
+            start = preview.PostingDate;
         var passed = true;
         var scope = preview.Balances.Select(x => x.AccountId).Concat(preview.Lines.Where(x => x.CustomerAccountId.HasValue).Select(x => x.CustomerAccountId!.Value)).ToHashSet();
         if (exception.AccountId.HasValue) scope.Add(exception.AccountId.Value);
@@ -260,17 +297,33 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
             var run = await checks.RunAsync(new(date, date, null), ct);
             passed &= run.Results.Where(x => scope.Contains(x.AccountId)).All(x => x.Difference == 0);
         }
-        var journalPassed = await db.TransactionEntries.Where(x => x.PostingDate >= start && x.PostingDate <= end)
-            .GroupBy(x => x.PostingDate).Select(g => g.Sum(x => x.EntryType == EntryType.Debit ? x.Amount : -x.Amount)).AllAsync(x => x == 0, ct);
+        bool journalPassed = await ReconciliationLedgerQueries.Amounts(db)
+            .Where(line => line.ReconciliationDate >= start && line.ReconciliationDate <= end)
+            .GroupBy(line => line.ReconciliationDate)
+            .Select(group => group.Sum(line => line.Direction == EntryType.Debit ? line.Amount : -line.Amount))
+            .AllAsync(total => total == 0m, ct);
         passed &= journalPassed;
+        if (sourceIsClosed && exception.Type == OperationsConstants.ExceptionLedgerBalance)
+        {
+            decimal sourceDifference = await ReconciliationLedgerQueries.Amounts(db)
+                .Where(line => line.ReconciliationDate == exception.BusinessDate)
+                .SumAsync(line => line.Direction == EntryType.Debit ? line.Amount : -line.Amount, ct);
+            passed &= sourceDifference == 0m;
+        }
         var originalId = JsonSerializer.Deserialize<CorrectionInputs>(proposal.InputsJson)!.TransactionId;
         var effectiveJournal = await db.TransactionEntries.Where(x => x.TransactionId == originalId || x.Transaction!.AccountingRootTransactionId == originalId).ToListAsync(ct);
         passed &= effectiveJournal.Count > 0 && effectiveJournal.Sum(x => x.EntryType == EntryType.Debit ? x.Amount : -x.Amount) == 0;
         proposal.Verification = passed ? VerificationStatus.Passed : VerificationStatus.Failed;
         proposal.VerifiedAtUtc = DateTime.UtcNow;
-        proposal.VerificationNote = passed ? "Account and journal checks passed through the latest business date." : "A discrepancy remains; investigate the check results before proposing further corrections.";
+        proposal.VerificationNote = passed
+            ? sourceIsClosed
+                ? $"Current-date account and journal checks passed for correction posted on {preview.PostingDate:yyyy-MM-dd}; source date {exception.BusinessDate:yyyy-MM-dd} remains closed."
+                : "Account and journal checks passed through the latest business date."
+            : "A discrepancy remains; investigate the check results before proposing further corrections.";
         AddHistory(exception, passed ? OperationsConstants.ExceptionResolved : OperationsConstants.ExceptionUnderInvestigation, proposal.VerificationNote);
         await db.SaveChangesAsync(ct);
+        if (sourceIsClosed && passed)
+            await checks.RunAsync(new(exception.BusinessDate, exception.BusinessDate, null), ct);
         await projections.GenerateProvisionalAsync(start, ct);
         await verificationTransaction.CommitAsync(ct);
         return ToResponse(proposal);

@@ -7,6 +7,7 @@ This folder describes the current `bams.server` implementation. Start with the t
 | [Architecture](Architecture.md) | Runtime flow, project boundaries, persistence, security, and background work. |
 | [API contracts](ApiContracts.md) | HTTP routes, request behavior, pagination, envelopes, and errors. |
 | [Business rules](BusinessRules.md) | Domain invariants and lifecycle rules enforced by services. |
+| [Cash discrepancy corrections](CashDiscrepancyCorrections.md) | Case inputs, source evidence, immutable cash corrections and verification. |
 | [Message codes](MessageCodes.md) | Stable server codes and client-only codes. |
 | [OpenAPI contract](AccountsApi.openapi.yaml) | Machine-readable API schema. |
 

@@ -26,6 +26,8 @@ public static class OperationsConstants
     public const string EodReadyForApproval = "ReadyForApproval";
     public const string EodApproved = "Approved";
     public const string EodClosed = "Closed";
+    public const string EodOverrideCancelled = "OverrideCancelled";
+    public const string EodSuperseded = "Superseded";
     public const string EodStageTransactions = "Transactions";
     public const string EodStagePendingApprovals = "Pending Approvals";
     public const string EodStageAccountingEntries = "Accounting Entries";

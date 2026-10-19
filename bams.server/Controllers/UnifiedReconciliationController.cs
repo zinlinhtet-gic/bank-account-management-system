@@ -28,6 +28,11 @@ public sealed class UnifiedReconciliationController(UnifiedReconciliationService
     public async Task<IActionResult> Staff(CancellationToken ct) =>
         Ok(ApiMessageResponse<IReadOnlyList<ReconciliationStaffOptionResponse>>.FromCode(MessageCode.Success, await checks.StaffAsync(ct)));
 
+    [HttpGet("audit/{date}")]
+    [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
+    public async Task<IActionResult> Audit(DateOnly date, CancellationToken ct) =>
+        Ok(ApiMessageResponse<EndOfDayAuditReport?>.FromCode(MessageCode.Success, await checks.AuditAsync(date, ct)));
+
     [HttpPost("checks")]
     [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
     public async Task<IActionResult> Run(UnifiedReconciliationRequest request, CancellationToken ct) =>
@@ -73,7 +78,17 @@ public sealed class UnifiedReconciliationController(UnifiedReconciliationService
     [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
     public async Task<IActionResult> CashSubmit(long id, SubmitCashCorrectionRequest request, CancellationToken ct) =>
         Ok(ApiMessageResponse<CashCorrectionProposalResponse>.FromCode(MessageCode.Success,
-            await cash.SubmitAsync(id, request.Inputs, request.ExpectedSourceHash, ct)));
+            await cash.SubmitAsync(id, request.Inputs, request.ExpectedPreviewHash, ct)));
+
+    [HttpGet("cash/exceptions/{id:long}/sources")]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    public async Task<IActionResult> CashSources(long id, [FromQuery] string? search, CancellationToken ct) =>
+        Ok(ApiMessageResponse<CashSourceCatalog>.FromCode(MessageCode.Success, await cash.SourcesAsync(id, search, ct)));
+
+    [HttpGet("cash/proposals/{id:long}/evidence")]
+    [RequirePermission(SecurityConstants.TransactionCorrectionApproval)]
+    public async Task<IActionResult> CashEvidence(long id, CancellationToken ct) =>
+        Ok(ApiMessageResponse<CashProposalEvidence>.FromCode(MessageCode.Success, await cash.ProposalEvidenceAsync(id, ct)));
 
     [HttpGet("cash/proposals/pending")]
     [RequirePermission(SecurityConstants.TransactionCorrectionApproval)]
@@ -85,8 +100,14 @@ public sealed class UnifiedReconciliationController(UnifiedReconciliationService
     public async Task<IActionResult> ReviewCash(long id, ReviewCorrectionRequest request, CancellationToken ct) =>
         Ok(ApiMessageResponse<CashCorrectionProposalResponse>.FromCode(MessageCode.Success, await cash.ReviewAsync(id, request, ct)));
 
+    [HttpGet("verification")]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation, SecurityConstants.TransactionCorrectionApproval)]
+    public async Task<IActionResult> VerificationTasks(CancellationToken ct) =>
+        Ok(ApiMessageResponse<IReadOnlyList<ReconciliationVerificationTask>>.FromCode(MessageCode.Success,
+            await checks.VerificationTasksAsync(ct)));
+
     [HttpPost("cash/proposals/{id:long}/verify")]
-    [RequirePermission(SecurityConstants.ReconciliationInvestigation)]
+    [RequirePermission(SecurityConstants.ReconciliationInvestigation, SecurityConstants.TransactionCorrectionApproval)]
     public async Task<IActionResult> VerifyCash(long id, CancellationToken ct) =>
         Ok(ApiMessageResponse<CashCorrectionProposalResponse>.FromCode(MessageCode.Success, await cash.VerifyAsync(id, ct)));
 

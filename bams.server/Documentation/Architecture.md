@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 ## Request flow
 
@@ -52,3 +52,9 @@ The WPF application calls the server through its API client. Successful endpoint
 ## Keeping this page current
 
 Use the source tree as the authority for current class names and behavior. Update this overview when a project boundary, persistence strategy, security flow, or job lifecycle changes. Endpoint details belong in [API Contracts](ApiContracts.md); domain invariants belong in [Business Rules](BusinessRules.md).
+
+## Reconciliation evidence and desktop refresh
+
+CashCorrectionService.Evidence owns exception-scoped source catalogs and manager preview evidence. UnifiedReconciliationService.Audit maps persisted audit findings to typed API rows without changing audit results. ReconciliationExclusionService validates the latest immutable Force Pass decision against its current exact source state; financial checks consume those source IDs while preserving raw facts.
+
+The desktop's dedicated ReconciliationReviewDialog uses shared themed tables and controls. Themes.RefreshAssist attaches a ten-second dispatcher timer to loaded views and stops it on unload; bound commands enforce busy gates. Polling endpoints only read saved state. Financial checks and approvals remain explicit commands.

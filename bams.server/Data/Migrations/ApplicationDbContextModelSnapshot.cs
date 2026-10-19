@@ -482,7 +482,13 @@ namespace bams.server.Data.Migrations
                     b.Property<long?>("ApprovedBy")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("CashCorrectionProposalId")
+                        .HasColumnType("bigint");
+
                     b.Property<long?>("CorrectionTransactionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CorrectsMovementId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAtUtc")
@@ -519,7 +525,11 @@ namespace bams.server.Data.Migrations
 
                     b.HasIndex("ApprovedBy");
 
+                    b.HasIndex("CashCorrectionProposalId");
+
                     b.HasIndex("CorrectionTransactionId");
+
+                    b.HasIndex("CorrectsMovementId");
 
                     b.HasIndex("DestinationSessionId");
 
@@ -1236,8 +1246,7 @@ namespace bams.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExceptionId")
-                        .IsUnique();
+                    b.HasIndex("ExceptionId");
 
                     b.ToTable("ReconciliationExclusions");
                 });
@@ -1782,6 +1791,9 @@ namespace bams.server.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("FindingsJson")
+                        .HasColumnType("json");
+
                     b.Property<DateTime>("PerformedAt")
                         .HasColumnType("datetime(6)");
 
@@ -1798,8 +1810,8 @@ namespace bams.server.Data.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
 
                     b.Property<decimal>("TotalCredit")
                         .HasPrecision(18, 2)
@@ -3063,9 +3075,19 @@ namespace bams.server.Data.Migrations
                         .HasForeignKey("ApprovedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("bams.server.Models.Accounting.CashCorrectionProposal", "CashCorrectionProposal")
+                        .WithMany()
+                        .HasForeignKey("CashCorrectionProposalId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("bams.server.Models.Transactions.Transaction", "CorrectionTransaction")
                         .WithMany()
                         .HasForeignKey("CorrectionTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("bams.server.Models.Accounting.CashMovement", "CorrectsMovement")
+                        .WithMany()
+                        .HasForeignKey("CorrectsMovementId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("bams.server.Models.Accounting.CashPositionSession", "DestinationSession")
@@ -3088,7 +3110,11 @@ namespace bams.server.Data.Migrations
 
                     b.Navigation("Approver");
 
+                    b.Navigation("CashCorrectionProposal");
+
                     b.Navigation("CorrectionTransaction");
+
+                    b.Navigation("CorrectsMovement");
 
                     b.Navigation("DestinationSession");
 

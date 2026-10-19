@@ -31,6 +31,26 @@ public sealed class BusinessDateService(ApplicationDbContext db, ICurrentUserSer
             .OrderBy(item => item.Date).Select(item => (DateOnly?)item.Date).FirstOrDefaultAsync(cancellationToken)
         ?? throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
 
+    /// <summary>Uses the source date while open; corrections after force close post on the active open date.</summary>
+    public async Task<DateOnly> GetCorrectionPostingDateAsync(DateOnly sourceDate, CancellationToken cancellationToken)
+    {
+        BusinessDate? source = await db.BusinessDates.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Date == sourceDate, cancellationToken);
+        if (source?.Status == OperationsConstants.BusinessDateOpen)
+            return sourceDate;
+
+        bool wasForceClosed = source?.Status == OperationsConstants.BusinessDateClosed &&
+            await db.EndOfDayRuns.AsNoTracking().AnyAsync(run => run.BusinessDate == sourceDate &&
+                run.Status == OperationsConstants.EodClosed && run.OverrideReason != null && run.OverrideReason != "", cancellationToken);
+        if (!wasForceClosed)
+            throw new BusinessRuleException(MessageCode.BusinessDateClosed);
+
+        DateOnly postingDate = await GetOpenBusinessDateValueAsync(cancellationToken);
+        if (postingDate <= sourceDate)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        return postingDate;
+    }
+
     /// <summary>Returns today's explicitly opened date and blocks posting until a manager starts it.</summary>
     public async Task<DateOnly> GetPostingBusinessDateValueAsync(DateTime nowUtc, CancellationToken cancellationToken)
     {

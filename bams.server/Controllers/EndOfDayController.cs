@@ -47,7 +47,7 @@ public sealed class EndOfDayController(IEndOfDayWorkflowService workflow) : Cont
     }
 
     [HttpPost("{date}/pre-close")]
-    [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit)]
+    [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<EndOfDayRunResponse>>> RunPreCloseAsync(DateOnly date, CancellationToken cancellationToken)
     {
         var result = await workflow.RunPreCloseAsync(date, cancellationToken);

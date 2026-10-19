@@ -13,7 +13,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace bams.server.Services;
 
 /// <summary>Records bank operating cash already spent; review and all posting effects commit together.</summary>
-public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserService currentUser, LedgerPostingService ledger)
+public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserService currentUser, LedgerPostingService ledger,
+    IBusinessDateService businessDates, ReconciliationProjectionService projections)
 {
     private const int MaximumReceiptBytes = 5 * 1024 * 1024;
 
@@ -45,7 +46,13 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
             .OrderByDescending(x => x.Id).Take(500).Select(x => new BankExpenseResponse(x.Id, x.SessionId,
                 x.BusinessDate, x.Amount, x.Payee, x.Purpose, x.Status, x.ReceiptFileName,
                 x.MissingReceiptReason, x.RequestedBy, x.RequestedAtUtc, x.ReviewedBy, x.ReviewedAtUtc,
-                x.ReviewNote, x.TransactionId, x.ExceptionId)).ToListAsync(ct);
+                x.ReviewNote, x.TransactionId, x.ExceptionId)
+            {
+                PostingDate = x.TransactionId.HasValue ? x.Transaction!.BusinessDate :
+                    db.BusinessDates.Any(day => day.Date == x.BusinessDate && day.Status == OperationsConstants.BusinessDateOpen)
+                        ? x.BusinessDate : db.BusinessDates.Where(day => day.IsActive && day.Status == OperationsConstants.BusinessDateOpen &&
+                            day.Date <= bams.server.Utils.BusinessTime.Today).Select(day => (DateOnly?)day.Date).SingleOrDefault()
+            }).ToListAsync(ct);
     }
 
     public async Task<(byte[] Data, string Name, string ContentType)> ReceiptAsync(long id, CancellationToken ct)
@@ -65,6 +72,8 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
             throw new ValidationException(MessageCode.RequiredFieldMissing);
         long actor = currentUser.GetCurrentUserId();
         await using IDbContextTransaction tx = await db.Database.BeginTransactionAsync(ct);
+        // Match correction/EOD lock ordering and keep the selected active date stable until posting commits.
+        await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Status = 'Open' ORDER BY Date FOR UPDATE").ToListAsync(ct);
         BankExpenseRequest expense = (await db.BankExpenseRequests.FromSql($"SELECT * FROM BankExpenseRequests WHERE Id = {id} FOR UPDATE").ToListAsync(ct)).SingleOrDefault()
             ?? throw new NotFoundException(MessageCode.ResourceNotFound);
         if (expense.Status != "PendingApproval") throw new ConflictException(MessageCode.Conflict);
@@ -74,13 +83,14 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
         expense.ReviewNote = request.Note.Trim();
         if (request.Approve)
         {
-            await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {expense.BusinessDate} AND Status = 'Open' FOR UPDATE").ToListAsync(ct);
+            DateOnly postingDate = await businessDates.GetCorrectionPostingDateAsync(expense.BusinessDate, ct);
             CashPositionSession session = await LockSessionAsync(expense.SessionId, ct);
-            if (session.Status != OperationsConstants.CashSessionOpen ||
-                !await db.BusinessDates.AnyAsync(x => x.Date == expense.BusinessDate && x.IsActive && x.Status == OperationsConstants.BusinessDateOpen, ct))
+            // The expense was already spent before submission; approval may follow closure of its source session.
+            if (session.Status != OperationsConstants.CashSessionOpen && session.Status != OperationsConstants.CashSessionClosed)
                 throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
-            await PostApprovedAsync(expense, session, actor, ct);
+            await PostApprovedAsync(expense, session, actor, ct, postingDate);
             expense.Status = "Posted";
+            await projections.GenerateProvisionalAsync(postingDate, ct);
         }
         else expense.Status = "Rejected";
         await db.SaveChangesAsync(ct);
@@ -89,7 +99,8 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
     }
 
     /// <summary>Shared posting operation used by ordinary requests and approved reconciliation proposals.</summary>
-    public async Task PostApprovedAsync(BankExpenseRequest expense, CashPositionSession session, long approver, CancellationToken ct)
+    public async Task PostApprovedAsync(BankExpenseRequest expense, CashPositionSession session, long approver, CancellationToken ct,
+        DateOnly? postingDate = null)
     {
         if (expense.TransactionId.HasValue || session.BusinessDate != expense.BusinessDate ||
             session.ExpectedClosingCash - expense.Amount < session.ReservedCash)
@@ -98,7 +109,8 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
         Transaction transaction = LedgerPostingService.CreateTransaction(TransactionType.BankCashExpense,
             TransactionStatus.Completed, expense.Amount, expense.Purpose, $"BANK-EXP-{expense.Id}",
             $"BANK-EXP-{expense.Id}", expense.RequestedBy, now);
-        transaction.BusinessDate = expense.BusinessDate;
+        DateOnly financialDate = postingDate ?? expense.BusinessDate;
+        transaction.BusinessDate = financialDate;
         transaction.AuthorizedBy = approver;
         transaction.AuthorizedAt = now;
         long expenseGl = await db.GlAccounts.Where(x => x.Code == AccountingConstants.BankOperatingExpenseGlCode && x.Status == AccountingConstants.ActiveStatus)
@@ -108,10 +120,11 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
         db.Transactions.Add(transaction);
         db.TransactionEntries.AddRange(
             new TransactionEntry { Transaction = transaction, GlAccountId = expenseGl, EntryType = EntryType.Debit,
-                Amount = expense.Amount, PostingDate = expense.BusinessDate, Description = expense.Purpose, CreatedAt = now },
+                Amount = expense.Amount, PostingDate = financialDate, Description = expense.Purpose, CreatedAt = now },
             new TransactionEntry { Transaction = transaction, GlAccountId = cashGl, EntryType = EntryType.Credit,
-                Amount = expense.Amount, PostingDate = expense.BusinessDate, Description = expense.Purpose, CreatedAt = now });
+                Amount = expense.Amount, PostingDate = financialDate, Description = expense.Purpose, CreatedAt = now });
         db.CashMovements.Add(new CashMovement { Session = session, Transaction = transaction, Type = "BankExpense",
+            CashCorrectionProposalId = expense.CashProposalId,
             Amount = expense.Amount, ActorId = approver, ApprovedBy = approver, ApprovedAtUtc = now,
             CreatedAtUtc = now, Note = expense.Purpose });
         session.ExpectedClosingCash -= expense.Amount;
@@ -185,5 +198,8 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
 
     private static BankExpenseResponse ToResponse(BankExpenseRequest x) => new(x.Id, x.SessionId, x.BusinessDate,
         x.Amount, x.Payee, x.Purpose, x.Status, x.ReceiptFileName, x.MissingReceiptReason, x.RequestedBy,
-        x.RequestedAtUtc, x.ReviewedBy, x.ReviewedAtUtc, x.ReviewNote, x.TransactionId, x.ExceptionId);
+        x.RequestedAtUtc, x.ReviewedBy, x.ReviewedAtUtc, x.ReviewNote, x.TransactionId, x.ExceptionId)
+    {
+        PostingDate = x.Transaction?.BusinessDate
+    };
 }
