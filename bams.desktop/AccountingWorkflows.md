@@ -52,6 +52,34 @@ The `EndOfDayView` is the close workspace: it runs unified account/GL and cash r
 
 The second day of each month at 00:00 Asia/Rangoon runs prior-month account maintenance and interest accumulation before generating `MonthlySummary` rows. If the month's final business date is still open, the scheduler fails with a readable cause after automatic retry attempts are exhausted. Managers with `scheduled_job_management` see the alert in the application header, navigate to the normal End of Day flow to close the date, then retry the same scheduled occurrence. Each request and attempt is retained by the server; the alert clears after a successful retry. Monthly totals use raw accounting entries, while previous-period openings prefer `MonthlySummary`, then later `DailySummary`, and then raw accounting history where no snapshots exist.
 
+## Header notifications (bell)
+
+Every signed-in user has a bell in the header. Its red badge counts **unread task notifications** only; failed scheduled operations turn the bell glyph red and are listed in their own section of the popup (shown only with `scheduled_job_management`), but are not counted. The desktop polls `GET api/notifications` every 15 seconds and again whenever the popup opens. Clicking a notification marks it read (`POST api/notifications/{id}/read`), closes the popup and opens its page with the record selected; the close icon only marks it read; "Mark all read" calls `POST api/notifications/read-all`. Read notifications are hidden, not kept as history. A notification never opens a page the sidebar would hide: `NotificationNavigation` applies the same permission rules and shows a message instead.
+
+The server creates notification rows (`Notifications` table) inside the same transaction as the action that caused them, so a failed action never leaves a notification behind. The actor is never notified about their own action. Requests sent to a group (all managers, or managers and auditors) share a group key: as soon as one person acts, every other copy is marked read.
+
+| Event | Recipients | Opens |
+| --- | --- | --- |
+| Teller session scheduled (Business Date Opening or Session Creation) | Officer | Session Detail |
+| Session accepted | Scheduling manager | Session Detail |
+| Scheduled session cancelled / expired unaccepted | Officer (expiry also the scheduling manager) | Session Management |
+| Cash request submitted | All users with `end_of_day_approval` | Cash Requests (that request) |
+| Cash request approved / rejected | Officer | Session Detail |
+| Approved cash received / refused | Approving manager | Cash Requests |
+| Cash handoff created on session close | Recipient | Session Handoff Requests (that handoff) |
+| Handoff accepted | Sender | Session Handoff Requests |
+| Handoff declined | Sender, all managers and auditors (`end_of_day_approval` or `audit`) | Session Handoff Requests |
+| Handoff reassigned | New recipient; sender and previous recipient | Session Handoff Requests |
+| Bank expense submitted / reviewed | All managers / the requester | Bank Expense Recording (that expense) |
+| Exception assigned / reassigned | New investigator (officer or auditor) / previous investigator | Assigned Reconciliation Tasks / Reconciliation Checks |
+| Correction proposal submitted (account/GL or cash) | All managers | Reconcile Proposals (that proposal) |
+| Proposal approved | Proposer and investigator | Verification (that proposal) |
+| Proposal rejected / out of date | Proposer and investigator | Assigned Reconciliation Tasks |
+| Verification failed | Proposer and investigator | Assigned Reconciliation Tasks |
+| Exception force-passed | Investigator and proposers of cancelled proposals | Reconciliation Checks |
+
+Account/GL and cash proposals have separate id sequences, so their targets keep the kind (`AccountProposal`/`CashProposal`, `AccountVerification`/`CashVerification`). Target values are shared constants: `bams.server/Constants/NotificationConstants.cs` and `bams.desktop/Constants/NotificationTargets.cs`.
+
 ### Competing EOD close paths
 
 A pending force-close request does not disable normal checks, review, approval or closure. The EOD view retains the pending force approval separately from the displayed normal run. If normal close succeeds, the request is cancelled and override operations deactivate. If force close succeeds first, unfinished normal runs stop. Reloads show the completed close, and attempted actions from an older page refresh its closed-date state. Financial reconciliation corrections then require a later active open business date; a manager must start it when none exists.

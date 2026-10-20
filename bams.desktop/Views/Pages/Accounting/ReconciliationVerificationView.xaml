@@ -17,7 +17,7 @@
     </WrapPanel>
    </Border>
    <Border Style="{StaticResource Card.Flush}" Margin="0,8,0,12">
-    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Tasks}" AutoGenerateColumns="False"
+    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask, Mode=TwoWay}" AutoGenerateColumns="False"
               IsReadOnly="True" CanUserAddRows="False" MinHeight="220" MaxHeight="600">
      <DataGrid.Columns>
       <DataGridTextColumn Header="Proposal" Binding="{Binding ProposalId}" Width="70"/>

@@ -95,6 +95,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    // Notifications
+    public DbSet<Models.Notifications.Notification> Notifications => Set<Models.Notifications.Notification>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);

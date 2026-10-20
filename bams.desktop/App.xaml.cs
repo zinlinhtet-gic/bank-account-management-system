@@ -213,6 +213,8 @@ public partial class App : Application
         services.AddSingleton<Services.IEndOfDayClientService, Services.EndOfDayClientService>();
         services.AddSingleton<Services.IScheduledJobClientService, Services.ScheduledJobClientService>();
         services.AddTransient<ViewModels.ScheduledJobFailuresViewModel>();
+        services.AddSingleton<Services.INotificationClientService, Services.NotificationClientService>();
+        services.AddTransient<ViewModels.NotificationsViewModel>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();

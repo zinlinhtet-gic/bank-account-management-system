@@ -15,6 +15,11 @@ public static class ApiConstants
     public const string LogoutEndpoint = AuthEndpoint + "/logout";
     public const string RefreshTokenEndpoint = AuthEndpoint + "/refresh";
 
+    // Notifications. Mark one read: $"{NotificationsEndpoint}/{id}/{NotificationReadSegment}".
+    public const string NotificationsEndpoint = "api/notifications";
+    public const string NotificationReadSegment = "read";
+    public const string NotificationsReadAllEndpoint = NotificationsEndpoint + "/read-all";
+
     public const string AccountsEndpoint = "api/accounts";
     public const string AccountCustomerLookupEndpoint = AccountsEndpoint + "/customer-lookup";
     public const string AccountOpeningOptionsEndpoint = AccountsEndpoint + "/opening-options";

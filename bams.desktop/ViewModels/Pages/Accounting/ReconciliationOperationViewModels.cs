@@ -10,8 +10,27 @@ namespace bams.desktop.ViewModels.Pages.Accounting;
 /// <summary>Explicit navigation context shared by operation pages, without relying on selected rows elsewhere.</summary>
 public sealed record ReconciliationRoute(string Page, long? ExceptionId = null, long? ProposalId = null);
 
-public abstract class ReconciliationOperationViewModel : ViewModelBase, IAsyncInitializable
+public abstract class ReconciliationOperationViewModel : ViewModelBase, IAsyncInitializable, INotificationFocusTarget
 {
+    // Record a notification asked this page to select; consumed by the page after its next load.
+    protected long? FocusId { get; private set; }
+    protected bool FocusIsCash { get; private set; }
+
+    /// <inheritdoc />
+    public void FocusOn(string targetType, long targetId)
+    {
+        FocusId = targetId;
+        FocusIsCash = NotificationTargets.IsCashRecord(targetType);
+    }
+
+    /// <summary>Returns the pending focus id once and clears it so later polls keep the user's own selection.</summary>
+    protected long? TakeFocusId()
+    {
+        var id = FocusId;
+        FocusId = null;
+        return id;
+    }
+
     protected readonly ReconciliationWorkflowClient Client;
     protected readonly IReconciliationService Existing;
     protected readonly AuthContext Auth;

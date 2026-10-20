@@ -14,6 +14,8 @@ public sealed class BankExpensesViewModel:ReconciliationOperationViewModel
     private CashPositionSessionResponse? _session;
     private string _amount="",_payee="",_purpose="",_missing="";
     private string? _receiptName,_receiptType,_receipt;
+    private BankExpenseResponse? _selectedExpense;
+    public BankExpenseResponse? SelectedExpense { get=>_selectedExpense; set=>SetProperty(ref _selectedExpense,value); }
     public ObservableCollection<CashPositionSessionResponse> Sessions { get; }=[];
     public ObservableCollection<BankExpenseResponse> Expenses { get; }=[];
     public CashPositionSessionResponse? SelectedSession { get=>_session; set=>SetProperty(ref _session,value); }
@@ -80,7 +82,10 @@ public sealed class BankExpensesViewModel:ReconciliationOperationViewModel
         foreach(CashPositionSessionResponse session in await _cash.GetSessionsAsync(null,ct))
             if(session.Status=="Open" && (session.TellerId==Auth.UserId || CanReview && session.PositionType=="Vault")) Sessions.Add(session);
         SelectedSession=Sessions.FirstOrDefault();
+        // Keep the selected expense across reloads, or select the one a notification points to.
+        long? selectedId=TakeFocusId() ?? SelectedExpense?.Id;
         Expenses.Clear(); foreach(BankExpenseResponse expense in await _unified.ExpensesAsync(ct)) Expenses.Add(expense);
+        SelectedExpense=Expenses.FirstOrDefault(expense=>expense.Id==selectedId);
     }
     public override Task InitializeAsync(CancellationToken ct=default)=>RunAsync(()=>LoadAsync(ct));
 }

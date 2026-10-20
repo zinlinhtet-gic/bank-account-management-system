@@ -19,6 +19,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly AuthContext _authContext;
     private readonly INavigationService _navigationService;
     private readonly ScheduledJobFailuresViewModel _scheduledJobFailures;
+    private readonly NotificationsViewModel _notifications;
     private readonly ICashOperationsClientService _cashOperationsService;
     private readonly OfficerCashSessionContext _cashSessionContext;
     private readonly IDialogService _dialogService;
@@ -28,9 +29,12 @@ public sealed class MainViewModel : ViewModelBase
     private string _currentPageLabel = string.Empty;
     private string _previousPageLabel = string.Empty;
     private CancellationTokenSource? _pageInitializationCancellation;
+    // Record a clicked notification wants selected on the page being opened.
+    private (string TargetType, long TargetId)? _pendingNotificationFocus;
 
     public MainViewModel(AuthContext authContext, INavigationService navigationService, NavBarViewModel navBarViewModel,
         ScheduledJobFailuresViewModel scheduledJobFailures,
+        NotificationsViewModel notifications,
         ICashOperationsClientService cashOperationsService,
         OfficerCashSessionContext cashSessionContext,
         IDialogService dialogService)
@@ -46,6 +50,10 @@ public sealed class MainViewModel : ViewModelBase
         _scheduledJobFailures.EndOfDayRequested += OpenEndOfDay;
         if (_authContext.HasPermission(PermissionCodes.ScheduledJobManagement))
             _scheduledJobFailures.Start();
+        // Every role has a task inbox, so the bell polls for all signed-in users.
+        _notifications = notifications;
+        _notifications.OpenRequested += OpenNotificationTarget;
+        _notifications.Start();
         
         // Wire up navigation from NavBar
         NavBar.NavigateCommand = new RelayCommand(NavigateToPage);
@@ -64,6 +72,7 @@ public sealed class MainViewModel : ViewModelBase
 
     public NavBarViewModel NavBar { get; }
     public ScheduledJobFailuresViewModel ScheduledJobFailures => _scheduledJobFailures;
+    public NotificationsViewModel Notifications => _notifications;
     public bool CanManageScheduledJobs => _authContext.HasPermission(PermissionCodes.ScheduledJobManagement);
     public bool IsOfficerWriteDisabled => IsOfficer && !_cashSessionContext.HasOpenSession;
 
@@ -102,6 +111,10 @@ public sealed class MainViewModel : ViewModelBase
     /// </summary>
     private async void NavigateToPage(object? parameter)
     {
+        // Taken up front so a cancelled navigation never applies the focus to a later page.
+        var notificationFocus = _pendingNotificationFocus;
+        _pendingNotificationFocus = null;
+
         if (parameter == null)
             return;
 
@@ -139,6 +152,9 @@ public sealed class MainViewModel : ViewModelBase
             {
                 transactionAudit.DetailRequested += OpenTransactionAuditDetail;
             }
+
+            if (notificationFocus is { } focus && viewModel is INotificationFocusTarget focusTarget)
+                focusTarget.FocusOn(focus.TargetType, focus.TargetId);
 
             AppLog.WriteInformation($"Navigating to page '{pageLabel}' ({viewModel.GetType().FullName}).");
             _previousPage = CurrentPage;
@@ -311,6 +327,8 @@ public sealed class MainViewModel : ViewModelBase
         OnLogoutRequested = null;
         _scheduledJobFailures.EndOfDayRequested -= OpenEndOfDay;
         _scheduledJobFailures.Dispose();
+        _notifications.OpenRequested -= OpenNotificationTarget;
+        _notifications.Dispose();
         _cashSessionContext.PropertyChanged -= OnCashSessionContextPropertyChanged;
         NavBar.NavigateCommand = null;
         if (CurrentPage is GLAccountDetailViewModel detailViewModel)
@@ -324,6 +342,35 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     private void OpenEndOfDay() => NavigateToPage(PageNames.EndOfDay);
+
+    /// <summary>Opens the page a clicked notification refers to, with its record selected when the page supports it.</summary>
+    private void OpenNotificationTarget(DTOs.Notifications.NotificationResponse notification)
+    {
+        var route = NotificationNavigation.Resolve(notification.TargetType, _authContext.PermissionFlags);
+        if (route is null)
+        {
+            AppLog.WriteInformation($"Notification {notification.Id} has unknown target '{notification.TargetType}'.");
+            return;
+        }
+
+        // The sidebar hides pages the user cannot use; a notification must not bypass that.
+        if (!route.IsAllowed)
+        {
+            _notifications.ShowMessage(MessageCode.NotificationTargetNotPermitted);
+            return;
+        }
+
+        // Session detail is a routed child page that takes the session id directly.
+        if (route.Page == PageNames.SessionDetail && notification.TargetId.HasValue)
+        {
+            OpenSessionPage(PageNames.SessionDetail, notification.TargetId);
+            return;
+        }
+
+        if (notification.TargetId.HasValue)
+            _pendingNotificationFocus = (notification.TargetType, notification.TargetId.Value);
+        NavigateToPage(route.Page);
+    }
 
     /// <summary>Checks the signed-in officer's current business-date teller session and routes accordingly.</summary>
     private async void CheckOfficerCashSessionAsync()

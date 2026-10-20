@@ -8,8 +8,9 @@ using bams.desktop.Services;
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
 /// <summary>Manager queue for reviewing officers' requests for cash.</summary>
-public sealed class CashRequestCenterViewModel : ViewModelBase, IAsyncInitializable
+public sealed class CashRequestCenterViewModel : ViewModelBase, IAsyncInitializable, INotificationFocusTarget
 {
+    private long? _focusRequestId;
     private readonly ICashOperationsClientService _cashOperations;
     private readonly IEndOfDayClientService _businessDates;
     private readonly AuthContext _authContext;
@@ -83,6 +84,14 @@ public sealed class CashRequestCenterViewModel : ViewModelBase, IAsyncInitializa
         }
     }
 
+    /// <inheritdoc />
+    public void FocusOn(string targetType, long targetId)
+    {
+        // Show every status so the notified request is visible whatever state it is in now.
+        _focusRequestId = targetId;
+        SelectedStatus = "All";
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         if (!IsManager) { ErrorMessage = "You do not have permission to review cash requests."; return; }
@@ -106,7 +115,10 @@ public sealed class CashRequestCenterViewModel : ViewModelBase, IAsyncInitializa
             var requests = await _cashOperations.GetCashProposalsAsync(date, cancellationToken);
             Requests.Clear();
             foreach (var item in requests.Where(item => SelectedStatus == "All" || item.Status == SelectedStatus)) Requests.Add(item);
-            SelectedRequest = requests.FirstOrDefault(item => item.Status == "PendingApproval");
+            // A notification click selects its request; otherwise the first request awaiting review is selected.
+            SelectedRequest = Requests.FirstOrDefault(item => item.Id == _focusRequestId)
+                ?? requests.FirstOrDefault(item => item.Status == "PendingApproval");
+            _focusRequestId = null;
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }

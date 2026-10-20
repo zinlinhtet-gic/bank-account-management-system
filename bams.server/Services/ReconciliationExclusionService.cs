@@ -14,7 +14,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace bams.server.Services;
 
 /// <summary>Keeps the exact financial source set behind a manager's audited Force Pass.</summary>
-public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICurrentUserService currentUser)
+public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICurrentUserService currentUser,
+    Notifications.ReconciliationNotifier notifier)
 {
     private sealed record SourceRef(string Type, long Id, string State);
 
@@ -44,10 +45,18 @@ public sealed class ReconciliationExclusionService(ApplicationDbContext db, ICur
         foreach (SourceRef source in sources.DistinctBy(x => (x.Type, x.Id)))
             exclusion.Sources.Add(new ReconciliationExcludedSource { SourceType = source.Type, SourceId = source.Id });
         db.ReconciliationExclusions.Add(exclusion);
+        List<Notifications.SupersededProposal> superseded = [];
         foreach (CorrectionProposal proposal in await db.CorrectionProposals.Where(x => x.ExceptionId == exceptionId && x.Status == ProposalStatus.PendingApproval).ToListAsync(ct))
+        {
             proposal.Status = ProposalStatus.Superseded;
+            superseded.Add(new(proposal.Id, proposal.ProposerId, IsCash: false));
+        }
         foreach (CashCorrectionProposal proposal in await db.CashCorrectionProposals.Where(x => x.ExceptionId == exceptionId && x.Status == ProposalStatus.PendingApproval).ToListAsync(ct))
+        {
             proposal.Status = ProposalStatus.Superseded;
+            superseded.Add(new(proposal.Id, proposal.ProposerId, IsCash: true));
+        }
+        await notifier.ExceptionForcePassedAsync(exception, superseded, reason.Trim(), actor, ct);
         db.ReconciliationExceptionHistories.Add(new ReconciliationExceptionHistory { Exception = exception,
             OldStatus = exception.Status, NewStatus = OperationsConstants.ExceptionForcePassed,
             Note = $"Manager Force Pass: {reason.Trim()}", ActorId = actor, CreatedAtUtc = DateTime.UtcNow });

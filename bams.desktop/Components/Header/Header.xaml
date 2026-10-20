@@ -5,7 +5,8 @@
              xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
              x:Name="Root"
              Height="{StaticResource NavBarHeaderHeight}">
-    <!-- Design: top bar in App.tsx. Page title (DM Serif 18) + date, then the Danger logout action. -->
+    <!-- Design: top bar in App.tsx. Page title (DM Serif 18) + date, then the notification bell and the Danger logout action.
+         DataContext is the MainViewModel inherited from MainWindow. -->
     <Border Background="{StaticResource CardBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,0,0,1">
@@ -23,10 +24,12 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <!-- Alerts: bell icon button (ghost, like the theme's icon buttons) with a red count badge while
-                     scheduled operations have failed. Stays highlighted while its popup is open. -->
-                <ToggleButton x:Name="AlertsToggle" ToolTip="Scheduled operation alerts"
-                              Visibility="{Binding CanManageScheduledJobs, ElementName=Root, Converter={StaticResource BooleanToVisibilityConverter}}"
+                <!-- Notification bell (every role): ghost icon button with a red badge counting unread task notifications.
+                     The glyph also turns red while scheduled operations have failed, but those are not counted.
+                     Stays highlighted while its popup is open. -->
+                <ToggleButton x:Name="AlertsToggle" ToolTip="Notifications"
+                              AutomationProperties.Name="Notifications"
+                              IsChecked="{Binding Notifications.IsOpen, Mode=TwoWay}"
                               Width="32" Height="32" Cursor="Hand" VerticalAlignment="Center"
                               Background="Transparent" BorderBrush="{StaticResource BorderBrush}"
                               Foreground="{StaticResource MutedForegroundBrush}"
@@ -42,13 +45,13 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
 
-                                <!-- Failure count; the card-coloured ring separates it from the button edge -->
+                                <!-- Unread count above the bell; the card-coloured ring separates it from the button edge -->
                                 <Border x:Name="CountBadge" Visibility="Collapsed" IsHitTestVisible="False"
-                                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-7,-7,0"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-8,0"
                                         MinWidth="18" Height="18" Padding="4,0" CornerRadius="9"
                                         Background="{StaticResource DangerBrush}"
                                         BorderBrush="{StaticResource CardBrush}" BorderThickness="2">
-                                    <TextBlock Text="{Binding ScheduledJobFailures.Failures.Count}"
+                                    <TextBlock Text="{Binding Notifications.BadgeText}"
                                                Foreground="{StaticResource PrimaryForegroundBrush}"
                                                FontSize="{StaticResource FontSizeTiny}" FontWeight="SemiBold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -56,8 +59,10 @@
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <DataTrigger Binding="{Binding ScheduledJobFailures.HasFailures}" Value="True">
-                                    <Setter TargetName="CountBadge" Property="Visibility" Value="Visible"/>
                                     <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Notifications.HasUnread}" Value="True">
+                                    <Setter TargetName="CountBadge" Property="Visibility" Value="Visible"/>
                                 </DataTrigger>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter TargetName="Chrome" Property="Background" Value="{StaticResource MutedBrush}"/>
@@ -73,54 +78,129 @@
                     </ToggleButton.Template>
                 </ToggleButton>
 
-                <!-- Divider between the alerts and the session action -->
-                <Border Width="1" Height="20" Margin="12,0" Background="{StaticResource BorderBrush}"
-                        Visibility="{Binding CanManageScheduledJobs, ElementName=Root, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <!-- Divider between the bell and the session action -->
+                <Border Width="1" Height="20" Margin="12,0" Background="{StaticResource BorderBrush}"/>
 
                 <Button Content="Logout" ToolTip="Logout" VerticalAlignment="Center"
                         Style="{StaticResource Button.Danger}" t:ThemeAssist.Size="Small"
                         t:ThemeAssist.Icon="{StaticResource Icon.Logout}"
                         Command="{Binding LogoutCommand}"/>
             </StackPanel>
-            <Popup PlacementTarget="{Binding ElementName=AlertsToggle}" Placement="Bottom"
+
+            <Popup PlacementTarget="{Binding ElementName=AlertsToggle}" Placement="Bottom" HorizontalOffset="-388"
+                   VerticalOffset="6" AllowsTransparency="True"
                    IsOpen="{Binding IsChecked, ElementName=AlertsToggle, Mode=TwoWay}" StaysOpen="False"
-                   DataContext="{Binding PlacementTarget.DataContext.ScheduledJobFailures, RelativeSource={RelativeSource Self}}">
+                   DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                 <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}"
-                        BorderThickness="1" Padding="16" Width="460" MaxHeight="560">
-                    <DockPanel>
-                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
-                            <TextBlock Text="Scheduled operation alerts" Style="{StaticResource Text.Heading}"/>
-                            <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
-                        </StackPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}"
-                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
-                        <TextBlock DockPanel.Dock="Top" Text="No failed scheduled operations."
-                                   Visibility="{Binding HasNoFailures, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                   Margin="0,0,0,8"/>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding Failures}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding DisplayName}" Style="{StaticResource Text.Subheading}"/>
-                                                <TextBlock Text="{Binding FailureSummary}" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                                                <TextBlock Visibility="{Binding RequiresBusinessDateClose, Converter={StaticResource BooleanToVisibilityConverter}}"><Run Text="Business date to close: "/><Run Text="{Binding BusinessDateToClose}"/></TextBlock>
-                                                <TextBlock Text="{Binding FailedAtUtc, StringFormat='Failed: {0:g} UTC'}" Style="{StaticResource Text.Caption}"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <Button Content="Retry scheduled operation" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                        BorderThickness="1" CornerRadius="{StaticResource Radius}" Width="420" MaxHeight="600">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- ===== Task notifications (every role) ===== -->
+                            <StackPanel DataContext="{Binding Notifications}">
+                                <DockPanel Margin="16,14,12,8">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Content="Mark all read" Style="{StaticResource Button.Ghost}" t:ThemeAssist.Size="Small"
+                                                Command="{Binding MarkAllReadCommand}"
+                                                Visibility="{Binding HasUnread, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <Button Style="{StaticResource Button.Icon}" ToolTip="Refresh" AutomationProperties.Name="Refresh notifications"
+                                                t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" Margin="4,0,0,0"
+                                                Command="{Binding RefreshCommand}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Notifications" Style="{StaticResource Text.Heading}" VerticalAlignment="Center"/>
+                                </DockPanel>
+
+                                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}"
+                                           TextWrapping="Wrap" Margin="16,0,16,8">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ErrorMessage}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Text="You're all caught up." Style="{StaticResource Text.Caption}" Margin="16,4,16,14"
+                                           Visibility="{Binding HasNoItems, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <!-- Whole row opens the related page; the close icon only dismisses. -->
+                                            <Border x:Name="Row" Cursor="Hand" Padding="16,10,8,10"
+                                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"
+                                                    Background="Transparent" ToolTip="Open">
+                                                <Border.InputBindings>
+                                                    <MouseBinding MouseAction="LeftClick"
+                                                                  Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                </Border.InputBindings>
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" VerticalAlignment="Top" Style="{StaticResource Button.Icon}"
+                                                            ToolTip="Dismiss" AutomationProperties.Name="Dismiss notification"
+                                                            t:ThemeAssist.Icon="{StaticResource Icon.Close}"
+                                                            Command="{Binding DataContext.DismissCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                             CommandParameter="{Binding}"/>
-                                                    <Button Content="Open End of Day" Margin="8,0,0,0"
-                                                            Visibility="{Binding RequiresBusinessDateClose, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                            Command="{Binding DataContext.OpenEndOfDayCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </DockPanel>
+                                                    <StackPanel Margin="0,0,8,0">
+                                                        <TextBlock Style="{StaticResource Text.Caption}" Foreground="{StaticResource AccentBrush}">
+                                                            <Run Text="{Binding Category, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding CreatedAtLocal, Mode=OneWay, StringFormat='{}{0:d MMM, HH:mm}'}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Subheading}" Margin="0,2,0,0"/>
+                                                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{StaticResource MutedBrush}"/>
+                                                </Trigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- ===== Scheduled operation alerts (scheduled job managers only) ===== -->
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,12"
+                                    Background="{StaticResource MutedBrush}"
+                                    Visibility="{Binding CanManageScheduledJobs, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel DataContext="{Binding ScheduledJobFailures}">
+                                    <DockPanel Margin="0,0,0,8">
+                                        <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Ghost}"
+                                                t:ThemeAssist.Size="Small" Command="{Binding RefreshCommand}"/>
+                                        <TextBlock Text="Scheduled operation alerts" Style="{StaticResource Text.Subheading}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}"
+                                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="No failed scheduled operations." Style="{StaticResource Text.Caption}"
+                                               Visibility="{Binding HasNoFailures, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <ItemsControl ItemsSource="{Binding Failures}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource Text.Subheading}"/>
+                                                        <TextBlock Text="{Binding FailureSummary}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                                                        <TextBlock Visibility="{Binding RequiresBusinessDateClose, Converter={StaticResource BooleanToVisibilityConverter}}"><Run Text="Business date to close: "/><Run Text="{Binding BusinessDateToClose, Mode=OneWay}"/></TextBlock>
+                                                        <TextBlock Text="{Binding FailedAtUtc, StringFormat='Failed: {0:g} UTC'}" Style="{StaticResource Text.Caption}"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                            <Button Content="Retry scheduled operation" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                            <Button Content="Open End of Day" Margin="8,0,0,0"
+                                                                    Visibility="{Binding RequiresBusinessDateClose, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                    Command="{Binding DataContext.OpenEndOfDayCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Popup>
         </Grid>
