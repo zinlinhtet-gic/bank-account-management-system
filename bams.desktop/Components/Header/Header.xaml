@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
              x:Name="Root"
              Height="{StaticResource NavBarHeaderHeight}">
     <!-- Design: top bar in App.tsx. Page title (DM Serif 18) + date, then the Danger logout action. -->
@@ -22,10 +23,61 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <ToggleButton x:Name="AlertsToggle" Content="Alerts"
+                <!-- Alerts: bell icon button (ghost, like the theme's icon buttons) with a red count badge while
+                     scheduled operations have failed. Stays highlighted while its popup is open. -->
+                <ToggleButton x:Name="AlertsToggle" ToolTip="Scheduled operation alerts"
                               Visibility="{Binding CanManageScheduledJobs, ElementName=Root, Converter={StaticResource BooleanToVisibilityConverter}}"
-                              t:ThemeAssist.Size="Small" Margin="0,0,12,0"/>
-                <Button Content="Logout" ToolTip="Logout"
+                              Width="32" Height="32" Cursor="Hand" VerticalAlignment="Center"
+                              Background="Transparent" BorderBrush="{StaticResource BorderBrush}"
+                              Foreground="{StaticResource MutedForegroundBrush}"
+                              FocusVisualStyle="{StaticResource FocusRing}">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Grid>
+                                <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                        CornerRadius="{StaticResource Radius}" SnapsToDevicePixels="True">
+                                    <icon:Icon Geometry="{StaticResource Icon.Bell}" Size="16" StrokeThickness="2"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Failure count; the card-coloured ring separates it from the button edge -->
+                                <Border x:Name="CountBadge" Visibility="Collapsed" IsHitTestVisible="False"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-7,-7,0"
+                                        MinWidth="18" Height="18" Padding="4,0" CornerRadius="9"
+                                        Background="{StaticResource DangerBrush}"
+                                        BorderBrush="{StaticResource CardBrush}" BorderThickness="2">
+                                    <TextBlock Text="{Binding ScheduledJobFailures.Failures.Count}"
+                                               Foreground="{StaticResource PrimaryForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeTiny}" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <DataTrigger Binding="{Binding ScheduledJobFailures.HasFailures}" Value="True">
+                                    <Setter TargetName="CountBadge" Property="Visibility" Value="Visible"/>
+                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{StaticResource MutedBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SecondaryBrush}"/>
+                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                </ToggleButton>
+
+                <!-- Divider between the alerts and the session action -->
+                <Border Width="1" Height="20" Margin="12,0" Background="{StaticResource BorderBrush}"
+                        Visibility="{Binding CanManageScheduledJobs, ElementName=Root, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <Button Content="Logout" ToolTip="Logout" VerticalAlignment="Center"
                         Style="{StaticResource Button.Danger}" t:ThemeAssist.Size="Small"
                         t:ThemeAssist.Icon="{StaticResource Icon.Logout}"
                         Command="{Binding LogoutCommand}"/>

@@ -144,6 +144,54 @@ public sealed class TransactionQueryService : ITransactionQueryService
     }
 
     /// <summary>
+    /// Lists the NRC transfers waiting to be collected at one of our branches, soonest-expiring first, one page at a
+    /// time. Expired and blocked transfers are included and flagged, so an officer searching for a receiver learns
+    /// why the money cannot be collected yet.
+    /// </summary>
+    public async Task<PagedResponse<NrcPickupSummaryResponse>> GetPendingNrcPickupsAsync(
+        NrcPickupListQuery query,
+        CancellationToken cancellationToken)
+    {
+        var (page, pageSize) = TransactionRequestValidator.ResolvePaging(query.Page, query.PageSize);
+        var now = DateTime.UtcNow;
+
+        // Other banks pay out their own transfers; only branch pickups are served at our counter.
+        var pickups = _dbContext.NrcCashTransferDetails
+            .AsNoTracking()
+            .Where(detail => detail.Status == TransactionConstants.PickupPendingStatus
+                && detail.DeliveryType == TransactionConstants.NrcDeliveryAtBranch
+                && detail.Transaction!.TransactionStatus == Models.Transactions.TransactionStatus.Pending);
+
+        if (TransactionRequestValidator.TrimToNull(query.ReceiverName) is { } receiverName)
+        {
+            pickups = pickups.Where(detail => detail.ReceiverName.Contains(receiverName));
+        }
+
+        var totalCount = await pickups.CountAsync(cancellationToken);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        var items = await pickups
+            .OrderBy(detail => detail.PickupExpiresAt)
+            .ThenBy(detail => detail.TransactionId)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(detail => new NrcPickupSummaryResponse(
+                detail.TransactionId,
+                detail.Transaction!.TransactionNo,
+                detail.Transaction.Amount,
+                detail.SenderName,
+                detail.ReceiverName,
+                detail.PickupBranch != null ? detail.PickupBranch.Name : string.Empty,
+                detail.Transaction.TransactionAt,
+                detail.PickupExpiresAt,
+                detail.FailedPickupAttempts,
+                detail.PickupExpiresAt < now,
+                detail.FailedPickupAttempts >= TransactionConstants.MaximumFailedPickupAttempts))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<NrcPickupSummaryResponse>(items, page, pageSize, totalCount, totalPages);
+    }
+
+    /// <summary>
     /// Gets one transaction with its account entries and its NRC or interbank detail.
     /// </summary>
     public async Task<TransactionDetailResponse> GetTransactionByIdAsync(

@@ -57,6 +57,8 @@ public static class ApiConstants
     public const string InterbankTransferEndpoint = TransactionsEndpoint + "/transfer/interbank";
     public const string NrcTransferEndpoint = TransactionsEndpoint + "/transfer/nrc";
     public const string NrcPickupEndpoint = TransactionsEndpoint + "/nrc-pickup";
+    // NRC transfers waiting to be collected at our branches; optional receiverName, page, pageSize.
+    public const string NrcPickupsEndpoint = TransactionsEndpoint + "/nrc-pickups";
     public const string TransactionOtherBanksEndpoint = TransactionsEndpoint + "/other-banks";
     public const string BranchesEndpoint = TransactionsEndpoint + "/branches";
     public const string PaidOutSegment = "paid-out";

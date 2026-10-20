@@ -78,6 +78,21 @@ public sealed class TransactionsController : ControllerBase
     }
 
     /// <summary>
+    /// Lists NRC transfers waiting to be collected at our branches, soonest-expiring first.
+    /// Optional filters: receiverName (contains), page, pageSize.
+    /// </summary>
+    [HttpGet("nrc-pickups")]
+    [RequirePermission(SecurityConstants.Transactions)]
+    public async Task<ActionResult<ApiMessageResponse<PagedResponse<NrcPickupSummaryResponse>>>> GetPendingNrcPickupsAsync(
+        [FromQuery] NrcPickupListQuery query,
+        CancellationToken cancellationToken)
+    {
+        var pickups = await _transactionQueryService.GetPendingNrcPickupsAsync(query, cancellationToken);
+
+        return Ok(ApiMessageResponse<PagedResponse<NrcPickupSummaryResponse>>.FromCode(MessageCode.Success, pickups));
+    }
+
+    /// <summary>
     /// Gets one transaction with its account entries and NRC or interbank detail.
     /// </summary>
     [HttpGet("{id:long}")]

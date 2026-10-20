@@ -16,6 +16,10 @@ public interface ITransactionQueryService
 
     Task<IReadOnlyList<BranchResponse>> GetBranchesAsync(CancellationToken cancellationToken);
 
+    Task<PagedResponse<NrcPickupSummaryResponse>> GetPendingNrcPickupsAsync(
+        NrcPickupListQuery query,
+        CancellationToken cancellationToken);
+
     Task<TransactionDetailResponse> GetTransactionByIdAsync(
         long id,
         CancellationToken cancellationToken);

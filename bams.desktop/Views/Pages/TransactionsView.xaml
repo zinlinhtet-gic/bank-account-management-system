@@ -6,12 +6,16 @@
              xmlns:txvm="clr-namespace:bams.desktop.ViewModels.Pages.Transactions">
     <!--
         Transactions page (officers). DataContext: TransactionsViewModel.
-        Outcome banners → card with one tab per posting kind and the selected tab's form below it.
+        Outcome banners → card with one tab per posting kind and the selected tab's form below it. The last tab,
+        NRC pickup, shows the list of transfers waiting to be collected instead of a form.
         Records and pending-transfer actions are on the Transaction History page.
     -->
     <UserControl.Resources>
         <DataTemplate DataType="{x:Type txvm:TransactionFormViewModel}">
             <tx:TransactionFormView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type txvm:NrcPickupListViewModel}">
+            <tx:NrcPickupListView/>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -54,6 +58,10 @@
                     <Grid Margin="{StaticResource CardPadding}">
                         <ContentControl Content="{Binding CurrentForm}" Focusable="False"
                                         Visibility="{Binding HasForm, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                        <!-- NRC pickup tab: transfers waiting to be collected, searchable by receiver name -->
+                        <ContentControl Content="{Binding NrcPickups}" Focusable="False"
+                                        Visibility="{Binding ShowsNrcPickups, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                         <!-- Loading fresh balances for the chosen tab -->
                         <TextBlock Text="Loading accounts…" Style="{StaticResource Text.BodyMuted}"
