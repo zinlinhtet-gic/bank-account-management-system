@@ -151,6 +151,9 @@ public partial class App : Application
         // Bank Policies
         services.AddSingleton<Services.IBankPolicyService, Services.BankPolicyService>();
 
+        // Operations (per-customer interest, fees and fixed-deposit maturity)
+        services.AddSingleton<Services.IOperationService, Services.OperationService>();
+
         // Customer Management
         services.AddSingleton<Services.ICustomerService, Services.CustomerService>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerFilterViewModel>();
@@ -172,7 +175,6 @@ public partial class App : Application
         // Register Page ViewModels
         services.AddTransient<UserManagementViewModel>();
         // services.AddTransient<CustomerManagementViewModel>();
-        services.AddTransient<CustomerKYCViewModel>();
         services.AddTransient<AccountingEntriesViewModel>();
         // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
@@ -182,8 +184,29 @@ public partial class App : Application
         services.AddTransient<GeneralLedgerViewModel>();
         services.AddTransient<GLAccountDetailViewModel>();
         services.AddTransient<ReconciliationViewModel>();
+        services.AddSingleton<ReconciliationWorkflowClient>();
+        services.AddTransient<ReconciliationChecksViewModel>();
+        services.AddSingleton<Services.UnifiedReconciliationClient>();
+        services.AddTransient<UnifiedReconciliationViewModel>();
+        services.AddTransient<AssignedReconciliationTasksViewModel>();
+        services.AddTransient<ReconcileProposalsViewModel>();
+        services.AddTransient<CashProposalEditorViewModel>();
+        services.AddTransient<BankExpensesViewModel>();
+        services.AddTransient<ReconciliationExceptionsViewModel>();
+        services.AddTransient<ReconciliationInvestigationsViewModel>();
+        services.AddTransient<ReconciliationProposalsViewModel>();
+        services.AddTransient<ReconciliationApprovalsViewModel>();
+        services.AddTransient<ReconciliationVerificationViewModel>();
+        services.AddTransient<ReconciliationHistoryViewModel>();
+        services.AddTransient<ReconciliationProposalEditorViewModel>();
+
         services.AddSingleton<Services.IReconciliationService, Services.ReconciliationService>();
-        services.AddTransient<CashReconciliationViewModel>();
+        services.AddTransient<SessionManagementViewModel>();
+        services.AddTransient<SessionCreationViewModel>();
+        services.AddTransient<SessionDetailViewModel>();
+        services.AddTransient<CashHandoffCenterViewModel>();
+        services.AddTransient<CashRequestCenterViewModel>();
+        services.AddTransient<BusinessDateOpeningViewModel>();
         services.AddSingleton<Services.ICashOperationsClientService, Services.CashOperationsClientService>();
         services.AddTransient<EndOfDayViewModel>();
         services.AddSingleton<Services.IEndOfDayClientService, Services.EndOfDayClientService>();
@@ -199,6 +222,11 @@ public partial class App : Application
         services.AddTransient<FeeRateViewModel>();
         services.AddTransient<BankPoliciesViewModel>();
         services.AddTransient<OtherBanksViewModel>();
+
+        // Register Operations sub-pages
+        services.AddTransient<ViewModels.Pages.Operations.OperationInterestViewModel>();
+        services.AddTransient<ViewModels.Pages.Operations.OperationFeesViewModel>();
+        services.AddTransient<ViewModels.Pages.Operations.FixedDepositMaturityViewModel>();
 
         // Register Views
         services.AddTransient<Views.LoginView>();

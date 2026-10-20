@@ -8,6 +8,8 @@ public static class OperationsConstants
     public const string BusinessDateClosed = "Closed";
     public const string CashPositionTeller = "Teller";
     public const string CashPositionVault = "Vault";
+    public const string CashSessionCancelled = "Cancelled";
+    public const string CashSessionScheduled = "Scheduled";
     public const string CashSessionOpen = "Open";
     public const string CashSessionClosed = "Closed";
     public const string ReconciliationMatched = "Matched";
@@ -16,6 +18,7 @@ public static class OperationsConstants
     public const string ExceptionUnderInvestigation = "UnderInvestigation";
     public const string ExceptionAdjustmentRequired = "AdjustmentRequired";
     public const string ExceptionResolved = "Resolved";
+    public const string ExceptionForcePassed = "ForcePassed";
     public const string ExceptionAccountBalance = "AccountBalance";
     public const string ExceptionCashBalance = "CashBalance";
     public const string ExceptionLedgerBalance = "LedgerBalance";
@@ -24,6 +27,8 @@ public static class OperationsConstants
     public const string EodReadyForApproval = "ReadyForApproval";
     public const string EodApproved = "Approved";
     public const string EodClosed = "Closed";
+    public const string EodOverrideCancelled = "OverrideCancelled";
+    public const string EodSuperseded = "Superseded";
     public const string EodStageTransactions = "Transactions";
     public const string EodStagePendingApprovals = "Pending Approvals";
     public const string EodStageAccountingEntries = "Accounting Entries";

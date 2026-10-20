@@ -35,11 +35,11 @@
               <RadioButton Content="Shared" IsChecked="{Binding Workflow.IsSharedAccount}" GroupName="ownership" Margin="0,6" />
             </StackPanel>
             <StackPanel Visibility="{Binding Workflow.IsStep2, Converter={StaticResource BooleanToVisibilityConverter}}">
-              <TextBlock Text="Find customer holders by NRC" Style="{StaticResource Text.Subheading}" Margin="0,0,0,14" />
-              <TextBlock Text="Customer NRC" Style="{StaticResource Text.FieldLabel}" />
+              <TextBlock Text="Find customer holders by NRC or passport" Style="{StaticResource Text.Subheading}" Margin="0,0,0,14" />
+              <TextBlock Text="Customer NRC / Passport" Style="{StaticResource Text.FieldLabel}" />
               <TextBox Style="{StaticResource Input.Text}" Text="{Binding Workflow.HolderNrc1, UpdateSourceTrigger=PropertyChanged}" />
               <StackPanel Visibility="{Binding Workflow.IsSharedAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="Second customer NRC" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,0" />
+                <TextBlock Text="Second customer NRC / Passport" Style="{StaticResource Text.FieldLabel}" Margin="0,10,0,0" />
                 <TextBox Style="{StaticResource Input.Text}" Text="{Binding Workflow.HolderNrc2, UpdateSourceTrigger=PropertyChanged}" />
                 <WrapPanel Margin="0,8">
                   <StackPanel Width="180" Margin="0,0,12,0">

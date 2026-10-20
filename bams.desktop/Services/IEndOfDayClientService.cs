@@ -5,6 +5,7 @@ namespace bams.desktop.Services;
 public interface IEndOfDayClientService
 {
     Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken);
+    Task<BusinessDateResponse> StartCurrentBusinessDateAsync(StartBusinessDateRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<BusinessDateResponse>> SearchBusinessDatesAsync(DateOnly? fromDate, DateOnly? toDate, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse?> GetLatestRunAsync(DateOnly date, CancellationToken cancellationToken);
     Task<EndOfDayRunResponse> RunPreCloseAsync(DateOnly date, CancellationToken cancellationToken);

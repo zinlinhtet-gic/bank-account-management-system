@@ -1,3 +1,4 @@
+using bams.server.Models.Accounting;
 namespace bams.server.DTO.Accounting;
 
 public sealed record AccountReconciliationResultResponse(
@@ -43,7 +44,7 @@ public sealed record ReconciliationExceptionResponse(
     DateTime? CorrectionReviewedAtUtc = null,
     string? CorrectionRequestReason = null,
     string? CorrectionExternalRecoveryReference = null,
-    string? CorrectionReviewNote = null);
+    string? CorrectionReviewNote = null, DiscrepancyKind? Diagnosis = null, DateOnly? ReviewDueDate = null);
 
 public sealed record ReconciliationExceptionHistoryResponse(long Id, string OldStatus, string NewStatus,
     string? Note, long ActorId, DateTime CreatedAtUtc);

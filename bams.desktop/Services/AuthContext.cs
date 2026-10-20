@@ -143,6 +143,8 @@ public sealed class AuthContext : INotifyPropertyChanged
             CanViewTransactionHistory = HasPermission(PermissionCodes.TransactionHistory),
             CanAccessAccounting = HasPermission(PermissionCodes.Accounting),
             CanApproveEndOfDay = HasPermission(PermissionCodes.EndOfDayApproval),
+            CanInvestigateReconciliation = HasPermission(PermissionCodes.ReconciliationInvestigation),
+            CanApproveCorrections = HasPermission(PermissionCodes.TransactionCorrectionApproval),
             CanConfigureSystem = HasPermission(PermissionCodes.Configuration),
             CanPerformOperations = HasPermission(PermissionCodes.Operation),
             CanViewAudit = HasPermission(PermissionCodes.Audit),
@@ -197,6 +199,28 @@ public sealed class AuthContext : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Raised when the server rejects the signed-in user's token (expired or revoked).
+    /// <see cref="SessionService"/> listens and signs the user out.
+    /// </summary>
+    public event Action? SessionExpired;
+
+    /// <summary>
+    /// Message the sign-in screen shows once, e.g. why the user was signed out. Cleared when read.
+    /// </summary>
+    public string? SignInNotice { get; set; }
+
+    /// <summary>
+    /// Called by the API client when the server answers 401 while a user is signed in.
+    /// </summary>
+    public void NotifySessionExpired()
+    {
+        if (IsAuthenticated)
+        {
+            SessionExpired?.Invoke();
+        }
+    }
+
+    /// <summary>
     /// Checks if the current token is expired.
     /// </summary>
     public bool IsTokenExpired()
@@ -226,6 +250,8 @@ public sealed class PermissionFlags
     public bool CanViewTransactionHistory { get; set; }
     public bool CanAccessAccounting { get; set; }
     public bool CanApproveEndOfDay { get; set; }
+    public bool CanInvestigateReconciliation { get; set; }
+    public bool CanApproveCorrections { get; set; }
     public bool CanConfigureSystem { get; set; }
     public bool CanPerformOperations { get; set; }
     public bool CanViewAudit { get; set; }

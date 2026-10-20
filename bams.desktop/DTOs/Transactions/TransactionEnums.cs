@@ -19,7 +19,10 @@ public enum TransactionType
     InterestAccrual = 12,
     MaintenanceAccrual = 13,
     DormantPenaltyAccrual = 14,
-    Reversal = 15
+    ReconciliationAdjustment = 16, ReconciliationRepair = 17, AccountPostingRepair = 18,
+    Reversal = 15,
+    BankCashExpense = 19,
+    CashOverShort = 20
 }
 
 /// <summary>Server: <c>Models/Transactions/TransactionStatus</c>.</summary>

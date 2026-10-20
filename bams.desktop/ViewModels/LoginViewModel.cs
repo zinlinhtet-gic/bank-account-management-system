@@ -25,6 +25,14 @@ public sealed class LoginViewModel : ViewModelBase
     {
         _authenticationService = authenticationService;
         _authContext = authContext;
+
+        // Explains why the user is back here, e.g. "Your session has expired. Please log in again."
+        if (!string.IsNullOrEmpty(_authContext.SignInNotice))
+        {
+            _errorMessage = _authContext.SignInNotice;
+            _authContext.SignInNotice = null;
+        }
+
         LoginCommand = new RelayCommand(
             async _ => await LoginAsync(CancellationToken.None),
             _ => CanLogin());

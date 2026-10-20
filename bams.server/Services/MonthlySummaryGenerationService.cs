@@ -18,7 +18,7 @@ public sealed class MonthlySummaryGenerationService(ApplicationDbContext db)
         var (_, periodEnd) = ScheduledJobPeriod.GetPreviousCalendarMonth(runDate);
         var periodEndIsClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
             item.Date == periodEnd && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (!periodEndIsClosed)
+        if (!periodEndIsClosed || await db.BusinessDates.AnyAsync(item => item.Date <= periodEnd && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken))
             throw new BusinessRuleException(MessageCode.MonthlyAccountingPeriodNotClosed);
     }
 

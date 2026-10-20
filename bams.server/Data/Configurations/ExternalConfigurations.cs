@@ -26,7 +26,8 @@ public sealed class ReconciliationBatchConfiguration : IEntityTypeConfiguration<
         builder.HasKey(b => b.Id);
 
         builder.Property(b => b.ReconciliationType).IsRequired().HasMaxLength(40);
-        builder.Property(b => b.Status).IsRequired().HasMaxLength(20);
+        builder.Property(b => b.Status).IsRequired().HasMaxLength(30);
+        builder.Property(b => b.FindingsJson).HasColumnType("json");
 
         builder.HasOne(b => b.PerformedByUser)
             .WithMany()

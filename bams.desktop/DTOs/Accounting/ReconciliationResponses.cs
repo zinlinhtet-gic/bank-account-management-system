@@ -12,7 +12,7 @@ public sealed record ReconciliationExceptionResponse(long Id, string Type, strin
     long? RequestedCorrectionTransactionId = null, long? CorrectionRequestedBy = null,
     DateTime? CorrectionRequestedAtUtc = null, long? CorrectionReviewedBy = null,
     DateTime? CorrectionReviewedAtUtc = null, string? CorrectionRequestReason = null,
-    string? CorrectionExternalRecoveryReference = null, string? CorrectionReviewNote = null);
+    string? CorrectionExternalRecoveryReference = null, string? CorrectionReviewNote = null, DiscrepancyKind? Diagnosis = null, DateOnly? ReviewDueDate = null);
 public sealed record RequestTransactionCorrectionRequest(long TransactionId, string Reason, string? ExternalRecoveryReference);
 public sealed record ReviewTransactionCorrectionRequest(bool Approve, string Note, string? RecoveryAttestation);
 public sealed record CorrectionTransactionCandidateResponse(long Id, string TransactionNo, string Type, string Status,

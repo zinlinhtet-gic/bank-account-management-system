@@ -15,6 +15,8 @@
         xmlns:configpages="clr-namespace:bams.desktop.Views.Pages.Configuration"
         xmlns:accountingViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Accounting"
         xmlns:accountingViews="clr-namespace:bams.desktop.Views.Pages.Accounting"
+        xmlns:operationviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Operations"
+        xmlns:operationpages="clr-namespace:bams.desktop.Views.Pages.Operations"
         xmlns:auditViewModels="clr-namespace:bams.desktop.ViewModels.Pages.Audit"
         xmlns:auditViews="clr-namespace:bams.desktop.Views.Pages.Audit"
         mc:Ignorable="d"
@@ -77,7 +79,7 @@
                     </DataTemplate>
 
                     <DataTemplate DataType="{x:Type accountingViewModels:GeneralLedgerViewModel}">
-                        <accountingViews:GeneralLedgerView/>
+                        <accountingViews:GeneralLedgerView />
                     </DataTemplate>
 
                     <DataTemplate DataType="{x:Type accountingViewModels:GLAccountDetailViewModel}">
@@ -85,13 +87,34 @@
                     </DataTemplate>
 
                     <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
-                        <accountingViews:AccountingEntriesView/>
+                        <accountingViews:AccountingEntriesView />
                     </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:UnifiedReconciliationViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:AssignedReconciliationTasksViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconcileProposalsViewModel}"><accountingViews:ReconcileProposalsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashProposalEditorViewModel}"><accountingViews:CashProposalEditorView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:BankExpensesViewModel}"><accountingViews:BankExpensesView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationChecksViewModel}"><accountingViews:ReconciliationChecksView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationExceptionsViewModel}"><accountingViews:ReconciliationExceptionsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationInvestigationsViewModel}"><accountingViews:ReconciliationInvestigationsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationProposalsViewModel}"><accountingViews:ReconciliationProposalsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationApprovalsViewModel}"><accountingViews:ReconciliationApprovalsView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationVerificationViewModel}"><accountingViews:ReconciliationVerificationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationHistoryViewModel}"><accountingViews:ReconciliationHistoryView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationProposalEditorViewModel}"><accountingViews:ReconciliationProposalEditorView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:ReconciliationViewModel}">
                         <accountingViews:ReconciliationView/>
                     </DataTemplate>
-                    <DataTemplate DataType="{x:Type accountingViewModels:CashReconciliationViewModel}">
-                        <accountingViews:CashReconciliationView/>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionManagementViewModel}"><accountingViews:SessionManagementView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionCreationViewModel}"><accountingViews:SessionCreationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:SessionDetailViewModel}"><accountingViews:SessionDetailView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashHandoffCenterViewModel}"><accountingViews:SessionHandoffRequestsView/></DataTemplate>
+
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashRequestCenterViewModel}">
+                        <accountingViews:CashRequestCenterView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:BusinessDateOpeningViewModel}">
+                        <accountingViews:BusinessDateOpeningView/>
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:EndOfDayViewModel}">
                         <accountingViews:EndOfDayView/>
@@ -102,19 +125,29 @@
                         <pages:AccountManagementView/>
                     </DataTemplate>
                     -->
-
                     <!-- Configuration sub-pages -->
                     <DataTemplate DataType="{x:Type configviewmodels:InterestRateViewModel}">
-                        <configpages:InterestRateView/>
+                        <configpages:InterestRateView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type configviewmodels:FeeRateViewModel}">
-                        <configpages:FeeRateView/>
+                        <configpages:FeeRateView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type configviewmodels:BankPoliciesViewModel}">
-                        <configpages:BankPoliciesView/>
+                        <configpages:BankPoliciesView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type configviewmodels:OtherBanksViewModel}">
-                        <configpages:OtherBanksView/>
+                        <configpages:OtherBanksView />
+                    </DataTemplate>
+
+                    <!-- Operations sub-pages -->
+                    <DataTemplate DataType="{x:Type operationviewmodels:OperationInterestViewModel}">
+                        <operationpages:OperationInterestView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type operationviewmodels:OperationFeesViewModel}">
+                        <operationpages:OperationFeesView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type operationviewmodels:FixedDepositMaturityViewModel}">
+                        <operationpages:FixedDepositMaturityView/>
                     </DataTemplate>
                 </ContentControl.Resources>
             </ContentControl>

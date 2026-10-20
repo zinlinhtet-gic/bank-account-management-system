@@ -1,7 +1,10 @@
 using bams.server.Models.Accounting;
+using bams.server.Models.Security;
 using bams.server.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 using MySql.EntityFrameworkCore.Extensions;
 
 namespace bams.server.Data.Configurations;
@@ -13,6 +16,9 @@ public sealed class BusinessDateConfiguration : IEntityTypeConfiguration<Busines
         builder.HasKey(item => item.Id);
         builder.HasIndex(item => item.Date).IsUnique();
         builder.HasIndex(item => item.Status);
+        builder.Property<int?>("ActiveDateKey").HasComputedColumnSql("CASE WHEN `IsActive` = 1 THEN 1 ELSE NULL END", stored: true);
+        builder.HasIndex("ActiveDateKey").IsUnique();
+        builder.ToTable(t => t.HasCheckConstraint("CK_BusinessDates_ActiveOpen", "`IsActive` = 0 OR `Status` = 'Open'"));
         builder.Property(item => item.Status).IsRequired().HasMaxLength(20);
     }
 }
@@ -48,7 +54,9 @@ public sealed class ReconciliationExceptionConfiguration : IEntityTypeConfigurat
     public void Configure(EntityTypeBuilder<ReconciliationException> builder)
     {
         builder.HasKey(item => item.Id);
-        builder.Property(item => item.Id).UseMySQLAutoIncrementColumn("bigint");
+        builder.Property(item => item.Id)
+            .UseMySQLAutoIncrementColumn("bigint")
+            .HasValueGenerator<TemporaryReconciliationExceptionIdGenerator>();
         builder.Property(item => item.Type).IsRequired().HasMaxLength(40);
         builder.Property(item => item.Source).IsRequired().HasMaxLength(40);
         builder.Property(item => item.Severity).IsRequired().HasMaxLength(20);
@@ -64,6 +72,16 @@ public sealed class ReconciliationExceptionConfiguration : IEntityTypeConfigurat
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_RE_PositionSession");
         builder.HasOne<bams.server.Models.Security.User>().WithMany().HasForeignKey(item => item.CreatedBy).OnDelete(DeleteBehavior.Restrict);
     }
+}
+
+/// <summary>Assigns temporary tracking keys; MySQL supplies the persisted AUTO_INCREMENT value.</summary>
+public sealed class TemporaryReconciliationExceptionIdGenerator : ValueGenerator<long>
+{
+    private static long _lastTemporaryId;
+
+    public override bool GeneratesTemporaryValues => true;
+
+    public override long Next(EntityEntry entry) => Interlocked.Decrement(ref _lastTemporaryId);
 }
 
 public sealed class ReconciliationExceptionHistoryConfiguration : IEntityTypeConfiguration<ReconciliationExceptionHistory>
@@ -88,10 +106,14 @@ public sealed class CashPositionSessionConfiguration : IEntityTypeConfiguration<
         builder.HasKey(item => item.Id);
         builder.Property(item => item.PositionType).IsRequired().HasMaxLength(20);
         builder.Property(item => item.Status).IsRequired().HasMaxLength(20);
+        builder.Property(item => item.ScheduledStartAtMyanmar).HasColumnType("datetime(6)");
+        builder.Property(item => item.ScheduledEndAtMyanmar).HasColumnType("datetime(6)");
+        builder.Property(item => item.ReservedCash).HasPrecision(18, 2);
         builder.Property(item => item.OpenIdempotencyKey).HasMaxLength(64);
         builder.Property(item => item.Version).IsConcurrencyToken();
         builder.HasIndex(item => new { item.BusinessDate, item.Status });
         builder.HasIndex(item => new { item.TellerId, item.BusinessDate, item.Status });
+        builder.HasIndex(item => new { item.BusinessDate, item.TellerId, item.Status });
         builder.HasIndex(item => new { item.OpenedBy, item.OpenIdempotencyKey }).IsUnique().HasDatabaseName("IX_CPS_Idem");
         builder.HasOne(item => item.Teller).WithMany().HasForeignKey(item => item.TellerId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -111,6 +133,8 @@ public sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashMov
         builder.HasOne(item => item.DestinationSession).WithMany().HasForeignKey(item => item.DestinationSessionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Transaction).WithMany().HasForeignKey(item => item.TransactionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.CorrectionTransaction).WithMany().HasForeignKey(item => item.CorrectionTransactionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.CashCorrectionProposal).WithMany().HasForeignKey(item => item.CashCorrectionProposalId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.CorrectsMovement).WithMany().HasForeignKey(item => item.CorrectsMovementId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Actor).WithMany().HasForeignKey(item => item.ActorId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(item => item.Approver).WithMany().HasForeignKey(item => item.ApprovedBy).OnDelete(DeleteBehavior.Restrict);
     }
@@ -144,6 +168,27 @@ public sealed class CashHandoffConfiguration : IEntityTypeConfiguration<CashHand
         builder.HasOne(item => item.CashCount).WithMany().HasForeignKey(item => item.CashCountId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Count");
         builder.HasOne(item => item.Sender).WithMany().HasForeignKey(item => item.SenderId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Send");
         builder.HasOne(item => item.Recipient).WithMany().HasForeignKey(item => item.RecipientId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Recv");
+        builder.HasOne(item => item.DestinationSession).WithMany().HasForeignKey(item => item.DestinationSessionId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_CH_Dest");
+    }
+}
+
+public sealed class CashProposalConfiguration : IEntityTypeConfiguration<CashProposal>
+{
+    public void Configure(EntityTypeBuilder<CashProposal> builder)
+    {
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Status).IsRequired().HasMaxLength(30);
+        builder.Property(item => item.Note).HasMaxLength(500);
+        builder.Property(item => item.RequestedAmount).HasPrecision(18, 2);
+        builder.Property(item => item.ApprovedAmount).HasPrecision(18, 2);
+        builder.Property(item => item.IsInitialCash).IsRequired();
+        builder.Property(item => item.Version).IsConcurrencyToken();
+        builder.HasIndex(item => new { item.SessionId, item.Status });
+        builder.HasIndex(item => new { item.VaultSessionId, item.Status });
+        builder.HasOne(item => item.Session).WithMany().HasForeignKey(item => item.SessionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.VaultSession).WithMany().HasForeignKey(item => item.VaultSessionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.Officer).WithMany().HasForeignKey(item => item.OfficerId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<User>().WithMany().HasForeignKey(item => item.ApprovedBy).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -19,6 +19,10 @@ public sealed class CashMovement
     public Transaction? Transaction { get; set; }
     public long? CorrectionTransactionId { get; set; }
     public Transaction? CorrectionTransaction { get; set; }
+    public long? CashCorrectionProposalId { get; set; }
+    public CashCorrectionProposal? CashCorrectionProposal { get; set; }
+    public long? CorrectsMovementId { get; set; }
+    public CashMovement? CorrectsMovement { get; set; }
     public long ActorId { get; set; }
     public User? Actor { get; set; }
     public long? ApprovedBy { get; set; }

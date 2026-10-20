@@ -11,6 +11,9 @@ public sealed class QueryString
     // Round-trip format keeps the offset, so the server compares the exact instant the user picked.
     private const string DateFormat = "o";
 
+    // Business dates (no time of day) use the ISO calendar-date format the server binds to DateOnly.
+    private const string DateOnlyFormat = "yyyy-MM-dd";
+
     private readonly List<string> _parameters = [];
 
     /// <summary>Adds name=value when the value is not empty.</summary>
@@ -28,6 +31,12 @@ public sealed class QueryString
     public QueryString Add(string name, DateTimeOffset? value)
     {
         return Add(name, value?.ToString(DateFormat, CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Adds a calendar date as yyyy-MM-dd when it is set.</summary>
+    public QueryString Add(string name, DateOnly? value)
+    {
+        return Add(name, value?.ToString(DateOnlyFormat, CultureInfo.InvariantCulture));
     }
 
     /// <summary>Adds a number when it is set.</summary>

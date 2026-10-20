@@ -11,6 +11,8 @@ public sealed class ReconciliationBatch
     public string ReconciliationType { get; set; } = string.Empty;
 
     public string Status { get; set; } = string.Empty;
+    /// <summary>Immutable EOD findings, including missing journals that have no entry row.</summary>
+    public string? FindingsJson { get; set; }
 
     public decimal TotalDebit { get; set; }
 

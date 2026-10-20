@@ -13,6 +13,7 @@ public static class ApiConstants
     public const string ChangePasswordEndpoint = AuthEndpoint + "/change-password";
     public const string HeartbeatEndpoint = AuthEndpoint + "/heartbeat";
     public const string LogoutEndpoint = AuthEndpoint + "/logout";
+    public const string RefreshTokenEndpoint = AuthEndpoint + "/refresh";
 
     public const string AccountsEndpoint = "api/accounts";
     public const string AccountCustomerLookupEndpoint = AccountsEndpoint + "/customer-lookup";
@@ -38,6 +39,12 @@ public static class ApiConstants
 
     // Bank Policies. Routes with an id: $"{BankPoliciesEndpoint}/{id}" (update).
     public const string BankPoliciesEndpoint = "api/bank-policies";
+
+    // Operations: read-only, per-customer interest, fees and fixed-deposit maturity lists.
+    public const string OperationsEndpoint = "api/operations";
+    public const string OperationInterestEndpoint = OperationsEndpoint + "/interest";
+    public const string OperationFeesEndpoint = OperationsEndpoint + "/fees";
+    public const string OperationFixedDepositMaturityEndpoint = OperationsEndpoint + "/fixed-deposit-maturity";
 
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".

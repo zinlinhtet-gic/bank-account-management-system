@@ -9,10 +9,10 @@ using bams.desktop.Utils;
 namespace bams.desktop.ViewModels.Pages.Configuration;
 
 /// <summary>
-/// The create / edit bank policy (account type) form shown in a modal. Closes itself with <c>true</c> after a
+/// The create / edit bank policy (account type) form, shown in place of the list page. Closes itself with <c>true</c> after a
 /// successful save; <see cref="SavedBankPolicy"/> holds the result.
 /// </summary>
-public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
+public sealed class BankPolicyFormViewModel : ViewModelBase
 {
     public static readonly IReadOnlyList<string> Statuses = ["Active", "Inactive"];
 
@@ -80,10 +80,8 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
         }
     }
 
+    /// <summary>Raised to return to the list: true after a successful save, false when cancelled.</summary>
     public event Action<bool>? CloseRequested;
-
-    // A stray click outside must not throw away what was typed.
-    public bool CanCloseOnBackdropClick => false;
 
     public bool CanCancel => !IsBusy;
 
@@ -101,7 +99,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase, IDialogViewModel
 
     public RelayCommand CancelCommand { get; }
 
-    /// <summary>The saved policy, set just before the dialog closes with success.</summary>
+    /// <summary>The saved policy, set just before the form closes with success.</summary>
     public BankPolicyResponse? SavedBankPolicy { get; private set; }
 
     public string CodeText

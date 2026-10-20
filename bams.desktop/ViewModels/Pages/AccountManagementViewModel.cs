@@ -551,7 +551,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
 
         if (string.IsNullOrWhiteSpace(HolderNrc1))
         {
-            ShowError("Enter the primary holder's NRC number.");
+            ShowError("Enter the primary holder's NRC or passport number.");
             return;
         }
 
@@ -571,7 +571,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             !decimal.TryParse(OwnershipPercentage1, NumberStyles.Number, CultureInfo.InvariantCulture, out _) ||
             !decimal.TryParse(OwnershipPercentage2, NumberStyles.Number, CultureInfo.InvariantCulture, out _)))
         {
-            ShowError("Enter both holder NRCs and valid ownership percentages for a shared account.");
+            ShowError("Enter an NRC or passport number for both holders and valid ownership percentages for a shared account.");
             return;
         }
 
@@ -584,7 +584,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         // The account is opened for the looked-up customers, so they must still match the entered NRCs.
         if (Holder1 is null || (IsSharedAccount && Holder2 is null))
         {
-            ShowError("Look up each account holder by NRC before continuing.");
+            ShowError("Look up each account holder by NRC or passport before continuing.");
             return;
         }
         if (!AreHoldersKycVerified())
@@ -718,7 +718,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         {
             if (Holder1 is null || (IsSharedAccount && Holder2 is null))
             {
-                ShowError("Look up each account holder by NRC. Customers must be registered before continuing.");
+                ShowError("Look up each account holder by NRC or passport. Customers must be registered before continuing.");
                 return;
             }
             if (!AreHoldersKycVerified())
@@ -836,6 +836,19 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             RefererInputs.Remove(input);
     }
 
+    private async Task<CustomerLookupResponse> LookupCustomerByIdentifierAsync(string identifier)
+    {
+        try
+        {
+            return await _accountService.GetCustomerByNrcAsync(identifier, CancellationToken.None);
+        }
+        catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
+        {
+            // Only try passport lookup when the NRC lookup confirms there is no match.
+            return await _accountService.GetCustomerByPassportNumberAsync(identifier, CancellationToken.None);
+        }
+    }
+
     private async Task LookupCustomersAsync()
     {
         ErrorMessage = string.Empty;
@@ -843,7 +856,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         Holder2 = null;
         if (string.IsNullOrWhiteSpace(HolderNrc1) || (IsSharedAccount && string.IsNullOrWhiteSpace(HolderNrc2)))
         {
-            ShowError("Enter NRC numbers for all account holders.");
+            ShowError("Enter an NRC or passport number for each account holder.");
             return;
         }
         var missingCustomerNrcs = new List<string>();
@@ -851,7 +864,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
         {
             try
             {
-                Holder1 = await _accountService.GetCustomerByNrcAsync(HolderNrc1, CancellationToken.None);
+                Holder1 = await LookupCustomerByIdentifierAsync(HolderNrc1);
             }
             catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
             {
@@ -862,7 +875,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             {
                 try
                 {
-                    Holder2 = await _accountService.GetCustomerByNrcAsync(HolderNrc2, CancellationToken.None);
+                    Holder2 = await LookupCustomerByIdentifierAsync(HolderNrc2);
                 }
                 catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
                 {

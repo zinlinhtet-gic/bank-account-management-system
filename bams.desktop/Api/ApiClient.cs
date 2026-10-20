@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -232,7 +233,7 @@ public sealed class ApiClient
     private void EnsureWriteAllowed(string endpoint)
     {
         if (!string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase) ||
-            _cashSessionContext.HasOpenSession || !RequiresTellerSession(endpoint) || IsOpeningCashSessionEndpoint(endpoint))
+            _cashSessionContext.HasOpenSession || !RequiresTellerSession(endpoint) || IsCashSessionBootstrapEndpoint(endpoint))
             return;
 
         throw new ApiException(MessageCode.CashSessionNotOpen,
@@ -252,9 +253,24 @@ public sealed class ApiClient
                path.StartsWith(endpointRoot + "/", StringComparison.OrdinalIgnoreCase);
     }
 
-    // Allows session creation so an officer can satisfy the session requirement after signing in.
-    private static bool IsOpeningCashSessionEndpoint(string endpoint) =>
-        endpoint.TrimStart('/').Split('?', 2)[0].Equals(ApiConstants.CashOperationsEndpoint + "/sessions", StringComparison.OrdinalIgnoreCase);
+    // Allows an officer to open a scheduled session, or activate it before the first open session exists.
+    private static bool IsCashSessionBootstrapEndpoint(string endpoint)
+    {
+        var path = endpoint.TrimStart('/').Split('?', 2)[0];
+        if (IsEndpointOrChild(endpoint, ApiConstants.CashHandoffsEndpoint) ||
+            path.StartsWith(ApiConstants.CashOperationsEndpoint + "/proposals/", StringComparison.OrdinalIgnoreCase)) return true;
+        var sessionsEndpoint = ApiConstants.CashOperationsEndpoint + "/sessions";
+        if (path.Equals(sessionsEndpoint, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var sessionPrefix = sessionsEndpoint + "/";
+        if (!path.StartsWith(sessionPrefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var route = path[sessionPrefix.Length..].Split('/');
+        return route.Length == 2 && long.TryParse(route[0], out _) &&
+            (route[1].Equals("activate", StringComparison.OrdinalIgnoreCase) || route[1].Equals("count", StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>
     /// Downloads a file response (not the JSON envelope) to a local path.
@@ -273,7 +289,7 @@ public sealed class ApiClient
         if (!response.IsSuccessStatusCode)
         {
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw CreateApiException(content);
+            throw CreateApiException(response, content);
         }
 
         await using var sourceStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -299,14 +315,14 @@ public sealed class ApiClient
         if (!response.IsSuccessStatusCode)
         {
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw CreateApiException(content);
+            throw CreateApiException(response, content);
         }
 
         return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }
 
     // Sends the request and reads the success payload.
-    private static async Task<TResponse> SendAsync<TResponse>(
+    private async Task<TResponse> SendAsync<TResponse>(
         Func<Task<HttpResponseMessage>> sendRequestAsync,
         CancellationToken cancellationToken,
         bool allowNullData = false)
@@ -336,7 +352,7 @@ public sealed class ApiClient
         }
     }
 
-    private static async Task<TResponse> ReadResponseAsync<TResponse>(
+    private async Task<TResponse> ReadResponseAsync<TResponse>(
         HttpResponseMessage response,
         CancellationToken cancellationToken,
         bool allowNullData = false)
@@ -345,7 +361,7 @@ public sealed class ApiClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw CreateApiException(content);
+            throw CreateApiException(response, content);
         }
 
         var envelope = TryDeserialize<ApiMessageResponse<TResponse>>(content);
@@ -359,8 +375,14 @@ public sealed class ApiClient
     }
 
     // Keeps the server's code, message and trace id; falls back when the body is not an ApiErrorResponse.
-    private static ApiException CreateApiException(string content)
+    // A 401 means the token expired or was revoked, so the signed-in session is ended (see SessionService).
+    private ApiException CreateApiException(HttpResponseMessage response, string content)
     {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _authContext.NotifySessionExpired();
+        }
+
         var error = TryDeserialize<ApiErrorResponse>(content);
 
         if (error is null || string.IsNullOrWhiteSpace(error.Message))

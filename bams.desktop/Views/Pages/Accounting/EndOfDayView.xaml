@@ -1,355 +1,73 @@
 <UserControl x:Class="bams.desktop.Views.Pages.Accounting.EndOfDayView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:accounting="clr-namespace:bams.desktop.Views.Pages.Accounting"
-             xmlns:t="clr-namespace:bams.desktop.Themes">
-    <UserControl.Resources>
-        <Style x:Key="StageTab0" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="0"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab1" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="1"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab2" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="2"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab3" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="3"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab4" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="4"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab5" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="5"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab6" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="6"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-        <Style x:Key="StageTab7" TargetType="RadioButton" BasedOn="{StaticResource Tab}"><Style.Triggers><DataTrigger Binding="{Binding SelectedStageIndex}" Value="7"><Setter Property="IsChecked" Value="True"/></DataTrigger></Style.Triggers></Style>
-    </UserControl.Resources>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False">
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="End of Day" Style="{StaticResource Text.Title}"/>
-            <TextBlock Text="Review the open business date, clear close blockers, and complete the approval workflow."
-                       Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,10"/>
-        </StackPanel>
-
-            <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="CURRENT BUSINESS DATE" Style="{StaticResource Text.FieldLabel}"/>
-                        <TextBlock Text="{Binding Summary.BusinessDate.Date, TargetNullValue=Loading…}"
-                                   Style="{StaticResource Text.Heading}" Margin="0,4,0,2"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Business date status: " Style="{StaticResource Text.BodyMuted}"/>
-                            <TextBlock Text="{Binding BusinessDateStatus}" Style="{StaticResource Text.BodyMuted}"/>
-                        </StackPanel>
-                        <TextBlock Text="The date advances only after the close is approved and completed." Style="{StaticResource Text.Caption}" Margin="0,3,0,0"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <DatePicker SelectedDate="{Binding SelectedBusinessDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Style="{StaticResource Input.Date}" Width="170"/>
-                            <Button Content="Load Date" Command="{Binding LoadBusinessDateCommand}"
-                                    Style="{StaticResource Button.Secondary}" Margin="8,0,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-                    <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                        <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
-                        <Button Content="Run Checks" Command="{Binding RunPreCloseCommand}"
-                                IsEnabled="{Binding CanRunPreClose}" Visibility="{Binding CanRunPreClosePermission, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/>
-                        <Button Content="Re-run Checks" Command="{Binding ReviewPreCloseCommand}"
-                                IsEnabled="{Binding CanReviewPreClose}" Visibility="{Binding CanReviewPreClose, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
-                        <Button Content="Approve" Command="{Binding ApproveCommand}"
-                                IsEnabled="{Binding CanApprove}" Visibility="{Binding HasEndOfDayApprovalPermission, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/>
-                        <Button Content="Close Date" Command="{Binding CloseCommand}"
-                                IsEnabled="{Binding CanClose}" Visibility="{Binding HasEndOfDayApprovalPermission, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource Button.Primary}"/>
-                    </WrapPanel>
-                </Grid>
-            </Border>
-
-            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,10"
-                    Visibility="{Binding HasEndOfDayApprovalPermission, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <StackPanel>
-                    <TextBlock Text="MANAGER OVERRIDE" Style="{StaticResource Text.FieldLabel}"/>
-                    <TextBlock Text="Bypass unresolved pre-close blockers only with approval from every active manager at request time. Each manager must sign in and approve. If there is one manager, that manager can approve alone. The reason and approvals are recorded in the audit trail."
-                               Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                    <TextBlock Text="{Binding OverrideApprovalStatus}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"
-                               Visibility="{Binding HasManagerOverride, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <TextBox Text="{Binding ForceCloseReason, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" MaxLength="1000"
-                             t:ThemeAssist.Placeholder="Explain why the business date needs an override"
-                             ToolTip="Enter a reason (5 to 1000 characters) for overriding the pre-close blockers" Margin="0,8,0,8"
-                             Visibility="{Binding CanOverrideOpen, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <WrapPanel>
-                    <Button Content="Request Override" Command="{Binding RequestForceCloseCommand}"
-                                IsEnabled="{Binding CanRequestForceClose}" Style="{StaticResource Button.Danger}"
-                                Visibility="{Binding CanOverrideOpen, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0"/>
-                        <Button Content="Approve Override" Command="{Binding ApproveForceCloseCommand}"
-                                IsEnabled="{Binding CanApproveForceClose}" Style="{StaticResource Button.Primary}"
-                                Visibility="{Binding HasOverridePending, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Row="3" Style="{StaticResource Card.Compact}" Background="{StaticResource DangerSoftBrush}"
-                    Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,12">
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap"/>
-            </Border>
-            <ContentControl Grid.Row="4" Style="{StaticResource Alert.Success}" Content="{Binding SuccessMessage}" Margin="0,0,0,8"
-                            Visibility="{Binding HasSuccess, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-
-            <Border Grid.Row="5" Style="{StaticResource Card.Flush}">
-                <DockPanel>
-                    <Border DockPanel.Dock="Top" Style="{StaticResource Tab.Strip}" Padding="8,0">
-                        <WrapPanel>
-                            <RadioButton Content="Summary" Style="{StaticResource StageTab0}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="0"/>
-                            <RadioButton Content="Pre-Close Checks" Style="{StaticResource StageTab1}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="1"/>
-                            <RadioButton Content="Cash Reconciliation" Style="{StaticResource StageTab2}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="2" Visibility="{Binding CanViewCashSessions, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                            <RadioButton Content="Ledger Reconciliation" Style="{StaticResource StageTab3}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="3"/>
-                            <RadioButton Content="Account Reconciliation" Style="{StaticResource StageTab4}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="4"/>
-                            <RadioButton Content="Exceptions" Style="{StaticResource StageTab5}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="5"/>
-                            <RadioButton Content="Final Review" Style="{StaticResource StageTab6}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="6"/>
-                            <RadioButton Content="Cash Handoffs" Style="{StaticResource StageTab7}" GroupName="EndOfDayStages" Command="{Binding NavigateToStageCommand}" CommandParameter="7" Visibility="{Binding CashHandoffs.HasAccess, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        </WrapPanel>
-                    </Border>
-                    <TabControl Style="{StaticResource TabControl.ContentOnly}" MinHeight="0" SelectedIndex="{Binding SelectedStageIndex, Mode=TwoWay}">
-                <TabItem Header="Summary">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                    <StackPanel Margin="12">
-                        <WrapPanel Margin="0,0,0,10">
-                            <Border Width="210" Style="{StaticResource Card.Compact}" Margin="0,0,8,8">
-                                <StackPanel>
-                                    <TextBlock Text="TRANSACTIONS" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding TransactionStatus}" Style="{StaticResource Text.Heading}" Margin="0,5,0,0"/>
-                                    <TextBlock Text="{Binding TransactionIssues, StringFormat=Issues: {0}}" Style="{StaticResource Text.BodyMuted}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Width="210" Style="{StaticResource Card.Compact}" Margin="0,0,8,8">
-                                <StackPanel>
-                                    <TextBlock Text="TELLER / VAULT CASH" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding CashStatus}" Style="{StaticResource Text.Heading}" Margin="0,5,0,0"/>
-                                    <TextBlock Text="{Binding CashIssues, StringFormat=Open sessions: {0}}" Style="{StaticResource Text.BodyMuted}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Width="210" Style="{StaticResource Card.Compact}" Margin="0,0,8,8">
-                                <StackPanel>
-                                    <TextBlock Text="LEDGER" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding LedgerStatus}" Style="{StaticResource Text.Heading}" Margin="0,5,0,0"/>
-                                    <TextBlock Text="Daily debit and credit check" Style="{StaticResource Text.BodyMuted}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Width="210" Style="{StaticResource Card.Compact}" Margin="0,0,8,8">
-                                <StackPanel>
-                                    <TextBlock Text="ACCOUNT RECONCILIATION" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding AccountStatus}" Style="{StaticResource Text.Heading}" Margin="0,5,0,0"/>
-                                    <TextBlock Text="Customer balance vs ledger" Style="{StaticResource Text.BodyMuted}"/>
-                                </StackPanel>
-                            </Border>
-                        </WrapPanel>
-
-                        <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,12">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Close progress" Style="{StaticResource Text.Subheading}"/>
-                                    <TextBlock Text="{Binding CurrentRunStatus, StringFormat=Latest close run: {0}}" Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
-                                    <TextBlock Text="{Binding TotalIssueCount, StringFormat=Items requiring attention: {0}}" Style="{StaticResource Text.BodyMuted}" Margin="0,3,0,0"/>
-                                    <TextBlock Text="Run pre-close checks to refresh each stage and prepare the review." Style="{StaticResource Text.BodyMuted}"
-                                               Visibility="{Binding HasNoStages, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                                <Button Grid.Column="1" Content="Review Checks" Command="{Binding NavigateToStageCommand}"
-                                        CommandParameter="1" Style="{StaticResource Button.Secondary}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Border>
-
-                        <DockPanel Margin="0,0,0,8">
-                            <TextBlock Text="Pre-close stages" Style="{StaticResource Text.Subheading}"/>
-                            <Button DockPanel.Dock="Right" Content="Open exceptions" Command="{Binding NavigateToStageCommand}"
-                                    CommandParameter="5" Style="{StaticResource Button.Secondary}"/>
-                        </DockPanel>
-                        <Border Style="{StaticResource Card.Flush}">
-                        <DockPanel>
-                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Pre-close stage status" Style="{StaticResource Text.FieldLabel}"/></Border>
-                        <Grid>
-                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" AutoGenerateColumns="False" IsReadOnly="True"
-                                      MinHeight="100" MaxHeight="250">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Stage" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Items" Binding="{Binding IssueCount}" Width="90" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Message Code" Binding="{Binding MessageCode}" Width="190" ElementStyle="{StaticResource Table.Text}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <TextBlock Text="Run pre-close checks to display stage results."
-                                       Style="{StaticResource Text.BodyMuted}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       IsHitTestVisible="False" Visibility="{Binding HasNoStages, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        </Grid>
-                        </DockPanel>
-                        </Border>
-                        <TextBlock Text="Cash and reconciliation mismatches remain investigation items. Correct them through the authorized transaction or adjustment workflow, then rerun the checks."
-                                   TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,10,0,0"/>
-                    </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-
-                <TabItem Header="Pre-Close Checks">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                    <StackPanel Margin="12">
-                        <TextBlock Text="Pre-Close Checks" Style="{StaticResource Text.Subheading}"/>
-                        <TextBlock Text="The server checks transaction states, accounting entries, ledger balance, cash sessions, pending approvals, and critical exceptions. A blocked stage must be resolved before approval."
-                                   TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,12"/>
-                        <Border Style="{StaticResource Card.Flush}">
-                        <DockPanel>
-                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Pre-close checks" Style="{StaticResource Text.FieldLabel}"/></Border>
-                        <Grid>
-                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" MinHeight="100" MaxHeight="300">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Stage" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Outstanding" Binding="{Binding IssueCount}" Width="120" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Message Code" Binding="{Binding MessageCode}" Width="190" ElementStyle="{StaticResource Table.Text}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <TextBlock Text="Run pre-close checks to display stage results."
-                                       Style="{StaticResource Text.BodyMuted}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       IsHitTestVisible="False" Visibility="{Binding HasNoStages, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        </Grid>
-                        </DockPanel>
-                        </Border>
-                    </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-
-                <TabItem Header="Cash Reconciliation" Visibility="{Binding CanViewCashSessions, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <accounting:CashReconciliationView DataContext="{Binding CashReconciliation}"/>
-                </TabItem>
-
-                <TabItem Header="Ledger Reconciliation">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                    <StackPanel Margin="16">
-                        <TextBlock Text="Ledger Reconciliation" Style="{StaticResource Text.Subheading}"/>
-                        <TextBlock Text="Daily debit and credit totals are checked during pre-close and again before close. Any discrepancy is recorded in the Exception Center."
-                                   TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,12"/>
-                        <Border Style="{StaticResource Card.Compact}">
-                            <StackPanel>
-                                <TextBlock Text="Ledger stage" Style="{StaticResource Text.FieldLabel}"/>
-                                <TextBlock Text="{Binding LedgerReconciliation.Status}" Style="{StaticResource Text.Heading}" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
-                        <TextBlock Text="Journal detail remains available under Accounting → Journal Entries." TextWrapping="Wrap"
-                                   Style="{StaticResource Text.BodyMuted}" Margin="0,12,0,0"/>
-                    </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-
-                <TabItem Header="Account Reconciliation">
-                    <accounting:ReconciliationView DataContext="{Binding AccountReconciliation.Results}"/>
-                </TabItem>
-
-                <TabItem Header="Exceptions">
-                    <accounting:ExceptionCenterView DataContext="{Binding ExceptionCenter.Investigation}"/>
-                </TabItem>
-
-                <TabItem Header="Final Review">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                    <StackPanel Margin="16">
-                        <TextBlock Text="Final Review" Style="{StaticResource Text.Subheading}"/>
-                                    <TextBlock Text="The auditor submits the close request. A manager re-runs the checks, then approves and closes the business date."
-                                   TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,12"/>
-                        <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,12">
-                            <WrapPanel>
-                                <StackPanel Width="240" Margin="0,0,12,8">
-                                    <TextBlock Text="RUN STATUS" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding FinalReview.Run.Status, TargetNullValue=Not started}" Style="{StaticResource Text.Heading}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                                <StackPanel Width="240" Margin="0,0,12,8">
-                                    <TextBlock Text="BUSINESS DATE" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding FinalReview.Run.BusinessDate, TargetNullValue=—}" Style="{StaticResource Text.Heading}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                                <StackPanel Width="240" Margin="0,0,12,8">
-                                    <TextBlock Text="ITEMS REQUIRING ATTENTION" Style="{StaticResource Text.FieldLabel}"/>
-                                    <TextBlock Text="{Binding TotalIssueCount}" Style="{StaticResource Text.Heading}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </WrapPanel>
-                        </Border>
-                        <Border Style="{StaticResource Card.Flush}">
-                        <DockPanel>
-                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Final review checklist" Style="{StaticResource Text.FieldLabel}"/></Border>
-                        <Grid>
-                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" MinHeight="100" MaxHeight="250">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Review Area" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="160" ElementStyle="{StaticResource Table.Text}"/>
-                                    <DataGridTextColumn Header="Outstanding" Binding="{Binding IssueCount}" Width="120" ElementStyle="{StaticResource Table.Text}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <TextBlock Text="Run pre-close checks to display stage results."
-                                       Style="{StaticResource Text.BodyMuted}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       IsHitTestVisible="False" Visibility="{Binding HasNoStages, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        </Grid>
-                        </DockPanel>
-                        </Border>
-                        <WrapPanel Margin="0,12,0,0">
-                            <TextBlock Text="Prepared by user " Style="{StaticResource Text.BodyMuted}"/>
-                            <TextBlock Text="{Binding FinalReview.Run.PreparedBy, TargetNullValue=—}" Style="{StaticResource Text.Body}" Margin="0,0,18,0"/>
-                            <TextBlock Text="Re-checked by user " Style="{StaticResource Text.BodyMuted}"/>
-                            <TextBlock Text="{Binding FinalReview.Run.ReviewedBy, TargetNullValue=Pending}" Style="{StaticResource Text.Body}" Margin="0,0,18,0"/>
-                            <TextBlock Text="Approved by user " Style="{StaticResource Text.BodyMuted}"/>
-                            <TextBlock Text="{Binding FinalReview.Run.ApprovedBy, TargetNullValue=Pending}" Style="{StaticResource Text.Body}" Margin="0,0,18,0"/>
-                            <TextBlock Text="Closed by user " Style="{StaticResource Text.BodyMuted}"/>
-                            <TextBlock Text="{Binding FinalReview.Run.ClosedBy, TargetNullValue=Pending}" Style="{StaticResource Text.Body}"/>
-                        </WrapPanel>
-                    </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-
-                <TabItem Header="Cash Handoffs" Visibility="{Binding CashHandoffs.HasAccess, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                    <StackPanel Margin="16">
-                        <TextBlock Text="Cash Handoff Acknowledgements" Style="{StaticResource Text.Subheading}"/>
-                        <TextBlock Text="Recipients must acknowledge physical cash custody. Declined or pending handoffs block business-date closing; reassigning sends the handoff to another eligible active user." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                        <Button Content="Refresh Handoffs" Command="{Binding CashHandoffs.RefreshCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
-                        <Border Style="{StaticResource Card.Flush}">
-                        <DockPanel>
-                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Handoff register" Style="{StaticResource Text.FieldLabel}"/></Border>
-                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding CashHandoffs.Handoffs}" SelectedItem="{Binding CashHandoffs.SelectedHandoff}" MinHeight="100" MaxHeight="260">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Handoff" Binding="{Binding Id}"/><DataGridTextColumn Header="Session" Binding="{Binding SessionId}"/>
-                                <DataGridTextColumn Header="Sender" Binding="{Binding SenderName}"/><DataGridTextColumn Header="Recipient" Binding="{Binding RecipientName}"/>
-                                <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=N2}"/><DataGridTextColumn Header="Status" Binding="{Binding Status}"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                        </DockPanel>
-                        </Border>
-                        <WrapPanel Margin="0,10,0,0">
-                            <StackPanel Width="300" Margin="0,0,12,8"><TextBlock Text="NOTE (REQUIRED FOR DECLINE)" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding CashHandoffs.Note, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Add a handoff note"/></StackPanel>
-                            <StackPanel Width="300"><TextBlock Text="REASSIGN RECIPIENT" Style="{StaticResource Text.FieldLabel}"/>
-                                <ComboBox ItemsSource="{Binding CashHandoffs.Recipients}" SelectedItem="{Binding CashHandoffs.SelectedRecipient}" IsEditable="True" IsTextSearchEnabled="True" TextSearch.TextPath="FullName" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose recipient">
-                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding FullName}"/></DataTemplate></ComboBox.ItemTemplate>
-                                </ComboBox>
-                            </StackPanel>
-                        </WrapPanel>
-                        <WrapPanel Margin="0,10,0,0">
-                            <Button Content="Acknowledge Receipt" Command="{Binding CashHandoffs.AcceptCommand}" Style="{StaticResource Button.Primary}" t:ThemeAssist.RequiresOpenCashSession="True" Margin="0,0,8,0"/>
-                            <Button Content="Decline Handoff" Command="{Binding CashHandoffs.DeclineCommand}" Style="{StaticResource Button.Secondary}" t:ThemeAssist.RequiresOpenCashSession="True" Margin="0,0,8,0"/>
-                            <Button Content="Reassign" Command="{Binding CashHandoffs.ReassignCommand}" Style="{StaticResource Button.Secondary}" t:ThemeAssist.RequiresOpenCashSession="True"/>
-                        </WrapPanel>
-                        <TextBlock Text="{Binding CashHandoffs.Message}" Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                        <Button Content="Load Handoff History" Command="{Binding CashHandoffs.LoadHistoryCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,8,0,6"/>
-                        <Border Style="{StaticResource Card.Flush}" Margin="0,0,0,8">
-                        <DockPanel>
-                        <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Handoff audit timeline" Style="{StaticResource Text.FieldLabel}"/></Border>
-                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding CashHandoffs.History}" MinHeight="100" MaxHeight="200">
-                            <DataGrid.Columns><DataGridTextColumn Header="Time (UTC)" Binding="{Binding CreatedAtUtc}"/><DataGridTextColumn Header="Status change" Binding="{Binding OldStatus}"/><DataGridTextColumn Header="To" Binding="{Binding NewStatus}"/><DataGridTextColumn Header="Previous recipient" Binding="{Binding PreviousRecipientUserId}"/><DataGridTextColumn Header="Recipient" Binding="{Binding RecipientUserId}"/><DataGridTextColumn Header="Actor" Binding="{Binding ActorUserId}"/><DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*"/></DataGrid.Columns>
-                        </DataGrid>
-                        </DockPanel>
-                        </Border>
-                    </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-                    </TabControl>
-                </DockPanel>
-            </Border>
-    </Grid>
-    </ScrollViewer>
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:accounting="clr-namespace:bams.desktop.Views.Pages.Accounting" xmlns:t="clr-namespace:bams.desktop.Themes" t:RefreshAssist.Command="{Binding PollCommand}">
+ <UserControl.Resources><Style TargetType="TextBlock" BasedOn="{StaticResource Text.Base}"/></UserControl.Resources>
+ <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+  <TextBlock Text="End of Day" Style="{StaticResource Text.Heading}"/>
+  <TextBlock Text="Reconcile, validate vault cash, obtain approval, and close the business date." Style="{StaticResource Text.BodyMuted}" Margin="0,6"/>
+  <WrapPanel Margin="0,12"><DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding SelectedBusinessDate}" Width="165"/>
+   <Button Style="{StaticResource Button.Secondary}" Content="Load date / Refresh" Command="{Binding LoadBusinessDateCommand}" Margin="8,0"/>
+   <TextBlock Text="{Binding BusinessDateStatus}" VerticalAlignment="Center" Margin="8,0"/>
+   <TextBlock Text="{Binding CurrentRunStatus,StringFormat='Closing status: {0}'}" VerticalAlignment="Center" Margin="8,0"/>
+  </WrapPanel>
+  <Border Style="{StaticResource Card.Compact}" Margin="0,8,0,16"><UniformGrid Columns="5"><Button Content="1. Run checks" Command="{Binding NavigateToStageCommand}" CommandParameter="0" Margin="3"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource Button.Ghost}"><Style.Triggers><DataTrigger Binding="{Binding IsStep1}" Value="True"><Setter Property="FontWeight" Value="Bold"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style></Button><Button Content="2. Vault cash" Command="{Binding NavigateToStageCommand}" CommandParameter="1" Margin="3"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource Button.Ghost}"><Style.Triggers><DataTrigger Binding="{Binding IsStep2}" Value="True"><Setter Property="FontWeight" Value="Bold"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style></Button><Button Content="3. Readiness" Command="{Binding NavigateToStageCommand}" CommandParameter="2" Margin="3"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource Button.Ghost}"><Style.Triggers><DataTrigger Binding="{Binding IsStep3}" Value="True"><Setter Property="FontWeight" Value="Bold"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style></Button><Button Content="4. Approval" Command="{Binding NavigateToStageCommand}" CommandParameter="3" Margin="3"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource Button.Ghost}"><Style.Triggers><DataTrigger Binding="{Binding IsStep4}" Value="True"><Setter Property="FontWeight" Value="Bold"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style></Button><Button Content="5. Close date" Command="{Binding NavigateToStageCommand}" CommandParameter="4" Margin="3"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource Button.Ghost}"><Style.Triggers><DataTrigger Binding="{Binding IsStep5}" Value="True"><Setter Property="FontWeight" Value="Bold"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style></Button></UniformGrid></Border>
+  <TextBlock Text="{Binding StepTitle}" Style="{StaticResource Text.Subheading}" Margin="0,0,0,12"/>
+  <StackPanel Visibility="{Binding IsStep1,Converter={StaticResource BooleanToVisibilityConverter}}">
+   <TextBlock Text="Run the shared account/GL and cash check. Assign and investigate exceptions using the action buttons below." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
+   <Button Content="Run reconciliation checks" Command="{Binding RunPreCloseCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>
+   <accounting:UnifiedReconciliationView DataContext="{Binding Reconciliation}"/>
+  </StackPanel>
+  <Border Style="{StaticResource Card}" Visibility="{Binding IsStep2,Converter={StaticResource BooleanToVisibilityConverter}}"><StackPanel>
+   <TextBlock Text="Final vault cash validation" Style="{StaticResource Text.Subheading}"/>
+   <TextBlock Text="Count the vault after teller sessions are closed, handoffs accepted, and pending cash operations settled. Recording this count closes the vault session; a mismatch remains an exception." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8"/>
+   <TextBlock Text="{Binding VaultStatus}"/>
+   <TextBlock Text="{Binding VaultExpected,StringFormat='Expected cash: {0:N2}'}" Margin="0,8"/>
+   <TextBlock Text="{Binding VaultCounted,StringFormat='Latest physical count: {0:N2}'}"/>
+   <TextBlock Text="{Binding VaultDifference,StringFormat='Difference: {0:N2}'}" Margin="0,6"/>
+   <TextBlock Text="Physical cash amount" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding VaultActual,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
+   <TextBlock Text="Count notes" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0"/><TextBox Text="{Binding VaultNote,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
+   <Button Content="Record final count and close vault" Command="{Binding FinalVaultCountCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>
+  </StackPanel></Border>
+  <StackPanel Visibility="{Binding IsStep3,Converter={StaticResource BooleanToVisibilityConverter}}">
+   <TextBlock Text="Rerun readiness checks after vault validation and after corrections have passed verification. Every blocker must be cleared for normal close." TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}"/>
+   <Button Content="Refresh readiness checks" Command="{Binding RunPreCloseCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>
+   <Border Style="{StaticResource Card.Flush}"><DataGrid Style="{StaticResource Table}" ItemsSource="{Binding PreCloseChecks.Stages}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="480"><DataGrid.Columns>
+    <DataGridTextColumn Header="Check" Binding="{Binding Name}" Width="2*"/><DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/><DataGridTextColumn Header="Issues" Binding="{Binding IssueCount}" Width="*"/><DataGridTextColumn Header="Details" Binding="{Binding MessageCode}" Width="3*"/>
+   </DataGrid.Columns></DataGrid></Border>
+   <TextBlock Text="{Binding TotalIssueCount,StringFormat='Outstanding issues: {0}'}" Margin="0,12"/>
+  </StackPanel>
+  <Border Style="{StaticResource Card}" Visibility="{Binding IsStep4,Converter={StaticResource BooleanToVisibilityConverter}}"><StackPanel>
+   <TextBlock Text="Manager review and approval" Style="{StaticResource Text.Subheading}"/>
+   <TextBlock Text="A manager rechecks the prepared run, then approves it. Independent approval is required unless the preparer is the sole eligible manager." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8"/>
+   <TextBlock Text="{Binding FinalReview.Run.PreparedBy,StringFormat='Prepared by user #{0}'}"/>
+   <TextBlock Text="{Binding FinalReview.Run.ReviewedBy,StringFormat='Reviewed by user #{0}'}"/>
+   <TextBlock Text="{Binding FinalReview.Run.ApprovedBy,StringFormat='Approved by user #{0}'}"/>
+   <WrapPanel Margin="0,12"><Button Content="Manager recheck" Command="{Binding ReviewPreCloseCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/><Button Content="Approve normal close" Command="{Binding ApproveCommand}" Style="{StaticResource Button.Primary}"/></WrapPanel>
+   <TextBlock Text="{Binding OverrideApprovalStatus}" TextWrapping="Wrap"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}" Visibility="{Binding IsStep5,Converter={StaticResource BooleanToVisibilityConverter}}"><StackPanel>
+   <TextBlock Text="Close business date" Style="{StaticResource Text.Subheading}"/>
+   <TextBlock Text="Closing reruns the required checks, creates the EOD audit and final summaries, then marks this date closed and inactive. Unresolved blockers prevent normal closure." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8"/>
+   <Button Content="Close date" Command="{Binding CloseCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>
+   <TextBlock Text="Business date closed. Audit and final summaries are saved. Any force-close investigations remain available for resolution." TextWrapping="Wrap" Visibility="{Binding IsDateClosed,Converter={StaticResource BooleanToVisibilityConverter}}"/>
+   <TextBlock Text="Persisted EOD audit findings" Style="{StaticResource Text.Subheading}" Margin="0,18,0,8"/>
+   <Button Content="Refresh audit findings" Command="{Binding AuditCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left"/>
+   <TextBlock Text="{Binding AuditReport.Status,StringFormat='Audit status: {0}'}" Margin="0,8"/>
+   <WrapPanel><TextBlock Text="{Binding AuditReport.RawDebit,StringFormat='Raw debit: {0:N2}'}" Margin="0,0,16,0"/><TextBlock Text="{Binding AuditReport.RawCredit,StringFormat='Raw credit: {0:N2}'}"/></WrapPanel>
+   <WrapPanel Margin="0,6"><TextBlock Text="{Binding AuditReport.EffectiveDebit,StringFormat='Effective debit: {0:N2}'}" Margin="0,0,16,0"/><TextBlock Text="{Binding AuditReport.EffectiveCredit,StringFormat='Effective credit: {0:N2}'}"/><TextBlock Text="{Binding AuditReport.IsReconciled,StringFormat=' ? Reconciled: {0}'}"/></WrapPanel>
+   <Border Style="{StaticResource Card.Flush}" Margin="0,8"><DataGrid Style="{StaticResource Table}" ItemsSource="{Binding AuditReport.Findings}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="320"><DataGrid.Columns>
+    <DataGridTextColumn Header="Finding" Binding="{Binding Kind}" Width="2*"/><DataGridTextColumn Header="Source ID" Binding="{Binding SourceId}" Width="*"/><DataGridTextColumn Header="Debit" Binding="{Binding Debit}" Width="*"/><DataGridTextColumn Header="Credit" Binding="{Binding Credit}" Width="*"/><DataGridTextColumn Header="Details" Binding="{Binding Detail}" Width="3*"/>
+   </DataGrid.Columns></DataGrid></Border>
+  </StackPanel></Border>
+  <WrapPanel Margin="0,16"><Button Content="Previous" Command="{Binding PreviousStepCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/><Button Content="Next step" Command="{Binding NextStepCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel>
+  <Border Style="{StaticResource Card}" Margin="0,8" Visibility="{Binding HasEndOfDayApprovalPermission,Converter={StaticResource BooleanToVisibilityConverter}}"><Expander Header="Force close ? available even when normal close is blocked"><StackPanel Margin="0,12,0,0">
+   <TextBlock Text="Bypasses every readiness blocker, including cash validation, unresolved proposals and accounting inequalities. All required managers must approve. The final approval closes the date automatically; investigations remain open." TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}"/>
+   <TextBlock Text="{Binding OverrideApprovalStatus}" TextWrapping="Wrap" Margin="0,8"/>
+   <TextBlock Text="Reason for force close (5?1000 characters)" Style="{StaticResource Text.FieldLabel}"/>
+   <TextBox Style="{StaticResource Input.Text}" Text="{Binding ForceCloseReason,UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" MinHeight="70" TextWrapping="Wrap" AcceptsReturn="True"/>
+   <WrapPanel Margin="0,12"><Button Content="Request force close" Command="{Binding RequestForceCloseCommand}" Style="{StaticResource Button.Danger}" Margin="0,0,8,0"/><Button Content="Approve force close" Command="{Binding ApproveForceCloseCommand}" Style="{StaticResource Button.Danger}"/></WrapPanel>
+  </StackPanel></Expander></Border>
+  <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,12"/>
+  <TextBlock Text="{Binding SuccessMessage}" Style="{StaticResource Text.Body}" TextWrapping="Wrap"/>
+ </StackPanel></ScrollViewer>
 </UserControl>

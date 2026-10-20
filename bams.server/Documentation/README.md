@@ -1,18 +1,21 @@
-# Server Documentation
+# Server documentation
 
-Use the documents in this order:
+This folder describes the current `bams.server` implementation. Start with the topic you need:
 
-1. [Architecture](Architecture.md) — application layers, security, persistence, and runtime responsibilities.
-2. [API Contracts](ApiContracts.md) — human-readable behavior of the currently exposed account endpoints.
-3. [Business Rules](BusinessRules.md) — domain invariants enforced by services.
-4. [Message Codes](MessageCodes.md) — stable server and desktop-client message-code registry.
-5. [OpenAPI specification](AccountsApi.openapi.yaml) — machine-readable contract for `AccountsController` and `AccountTypesController`.
+| Document | Use it for |
+| --- | --- |
+| [Architecture](Architecture.md) | Runtime flow, project boundaries, persistence, security, and background work. |
+| [API contracts](ApiContracts.md) | HTTP routes, request behavior, pagination, envelopes, and errors. |
+| [Business rules](BusinessRules.md) | Domain invariants and lifecycle rules enforced by services. |
+| [Cash discrepancy corrections](CashDiscrepancyCorrections.md) | Case inputs, source evidence, immutable cash corrections and verification. |
+| [Message codes](MessageCodes.md) | Stable server codes and client-only codes. |
+| [OpenAPI contract](AccountsApi.openapi.yaml) | Machine-readable API schema. |
 
 ## Sources of truth
 
-- Controllers and DTOs define the exposed HTTP surface.
-- Services and model configuration define business and persistence behavior.
-- `Messages/MessageCode.cs` defines server message-code values.
-- `AccountsApi.openapi.yaml` must be updated whenever either documented controller changes.
+- Controllers, request/response DTOs, authorization attributes, and exception handling define HTTP behavior.
+- Services, entities, EF Core configurations, and constants define business and persistence behavior.
+- `Messages/MessageCode.cs` defines server code names and numeric values; `Messages/MessageCatalog.cs` defines default text.
+- The OpenAPI file is a maintained contract, not a substitute for checking implementation. Confirm its declared coverage before relying on it for routes outside accounts.
 
-Documentation should describe current behavior only. Planned or retired endpoints belong in issues or design proposals, not in these contracts.
+Keep these pages focused on behavior present in the code. Update the relevant page and OpenAPI operations when implementation changes; remove obsolete descriptions instead of preserving historical behavior inline.

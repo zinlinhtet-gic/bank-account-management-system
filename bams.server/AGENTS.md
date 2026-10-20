@@ -1303,6 +1303,7 @@ When generating or modifying code:
 41. Preserve backward compatibility of released message codes.
 42. Update related documentation in the same change.
 43. Treat documentation updates as part of the definition of done.
+44. Always use correct data type not generic "var"
 
 ---
 

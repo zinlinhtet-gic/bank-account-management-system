@@ -35,6 +35,11 @@ public interface IAuthenticationService
     Task SendHeartbeatAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Gets a new token with a fresh expiry for the signed-in user.
+    /// </summary>
+    Task<RefreshTokenResponse> RefreshTokenAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Tells the server the user signed out, so they are shown as offline at once.
     /// </summary>
     Task LogoutAsync(CancellationToken cancellationToken);

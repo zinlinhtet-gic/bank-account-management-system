@@ -10,13 +10,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
-/// <summary>Runs account reconciliation for the open business date under the non-login scheduler actor.</summary>
+/// <summary>Runs account reconciliation for the scheduled business date under the non-login scheduler actor.</summary>
 public sealed class ScheduledAccountReconciliationService(
     ApplicationDbContext db,
-    IBusinessDateService businessDates,
     IAccountReconciliationService reconciliation) 
 {
-    /// <summary>Runs the standard reconciliation service for the currently open bank-wide business date.</summary>
+    /// <summary>Runs the standard reconciliation service for this scheduled occurrence's business date.</summary>
     public async Task ExecuteAsync(ScheduledJobExecutionContext execution, CancellationToken cancellationToken)
     {
         var actorId = await db.Users.AsNoTracking()
@@ -24,7 +23,7 @@ public sealed class ScheduledAccountReconciliationService(
             .Select(user => (long?)user.Id)
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new BusinessRuleException(MessageCode.AuditUserUnavailable);
-        var date = await businessDates.GetOpenBusinessDateValueAsync(cancellationToken);
+        var date = ScheduledJobPeriod.GetRunDate(execution);
         await reconciliation.ReconcileAccountsAsAsync(new AccountReconciliationRequest(date, date, null), actorId,
             execution.ExecutionId, cancellationToken);
     }

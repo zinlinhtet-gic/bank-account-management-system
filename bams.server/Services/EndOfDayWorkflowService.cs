@@ -19,13 +19,17 @@ public sealed class EndOfDayWorkflowService(
     ApplicationDbContext db,
     IBusinessDateService businessDates,
     ICurrentUserService currentUser,
-    IAccountReconciliationService accountReconciliation,
-    IEndOfDayAuditService endOfDayAudit) : IEndOfDayWorkflowService
+    IEndOfDayAuditService endOfDayAudit,
+    ReconciliationProjectionService projections, UnifiedReconciliationService checks,
+    ReconciliationExclusionService exclusions) : IEndOfDayWorkflowService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public Task<BusinessDateResponse> GetCurrentBusinessDateAsync(CancellationToken cancellationToken) =>
         businessDates.GetCurrentBusinessDateAsync(cancellationToken);
+
+    public Task<BusinessDateResponse> StartCurrentBusinessDateAsync(StartBusinessDateRequest request, CancellationToken cancellationToken) =>
+        businessDates.StartCurrentBusinessDateAsync(request, cancellationToken);
 
     public async Task<IReadOnlyList<BusinessDateResponse>> SearchBusinessDatesAsync(DateOnly? fromDate, DateOnly? toDate,
         CancellationToken cancellationToken)
@@ -35,15 +39,22 @@ public sealed class EndOfDayWorkflowService(
         if (fromDate.HasValue) query = query.Where(item => item.Date >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(item => item.Date <= toDate.Value);
         return await query.OrderByDescending(item => item.Date)
-            .Select(item => new BusinessDateResponse(item.Date, item.Status, item.OpenedAtUtc, item.ClosedAtUtc))
+            .Select(item => new BusinessDateResponse(item.Date, item.Status, item.OpenedAtUtc, item.ClosedAtUtc, item.IsActive))
             .ToListAsync(cancellationToken);
     }
 
     public async Task<EndOfDayRunResponse?> GetLatestRunAsync(DateOnly date, CancellationToken cancellationToken)
     {
-        EndOfDayRun? run = await db.EndOfDayRuns.Where(item => item.BusinessDate == date).OrderByDescending(item => item.Id)
+        EndOfDayRun? run = await db.EndOfDayRuns.Where(item => item.BusinessDate == date).OrderByDescending(item => item.Status == OperationsConstants.EodClosed).ThenByDescending(item => item.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        return run is null ? null : ToResponse(run, DeserializeStages(run.StageSummaryJson));
+        if (run is null) return null;
+        EndOfDayRun? pending = await db.EndOfDayRuns.AsNoTracking().Where(item => item.BusinessDate == date && item.Status == "OverridePending")
+            .OrderByDescending(item => item.Id).FirstOrDefaultAsync(cancellationToken);
+        return ToResponse(run, DeserializeStages(run.StageSummaryJson)) with
+        {
+            PendingForceClose = pending is not null && pending.Id != run.Id
+                ? ToResponse(pending, DeserializeStages(pending.StageSummaryJson)) : null
+        };
     }
 
     public async Task<EndOfDayRunResponse> RequestForceCloseAsync(DateOnly date, string reason, CancellationToken cancellationToken)
@@ -55,15 +66,19 @@ public sealed class EndOfDayWorkflowService(
         List<long> managerIds = await GetActiveManagerIdsAsync(cancellationToken);
         long actorId = currentUser.GetCurrentUserId();
         ValidateForceCloseRequester(managerIds, actorId);
-        List<EndOfDayStageResponse> stages = await BuildCompleteStageSummaryAsync(date, cancellationToken);
+        List<EndOfDayStageResponse> stages = await BuildForceCloseStagesAsync(date, cancellationToken);
         EndOfDayRun run = CreateForceCloseRun(date, normalizedReason, managerIds, actorId, stages);
         db.EndOfDayRuns.Add(run);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         if (run.Status == "OverrideApproved")
-            return await CloseAsync(run.Id, cancellationToken);
+        {
+            EndOfDayRunResponse closedRun = await CloseWithinTransactionAsync(run.Id, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return closedRun;
+        }
 
+        await transaction.CommitAsync(cancellationToken);
         return ToResponse(run, stages);
     }
 
@@ -80,13 +95,14 @@ public sealed class EndOfDayWorkflowService(
         if (date > BusinessTime.Today)
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
 
+        await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Status = 'Open' ORDER BY Date FOR UPDATE").ToListAsync(cancellationToken);
         List<BusinessDate> businessDates = await db.BusinessDates
             .FromSql($"SELECT * FROM BusinessDates WHERE Date = {date} FOR UPDATE")
             .ToListAsync(cancellationToken);
         BusinessDate? businessDate = businessDates.SingleOrDefault();
-        if (businessDate is null)
+        // Earlier dates remain eligible for EOD after ordinary posting moves to a newer active date.
+        if (businessDate is null || businessDate.Status != OperationsConstants.BusinessDateOpen)
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        await EnsureOldestOpenDateAsync(date, cancellationToken);
     }
 
     private async Task EnsureNoPendingForceCloseAsync(DateOnly date, CancellationToken cancellationToken)
@@ -106,12 +122,13 @@ public sealed class EndOfDayWorkflowService(
     private async Task<List<EndOfDayStageResponse>> BuildCompleteStageSummaryAsync(DateOnly date,
         CancellationToken cancellationToken)
     {
+        UnifiedReconciliationResponse results = await checks.RunAsync(new UnifiedReconciliationRequest(date, date), cancellationToken);
         List<EndOfDayStageResponse> stages = await BuildPreCloseStagesAsync(date, cancellationToken);
-        AccountReconciliationRunResponse accountResults = await accountReconciliation.ReconcileAccountsAsync(
-            new AccountReconciliationRequest(date, date, null), cancellationToken);
-        int accountExceptions = accountResults.Results.Count(item => item.Status != OperationsConstants.ReconciliationMatched);
+        int accountExceptions = results.AccountAndGl.Count;
         stages.Add(new EndOfDayStageResponse(OperationsConstants.EodStageAccountReconciliation,
             accountExceptions == 0 ? "Complete" : "Exceptions", accountExceptions, null));
+        stages.Add(new EndOfDayStageResponse("CashMismatch", results.Cash.Count == 0 ? "Complete" : "Exceptions",
+            results.Cash.Count, null));
         return stages;
     }
 
@@ -141,12 +158,68 @@ public sealed class EndOfDayWorkflowService(
     {
         long actorId = currentUser.GetCurrentUserId();
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        EndOfDayRun run = await LoadForceCloseRunForUpdateAsync(runId, cancellationToken);
+        EndOfDayRun run = await LockCloseRunAsync(runId, cancellationToken);
+        if (run.Status == OperationsConstants.EodClosed)
+        {
+            ValidateOverrideReplay(run, actorId);
+            return ToResponse(run, DeserializeStages(run.StageSummaryJson));
+        }
+        if (run.Status == OperationsConstants.EodOverrideCancelled)
+            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        await EnsureDateOpenAsync(run.BusinessDate, cancellationToken);
+        if (DeserializeUserIds(run.OverrideApprovedUserIdsJson).Contains(actorId))
+        {
+            ValidateOverrideReplay(run, actorId);
+            if (run.Status == "OverrideApproved")
+            {
+                EndOfDayRunResponse closed = await CloseWithinTransactionAsync(runId, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return closed;
+            }
+            return ToResponse(run, DeserializeStages(run.StageSummaryJson));
+        }
         ForceCloseApprovalState approvalState = await ValidateForceCloseApprovalAsync(run, actorId, cancellationToken);
         RecordForceCloseApproval(run, actorId, approvalState);
         await db.SaveChangesAsync(cancellationToken);
+        EndOfDayRunResponse response = run.Status == "OverrideApproved"
+            ? await CloseWithinTransactionAsync(runId, cancellationToken)
+            : ToResponse(run, DeserializeStages(run.StageSummaryJson));
         await transaction.CommitAsync(cancellationToken);
-        return ToResponse(run, DeserializeStages(run.StageSummaryJson));
+        return response;
+    }
+
+    private static void ValidateOverrideReplay(EndOfDayRun run, long actorId)
+    {
+        if (run.OverrideReason is null || !DeserializeUserIds(run.OverrideRequiredUserIdsJson).Contains(actorId))
+            throw new ForbiddenException(MessageCode.EndOfDayApprovalRequired);
+    }
+
+    // All EOD mutations take business-date locks before the run lock, matching correction posting.
+    private async Task<EndOfDayRun> LockCloseRunAsync(long runId, CancellationToken ct)
+    {
+        EndOfDayRun source = await db.EndOfDayRuns.AsNoTracking().SingleOrDefaultAsync(x => x.Id == runId, ct)
+            ?? throw new NotFoundException(MessageCode.ResourceNotFound);
+        await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Status = 'Open' ORDER BY Date FOR UPDATE").ToListAsync(ct);
+        await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {source.BusinessDate} FOR UPDATE").ToListAsync(ct);
+        return await LoadForceCloseRunForUpdateAsync(runId, ct);
+    }
+
+    // Observe blockers without running validations that an authorized force close expressly bypasses.
+    private async Task<List<EndOfDayStageResponse>> BuildForceCloseStagesAsync(DateOnly date, CancellationToken ct)
+    {
+        List<EndOfDayStageResponse> stages = await BuildPreCloseStagesAsync(date, ct, persistLedgerException: false);
+        int account = await db.ReconciliationExceptions.CountAsync(x => x.BusinessDate == date && x.PositionSessionId == null &&
+            x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed, ct);
+        int cash = await db.ReconciliationExceptions.CountAsync(x => x.BusinessDate == date && x.PositionSessionId != null &&
+            x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed, ct);
+        int proposals = await db.CorrectionProposals.CountAsync(x => x.Exception!.BusinessDate == date &&
+            (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), ct);
+        proposals += await db.CashCorrectionProposals.CountAsync(x => x.Exception!.BusinessDate == date &&
+            (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), ct);
+        stages.Add(new(OperationsConstants.EodStageAccountReconciliation, account == 0 ? "Complete" : "Exceptions", account, null));
+        stages.Add(new("CashMismatch", cash == 0 ? "Complete" : "Exceptions", cash, null));
+        stages.Add(new("CorrectionProposals", proposals == 0 ? "Complete" : "Blocked", proposals, null));
+        return stages;
     }
 
     private async Task<EndOfDayRun> LoadForceCloseRunForUpdateAsync(long runId, CancellationToken cancellationToken)
@@ -162,7 +235,6 @@ public sealed class EndOfDayWorkflowService(
     {
         if (run.Status != "OverridePending")
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        await EnsureOldestOpenDateAsync(run.BusinessDate, cancellationToken);
 
         List<long> requiredUserIds = DeserializeUserIds(run.OverrideRequiredUserIdsJson);
         List<long> approvedUserIds = DeserializeUserIds(run.OverrideApprovedUserIdsJson);
@@ -194,6 +266,8 @@ public sealed class EndOfDayWorkflowService(
 
     public async Task<EndOfDayRunResponse> RunPreCloseAsync(DateOnly date, CancellationToken cancellationToken)
     {
+        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await LockAndValidateBusinessDateAsync(date, cancellationToken);
         await EnsurePreCloseCanRunAsync(date, cancellationToken);
         List<EndOfDayStageResponse> stages = await BuildCompleteStageSummaryAsync(date, cancellationToken);
         bool blocked = stages.Any(stage => stage.IssueCount > 0 || stage.Status is "Blocked" or "Exceptions");
@@ -201,6 +275,7 @@ public sealed class EndOfDayWorkflowService(
         EndOfDayRun run = CreatePreCloseRun(date, stages, blocked, now, currentUser.GetCurrentUserId());
         db.EndOfDayRuns.Add(run);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return ToResponse(run, stages);
     }
 
@@ -209,10 +284,9 @@ public sealed class EndOfDayWorkflowService(
         long reviewerId = currentUser.GetCurrentUserId();
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await LockAndValidateBusinessDateAsync(date, cancellationToken);
-        await EnsureNoPendingForceCloseAsync(date, cancellationToken);
 
         EndOfDayRun? latestRun = await db.EndOfDayRuns
-            .Where(item => item.BusinessDate == date)
+            .Where(item => item.BusinessDate == date && item.OverrideReason == null)
             .OrderByDescending(item => item.Id)
             .FirstOrDefaultAsync(cancellationToken);
         if (latestRun is null || latestRun.Status != OperationsConstants.EodReadyForApproval)
@@ -235,8 +309,7 @@ public sealed class EndOfDayWorkflowService(
 
     private async Task EnsurePreCloseCanRunAsync(DateOnly date, CancellationToken cancellationToken)
     {
-        await EnsureOldestOpenDateAsync(date, cancellationToken);
-        await EnsureNoPendingForceCloseAsync(date, cancellationToken);
+        await EnsureDateOpenAsync(date, cancellationToken);
     }
 
     private static EndOfDayRun CreatePreCloseRun(DateOnly date, IReadOnlyList<EndOfDayStageResponse> stages,
@@ -251,8 +324,8 @@ public sealed class EndOfDayWorkflowService(
 
     public async Task<EndOfDayRunResponse> ApproveAsync(long runId, CancellationToken cancellationToken)
     {
-        EndOfDayRun run = await db.EndOfDayRuns.SingleOrDefaultAsync(item => item.Id == runId, cancellationToken)
-            ?? throw new NotFoundException(MessageCode.ResourceNotFound);
+        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        EndOfDayRun run = await LockCloseRunAsync(runId, cancellationToken);
         long actorId = currentUser.GetCurrentUserId();
         bool isBusinessDateOpen = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
             item.Date == run.BusinessDate && item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
@@ -268,31 +341,75 @@ public sealed class EndOfDayWorkflowService(
         run.ApprovedAtUtc = DateTime.UtcNow;
         run.Status = OperationsConstants.EodApproved;
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return ToResponse(run, DeserializeStages(run.StageSummaryJson));
     }
 
     public async Task<EndOfDayRunResponse> CloseAsync(long runId, CancellationToken cancellationToken)
     {
-        long actorId = currentUser.GetCurrentUserId();
-        EndOfDayRun initialRun = await db.EndOfDayRuns.AsNoTracking().SingleOrDefaultAsync(item => item.Id == runId, cancellationToken)
-            ?? throw new NotFoundException(MessageCode.ResourceNotFound);
-        bool isManagerOverride = initialRun.Status == "OverrideApproved";
-        bool isSoleManagerSelfApproval = !isManagerOverride && initialRun.PreparedBy == actorId &&
-            initialRun.ApprovedBy == actorId && initialRun.ReviewedBy == actorId &&
-            await IsSoleActiveManagerAsync(actorId, cancellationToken);
-        ValidateInitialCloseRun(initialRun, isManagerOverride, isSoleManagerSelfApproval);
-
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        EndOfDayRun run = (await db.EndOfDayRuns.FromSql($"SELECT * FROM EndOfDayRuns WHERE Id = {runId} FOR UPDATE").ToListAsync(cancellationToken)).Single();
-        BusinessDate businessDate = (await db.BusinessDates.FromSql($"SELECT * FROM BusinessDates WHERE Date = {run.BusinessDate} FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault()
-            ?? throw new NotFoundException(MessageCode.ResourceNotFound);
-        isManagerOverride = run.Status == "OverrideApproved";
+        EndOfDayRunResponse response = await CloseWithinTransactionAsync(runId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return response;
+    }
+
+    // Applies a close inside the caller's transaction so override request, approval, and automatic close commit atomically.
+    private async Task<EndOfDayRunResponse> CloseWithinTransactionAsync(long runId, CancellationToken cancellationToken)
+    {
+        long actorId = currentUser.GetCurrentUserId();
+        EndOfDayRun run = await LockCloseRunAsync(runId, cancellationToken);
+        if (run.Status == OperationsConstants.EodClosed)
+            return ToResponse(run, DeserializeStages(run.StageSummaryJson));
+        bool isManagerOverride = run.Status == "OverrideApproved";
+        bool isSoleManagerSelfApproval = !isManagerOverride && run.PreparedBy == actorId &&
+            run.ApprovedBy == actorId && run.ReviewedBy == actorId &&
+            await IsSoleActiveManagerAsync(actorId, cancellationToken);
+        ValidateInitialCloseRun(run, isManagerOverride, isSoleManagerSelfApproval);
+        BusinessDate businessDate = await db.BusinessDates.SingleAsync(x => x.Date == run.BusinessDate, cancellationToken);
+        if (isManagerOverride)
+            run.StageSummaryJson = JsonSerializer.Serialize(await BuildForceCloseStagesAsync(run.BusinessDate, cancellationToken), JsonOptions);
         await ValidateLockedCloseStateAsync(run, businessDate, isManagerOverride, isSoleManagerSelfApproval, cancellationToken);
-        await EnsureCloseAuditAsync(run.BusinessDate, cancellationToken);
+        await EnsureCloseAuditAsync(run.BusinessDate, isManagerOverride, cancellationToken);
+        await projections.GenerateDateAsync(run.BusinessDate, true, cancellationToken);
+        if (!isManagerOverride)
+            await CancelPendingForceCloseAsync(run, actorId, cancellationToken);
+        else
+            await SupersedeNormalCloseRunsAsync(run, actorId, cancellationToken);
         await ApplyBusinessDateCloseAsync(run, businessDate, actorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return ToResponse(run, DeserializeStages(run.StageSummaryJson));
+    }
+
+    // Cancellation and normal closure commit together; failed close checks leave the override available.
+    private async Task CancelPendingForceCloseAsync(EndOfDayRun normalRun, long actorId, CancellationToken ct)
+    {
+        List<EndOfDayRun> pending = await db.EndOfDayRuns
+            .FromSql($"SELECT * FROM EndOfDayRuns WHERE BusinessDate = {normalRun.BusinessDate} AND Status = 'OverridePending' ORDER BY Id FOR UPDATE").ToListAsync(ct);
+        DateTime cancelledAt = DateTime.UtcNow;
+        foreach (EndOfDayRun request in pending)
+        {
+            request.Status = OperationsConstants.EodOverrideCancelled;
+            List<EndOfDayStageResponse> stages = DeserializeStages(request.StageSummaryJson).ToList();
+            stages.Add(new("OverrideCancellation", OperationsConstants.EodOverrideCancelled, 0,
+                $"Cancelled by successful normal-close run #{normalRun.Id}, user #{actorId}, at {cancelledAt:O}."));
+            request.StageSummaryJson = JsonSerializer.Serialize(stages, JsonOptions);
+        }
+    }
+
+    // A successful force close stops every unfinished normal-close attempt for the same date.
+    private async Task SupersedeNormalCloseRunsAsync(EndOfDayRun forceRun, long actorId, CancellationToken ct)
+    {
+        List<EndOfDayRun> normalRuns = await db.EndOfDayRuns
+            .FromSql($"SELECT * FROM EndOfDayRuns WHERE BusinessDate = {forceRun.BusinessDate} AND OverrideReason IS NULL AND Status <> 'Closed' AND Status <> 'Superseded' ORDER BY Id FOR UPDATE").ToListAsync(ct);
+        DateTime supersededAt = DateTime.UtcNow;
+        foreach (EndOfDayRun normal in normalRuns)
+        {
+            normal.Status = OperationsConstants.EodSuperseded;
+            List<EndOfDayStageResponse> stages = DeserializeStages(normal.StageSummaryJson).ToList();
+            stages.Add(new("NormalCloseSuperseded", OperationsConstants.EodSuperseded, 0,
+                $"Stopped by force-close run #{forceRun.Id}, user #{actorId}, at {supersededAt:O}."));
+            normal.StageSummaryJson = JsonSerializer.Serialize(stages, JsonOptions);
+        }
     }
 
     private static void ValidateInitialCloseRun(EndOfDayRun run, bool isManagerOverride, bool isSoleManagerSelfApproval)
@@ -312,19 +429,25 @@ public sealed class EndOfDayWorkflowService(
         bool hasIndependentApproval = run.ApprovedBy != run.PreparedBy ||
             (isSoleManagerSelfApproval && run.ApprovedBy == run.PreparedBy && run.ReviewedBy == run.PreparedBy);
         bool isApprovedRun = (run.Status == OperationsConstants.EodApproved && hasIndependentApproval) || isManagerOverride;
+        // Closing an earlier open date must not depend on which date currently accepts ordinary postings.
         bool isBusinessDateOpen = businessDate.Status == OperationsConstants.BusinessDateOpen;
         if (!isApprovedRun || !isBusinessDateOpen)
             throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
 
-        bool hasEarlierOpenDate = await db.BusinessDates.AnyAsync(item => item.Date < run.BusinessDate &&
-            item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-        if (hasEarlierOpenDate)
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-
         if (isManagerOverride)
+        {
             EnsureAllRequiredManagerApprovals(run);
-        else
-            await EnsureNoClosingBlockersAsync(run.BusinessDate, cancellationToken);
+            return;
+        }
+
+        await exclusions.ValidateAsync(run.BusinessDate, run.BusinessDate, cancellationToken);
+        if (await db.ReconciliationExceptions.AnyAsync(x => x.BusinessDate == run.BusinessDate &&
+                x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed, cancellationToken) ||
+            await db.CorrectionProposals.AnyAsync(x => x.Exception!.BusinessDate == run.BusinessDate && x.Exception.Status != OperationsConstants.ExceptionForcePassed && (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), cancellationToken) ||
+            await db.CashCorrectionProposals.AnyAsync(x => x.Exception!.BusinessDate == run.BusinessDate && x.Exception.Status != OperationsConstants.ExceptionForcePassed && (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), cancellationToken) ||
+            await db.BankExpenseRequests.AnyAsync(x => x.BusinessDate == run.BusinessDate && x.Status == "PendingApproval", cancellationToken))
+            throw new BusinessRuleException(MessageCode.ReconciliationBlocked);
+        await EnsureNoClosingBlockersAsync(run.BusinessDate, cancellationToken);
     }
 
     private static void EnsureAllRequiredManagerApprovals(EndOfDayRun run)
@@ -337,15 +460,17 @@ public sealed class EndOfDayWorkflowService(
             throw new BusinessRuleException(MessageCode.EndOfDayApprovalRequired);
     }
 
-    private async Task EnsureCloseAuditAsync(DateOnly date, CancellationToken cancellationToken)
+    private async Task EnsureCloseAuditAsync(DateOnly date, bool isManagerOverride, CancellationToken cancellationToken)
     {
+        if (!isManagerOverride)
+            await exclusions.ValidateAsync(date, date, cancellationToken);
         // The date lock stays held while audit summaries are generated so posting cannot race the close boundary.
         bool summariesExist = await db.DailySummaries.AnyAsync(item => item.SummaryDate == date, cancellationToken);
         bool auditExists = await db.ReconciliationBatches.AnyAsync(item => item.ReconciliationDate == date &&
             item.ReconciliationType == AuditConstants.EndOfDayReconciliationType, cancellationToken);
         if (!summariesExist && !auditExists)
-            await endOfDayAudit.RunEndOfDayAuditAsync(date, cancellationToken);
-        else if (summariesExist != auditExists)
+            await endOfDayAudit.RunEndOfDayAuditAsync(date, cancellationToken, isManagerOverride);
+        else if (summariesExist && !auditExists)
             throw new BusinessRuleException(MessageCode.EndOfDayAuditAlreadyProcessed);
     }
 
@@ -354,40 +479,23 @@ public sealed class EndOfDayWorkflowService(
     {
         DateTime closedAtUtc = DateTime.UtcNow;
         businessDate.Status = OperationsConstants.BusinessDateClosed;
+        businessDate.IsActive = false;
         businessDate.ClosedBy = actorId;
         businessDate.ClosedAtUtc = closedAtUtc;
         businessDate.Version++;
-
-        DateOnly nextBusinessDateValue = run.BusinessDate.AddDays(1);
-        BusinessDate? nextBusinessDate = await db.BusinessDates.SingleOrDefaultAsync(
-            item => item.Date == nextBusinessDateValue, cancellationToken);
-        if (nextBusinessDate is null && nextBusinessDateValue <= BusinessTime.Today)
-        {
-            BusinessDate nextBusinessDateRecord = new()
-            {
-                Date = nextBusinessDateValue,
-                Status = OperationsConstants.BusinessDateOpen,
-                OpenedBy = actorId,
-                OpenedAtUtc = closedAtUtc
-            };
-            db.BusinessDates.Add(nextBusinessDateRecord);
-        }
-        else if (nextBusinessDate is not null && nextBusinessDate.Status != OperationsConstants.BusinessDateOpen)
-        {
-            throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
-        }
 
         run.Status = OperationsConstants.EodClosed;
         run.ClosedBy = actorId;
         run.ClosedAtUtc = closedAtUtc;
     }
 
-    private async Task<List<EndOfDayStageResponse>> BuildPreCloseStagesAsync(DateOnly date, CancellationToken cancellationToken)
+    private async Task<List<EndOfDayStageResponse>> BuildPreCloseStagesAsync(DateOnly date, CancellationToken cancellationToken, bool persistLedgerException = true)
     {
         (DateTime startUtc, DateTime endUtc) = BusinessTime.GetUtcRange(date);
         IQueryable<Transaction> dayTransactions = db.Transactions.AsNoTracking().Where(item =>
             item.BusinessDate == date || (item.TransactionAt >= startUtc && item.TransactionAt < endUtc) ||
-            db.TransactionEntries.Any(entry => entry.TransactionId == item.Id && entry.PostingDate == date));
+            db.TransactionEntries.Any(entry => (entry.TransactionId == item.Id || entry.Transaction!.AccountingRootTransactionId == item.Id) &&
+                entry.PostingDate == date));
         int pending = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Pending, cancellationToken);
         int failed = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Failed, cancellationToken);
         int pendingApprovals = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Authorized, cancellationToken);
@@ -396,10 +504,16 @@ public sealed class EndOfDayWorkflowService(
             where movement.Type == OperationsConstants.CashMovementAdjustment &&
                 movement.Status == OperationsConstants.CashMovementPendingApproval && session.BusinessDate == date
             select movement.Id).CountAsync(cancellationToken);
-        IQueryable<long> postedIds = dayTransactions.Where(item => item.PostedAt.HasValue).Select(item => item.Id);
-        int missingEntries = await postedIds.CountAsync(id => !db.TransactionEntries.Any(entry => entry.TransactionId == id), cancellationToken);
-        List<TransactionEntryTotals> groupedEntries = await db.TransactionEntries.AsNoTracking().Where(entry => postedIds.Contains(entry.TransactionId))
-            .GroupBy(entry => entry.TransactionId)
+        IQueryable<long> postedIds = dayTransactions.Where(item => item.PostedAt.HasValue && item.AccountingRootTransactionId == null && item.TransactionType != TransactionType.AccountPostingRepair).Select(item => item.Id);
+        HashSet<long> waivedTransactions = await exclusions.ActiveSourceIdsAsync(date, "Transaction", cancellationToken);
+        HashSet<long> waivedLines = await exclusions.ActiveSourceIdsAsync(date, "GL", cancellationToken);
+        int missingEntries = await postedIds.CountAsync(id => !waivedTransactions.Contains(id) &&
+            !db.TransactionEntries.Any(entry => entry.TransactionId == id || entry.Transaction!.AccountingRootTransactionId == id), cancellationToken);
+        List<TransactionEntryTotals> groupedEntries = await db.TransactionEntries.AsNoTracking().Where(entry =>
+                postedIds.Contains(entry.Transaction!.AccountingRootTransactionId ?? entry.TransactionId) &&
+                !waivedTransactions.Contains(entry.Transaction!.AccountingRootTransactionId ?? entry.TransactionId) &&
+                !waivedLines.Contains(entry.Id))
+            .GroupBy(entry => entry.Transaction!.AccountingRootTransactionId ?? entry.TransactionId)
             .Select(group => new TransactionEntryTotals(
                 group.Where(entry => entry.EntryType == EntryType.Debit).Sum(entry => entry.Amount),
                 group.Where(entry => entry.EntryType == EntryType.Credit).Sum(entry => entry.Amount)))
@@ -411,19 +525,37 @@ public sealed class EndOfDayWorkflowService(
                 group.Where(entry => entry.EntryType == EntryType.Debit).Sum(entry => entry.Amount),
                 group.Where(entry => entry.EntryType == EntryType.Credit).Sum(entry => entry.Amount)))
             .FirstOrDefaultAsync(cancellationToken);
-        bool ledgerUnbalanced = dailyTotals is not null && dailyTotals.Debits != dailyTotals.Credits;
+        DailyEntryTotals? effectiveTotals = await ReconciliationLedgerQueries.Amounts(db).Where(entry =>
+                entry.ReconciliationDate == date && !waivedLines.Contains(entry.Id) && !waivedTransactions.Contains(entry.RootTransactionId))
+            .GroupBy(_ => 1).Select(group => new DailyEntryTotals(
+                group.Where(entry => entry.Direction == EntryType.Debit).Sum(entry => entry.Amount),
+                group.Where(entry => entry.Direction == EntryType.Credit).Sum(entry => entry.Amount)))
+            .FirstOrDefaultAsync(cancellationToken);
+        bool ledgerUnbalanced = effectiveTotals is not null && effectiveTotals.Debits != effectiveTotals.Credits;
         long actorId = currentUser.GetCurrentUserId();
-        await UpsertLedgerReconciliationExceptionAsync(date, dailyTotals?.Debits ?? 0m, dailyTotals?.Credits ?? 0m,
-            ledgerUnbalanced, actorId, cancellationToken);
-        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status == OperationsConstants.CashSessionOpen, cancellationToken);
+        if (persistLedgerException)
+            await UpsertLedgerReconciliationExceptionAsync(date, dailyTotals?.Debits ?? 0m, dailyTotals?.Credits ?? 0m,
+                ledgerUnbalanced, actorId, cancellationToken);
+        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status != OperationsConstants.CashSessionClosed && item.Status != OperationsConstants.CashSessionCancelled, cancellationToken);
+        bool hasFinalVaultCount = await db.CashPositionSessions.AnyAsync(item => item.BusinessDate == date &&
+            item.PositionType == OperationsConstants.CashPositionVault && item.Status == OperationsConstants.CashSessionClosed &&
+            db.CashCounts.Any(count => count.SessionId == item.Id), cancellationToken);
+        int missingVaultCount = hasFinalVaultCount ? 0 : 1;
         int pendingHandoffs = await db.CashHandoffs.CountAsync(item => item.BusinessDate == date &&
               item.Status != OperationsConstants.CashHandoffAccepted, cancellationToken);
+        int pendingCashProposals = await db.CashProposals.CountAsync(item => item.Session!.BusinessDate == date &&
+            (item.Status == "PendingApproval" || item.Status == "PendingReceipt"), cancellationToken);
+        pendingCashProposals += await db.CashCorrectionProposals.CountAsync(item => item.Exception!.BusinessDate == date &&
+            item.Status == ProposalStatus.PendingApproval, cancellationToken);
+        pendingCashProposals += await db.BankExpenseRequests.CountAsync(item => item.BusinessDate == date &&
+            item.Status == "PendingApproval", cancellationToken);
         List<long> resolvedInUnitOfWork = db.ReconciliationExceptions.Local
             .Where(item => item.BusinessDate == date && item.Severity == "Critical" &&
                 item.Status == OperationsConstants.ExceptionResolved && db.Entry(item).State == EntityState.Modified)
             .Select(item => item.Id).ToList();
         int criticalExceptions = await db.ReconciliationExceptions.AsNoTracking().CountAsync(item => item.BusinessDate == date &&
-            item.Severity == "Critical" && item.Status != OperationsConstants.ExceptionResolved && !resolvedInUnitOfWork.Contains(item.Id), cancellationToken);
+            item.Severity == "Critical" && item.Status != OperationsConstants.ExceptionResolved &&
+            item.Status != OperationsConstants.ExceptionForcePassed && !resolvedInUnitOfWork.Contains(item.Id), cancellationToken);
         criticalExceptions += db.ChangeTracker.Entries<ReconciliationException>().Count(entry =>
             entry.State == EntityState.Added && entry.Entity.BusinessDate == date && entry.Entity.Severity == "Critical" &&
             entry.Entity.Status != OperationsConstants.ExceptionResolved);
@@ -433,9 +565,9 @@ public sealed class EndOfDayWorkflowService(
             new(OperationsConstants.EodStagePendingApprovals, pendingApprovals == 0 ? "Complete" : "Blocked", pendingApprovals, null),
             new(OperationsConstants.EodStageAccountingEntries, missingEntries + unbalanced == 0 ? "Complete" : "Blocked", missingEntries + unbalanced, null),
             new(OperationsConstants.EodStageLedgerReconciliation, !ledgerUnbalanced ? "Complete" : "Blocked", ledgerUnbalanced ? 1 : 0, null),
-              new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs == 0 ? "Complete" : "Blocked",
-                  openSessions + pendingHandoffs, openSessions + pendingHandoffs == 0 ? null :
-                      $"{openSessions} open cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance or reassignment."),
+            new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount == 0 ? "Complete" : "Blocked",
+                  openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount, openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount == 0 ? null :
+                      $"{openSessions} open or scheduled cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance or reassignment; {pendingCashProposals} cash proposal(s) awaiting resolution; {missingVaultCount} final vault count(s) missing."),
             new(OperationsConstants.EodStageCriticalExceptions, criticalExceptions == 0 ? "Complete" : "Exceptions", criticalExceptions, null)
         ];
     }
@@ -448,6 +580,7 @@ public sealed class EndOfDayWorkflowService(
             .Where(item => item.Type == OperationsConstants.ExceptionLedgerBalance && item.BusinessDate == date &&
                 item.Status != OperationsConstants.ExceptionResolved)
             .OrderByDescending(item => item.Id).FirstOrDefaultAsync(cancellationToken);
+        if (existing?.Status == OperationsConstants.ExceptionForcePassed) return;
         DateTime now = DateTime.UtcNow;
         if (isUnbalanced)
         {
@@ -520,13 +653,11 @@ public sealed class EndOfDayWorkflowService(
     private static IReadOnlyList<EndOfDayStageResponse> DeserializeStages(string json) =>
         JsonSerializer.Deserialize<List<EndOfDayStageResponse>>(json, JsonOptions) ?? [];
 
-    private async Task EnsureOldestOpenDateAsync(DateOnly date, CancellationToken cancellationToken)
+    private async Task EnsureDateOpenAsync(DateOnly date, CancellationToken cancellationToken)
     {
-        bool isOpen = await db.BusinessDates.AnyAsync(item => item.Date == date &&
+        bool isOpen = date <= BusinessTime.Today && await db.BusinessDates.AnyAsync(item => item.Date == date &&
             item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-        bool earlierOpen = await db.BusinessDates.AnyAsync(item => item.Date < date &&
-            item.Status == OperationsConstants.BusinessDateOpen, cancellationToken);
-        if (!isOpen || earlierOpen) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
+        if (!isOpen) throw new BusinessRuleException(MessageCode.BusinessDateTransitionConflict);
     }
 
     private async Task<List<long>> GetActiveManagerIdsAsync(CancellationToken cancellationToken) =>
@@ -565,3 +696,4 @@ public sealed class EndOfDayWorkflowService(
             OverrideApprovalTimesUtc = DeserializeApprovalTimes(run.OverrideApprovalAuditJson)
         };
 }
+

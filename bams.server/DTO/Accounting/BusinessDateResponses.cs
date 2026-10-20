@@ -1,10 +1,16 @@
 namespace bams.server.DTO.Accounting;
 
-public sealed record BusinessDateResponse(DateOnly Date, string Status, DateTime OpenedAtUtc, DateTime? ClosedAtUtc);
+public sealed record BusinessDateResponse(DateOnly Date, string Status, DateTime OpenedAtUtc, DateTime? ClosedAtUtc, bool IsActive = false, bool CanStartNewDate = false, DateOnly? Today = null)
+{
+    public CashPositionSessionResponse? Vault { get; init; }
+    public IReadOnlyList<CashPositionSessionResponse> Sessions { get; init; } = [];
+}
+public sealed record StartBusinessDateRequest(decimal? StartingCash, IReadOnlyList<ScheduledCashSessionRequest>? Sessions = null, string? IdempotencyKey = null, DateOnly? ExpectedDate = null);
 public sealed record EndOfDayStageResponse(string Name, string Status, int IssueCount, string? MessageCode);
 public sealed record EndOfDayRunResponse(long RunId, DateOnly BusinessDate, string Status, DateTime PreparedAtUtc,
     IReadOnlyList<EndOfDayStageResponse> Stages, long PreparedBy, long? ApprovedBy, long? ClosedBy)
 {
+    public EndOfDayRunResponse? PendingForceClose { get; init; }
     public long? ReviewedBy { get; init; }
     public DateTime? ReviewedAtUtc { get; init; }
     public string? OverrideReason { get; init; }

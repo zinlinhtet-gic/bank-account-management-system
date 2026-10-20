@@ -76,17 +76,13 @@ public sealed class AccountHolderService : IAccountHolderService
         string? secondNrc,
         CancellationToken cancellationToken)
     {
-        var firstCustomer = await _customerLookUpService.FindRegisteredCustomerByNrcAsync(
-            firstNrc,
-            cancellationToken);
+        var firstCustomer = await FindRegisteredCustomerByIdentifierAsync(firstNrc, cancellationToken);
         if (string.IsNullOrWhiteSpace(secondNrc))
         {
             return [firstCustomer];
         }
 
-        var secondCustomer = await _customerLookUpService.FindRegisteredCustomerByNrcAsync(
-            secondNrc,
-            cancellationToken);
+        var secondCustomer = await FindRegisteredCustomerByIdentifierAsync(secondNrc, cancellationToken);
 
         if (firstCustomer.Id == secondCustomer.Id)
         {
@@ -390,7 +386,7 @@ public sealed class AccountHolderService : IAccountHolderService
         long requestedAccountTypeId,
         CancellationToken cancellationToken)
     {
-        var customer = await _customerLookUpService.FindRegisteredCustomerByNrcAsync(holderNrc, cancellationToken);
+        var customer = await FindRegisteredCustomerByIdentifierAsync(holderNrc, cancellationToken);
         var hasMatchingAccount = await _dbContext.AccountHolders
             .AsNoTracking()
             .AnyAsync(holder =>
@@ -409,6 +405,21 @@ public sealed class AccountHolderService : IAccountHolderService
         }
 
         return customer;
+    }
+
+    // Holder inputs accept either identifier; passport lookup runs only after the NRC lookup misses.
+    private async Task<Customer> FindRegisteredCustomerByIdentifierAsync(
+        string? identifier,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _customerLookUpService.FindRegisteredCustomerByNrcAsync(identifier, cancellationToken);
+        }
+        catch (NotFoundException)
+        {
+            return await _customerLookUpService.FindRegisteredCustomerByPassportNumberAsync(identifier, cancellationToken);
+        }
     }
 
     // Maps a holder relationship to its API response contract.

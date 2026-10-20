@@ -10,6 +10,10 @@ public sealed class CashPositionSession
     public long? TellerId { get; set; }
     public User? Teller { get; set; }
     public DateOnly BusinessDate { get; set; }
+    public DateTime? ScheduledStartAtMyanmar { get; set; }
+    public DateTime? ScheduledEndAtMyanmar { get; set; }
+    public DateTime? ActivatedAtUtc { get; set; }
+    public decimal ReservedCash { get; set; }
     public decimal OpeningCash { get; set; }
     public decimal ExpectedClosingCash { get; set; }
     public string Status { get; set; } = "Open";
