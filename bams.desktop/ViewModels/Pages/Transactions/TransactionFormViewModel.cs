@@ -19,7 +19,10 @@ public enum TransactionFormKind
     Withdrawal,
     InternalTransfer,
     InterbankTransfer,
-    NrcTransfer
+    NrcTransfer,
+
+    // Not a form: the tab lists NRC transfers waiting for pickup (NrcPickupListViewModel).
+    NrcPickup
 }
 
 /// <summary>

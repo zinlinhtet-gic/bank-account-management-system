@@ -13,6 +13,9 @@ public sealed class ReconciliationVerificationViewModel : ReconciliationOperatio
     private bool _accountTabSelected = true;
     private bool _cashTabSelected;
     private string? _verificationMessage;
+    private ReconciliationVerificationTask? _selectedTask;
+
+    public ReconciliationVerificationTask? SelectedTask { get => _selectedTask; set => SetProperty(ref _selectedTask, value); }
 
     public ObservableCollection<ReconciliationVerificationTask> AccountTasks { get; } = [];
     public ObservableCollection<ReconciliationVerificationTask> CashTasks { get; } = [];
@@ -73,6 +76,11 @@ public sealed class ReconciliationVerificationViewModel : ReconciliationOperatio
     private async Task LoadAsync(CancellationToken ct)
     {
         IReadOnlyList<ReconciliationVerificationTask> tasks = await _unified.VerificationTasksAsync(ct);
+        // Account and cash proposal ids overlap, so a selection is matched on both id and kind.
+        bool focusIsCash = FocusIsCash;
+        long? focusId = TakeFocusId();
+        (long Id, bool IsCash)? selected = focusId.HasValue ? (focusId.Value, focusIsCash)
+            : SelectedTask is null ? null : (SelectedTask.ProposalId, SelectedTask.IsCash);
         AccountTasks.Clear();
         CashTasks.Clear();
         foreach (ReconciliationVerificationTask task in tasks)
@@ -80,6 +88,13 @@ public sealed class ReconciliationVerificationViewModel : ReconciliationOperatio
             if (task.IsCash) CashTasks.Add(task);
             else AccountTasks.Add(task);
         }
+        if (focusId.HasValue)
+        {
+            if (focusIsCash) IsCashTabSelected = true;
+            else IsAccountTabSelected = true;
+        }
+        SelectedTask = selected is null ? null
+            : Tasks.FirstOrDefault(task => task.ProposalId == selected.Value.Id && task.IsCash == selected.Value.IsCash);
     }
 
     public override Task InitializeAsync(CancellationToken ct = default) => RunAsync(() => LoadAsync(ct));

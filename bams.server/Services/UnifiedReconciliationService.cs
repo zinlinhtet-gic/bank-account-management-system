@@ -16,7 +16,7 @@ namespace bams.server.Services;
 /// <summary>Runs the same account and cash checks for the master page and End of Day.</summary>
 public sealed partial class UnifiedReconciliationService(ApplicationDbContext db, ReconciliationCheckService accounts,
     ReconciliationExclusionService exclusions, ICurrentUserService currentUser,
-    IAccountReconciliationService reports)
+    IAccountReconciliationService reports, Notifications.ReconciliationNotifier notifier)
 {
     public async Task<ReconciliationExceptionDetailResponse> DetailAsync(long id, CancellationToken ct)
     {
@@ -147,10 +147,12 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
         db.ReconciliationExceptionHistories.Add(new ReconciliationExceptionHistory { Exception = exception,
             OldStatus = exception.Status, NewStatus = OperationsConstants.ExceptionUnderInvestigation,
             Note = $"Assigned investigator {request.InvestigatorId}. {request.Note}", ActorId = actor, CreatedAtUtc = DateTime.UtcNow });
+        long? previousAssignee = exception.AssignedTo;
         exception.AssignedTo = request.InvestigatorId;
         exception.Status = OperationsConstants.ExceptionUnderInvestigation;
         exception.Notes = request.Note;
         exception.UpdatedAtUtc = DateTime.UtcNow;
+        await notifier.ExceptionAssignedAsync(exception, previousAssignee, actor, request.Note, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }

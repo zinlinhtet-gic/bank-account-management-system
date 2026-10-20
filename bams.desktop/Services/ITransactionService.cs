@@ -34,6 +34,16 @@ public interface ITransactionService
     /// <summary>Loads the branches where NRC transfers can be collected.</summary>
     Task<IReadOnlyList<BranchResponse>> GetBranchesAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Loads one page of NRC transfers waiting to be collected at our branches, soonest-expiring first.
+    /// </summary>
+    /// <param name="receiverName">Only receivers whose name contains this text; null or blank for all.</param>
+    Task<PagedResponse<NrcPickupSummaryResponse>> GetPendingNrcPickupsAsync(
+        string? receiverName,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
+
     /// <summary>Loads the banks an interbank transfer can be sent to.</summary>
     Task<IReadOnlyList<OtherBankResponse>> GetOtherBanksAsync(CancellationToken cancellationToken);
 

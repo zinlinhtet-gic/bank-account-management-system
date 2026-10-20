@@ -75,6 +75,8 @@ public static class MessageCatalog
             [MessageCode.FieldTooLong] = "This value is too long.",
             [MessageCode.InvalidDateRange] = "The start date must be on or before the end date.",
             [MessageCode.ScheduledJobAlertsUnavailable] = "Scheduled operation alerts could not be loaded. Try refreshing.",
+            [MessageCode.NotificationsUnavailable] = "Notifications could not be loaded. Try refreshing.",
+            [MessageCode.NotificationTargetNotPermitted] = "You do not have access to the page for this notification.",
             [MessageCode.MonthlyAccountingPeriodNotClosed] = "The previous month's final business date is still open. Close it through End of Day before retrying the monthly accounting close.",
             [MessageCode.ScheduledJobRetryUnavailable] = "This scheduled operation is not in a state that can be retried manually.",
             [MessageCode.NewPasswordSameAsCurrent] = "The new password must be different from your current password.",

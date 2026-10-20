@@ -10,8 +10,9 @@ namespace bams.desktop.ViewModels.Pages;
 
 /// <summary>
 /// ViewModel for the Transactions page (officers): one tab per kind of posting (deposit, withdrawal, internal,
-/// interbank and NRC transfer) with its form shown inline. After a posting the tab gets a fresh form with fresh
-/// balances. Existing transactions and their pending actions live on the Transaction History page.
+/// interbank and NRC transfer) with its form shown inline, plus an NRC pickup tab listing transfers waiting to be
+/// collected. After a posting the tab gets a fresh form with fresh balances. Existing transactions and their pending
+/// actions live on the Transaction History page.
 /// </summary>
 public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
 {
@@ -23,6 +24,7 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     private IReadOnlyList<BranchResponse> _branches = [];
     private TransactionFormViewModel? _currentForm;
     private bool _isLoadingForm;
+    private bool _showsNrcPickups;
     private int _formLoadVersion;
     private string _errorMessage = string.Empty;
     private string _successMessage = string.Empty;
@@ -30,12 +32,14 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     public TransactionsViewModel(
         ITransactionService transactionService,
         IAccountService accountService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        NrcPickupListViewModel nrcPickups)
     {
         // Constructors only store dependencies and create commands. No server calls here.
         _transactionService = transactionService;
         _accountService = accountService;
         _dialogService = dialogService;
+        NrcPickups = nrcPickups;
 
         Tabs =
         [
@@ -43,7 +47,8 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
             new(TransactionFormKind.Withdrawal, "Withdraw", "Icon.Upload", "Cash paid out of a customer account"),
             new(TransactionFormKind.InternalTransfer, "Internal transfer", "Icon.Transfers", "Between two accounts in this bank"),
             new(TransactionFormKind.InterbankTransfer, "Interbank transfer", "Icon.Bank", "To an account at another bank"),
-            new(TransactionFormKind.NrcTransfer, "NRC transfer", "Icon.Send", "Collected by a named receiver with their NRC and a pickup code")
+            new(TransactionFormKind.NrcTransfer, "NRC transfer", "Icon.Send", "Collected by a named receiver with their NRC and a pickup code"),
+            new(TransactionFormKind.NrcPickup, "NRC pickup", "Icon.UserCheck", "Pay out NRC transfers waiting at our branches")
         ];
         foreach (var tab in Tabs)
         {
@@ -78,6 +83,22 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
 
     public bool HasForm => CurrentForm is not null;
 
+    /// <summary>The NRC pickup tab's list of transfers waiting to be collected.</summary>
+    public NrcPickupListViewModel NrcPickups { get; }
+
+    /// <summary>The NRC pickup tab is selected: the list is shown instead of a form.</summary>
+    public bool ShowsNrcPickups
+    {
+        get => _showsNrcPickups;
+        private set
+        {
+            if (SetProperty(ref _showsNrcPickups, value))
+            {
+                OnPropertyChanged(nameof(ShowsFormUnavailable));
+            }
+        }
+    }
+
     public bool IsLoadingForm
     {
         get => _isLoadingForm;
@@ -97,7 +118,7 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
     public bool CanChangeTab => CurrentForm?.IsBusy != true;
 
     /// <summary>The form could not be opened (e.g. accounts failed to load); the view offers "Try again".</summary>
-    public bool ShowsFormUnavailable => !IsLoadingForm && CurrentForm is null;
+    public bool ShowsFormUnavailable => !IsLoadingForm && CurrentForm is null && !ShowsNrcPickups;
 
     /// <summary>Opens the selected tab's form again, e.g. after a failed load.</summary>
     public AsyncRelayCommand ReloadFormCommand { get; }
@@ -169,6 +190,16 @@ public sealed class TransactionsViewModel : ViewModelBase, IAsyncInitializable
         }
 
         ReplaceForm(null);
+
+        // The NRC pickup tab has no form; its list loads itself and shows its own banners.
+        ShowsNrcPickups = kind == TransactionFormKind.NrcPickup;
+        if (ShowsNrcPickups)
+        {
+            IsLoadingForm = false;
+            await NrcPickups.LoadAsync();
+            return;
+        }
+
         IsLoadingForm = true;
 
         try

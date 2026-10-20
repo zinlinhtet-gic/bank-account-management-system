@@ -14,7 +14,8 @@ namespace bams.server.Services;
 
 /// <summary>Owns teller/vault cash sessions, inter-position transfers, and physical counts.</summary>
 public sealed partial class CashOperationsService(ApplicationDbContext db, ICurrentUserService currentUser,
-    IBusinessDateService businessDates, CashSessionSchedulingService scheduling) : ICashOperationsService
+    IBusinessDateService businessDates, CashSessionSchedulingService scheduling,
+    Notifications.INotificationService notifications) : ICashOperationsService
 {
     public async Task<CashPositionSessionResponse> OpenSessionAsync(OpenCashSessionRequest request, string? idempotencyKey, CancellationToken cancellationToken)
     {
@@ -123,6 +124,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
                 ApprovedAtUtc = now,
                 ApprovedBy = actorId
             });
+            await scheduling.NotifySessionScheduledAsync(session, actorId, request.OpeningCash, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         await transaction.CommitAsync(cancellationToken);
@@ -193,6 +195,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         AddMovement(vault, session, "VaultIssue", amount, actorId, nowUtc, "Starting cash accepted");
         AddMovement(session, vault, "CashReceipt", amount, actorId, nowUtc, "Starting cash accepted");
         session.Version++;
+        await NotifySessionAcceptedAsync(session, actorId, amount, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToResponse(session);
@@ -212,6 +215,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         session.ClosedBy = actorId;
         session.ClosedAtUtc = DateTime.UtcNow;
         session.Version++;
+        await NotifySessionCancelledAsync(session, actorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToResponse(session);
@@ -253,6 +257,9 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         };
         db.CashProposals.Add(proposal);
         await db.SaveChangesAsync(cancellationToken);
+        // The request id exists only after the first save; both saves share the transaction.
+        await NotifyCashRequestSubmittedAsync(proposal, actorId, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToProposalResponse(proposal);
     }
@@ -290,6 +297,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         proposal.ApprovedAtUtc = DateTime.UtcNow;
         proposal.Status = "PendingReceipt";
         proposal.Version++;
+        await NotifyCashRequestApprovedAsync(proposal, actorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToProposalResponse(proposal);
@@ -316,6 +324,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             proposal.Status = "Rejected";
             proposal.ResolvedAtUtc = DateTime.UtcNow;
             proposal.Version++;
+            await NotifyCashRequestRejectedAsync(proposal, actorId, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return ToProposalResponse(proposal);
@@ -348,6 +357,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         db.CashMovements.Add(new CashMovement { SessionId = teller.Id, DestinationSessionId = vault.Id,
             Type = receive ? "CashReceipt" : "CashProposalRejected", Amount = receive ? amount : 0m,
             ActorId = actorId, CreatedAtUtc = DateTime.UtcNow, Note = request.Note });
+        await NotifyCashReceiptResolvedAsync(proposal, actorId, receive, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToProposalResponse(proposal);
@@ -561,6 +571,12 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             existingException.UpdatedAtUtc = now;
         }
         await db.SaveChangesAsync(cancellationToken);
+        if (handoff is not null)
+        {
+            // The handoff id exists only after the first save; both saves share the transaction.
+            await NotifyHandoffReceivedAsync(handoff, actorId, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
         await transaction.CommitAsync(cancellationToken);
         return new CashCountResponse(count.Id, session.Id, count.ExpectedAmount, count.ActualAmount, difference,
             difference == 0m ? "Matched" : "Unmatched", now, handoff?.Id, handoff?.Status);
@@ -853,6 +869,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             CashHandoffId = handoff.Id, OldStatus = oldStatus, NewStatus = newStatus,
             RecipientId = handoff.RecipientId, Note = request.Note, ActorId = actorId, CreatedAtUtc = handoff.UpdatedAtUtc
         });
+        await NotifyHandoffDecidedAsync(handoff, actorId, newStatus == OperationsConstants.CashHandoffAccepted, request.Note, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         await db.Entry(handoff).Reference(item => item.Sender).LoadAsync(cancellationToken);
@@ -898,6 +915,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             PreviousRecipientId = oldRecipientId, RecipientId = recipient.Id, Note = request.Note,
             ActorId = actorId, CreatedAtUtc = handoff.UpdatedAtUtc
         });
+        await NotifyHandoffReassignedAsync(handoff, oldRecipientId, actorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         await db.Entry(handoff).Reference(item => item.Sender).LoadAsync(cancellationToken);

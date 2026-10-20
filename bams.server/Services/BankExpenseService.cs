@@ -14,7 +14,8 @@ namespace bams.server.Services;
 
 /// <summary>Records bank operating cash already spent; review and all posting effects commit together.</summary>
 public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserService currentUser, LedgerPostingService ledger,
-    IBusinessDateService businessDates, ReconciliationProjectionService projections)
+    IBusinessDateService businessDates, ReconciliationProjectionService projections,
+    Notifications.INotificationService notifications)
 {
     private const int MaximumReceiptBytes = 5 * 1024 * 1024;
 
@@ -32,6 +33,9 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
             throw new ForbiddenException(MessageCode.InsufficientPermission);
         BankExpenseRequest expense = CreateRequest(request, session.BusinessDate, actor);
         db.BankExpenseRequests.Add(expense);
+        await db.SaveChangesAsync(ct);
+        // The expense id exists only after the first save; both saves share the transaction.
+        await NotifyExpenseSubmittedAsync(expense, actor, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return ToResponse(expense);
@@ -93,9 +97,35 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
             await projections.GenerateProvisionalAsync(postingDate, ct);
         }
         else expense.Status = "Rejected";
+        await NotifyExpenseReviewedAsync(expense, actor, request.Approve, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return ToResponse(expense);
+    }
+
+    // Asks every manager to review the expense; the copies disappear once one manager decides.
+    private async Task NotifyExpenseSubmittedAsync(BankExpenseRequest expense, long actor, CancellationToken ct)
+    {
+        string requester = await notifications.GetUserNameAsync(actor, ct);
+        await notifications.NotifyRoleAsync(SecurityConstants.ManagerRole, actor, new Notifications.NotificationMessage(
+            NotificationConstants.Types.BankExpenseSubmitted, NotificationConstants.Categories.CashManagement,
+            "Bank expense needs review",
+            $"{requester} recorded a {expense.Amount:N2} expense paid to {expense.Payee} (expense #{expense.Id}).",
+            NotificationConstants.Targets.BankExpense, expense.Id,
+            NotificationConstants.Groups.BankExpenseReview(expense.Id)), ct);
+    }
+
+    // Tells the requester the manager's decision.
+    private async Task NotifyExpenseReviewedAsync(BankExpenseRequest expense, long actor, bool approved, CancellationToken ct)
+    {
+        await notifications.DismissGroupAsync(NotificationConstants.Groups.BankExpenseReview(expense.Id), ct);
+        string manager = await notifications.GetUserNameAsync(actor, ct);
+        await notifications.NotifyUsersAsync([expense.RequestedBy], actor, new Notifications.NotificationMessage(
+            approved ? NotificationConstants.Types.BankExpenseApproved : NotificationConstants.Types.BankExpenseRejected,
+            NotificationConstants.Categories.CashManagement,
+            approved ? "Bank expense approved" : "Bank expense rejected",
+            $"{manager} {(approved ? "approved and posted" : "rejected")} expense #{expense.Id} ({expense.Amount:N2} to {expense.Payee}). Note: {expense.ReviewNote}",
+            NotificationConstants.Targets.BankExpense, expense.Id), ct);
     }
 
     /// <summary>Shared posting operation used by ordinary requests and approved reconciliation proposals.</summary>

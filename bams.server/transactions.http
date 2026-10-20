@@ -124,6 +124,10 @@ Content-Type: application/json
 GET {{baseUrl}}/api/transactions/branches
 Authorization: Bearer {{token}}
 
+### NRC transfers waiting for pickup at our branches, soonest-expiring first; receiverName matches part of the name
+GET {{baseUrl}}/api/transactions/nrc-pickups?receiverName=Aung&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
 ### NRC cancel -> sender refunded the way they paid (cash or account); returns the Reversal transaction
 POST {{baseUrl}}/api/transactions/transfer/nrc/{{transactionId}}/cancel
 Authorization: Bearer {{token}}

@@ -5,14 +5,34 @@ using bams.server.Exceptions;
 using bams.server.Messages;
 using bams.server.Models.Accounting;
 using bams.server.Models.Security;
+using bams.server.Services.Notifications;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
 /// <summary>Creates schedules inside the caller's transaction, serializing reservations on the vault.</summary>
-public sealed class CashSessionSchedulingService(ApplicationDbContext db)
+public sealed class CashSessionSchedulingService(ApplicationDbContext db, INotificationService notifications)
 {
+    /// <summary>Tells the officer a manager scheduled a teller session that they must accept.</summary>
+    public async Task NotifySessionScheduledAsync(CashPositionSession session, long actorId, decimal startingCash, CancellationToken cancellationToken)
+    {
+        var manager = await notifications.GetUserNameAsync(actorId, cancellationToken);
+        await notifications.NotifyUsersAsync([session.TellerId], actorId, new NotificationMessage(
+            NotificationConstants.Types.SessionScheduled, NotificationConstants.Categories.CashManagement,
+            "Cash session assigned to you",
+            $"{manager} scheduled your teller session for {session.BusinessDate:yyyy-MM-dd} {FormatSessionWindow(session)} " +
+            $"with {startingCash:N2} starting cash. Accept it to start working.",
+            NotificationConstants.Targets.SessionDetail, session.Id,
+            NotificationConstants.Groups.SessionScheduled(session.Id)), cancellationToken);
+    }
+
+    /// <summary>Formats the scheduled Myanmar time window for notification text.</summary>
+    public static string FormatSessionWindow(CashPositionSession session) =>
+        session.ScheduledStartAtMyanmar.HasValue && session.ScheduledEndAtMyanmar.HasValue
+            ? $"{session.ScheduledStartAtMyanmar:HH:mm}-{session.ScheduledEndAtMyanmar:HH:mm}"
+            : string.Empty;
+
     /// <summary>Validates the complete batch before reserving cash and creating its sessions.</summary>
     public async Task<IReadOnlyList<CashPositionSession>> CreateAsync(
         IReadOnlyList<ScheduledCashSessionRequest> rows, CashPositionSession vault, long actorId,
@@ -66,6 +86,11 @@ public sealed class CashSessionSchedulingService(ApplicationDbContext db)
         vault.ReservedCash += total;
         vault.Version++;
         await db.SaveChangesAsync(cancellationToken);
+
+        // Session ids exist only after the save; the caller's transaction covers both saves.
+        for (int index = 0; index < created.Count; index++)
+            await NotifySessionScheduledAsync(created[index], actorId, rows[index].StartingCash, cancellationToken);
+        if (created.Count > 0) await db.SaveChangesAsync(cancellationToken);
         return created;
     }
 }

@@ -15,6 +15,11 @@ public static class ApiConstants
     public const string LogoutEndpoint = AuthEndpoint + "/logout";
     public const string RefreshTokenEndpoint = AuthEndpoint + "/refresh";
 
+    // Notifications. Mark one read: $"{NotificationsEndpoint}/{id}/{NotificationReadSegment}".
+    public const string NotificationsEndpoint = "api/notifications";
+    public const string NotificationReadSegment = "read";
+    public const string NotificationsReadAllEndpoint = NotificationsEndpoint + "/read-all";
+
     public const string AccountsEndpoint = "api/accounts";
     public const string AccountCustomerLookupEndpoint = AccountsEndpoint + "/customer-lookup";
     public const string AccountOpeningOptionsEndpoint = AccountsEndpoint + "/opening-options";
@@ -57,6 +62,8 @@ public static class ApiConstants
     public const string InterbankTransferEndpoint = TransactionsEndpoint + "/transfer/interbank";
     public const string NrcTransferEndpoint = TransactionsEndpoint + "/transfer/nrc";
     public const string NrcPickupEndpoint = TransactionsEndpoint + "/nrc-pickup";
+    // NRC transfers waiting to be collected at our branches; optional receiverName, page, pageSize.
+    public const string NrcPickupsEndpoint = TransactionsEndpoint + "/nrc-pickups";
     public const string TransactionOtherBanksEndpoint = TransactionsEndpoint + "/other-banks";
     public const string BranchesEndpoint = TransactionsEndpoint + "/branches";
     public const string PaidOutSegment = "paid-out";

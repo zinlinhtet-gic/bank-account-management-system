@@ -68,6 +68,22 @@ public sealed class TransactionService : ITransactionService
         return _apiClient.GetAsync<IReadOnlyList<BranchResponse>>(ApiConstants.BranchesEndpoint, cancellationToken);
     }
 
+    public Task<PagedResponse<NrcPickupSummaryResponse>> GetPendingNrcPickupsAsync(
+        string? receiverName,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var query = new QueryString()
+            .Add("receiverName", receiverName)
+            .Add("page", page)
+            .Add("pageSize", pageSize);
+
+        return _apiClient.GetAsync<PagedResponse<NrcPickupSummaryResponse>>(
+            ApiConstants.NrcPickupsEndpoint + query,
+            cancellationToken);
+    }
+
     public Task<IReadOnlyList<OtherBankResponse>> GetOtherBanksAsync(CancellationToken cancellationToken)
     {
         return _apiClient.GetAsync<IReadOnlyList<OtherBankResponse>>(ApiConstants.TransactionOtherBanksEndpoint, cancellationToken);

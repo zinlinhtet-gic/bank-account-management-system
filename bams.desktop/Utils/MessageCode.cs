@@ -146,5 +146,7 @@ public enum MessageCode
     RequestTimeout = 6002,
     InvalidServerResponse = 6003,
     ScheduledJobAlertsUnavailable = 6020,
+    NotificationsUnavailable = 6021,
+    NotificationTargetNotPermitted = 6022,
     CurrentPasswordIncorrect = 6010
 }

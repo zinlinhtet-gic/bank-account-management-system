@@ -1,13 +1,15 @@
 using bams.server.Constants;
 using bams.server.Data;
+using bams.server.Models.Accounting;
 using bams.server.Services.Jobs;
+using bams.server.Services.Notifications;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace bams.server.Services;
 
 /// <summary>Closes teller sessions that were never activated before their scheduled Myanmar end time.</summary>
-public sealed class ScheduledCashSessionExpiryService(ApplicationDbContext db)
+public sealed class ScheduledCashSessionExpiryService(ApplicationDbContext db, INotificationService notifications)
 {
     public async Task ExecuteAsync(ScheduledJobExecutionContext execution, CancellationToken cancellationToken)
     {
@@ -58,8 +60,23 @@ public sealed class ScheduledCashSessionExpiryService(ApplicationDbContext db)
             session.ClosedAtUtc = nowUtc;
             session.ClosedBy = null; // System expiry has no human actor.
             session.Version++;
+            await NotifySessionExpiredAsync(session, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
+    }
+
+    // Tells the officer and the scheduling manager that the unaccepted session expired.
+    private async Task NotifySessionExpiredAsync(CashPositionSession session, CancellationToken cancellationToken)
+    {
+        await notifications.DismissGroupAsync(NotificationConstants.Groups.SessionScheduled(session.Id), cancellationToken);
+        var officer = await notifications.GetUserNameAsync(session.TellerId, cancellationToken);
+        await notifications.NotifyUsersAsync([session.TellerId, session.OpenedBy], null, new NotificationMessage(
+            NotificationConstants.Types.SessionExpired, NotificationConstants.Categories.CashManagement,
+            "Cash session expired",
+            $"Teller session #{session.Id} for {officer} on {session.BusinessDate:yyyy-MM-dd} " +
+            $"{CashSessionSchedulingService.FormatSessionWindow(session)} expired because it was not accepted in time. " +
+            "The reserved starting cash was returned to the vault.",
+            NotificationConstants.Targets.SessionManagement, session.Id), cancellationToken);
     }
 }

@@ -15,7 +15,7 @@ namespace bams.server.Services;
 /// <summary>Owns proposal review transactions and dispatches case-specific correction operations.</summary>
 public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICurrentUserService user,
     CorrectionPlanningService planner, ReconciliationProjectionService projections, ReconciliationCheckService checks,
-    UnifiedReconciliationService unified)
+    UnifiedReconciliationService unified, Notifications.ReconciliationNotifier notifier)
 {
     /// <summary>Returns proposal history without exposing persistence entities.</summary>
     public async Task<IReadOnlyList<CorrectionProposalResponse>> ListAsync(long? exceptionId, CancellationToken ct)
@@ -109,6 +109,12 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
         exception.DiscrepancyKind = request.Inputs.Kind;
         if (request.Submit) AddHistory(exception, OperationsConstants.ExceptionAdjustmentRequired, $"Correction proposal revision {proposal.Revision} submitted.");
         await db.SaveChangesAsync(ct);
+        if (request.Submit)
+        {
+            // A new draft gets its id only on the first save; both saves share the transaction.
+            await notifier.ProposalSubmittedAsync(exception, proposal.Id, isCash: false, actor, ct);
+            await db.SaveChangesAsync(ct);
+        }
         await tx.CommitAsync(ct);
         return ToResponse(proposal);
     }
@@ -167,6 +173,9 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
             AddHistory(exception, OperationsConstants.ExceptionAdjustmentRequired,
                 $"Proposal {id} executed on {preview.PostingDate:yyyy-MM-dd} for source date {exception.BusinessDate:yyyy-MM-dd}; verification pending. Sole-manager approval: {proposal.SoleManagerApproval}.");
         }
+        await notifier.ProposalReviewedAsync(exception, proposal.Id, proposal.ProposerId, isCash: false,
+            request.Approve ? Notifications.ProposalReviewOutcome.Approved : Notifications.ProposalReviewOutcome.Rejected,
+            request.Note, actor, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         if (request.Approve)
@@ -321,6 +330,9 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
                 : "Account and journal checks passed through the latest business date."
             : "A discrepancy remains; investigate the check results before proposing further corrections.";
         AddHistory(exception, passed ? OperationsConstants.ExceptionResolved : OperationsConstants.ExceptionUnderInvestigation, proposal.VerificationNote);
+        if (!passed)
+            await notifier.VerificationFailedAsync(exception, proposal.Id, proposal.ProposerId, proposal.VerificationNote,
+                user.GetCurrentUserId(), ct);
         await db.SaveChangesAsync(ct);
         if (sourceIsClosed && passed)
             await checks.RunAsync(new(exception.BusinessDate, exception.BusinessDate, null), ct);

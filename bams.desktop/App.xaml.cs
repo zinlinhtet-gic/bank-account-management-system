@@ -164,6 +164,7 @@ public partial class App : Application
         services.AddSingleton<Services.IAccountService, Services.AccountService>();
         services.AddTransient<ViewModels.Pages.Transactions.TransactionFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Transactions.TransactionListViewModel>();
+        services.AddTransient<ViewModels.Pages.Transactions.NrcPickupListViewModel>();
         services.AddTransient<ViewModels.Pages.Transactions.TransactionDetailsLauncher>();
 
         // Register ViewModels
@@ -212,6 +213,8 @@ public partial class App : Application
         services.AddSingleton<Services.IEndOfDayClientService, Services.EndOfDayClientService>();
         services.AddSingleton<Services.IScheduledJobClientService, Services.ScheduledJobClientService>();
         services.AddTransient<ViewModels.ScheduledJobFailuresViewModel>();
+        services.AddSingleton<Services.INotificationClientService, Services.NotificationClientService>();
+        services.AddTransient<ViewModels.NotificationsViewModel>();
         services.AddTransient<OperationsViewModel>();
         services.AddTransient<AuditViewModel>();
         services.AddTransient<ConfigurationsViewModel>();

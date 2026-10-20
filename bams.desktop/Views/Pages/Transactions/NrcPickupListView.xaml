@@ -1,0 +1,127 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Transactions.NrcPickupListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:search="clr-namespace:bams.desktop.Components.SearchBox"
+             xmlns:tx="clr-namespace:bams.desktop.Views.Pages.Transactions">
+    <!--
+        NRC pickup tab of the Transactions page. DataContext: NrcPickupListViewModel.
+        Receiver-name search → outcome banners → table of transfers waiting at our branches. "Pick up" opens the pickup
+        form, where the officer still enters the identity from the collector's NRC card and the code.
+    -->
+    <StackPanel>
+        <TextBlock Text="NRC transfers waiting to be collected at our branches. Search by the receiver the sender named."
+                   Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
+
+        <!-- ===== Receiver search ===== -->
+        <Grid Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="420"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="RECEIVER NAME" Style="{StaticResource Text.FieldLabel}"/>
+                <search:SearchBox Text="{Binding ReceiverNameSearch, Mode=TwoWay}"
+                                  Placeholder="Name of the designated receiver"
+                                  SearchCommand="{Binding SearchCommand}"
+                                  ToolTip="Part of the receiver's name is enough. Press Enter or click the search icon."/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Clear" Style="{StaticResource Button.Secondary}" VerticalAlignment="Bottom"
+                    Margin="8,0,0,0" ToolTip="Show every waiting pickup"
+                    Command="{Binding ClearSearchCommand}"
+                    Visibility="{Binding HasSearch, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </Grid>
+
+        <!-- ===== Outcome banners ===== -->
+        <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,16,0,0"
+                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        <ContentControl Style="{StaticResource Alert.Success}" Content="{Binding SuccessMessage}" Margin="0,16,0,0"
+                        Visibility="{Binding HasSuccess, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- ===== Pickup table ===== -->
+        <Border Style="{StaticResource Card.Flush}" Margin="0,16,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <tx:TransactionPager Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource Button.Icon}"
+                                    t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list"
+                                    t:ThemeAssist.IsLoading="{Binding IsLoading}"
+                                    Command="{Binding RefreshCommand}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Waiting for pickup" Style="{StaticResource Text.Title}" VerticalAlignment="Center"/>
+                            <ContentControl Style="{StaticResource Badge.Neutral}" t:ThemeAssist.ShowDot="False"
+                                            Content="{Binding CountText}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Grid MinHeight="200">
+                    <DataGrid Style="{StaticResource Table}" BorderThickness="0" ItemsSource="{Binding Pickups}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Receiver" Binding="{Binding ReceiverName}" Width="*" MinWidth="150"
+                                                ElementStyle="{StaticResource Table.Text}"/>
+
+                            <DataGridTextColumn Header="Amount (MMK)" Binding="{Binding AmountText}" Width="125"
+                                                SortMemberPath="Amount" ElementStyle="{StaticResource Table.Text.Mono}"/>
+
+                            <DataGridTextColumn Header="Sender" Binding="{Binding SenderName}" Width="150"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTextColumn Header="Collect at" Binding="{Binding PickupBranchText}" Width="140"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTextColumn Header="Transaction no" Binding="{Binding TransactionNo}" Width="200"
+                                                ElementStyle="{StaticResource Table.Text.Code}"/>
+
+                            <DataGridTextColumn Header="Sent" Binding="{Binding SentAtText}" Width="150"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <DataGridTextColumn Header="Code valid to" Binding="{Binding ExpiresAtText}" Width="150"
+                                                ElementStyle="{StaticResource Table.Text.Muted}"/>
+
+                            <!-- Ready, or Expired / Blocked (those need a new code or a cancel on Transaction History) -->
+                            <DataGridTemplateColumn Header="State" Width="100" SortMemberPath="StateText">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid HorizontalAlignment="Left" ToolTip="{Binding StateToolTip}">
+                                            <ContentControl Style="{StaticResource Badge.Success}" Content="{Binding StateText}"
+                                                            Visibility="{Binding CanPickUp, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <ContentControl Style="{StaticResource Badge.Danger}" Content="{Binding StateText}"
+                                                            Visibility="{Binding CanPickUp, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="Actions" Width="120" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="Pick up" Style="{StaticResource Button.Secondary}" t:ThemeAssist.Size="Small"
+                                                HorizontalAlignment="Right"
+                                                t:ThemeAssist.Icon="{StaticResource Icon.UserCheck}"
+                                                t:ThemeAssist.RequiresOpenCashSession="True"
+                                                ToolTip="Verify the collector's NRC card and code, then pay out in cash"
+                                                Command="{Binding DataContext.PickUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Empty state under the column headers -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,72,0,24" IsHitTestVisible="False"
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding EmptyTitle}" Style="{StaticResource Text.Subheading}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding EmptyHint}" Style="{StaticResource Text.BodyMuted}"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
