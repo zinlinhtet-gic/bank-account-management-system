@@ -2187,6 +2187,69 @@ namespace bams.server.Data.Migrations
                     b.ToTable("ScheduledJobRetryRequests");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Notifications.Notification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("GroupKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("RecipientUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("TargetId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("GroupKey", "ReadAtUtc")
+                        .HasDatabaseName("IX_Notification_GroupUnread");
+
+                    b.HasIndex("RecipientUserId", "ReadAtUtc", "CreatedAtUtc")
+                        .HasDatabaseName("IX_Notification_RecipientUnread");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("bams.server.Models.Organization.Branch", b =>
                 {
                     b.Property<long>("Id")
@@ -3616,6 +3679,22 @@ namespace bams.server.Data.Migrations
                     b.Navigation("FailedExecution");
 
                     b.Navigation("ScheduledJob");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Notifications.Notification", b =>
+                {
+                    b.HasOne("bams.server.Models.Security.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Notification_Actor");
+
+                    b.HasOne("bams.server.Models.Security.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_Notification_Recipient");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>

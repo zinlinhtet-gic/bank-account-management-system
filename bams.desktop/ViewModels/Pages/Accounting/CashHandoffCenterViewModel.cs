@@ -8,8 +8,9 @@ using bams.desktop.Services;
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
 /// <summary>Presentation state and commands for acknowledging or reassigning session cash handoffs.</summary>
-public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializable
+public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializable, INotificationFocusTarget
 {
+    private long? _focusHandoffId;
     private readonly ICashOperationsClientService _service;
     private readonly AuthContext _auth;
     private DateOnly? _businessDate;
@@ -61,6 +62,9 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializa
 
     public Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
+    /// <inheritdoc />
+    public void FocusOn(string targetType, long targetId) => _focusHandoffId = targetId;
+
     public bool HasAccess => _auth.HasPermission(PermissionCodes.CashOperations) ||
         _auth.HasPermission(PermissionCodes.Audit) || _auth.HasPermission(PermissionCodes.EndOfDayApproval);
 
@@ -79,7 +83,10 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializa
             foreach (var handoff in await _service.GetCashHandoffsAsync(_businessDate, cancellationToken)) Handoffs.Add(handoff);
             Recipients.Clear();
             foreach (var recipient in await _service.GetHandoffRecipientsAsync(cancellationToken)) Recipients.Add(recipient);
-            SelectedHandoff = Handoffs.FirstOrDefault(item => item.Id == SelectedHandoff?.Id) ?? Handoffs.FirstOrDefault();
+            // A notification click wins over the previous selection.
+            var selectedId = _focusHandoffId ?? SelectedHandoff?.Id;
+            _focusHandoffId = null;
+            SelectedHandoff = Handoffs.FirstOrDefault(item => item.Id == selectedId) ?? Handoffs.FirstOrDefault();
             Message = string.Empty;
         }
         catch (AppException exception) { Message = exception.Message; }

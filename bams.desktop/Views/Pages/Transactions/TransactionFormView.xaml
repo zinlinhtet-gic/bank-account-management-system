@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:ap="clr-namespace:bams.desktop.Components.AccountPicker"
              xmlns:constants="clr-namespace:bams.desktop.Constants"
              Width="640" HorizontalAlignment="Left">
     <!--
@@ -20,10 +21,10 @@
                 <StackPanel Margin="0,0,0,16"
                             Visibility="{Binding ShowsSourceAccountAtTop, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
-                    <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
+                    <ap:AccountPicker Placeholder="Type an account number"
                               ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
                               SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
-                              t:ThemeAssist.HasError="{Binding SourceAccountError.HasError}"/>
+                              HasError="{Binding SourceAccountError.HasError}"/>
                     <TextBlock Text="{Binding SourceBalanceText}" Style="{StaticResource Text.Hint}"
                                Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
                     <TextBlock Text="{Binding SourceAccountError.Message}" Style="{StaticResource Text.Error}"
@@ -34,10 +35,10 @@
                 <StackPanel Margin="0,0,0,16"
                             Visibility="{Binding ShowsDestinationAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding DestinationAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
-                    <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
+                    <ap:AccountPicker Placeholder="Type an account number"
                               ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
                               SelectedItem="{Binding DestinationAccount, Mode=TwoWay}"
-                              t:ThemeAssist.HasError="{Binding DestinationAccountError.HasError}"/>
+                              HasError="{Binding DestinationAccountError.HasError}"/>
                     <TextBlock Text="{Binding DestinationBalanceText}" Style="{StaticResource Text.Hint}"
                                Visibility="{Binding DestinationAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
                     <TextBlock Text="{Binding DestinationAccountError.Message}" Style="{StaticResource Text.Error}"
@@ -140,10 +141,10 @@
                     <StackPanel Margin="0,12,0,0"
                                 Visibility="{Binding IsPaidFromAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
-                        <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose an account"
-                                  ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
-                                  SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
-                                  t:ThemeAssist.HasError="{Binding SourceAccountError.HasError}"/>
+                        <ap:AccountPicker Placeholder="Type an account number"
+                              ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
+                              HasError="{Binding SourceAccountError.HasError}"/>
                         <TextBlock Text="{Binding SourceBalanceText}" Style="{StaticResource Text.Hint}"
                                    Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
                         <TextBlock Text="{Binding SourceAccountError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"

@@ -36,7 +36,11 @@ public class UnifiedReconciliationViewModel : ReconciliationOperationViewModel
     private DateTime _from=DateTime.Today, _to=DateTime.Today;
     private bool _isAccountTabSelected = true;
     private bool _isCashTabSelected;
+    private UnifiedExceptionRow? _selectedAccountException;
+    private UnifiedExceptionRow? _selectedCashException;
     public virtual bool AssignedOnly => false;
+    public UnifiedExceptionRow? SelectedAccountException { get=>_selectedAccountException; set=>SetProperty(ref _selectedAccountException,value); }
+    public UnifiedExceptionRow? SelectedCashException { get=>_selectedCashException; set=>SetProperty(ref _selectedCashException,value); }
     public bool IsEmbedded { get; set; }
     public bool CanManage => !AssignedOnly && (Auth.HasPermission(PermissionCodes.Accounting) || CanApprove);
     public bool CanForcePass => !AssignedOnly && CanApprove;
@@ -79,8 +83,15 @@ public class UnifiedReconciliationViewModel : ReconciliationOperationViewModel
     }
     private void Apply(UnifiedReconciliationResponse response)
     {
+        // Polling replaces the rows; keep the selected exceptions, or select the one a notification points to.
+        long? focusId=TakeFocusId();
+        long? accountId=SelectedAccountException?.Id, cashId=SelectedCashException?.Id;
         AccountExceptions.Clear(); foreach(UnifiedExceptionRow row in response.AccountAndGl) AccountExceptions.Add(row);
         CashExceptions.Clear(); foreach(UnifiedExceptionRow row in response.Cash) CashExceptions.Add(row);
+        SelectedAccountException=AccountExceptions.FirstOrDefault(row=>row.Id==(focusId ?? accountId));
+        SelectedCashException=CashExceptions.FirstOrDefault(row=>row.Id==(focusId ?? cashId));
+        if(focusId.HasValue && SelectedCashException is not null) IsCashTabSelected=true;
+        else if(focusId.HasValue && SelectedAccountException is not null) IsAccountTabSelected=true;
     }
     private async Task LoadAsync(CancellationToken ct)
     {
@@ -104,7 +115,9 @@ public sealed record ReconcileProposalRow(long Id,long ExceptionId,string Catego
 public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
 {
     private readonly UnifiedReconciliationClient _unified;
+    private ReconcileProposalRow? _selectedProposal;
     public ObservableCollection<ReconcileProposalRow> Proposals { get; }=[];
+    public ReconcileProposalRow? SelectedProposal { get=>_selectedProposal; set=>SetProperty(ref _selectedProposal,value); }
     public AsyncRelayCommand PollCommand { get; }
     public AsyncRelayCommand AcceptCommand { get; }
     public AsyncRelayCommand RejectCommand { get; }
@@ -164,6 +177,11 @@ public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
     });
     private async Task LoadAsync(CancellationToken ct)
     {
+        // Account and cash proposal ids overlap, so the selection is matched on both id and kind.
+        bool focusIsCash=FocusIsCash;
+        long? focusId=TakeFocusId();
+        (long Id,bool IsCash)? selected=focusId.HasValue ? (focusId.Value,focusIsCash)
+            : SelectedProposal is null ? null : (SelectedProposal.Id,SelectedProposal.IsCash);
         Proposals.Clear();
         foreach(CorrectionProposalResponse p in (await Client.ProposalsAsync(null,ct)).Where(x=>x.Status==ProposalStatus.PendingApproval))
             Proposals.Add(new(p.Id,p.ExceptionId,"Account / GL",p.Kind.ToString(),p.Inputs.Findings,p.Inputs.EvidenceReference,
@@ -173,6 +191,8 @@ public sealed class ReconcileProposalsViewModel:ReconciliationOperationViewModel
             Proposals.Add(new(p.Id,p.ExceptionId,"Cash",p.Kind.ToString(),p.Inputs.Findings,p.Inputs.EvidenceReference,
                 $"Source date: {p.SourceBusinessDate:yyyy-MM-dd}; Posting date: {p.PostingDate:yyyy-MM-dd}; Account: {p.Inputs.AccountId}; Transaction: {p.Inputs.TransactionId}; Movement: {p.Inputs.MovementId}; Counterpart/retained: {p.Inputs.CounterpartMovementId}; Handoff: {p.Inputs.HandoffId}; Destination: {p.Inputs.DestinationSessionId}; Payee: {p.Inputs.Payee}; Purpose: {p.Inputs.Purpose}; Receipt: {p.Inputs.ReceiptFileName}; Missing receipt reason: {p.Inputs.MissingReceiptReason}",
                 p.Inputs.Amount,p.ProposerId,true,p.Inputs.ReceiptFileName,p.Inputs.ReceiptBase64));
+        SelectedProposal=selected is null ? null
+            : Proposals.FirstOrDefault(row=>row.Id==selected.Value.Id && row.IsCash==selected.Value.IsCash);
     }
     public override Task InitializeAsync(CancellationToken ct=default)=>RunAsync(()=>LoadAsync(ct));
 }

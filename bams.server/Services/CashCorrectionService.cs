@@ -19,7 +19,8 @@ namespace bams.server.Services;
 /// <summary>Plans and executes the operation required by each cash discrepancy.</summary>
 public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurrentUserService currentUser,
     BankExpenseService expenses, ReconciliationProjectionService projections,
-    UnifiedReconciliationService checks, LedgerPostingService ledger, IBusinessDateService businessDates)
+    UnifiedReconciliationService checks, LedgerPostingService ledger, IBusinessDateService businessDates,
+    Notifications.ReconciliationNotifier notifier)
 {
     public static readonly IReadOnlyList<CashDiscrepancyDefinition> Definitions =
     [
@@ -172,6 +173,9 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
         db.CashCorrectionProposals.Add(proposal);
         SetStatus(exception, OperationsConstants.ExceptionAdjustmentRequired, "Cash correction proposal submitted.", actor);
         await db.SaveChangesAsync(ct);
+        // The proposal id exists only after the first save; both saves share the transaction.
+        await notifier.ProposalSubmittedAsync(exception, proposal.Id, isCash: true, actor, ct);
+        await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return ToResponse(proposal);
     }
@@ -248,6 +252,10 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
                     $"Cash correction posted on {preview.PostingDate:yyyy-MM-dd} for source date {session.BusinessDate:yyyy-MM-dd}; verification pending.", actor);
             }
         }
+        Notifications.ProposalReviewOutcome outcome = !request.Approve ? Notifications.ProposalReviewOutcome.Rejected
+            : proposalBecameStale ? Notifications.ProposalReviewOutcome.Superseded : Notifications.ProposalReviewOutcome.Approved;
+        await notifier.ProposalReviewedAsync(exception, proposal.Id, proposal.ProposerId, isCash: true, outcome,
+            request.Note.Trim(), actor, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         if (proposalBecameStale) throw new ConflictException(MessageCode.CorrectionProposalStale);
@@ -301,6 +309,9 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
         locked.VerificationNote = matched ? "Correction evidence and all required cash positions match." : failureNote;
         SetStatus(exception, matched ? OperationsConstants.ExceptionResolved : OperationsConstants.ExceptionUnderInvestigation,
             locked.VerificationNote, currentUser.GetCurrentUserId());
+        if (!matched)
+            await notifier.VerificationFailedAsync(exception, locked.Id, locked.ProposerId, locked.VerificationNote,
+                currentUser.GetCurrentUserId(), ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return ToResponse(locked) with { SourceBusinessDate = source.BusinessDate, PostingDate = financialDate ?? source.BusinessDate };

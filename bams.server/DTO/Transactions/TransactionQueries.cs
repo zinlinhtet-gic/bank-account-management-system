@@ -60,3 +60,14 @@ public sealed record AccountStatementQuery(
     DateTimeOffset? Before,
     int? Page,
     int? PageSize);
+
+/// <summary>
+/// Optional filters for <c>GET api/transactions/nrc-pickups</c>. Soonest-expiring pickups come first.
+/// </summary>
+/// <param name="ReceiverName">Only pickups whose designated receiver's name contains this text.</param>
+/// <param name="Page">Page number, starting at 1.</param>
+/// <param name="PageSize">Items per page, at most <c>TransactionConstants.MaximumPageSize</c>.</param>
+public sealed record NrcPickupListQuery(
+    string? ReceiverName,
+    int? Page,
+    int? PageSize);

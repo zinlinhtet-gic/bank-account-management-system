@@ -183,3 +183,19 @@ public sealed record TransactionAuditLogResponse(
     string? DeviceInfo,
     DateTime CreatedAt
 );
+/// <summary>
+/// One NRC transfer waiting to be collected at one of our branches (<c>GET api/transactions/nrc-pickups</c>). The
+/// receiver's NRC and the pickup code are never returned.
+/// </summary>
+public sealed record NrcPickupSummaryResponse(
+    long TransactionId,
+    string TransactionNo,
+    decimal Amount,
+    string SenderName,
+    string ReceiverName,
+    string PickupBranchName,
+    DateTime TransactionAt,
+    DateTime? PickupExpiresAt,
+    int FailedPickupAttempts,
+    bool IsExpired,
+    bool IsBlocked);
