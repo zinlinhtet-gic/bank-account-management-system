@@ -43,6 +43,11 @@ public partial class AccountPicker : UserControl
 
     private bool _updatingText;
 
+    // Set while typing drops the chosen account, so the typed text is kept instead of being cleared.
+    private bool _clearingByTyping;
+
+    private Window? _hostWindow;
+
     public AccountPicker()
     {
         InitializeComponent();
@@ -52,6 +57,49 @@ public partial class AccountPicker : UserControl
         Input.PreviewMouseLeftButtonDown += (_, _) => ShowResults();
         Input.PreviewKeyDown += OnInputKeyDown;
         Input.LostKeyboardFocus += OnInputLostFocus;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    // The popup stays open on its own (a self-closing popup grabs the mouse and is closed again by the TextBox's
+    // own click), so it is closed here when the user clicks elsewhere in the window or moves/leaves the window.
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _hostWindow = Window.GetWindow(this);
+
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PreviewMouseDown += OnWindowMouseDown;
+            _hostWindow.LocationChanged += OnWindowMovedOrDeactivated;
+            _hostWindow.Deactivated += OnWindowMovedOrDeactivated;
+        }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PreviewMouseDown -= OnWindowMouseDown;
+            _hostWindow.LocationChanged -= OnWindowMovedOrDeactivated;
+            _hostWindow.Deactivated -= OnWindowMovedOrDeactivated;
+            _hostWindow = null;
+        }
+
+        ResultsPopup.IsOpen = false;
+    }
+
+    // Clicks inside the popup never reach the window (the popup is its own window), so any click not on the box closes it.
+    private void OnWindowMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!Input.IsMouseOver)
+        {
+            ResultsPopup.IsOpen = false;
+        }
+    }
+
+    private void OnWindowMovedOrDeactivated(object? sender, EventArgs e)
+    {
+        ResultsPopup.IsOpen = false;
     }
 
     public IEnumerable? ItemsSource
@@ -126,7 +174,12 @@ public partial class AccountPicker : UserControl
         var picker = (AccountPicker)d;
 
         picker.SetValueFromItem(e.NewValue);
-        picker.SetText(e.NewValue is null ? string.Empty : picker.Describe(e.NewValue));
+
+        // Keep what the user is typing; only an outside change (choice, form reset) rewrites the text.
+        if (!picker._clearingByTyping)
+        {
+            picker.SetText(e.NewValue is null ? string.Empty : picker.Describe(e.NewValue));
+        }
     }
 
     private static void OnSelectedValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -178,7 +231,9 @@ public partial class AccountPicker : UserControl
         // Typing over a chosen account drops the choice, so the box never shows text that is not what will be posted.
         if (SelectedItem is not null && !string.Equals(Input.Text, Describe(SelectedItem), StringComparison.Ordinal))
         {
+            _clearingByTyping = true;
             SelectedItem = null;
+            _clearingByTyping = false;
         }
 
         RefreshResults();
@@ -225,25 +280,25 @@ public partial class AccountPicker : UserControl
     {
         var container = (e.OriginalSource as DependencyObject)?.FindAncestor<ListBoxItem>();
 
+        // Choose on press and swallow it, so focus never leaves the box for the list.
         if (container is not null)
         {
             Choose(container.DataContext);
+            e.Handled = true;
         }
     }
 
+    // The list is not focusable, so losing focus always means leaving the control.
     private void OnInputLostFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        // Focus moving into the popup list is not leaving the control.
-        if (!ResultsPopup.IsMouseOver)
-        {
-            ResultsPopup.IsOpen = false;
-        }
+        ResultsPopup.IsOpen = false;
     }
 
     private void Choose(object item)
     {
         SelectedItem = item;
         ResultsPopup.IsOpen = false;
+        Input.CaretIndex = Input.Text.Length;
     }
 
     private void ShowResults()
@@ -281,6 +336,7 @@ public partial class AccountPicker : UserControl
     {
         _updatingText = true;
         Input.Text = text;
+        Input.CaretIndex = text.Length;
         _updatingText = false;
     }
 
