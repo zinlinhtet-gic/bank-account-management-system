@@ -956,12 +956,12 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         item.BusinessDate, item.SenderId, item.Sender?.FullName ?? string.Empty, item.RecipientId,
         item.Recipient?.FullName ?? string.Empty, item.Amount, item.Status, item.CreatedAtUtc, item.AcceptedAtUtc, item.Version, item.DestinationSessionId);
 
-    /// <summary>Records a transaction's cash effect against the actor's open teller session for the posting date.</summary>
+    /// <summary>Records a transaction's cash effect against the actor's activated open teller session for the posting date.</summary>
     public async Task AddTransactionMovementAsync(bams.server.Models.Transactions.Transaction transaction, bool isDeposit, long actorId, decimal amount, CancellationToken cancellationToken)
     {
         var postingDate = await businessDates.GetPostingBusinessDateValueAsync(DateTime.UtcNow, cancellationToken);
         var currentSessions = await db.CashPositionSessions
-            .FromSql($"SELECT * FROM CashPositionSessions WHERE TellerId = {actorId} AND PositionType = {OperationsConstants.CashPositionTeller} AND BusinessDate = {postingDate} AND Status = {OperationsConstants.CashSessionOpen} FOR UPDATE")
+            .FromSql($"SELECT * FROM CashPositionSessions WHERE TellerId = {actorId} AND PositionType = {OperationsConstants.CashPositionTeller} AND BusinessDate = {postingDate} AND Status = {OperationsConstants.CashSessionOpen} AND ActivatedAtUtc IS NOT NULL FOR UPDATE")
             .ToListAsync(cancellationToken);
         var session = currentSessions.SingleOrDefault()
             ?? throw new BusinessRuleException(MessageCode.CashSessionNotOpen);

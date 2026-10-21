@@ -27,6 +27,8 @@ This page summarizes invariants enforced by server services. Constants and servi
 - A payout account must be active, individually owned by the primary holder, and not itself a fixed-deposit product. If omitted at creation, the server selects an eligible account. Product-opening prerequisites do not constrain payout-account selection.
 - Closed and Cancelled deposits are terminal. Current principal cannot be negative. Renewable maturity creates a successor using the applicable rate, term, payout account, and renewal settings. Renewal principal follows the stored calculation-source choice.
 - Required account documents are defined by product configuration. Each document type can be supplied once; allowed formats and size limits are enforced by upload validation. Stored files use private generated references and begin pending verification.
+- Required documents may reuse a file from either current account holder. Automatic selection prefers the primary holder, then the highest eligible document ID. A source must be readable, nonempty, compatible with account upload validation, and unexpired on the Myanmar business date (expiry today is valid). Document verification is not an additional requirement; verified holder KYC remains mandatory.
+- Reused files are independent copies in account storage, with backend-derived metadata and a nullable source-document relationship (`ON DELETE SET NULL`). Customer file replacement or deletion never changes the account copy. New copies and uploads are removed if account creation rolls back.
 
 ## Customers and KYC
 
@@ -60,6 +62,8 @@ This page summarizes invariants enforced by server services. Constants and servi
 - Closing a teller session can route counted cash to the vault through a manager-acknowledged handoff. The vault is credited only on acknowledgement; existing teller-to-teller cash movements and handoffs remain supported.
 - Physical counts are immutable observations and do not overwrite expected cash. Adjustments require a signed amount tied to the relevant posted Cash on Hand journal effect and independent approval.
 - Cash movement, transaction posting, and their audit data are coordinated transactionally. Handoffs track custody and require eligible recipients and valid state transitions.
+- Positive account-opening balances are cash deposits: they require the initiating user's activated open teller session for the active posting business date, add one linked approved Deposit movement, and increase ExpectedClosingCash by the opening amount. These changes commit or roll back with account creation and its accounting entries. Zero opening balances produce no cash movement and require no teller session. Historical opening deposits are not backfilled by this change.
+- Historical missing opening-deposit cash movements can be repaired explicitly using `dotnet run --repair:account-opening-cash`. Preview is the default; `--apply --actor-id=<manager-id>` enables audited updates, and `--include-closed` permits original closed sessions. It never reposts accounting or customer balances and skips existing links and unresolved session matches. See [Repair commands](RepairCommands.md).
 
 ## Accounting and business dates
 

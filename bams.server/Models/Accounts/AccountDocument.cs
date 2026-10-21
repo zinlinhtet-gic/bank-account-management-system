@@ -7,6 +7,8 @@ public sealed class AccountDocument
     public long Id { get; set; }
     public long AccountId { get; set; }
     public Account? Account { get; set; }
+    public long? SourceCustomerDocumentId { get; set; }
+    public CustomerDocument? SourceCustomerDocument { get; set; }
     public DocumentType DocumentType { get; set; }
     public string? DocumentNumber { get; set; }
     public string OriginalFileName { get; set; } = string.Empty;

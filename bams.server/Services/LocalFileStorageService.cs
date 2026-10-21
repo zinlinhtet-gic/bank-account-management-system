@@ -76,6 +76,10 @@ public sealed class LocalFileStorageService : IFileStorageService
 
     public string GetPhysicalPath(string fileReference)
     {
-        return Path.Combine(_environment.ContentRootPath, fileReference);
+        var root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "uploads")) + Path.DirectorySeparatorChar;
+        var physicalPath = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, fileReference));
+        if (!physicalPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException(MessageCode.InvalidDocumentFileReference);
+        return physicalPath;
     }
 }

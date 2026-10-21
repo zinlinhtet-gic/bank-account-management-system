@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using bams.desktop.ViewModels;
+using bams.desktop.DTOs.Accounts;
 
 namespace bams.desktop.ViewModels.Pages;
 
@@ -11,10 +12,19 @@ public sealed class AccountDocumentInputViewModel : ViewModelBase
     private string? _filePath;
     private ImageSource? _previewImage;
 
-    public AccountDocumentInputViewModel(string documentType)
+    public AccountDocumentInputViewModel(string documentType, ReusableCustomerDocumentResponse? source = null)
     {
         DocumentType = documentType;
+        Source = source;
     }
+
+    public ReusableCustomerDocumentResponse? Source { get; }
+    public long? SourceCustomerDocumentId => Source?.Id;
+    public bool HasExistingDocument => Source is not null;
+    public bool NeedsFileUpload => !HasExistingDocument;
+    public bool CanChooseFile => NeedsFileUpload && !IsPhoto;
+    public bool CanChoosePhoto => NeedsFileUpload && IsPhoto;
+    public bool IsSatisfied => HasExistingDocument || (HasFile && File.Exists(FilePath));
 
     public string DocumentType { get; }
     public string DocumentLabel => DocumentType switch
@@ -39,11 +49,14 @@ public sealed class AccountDocumentInputViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(FileName));
                 OnPropertyChanged(nameof(HasFile));
+                OnPropertyChanged(nameof(IsSatisfied));
             }
         }
     }
 
-    public string FileName => string.IsNullOrWhiteSpace(FilePath) ? "No file selected" : Path.GetFileName(FilePath);
+    public string FileName => Source is not null
+        ? $"Already uploaded — will be copied · {Source.HolderName}" + (string.IsNullOrWhiteSpace(Source.DocumentNumber) ? "" : $" · {Source.DocumentNumber}")
+        : string.IsNullOrWhiteSpace(FilePath) ? "No file selected" : Path.GetFileName(FilePath);
     public bool HasFile => !string.IsNullOrWhiteSpace(FilePath);
     public ImageSource? PreviewImage { get => _previewImage; private set => SetProperty(ref _previewImage, value); }
 

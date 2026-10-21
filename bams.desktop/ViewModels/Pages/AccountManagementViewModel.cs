@@ -51,6 +51,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private string? _statusToApply;
     private string _statusReason = string.Empty;
     private AccountOpeningOptionsResponse? _openingOptions;
+    private int _holderRevision;
     private object? _currentAccountPage;
     private bool _isLoadingTransactions;
     private bool _isLoadingStatusHistory;
@@ -361,6 +362,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             {
                 // The looked-up customer belonged to the old NRC; it must be looked up again.
                 Holder1 = null;
+                InvalidateOpeningDocuments();
             }
         }
     }
@@ -374,13 +376,14 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             {
                 // The looked-up customer belonged to the old NRC; it must be looked up again.
                 Holder2 = null;
+                InvalidateOpeningDocuments();
             }
         }
     }
     public string OwnershipPercentage1 { get => _ownershipPercentage1; set => SetProperty(ref _ownershipPercentage1, value); }
     public string OwnershipPercentage2 { get => _ownershipPercentage2; set => SetProperty(ref _ownershipPercentage2, value); }
     public string SigningRule { get => _signingRule; set => SetProperty(ref _signingRule, value); }
-    public bool IsSharedAccount { get => _isSharedAccount; set { if (SetProperty(ref _isSharedAccount, value)) { OnPropertyChanged(nameof(IsIndividualAccount)); LockStepsAfterCurrent(); ContinueCreateStepCommand.RaiseCanExecuteChanged(); } } }
+    public bool IsSharedAccount { get => _isSharedAccount; set { if (SetProperty(ref _isSharedAccount, value)) { InvalidateOpeningDocuments(); OnPropertyChanged(nameof(IsIndividualAccount)); LockStepsAfterCurrent(); ContinueCreateStepCommand.RaiseCanExecuteChanged(); } } }
     public bool IsIndividualAccount { get => !IsSharedAccount; set { if (value) IsSharedAccount = false; } }
     public long? PayoutAccountId
     {
@@ -609,7 +612,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             IsSharedAccount ? TryOptionalDecimal(OwnershipPercentage2) : null,
             NullIfBlank(SigningRule),
             RequiredDocumentInputs
-                .Select(input => new AccountDocumentUpload(input.DocumentType, null, input.FilePath!))
+                .Select(input => new AccountDocumentUpload(input.DocumentType, null, input.FilePath, input.SourceCustomerDocumentId))
                 .ToArray(),
             IsFixedDeposit ? PayoutAccountId : null,
             IsFixedDeposit ? SelectedInterestRateRule?.Id : null,
@@ -619,7 +622,26 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
 
         await RunBusyAsync(async () =>
         {
-            SelectedAccount = await _accountService.CreateAccountAsync(request, CancellationToken.None);
+            try
+            {
+                SelectedAccount = await _accountService.CreateAccountAsync(request, CancellationToken.None);
+            }
+            catch (AppException exception) when (exception.Code == MessageCode.ReusableAccountDocumentUnavailable)
+            {
+                try
+                {
+                    if (!await RefreshOpeningDocumentsAsync()) return;
+                }
+                catch (Exception refreshException)
+                {
+                    LogException("Refresh account document availability", refreshException);
+                    ShowError(exception.Message);
+                    return;
+                }
+                CreateStep = SelectedCreateType is null ? 3 : 4;
+                ShowError(exception.Message);
+                return;
+            }
             Screen = "Detail";
             NavigateToDetail();
             InfoMessage = "Account created successfully.";
@@ -728,10 +750,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             }
             await RunBusyAsync(async () =>
             {
-                _openingOptions = await _accountService.GetAccountOpeningOptionsAsync(HolderNrc1, IsSharedAccount ? HolderNrc2 : null, CancellationToken.None);
-                ReplaceItems(EligibleAccountTypes, _openingOptions.AccountTypes);
-                ReplaceItems(RequiredDocuments, _openingOptions.RequiredDocuments);
-                ReplaceItems(PayoutAccounts, _openingOptions.PayoutAccounts);
+                if (!await RefreshOpeningDocumentsAsync()) return;
                 AdvanceCreateStep(3);
             }, "Could not load account-opening options.");
             return;
@@ -768,8 +787,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                  (!IsSharedAccount || Holder2 is not null) &&
                  AreHoldersKycVerified(),
             3 => SelectedCreateType is not null,
-            4 => RequiredDocumentInputs.All(input =>
-                     !string.IsNullOrWhiteSpace(input.FilePath) && File.Exists(input.FilePath)) &&
+            4 => RequiredDocumentInputs.All(input => input.IsSatisfied) &&
                  (!IsFixedDeposit || (PayoutAccountId.HasValue && SelectedInterestRateRule is not null)),
             _ => false
         };
@@ -779,7 +797,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private bool ValidateRequiredDocuments()
     {
         var missing = RequiredDocumentInputs
-            .Where(input => string.IsNullOrWhiteSpace(input.FilePath) || !File.Exists(input.FilePath))
+            .Where(input => !input.IsSatisfied)
             .Select(input => input.DocumentType)
             .ToArray();
         if (missing.Length > 0)
@@ -804,11 +822,50 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
                      .Where(item => item.AccountTypeId == accountTypeId.Value)
                      .OrderBy(item => item.DocumentType, StringComparer.OrdinalIgnoreCase))
         {
-            var input = new AccountDocumentInputViewModel(requirement.DocumentType);
+            var source = _openingOptions?.ReusableDocuments?.FirstOrDefault(document =>
+                string.Equals(document.DocumentType, requirement.DocumentType, StringComparison.OrdinalIgnoreCase));
+            var input = new AccountDocumentInputViewModel(requirement.DocumentType, source);
             input.PropertyChanged += (_, _) => ContinueCreateStepCommand.RaiseCanExecuteChanged();
             RequiredDocumentInputs.Add(input);
         }
         ContinueCreateStepCommand.RaiseCanExecuteChanged();
+    }
+
+    // Discards document decisions whenever the account's customer identities change.
+    private void InvalidateOpeningDocuments()
+    {
+        _holderRevision++;
+        _openingOptions = null;
+        RequiredDocumentInputs.Clear();
+        RequiredDocuments.Clear();
+        EligibleAccountTypes.Clear();
+        SelectedCreateType = null;
+        PayoutAccounts.Clear();
+        PayoutAccountId = null;
+        MaxCreateStepReached = Math.Min(MaxCreateStepReached, 2);
+        if (CreateStep > 2) CreateStep = 2;
+    }
+
+    // Refreshes availability without letting a delayed response restore documents for previous holders.
+    private async Task<bool> RefreshOpeningDocumentsAsync()
+    {
+        var revision = _holderRevision;
+        var options = await _accountService.GetAccountOpeningOptionsAsync(HolderNrc1,
+            IsSharedAccount ? HolderNrc2 : null, CancellationToken.None);
+        if (revision != _holderRevision) return false;
+        var selectedTypeId = SelectedCreateType?.Id;
+        var localFiles = RequiredDocumentInputs.Where(input => input.NeedsFileUpload && input.IsSatisfied)
+            .ToDictionary(input => input.DocumentType, input => input.FilePath!);
+        _openingOptions = options;
+        ReplaceItems(EligibleAccountTypes, options.AccountTypes);
+        ReplaceItems(RequiredDocuments, options.RequiredDocuments);
+        ReplaceItems(PayoutAccounts, options.PayoutAccounts);
+        if (selectedTypeId.HasValue)
+            SelectedCreateType = EligibleAccountTypes.FirstOrDefault(type => type.Id == selectedTypeId);
+        LoadRequiredDocumentInputs(SelectedCreateType?.Id);
+        foreach (var input in RequiredDocumentInputs.Where(input => input.NeedsFileUpload))
+            if (localFiles.TryGetValue(input.DocumentType, out var path)) input.SetFilePath(path);
+        return true;
     }
 
     // Adds rows up to the selected holders' required minimum without discarding entered extra rows.
@@ -852,6 +909,7 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
     private async Task LookupCustomersAsync()
     {
         ErrorMessage = string.Empty;
+        InvalidateOpeningDocuments();
         Holder1 = null;
         Holder2 = null;
         if (string.IsNullOrWhiteSpace(HolderNrc1) || (IsSharedAccount && string.IsNullOrWhiteSpace(HolderNrc2)))
@@ -860,29 +918,40 @@ public sealed class AccountManagementViewModel : ViewModelBase, IAsyncInitializa
             return;
         }
         var missingCustomerNrcs = new List<string>();
+        var revision = _holderRevision;
+        var firstIdentifier = HolderNrc1;
+        var secondIdentifier = HolderNrc2;
+        var shared = IsSharedAccount;
         await RunBusyAsync(async () =>
         {
             try
             {
-                Holder1 = await LookupCustomerByIdentifierAsync(HolderNrc1);
+                var customer = await LookupCustomerByIdentifierAsync(firstIdentifier);
+                if (revision != _holderRevision) return;
+                Holder1 = customer;
             }
             catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
             {
-                missingCustomerNrcs.Add(HolderNrc1.Trim());
+                if (revision != _holderRevision) return;
+                missingCustomerNrcs.Add(firstIdentifier.Trim());
             }
 
-            if (IsSharedAccount)
+            if (shared)
             {
                 try
                 {
-                    Holder2 = await LookupCustomerByIdentifierAsync(HolderNrc2);
+                    var customer = await LookupCustomerByIdentifierAsync(secondIdentifier);
+                    if (revision != _holderRevision) return;
+                    Holder2 = customer;
                 }
                 catch (ApiException exception) when (exception.Code == MessageCode.CustomerNotFound)
                 {
-                    missingCustomerNrcs.Add(HolderNrc2.Trim());
+                    if (revision != _holderRevision) return;
+                    missingCustomerNrcs.Add(secondIdentifier.Trim());
                 }
             }
         }, "Could not look up the account holders.");
+        if (revision != _holderRevision) return;
         if (missingCustomerNrcs.Count > 0)
         {
             ShowError($"Customer(s) not found: {string.Join(", ", missingCustomerNrcs)}. Register them in Customer Management, then look them up again.");

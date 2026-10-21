@@ -16,8 +16,28 @@ using bams.server.Services.Jobs;
 using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features;
+using bams.server.Commands;
 
-var builder = WebApplication.CreateBuilder(args);
+// Standalone repair arguments are not ASP.NET key/value configuration switches.
+var isRepairCommand = AccountOpeningCashRepairCommand.IsRequested(args);
+AccountOpeningCashRepairCommand? repairCommand = null;
+if (isRepairCommand)
+{
+    if (args.Contains("--help", StringComparer.OrdinalIgnoreCase))
+    {
+        Console.WriteLine(AccountOpeningCashRepairCommand.Usage);
+        return;
+    }
+    try { repairCommand = AccountOpeningCashRepairCommand.Parse(args); }
+    catch (ArgumentException exception)
+    {
+        Console.Error.WriteLine($"InvalidRequest (3002): {exception.Message}");
+        Console.Error.WriteLine(AccountOpeningCashRepairCommand.Usage);
+        Environment.ExitCode = 2;
+        return;
+    }
+}
+var builder = WebApplication.CreateBuilder(isRepairCommand ? Array.Empty<string>() : args);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -162,6 +182,7 @@ builder.Services.AddScoped<IFixedDepositService, FixedDepositService>();
 builder.Services.AddScoped<IAccountDocumentService, AccountDocumentService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAccountTransactionService, AccountTransactionService>();
+builder.Services.AddScoped<AccountOpeningCashRepairService>();
 builder.Services.AddScoped<IAccountingReportService, AccountingReportService>();
 builder.Services.AddScoped<IScheduledTransactionService, ScheduledTransactionService>();
 builder.Services.AddScoped<IGeneralLedgerPostingService, GeneralLedgerPostingService>();
@@ -212,6 +233,30 @@ builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
 });
 
 var app = builder.Build();
+
+// Repair execution never starts HTTP listeners, jobs, migrations, or startup seeders.
+if (repairCommand is not null)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    try
+    {
+        Environment.ExitCode = await scope.ServiceProvider.GetRequiredService<AccountOpeningCashRepairService>()
+            .RunAsync(repairCommand, Console.Out, CancellationToken.None);
+    }
+    catch (bams.server.Exceptions.AppException exception)
+    {
+        Console.Error.WriteLine($"{exception.Code} ({(int)exception.Code}): {exception.Message}");
+        Environment.ExitCode = 2;
+    }
+    catch (Exception exception)
+    {
+        app.Logger.LogError(exception, "Account-opening cash repair failed");
+        Console.Error.WriteLine("InternalServerError (5000): Repair stopped. Previously committed repairs remain; rerunning skips existing movements.");
+        Environment.ExitCode = 2;
+    }
+    await app.DisposeAsync();
+    return;
+}
 
 // Apply schema changes before idempotently populating product reference data.
 await using (var scope = app.Services.CreateAsyncScope())

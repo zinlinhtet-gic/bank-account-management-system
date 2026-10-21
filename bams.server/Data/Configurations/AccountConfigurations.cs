@@ -56,6 +56,11 @@ public sealed class AccountDocumentConfiguration : IEntityTypeConfiguration<Acco
     {
         builder.HasKey(document => document.Id);
 
+        builder.HasOne(document => document.SourceCustomerDocument)
+            .WithMany()
+            .HasForeignKey(document => document.SourceCustomerDocumentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.Property(document => document.DocumentNumber)
             .HasMaxLength(DocumentConstants.DocumentNumberMaximumLength);
         builder.Property(document => document.OriginalFileName)

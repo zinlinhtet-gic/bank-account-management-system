@@ -150,11 +150,18 @@ public sealed class AccountManagementService : IAccountManagementService
                 AddField(content, $"Documents[{index}].DocumentType", document.DocumentType);
                 AddOptionalField(content, $"Documents[{index}].DocumentNumber", document.DocumentNumber);
 
-                var stream = File.OpenRead(document.FilePath);
+                if (document.SourceCustomerDocumentId is long sourceId)
+                {
+                    AddField(content, $"Documents[{index}].SourceCustomerDocumentId", sourceId);
+                    continue;
+                }
+
+                var filePath = document.FilePath ?? throw new InvalidOperationException("An upload requires a local file.");
+                var stream = File.OpenRead(filePath);
                 openedFiles.Add(stream);
                 var fileContent = new StreamContent(stream);
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetDocumentContentType(document.FilePath));
-                content.Add(fileContent, $"Documents[{index}].File", Path.GetFileName(document.FilePath));
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetDocumentContentType(filePath));
+                content.Add(fileContent, $"Documents[{index}].File", Path.GetFileName(filePath));
             }
 
             return await _apiClient.PostMultipartAsync<AccountResponse>(

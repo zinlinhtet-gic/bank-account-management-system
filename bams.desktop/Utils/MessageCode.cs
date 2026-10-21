@@ -30,6 +30,8 @@ public enum MessageCode
     ValidationFailed = 3000,
     RequiredFieldMissing = 3001,
     InvalidRequest = 3002,
+    AccountDocumentSourceInvalid = 3133,
+    ReusableAccountDocumentUnavailable = 3134,
     InvalidAmount = 3003,
     ReconciliationDateRangeTooLong = 3015,
     InvalidReconciliationExceptionStatus = 3016,

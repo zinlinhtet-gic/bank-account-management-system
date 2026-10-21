@@ -1351,6 +1351,9 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<long?>("SourceCustomerDocumentId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1360,6 +1363,8 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SourceCustomerDocumentId");
 
                     b.HasIndex("AccountId", "DocumentType")
                         .IsUnique();
@@ -3401,7 +3406,14 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("bams.server.Models.Customers.CustomerDocument", "SourceCustomerDocument")
+                        .WithMany()
+                        .HasForeignKey("SourceCustomerDocumentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Account");
+
+                    b.Navigation("SourceCustomerDocument");
                 });
 
             modelBuilder.Entity("bams.server.Models.Accounts.AccountHolder", b =>

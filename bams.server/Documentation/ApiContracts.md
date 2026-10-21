@@ -102,11 +102,16 @@ Documents[0].File=<binary file>
 RefererNrcs[0]=<existing customer NRC who owns an account>
 ```
 
+To reuse an existing upload, send `Documents[0].SourceCustomerDocumentId=<id>` instead of `Documents[0].File`. Exactly one source is required per entry. Obtain IDs from the `reusableDocuments` array in `GET /api/accounts/opening-options` (add `secondHolderNrc` for joint accounts). Each item includes `id`, `customerId`, `holderName`, `documentType`, `documentNumber`, and `expiryDate`; storage paths are omitted. The server revalidates ownership, type, expiry, readability, and account file rules at submission and copies the source to the account's private directory. Upload-only requests remain supported.
+
+Errors `3133 / AccountDocumentSourceInvalid` and `3134 / ReusableAccountDocumentUnavailable` identify invalid source combinations and unavailable sources respectively. On 3134, refresh opening options and request uploads for requirements no longer covered.
+
 - The complete multipart request is limited to 60 MB by default.
 - Each required document is one PDF, JPEG, or PNG file up to 10 MB.
 - Seeded products require NRC, Photo, ProofOfAddress, HouseholdRegistration, and SourceOfFunds.
 - Files are stored under `FileUploads:RootPath`; no public download endpoint is exposed.
 - The authenticated user's JWT identity supplies audit attribution.
+- A positive opening balance also requires that user's activated open teller session for the active posting business date. The server records a linked cash Deposit movement and increases the session's expected cash in the account-creation transaction. No session ID is accepted from the client. Missing or ineligible sessions return `CashSessionNotOpen`; zero balances create no deposit or cash movement and require no session.
 - Referrer NRC rows must resolve to distinct existing customers who each own an account; the minimum is computed from the selected account type for each account holder. Referrer rows are saved with the account in the creation transaction.
 
 Fixed-deposit creation additionally requires `interestRateRuleId`, `renewalInstruction`, and `calculateFromCurrent`. `payoutAccountId` is optional; if omitted, the server selects an active individual account owned by the primary holder whose account type is not fixed deposit. A supplied payout account must meet the same ownership, status, and account-type conditions. `RequiredProductId` is only an eligibility prerequisite for opening the selected account type and does not constrain the payout account. Fixed-deposit-only fields must be omitted for other products.

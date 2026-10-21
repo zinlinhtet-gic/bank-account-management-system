@@ -6,5 +6,6 @@ public sealed class AccountDocumentUploadRequest
 {
     public DocumentType DocumentType { get; init; }
     public string? DocumentNumber { get; init; }
-    public IFormFile File { get; init; } = null!;
+    public IFormFile? File { get; init; }
+    public long? SourceCustomerDocumentId { get; init; }
 }

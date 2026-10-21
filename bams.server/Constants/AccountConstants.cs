@@ -5,6 +5,7 @@ namespace bams.server.Constants;
 /// </summary>
 public static class AccountConstants
 {
+    public const string OpeningDepositDescription = "Account opening deposit";
     public const int AccountNameMaximumLength = 100;
     public const int AccountNumberMaximumLength = 32;
     public const int AccountStatusReasonMaximumLength = 300;

@@ -12,17 +12,18 @@ namespace bams.server.Services;
 
 public sealed class AccountTransactionService : IAccountTransactionService
 {
-    private const string AccountOpeningDescription = "Account opening deposit";
-
     private readonly ApplicationDbContext _dbContext;
     private readonly LedgerPostingService _ledger;
+    private readonly ICashOperationsService _cashOperations;
 
     public AccountTransactionService(
         ApplicationDbContext dbContext,
-        LedgerPostingService ledger)
+        LedgerPostingService ledger,
+        ICashOperationsService cashOperations)
     {
         _dbContext = dbContext;
         _ledger = ledger;
+        _cashOperations = cashOperations;
     }
 
     /// <inheritdoc />
@@ -76,11 +77,18 @@ public sealed class AccountTransactionService : IAccountTransactionService
             TransactionType.CashDeposit,
             TransactionStatus.Completed,
             openingBalance,
-            AccountOpeningDescription,
+            AccountConstants.OpeningDepositDescription,
             referenceNo: account.AccountNo,
             idempotencyKey: null,
             initiatedByUserId,
             currentDateTime);
+        // Cash custody and accounting belong to the caller's account-opening transaction.
+        await _cashOperations.AddTransactionMovementAsync(
+            entity,
+            isDeposit: true,
+            initiatedByUserId,
+            openingBalance,
+            cancellationToken);
         await _ledger.PostGlEntryAsync(
             entity,
             AccountingConstants.CashOnHandGlCode,

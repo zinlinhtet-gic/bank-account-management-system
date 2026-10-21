@@ -11,6 +11,8 @@ public static class MessageCatalog
     private static readonly IReadOnlyDictionary<MessageCode, string> Messages =
         new Dictionary<MessageCode, string>
         {
+            [MessageCode.AccountDocumentSourceInvalid] = "Supply exactly one uploaded file or customer document reference for each account document.",
+            [MessageCode.ReusableAccountDocumentUnavailable] = "A customer document is no longer eligible for reuse. Refresh document availability and upload any missing requirements.",
             [MessageCode.Success] = "Operation completed successfully.",
             [MessageCode.UserCreatedSuccessfully] = "User created successfully.",
             [MessageCode.UserUpdatedSuccessfully] = "User updated successfully.",

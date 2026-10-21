@@ -84,7 +84,7 @@
             </StackPanel>
             <StackPanel Visibility="{Binding Workflow.IsStep4, Converter={StaticResource BooleanToVisibilityConverter}}">
               <TextBlock Text="Documents and product settings" Style="{StaticResource Text.Subheading}" Margin="0,0,0,14" />
-              <TextBlock Text="Choose a file for each required document" Style="{StaticResource Text.Title}" />
+              <TextBlock Text="Existing customer documents are reused automatically. Upload any missing documents." Style="{StaticResource Text.Title}" TextWrapping="Wrap" />
               <ItemsControl ItemsSource="{Binding Workflow.RequiredDocumentInputs}" Margin="0,8,0,4">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
@@ -99,10 +99,10 @@
                           <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="{Binding DocumentLabel}" Style="{StaticResource Text.Title}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,6" />
-                        <Button Grid.Column="1" Content="Choose file" Style="{StaticResource Button.Secondary}" Click="BrowseRequiredDocument_Click" Tag="{Binding}" Visibility="{Binding IsPhoto, Converter={StaticResource BoolToCollapsedVisibility}}" />
-                        <Button Grid.Column="1" Content="Choose photo" Style="{StaticResource Button.Secondary}" Click="BrowseRequiredDocument_Click" Tag="{Binding}" Visibility="{Binding IsPhoto, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <Button Grid.Column="1" Content="Choose file" Style="{StaticResource Button.Secondary}" Click="BrowseRequiredDocument_Click" Tag="{Binding}" Visibility="{Binding CanChooseFile, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <Button Grid.Column="1" Content="Choose photo" Style="{StaticResource Button.Secondary}" Click="BrowseRequiredDocument_Click" Tag="{Binding}" Visibility="{Binding CanChoosePhoto, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
-                          <Border Width="76" Height="76" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,10,0" Visibility="{Binding IsPhoto, Converter={StaticResource BooleanToVisibilityConverter}}">
+                          <Border Width="76" Height="76" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,10,0" Visibility="{Binding CanChoosePhoto, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Image Source="{Binding PreviewImage}" Stretch="UniformToFill" />
                           </Border>
                           <TextBlock Text="{Binding FileName}" VerticalAlignment="Center" TextWrapping="Wrap" />

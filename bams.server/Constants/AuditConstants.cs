@@ -5,6 +5,7 @@ namespace bams.server.Constants;
 /// </summary>
 public static class AuditConstants
 {
+    public const string AccountOpeningCashRepairAction = "account.opening_cash_repair";
     public const string TransactionEntityType = "Transaction";
 
     public const string DepositAction = "transaction.deposit";

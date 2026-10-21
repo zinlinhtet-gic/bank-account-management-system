@@ -63,7 +63,12 @@ paths:
       summary: Create an account
       description: |
         Creates an individual or shared account. Documents use indexed multipart
-        fields such as Documents[0].DocumentType and Documents[0].File.
+        fields such as Documents[0].DocumentType and exactly one of Documents[0].File
+        or Documents[0].SourceCustomerDocumentId. Referenced customer files are copied
+        into account storage after ownership, expiry, and file validation.
+        Positive opening balances require the initiating user's activated open teller
+        session for the posting business date; a linked Deposit cash movement increases
+        expected session cash atomically with account creation. Zero balances create no movement.
       security:
         - bearerAuth: []
       requestBody:
@@ -1224,8 +1229,18 @@ components:
 
     AccountDocumentUploadRequest:
       type: object
-      required: [documentType, file]
+      description: Supply exactly one of file or sourceCustomerDocumentId. Source files must belong to a current holder and remain eligible at submission.
+      required: [documentType]
+      oneOf:
+        - required: [file]
+          not: { required: [sourceCustomerDocumentId] }
+        - required: [sourceCustomerDocumentId]
+          not: { required: [file] }
       properties:
+        sourceCustomerDocumentId:
+          type: integer
+          format: int64
+          description: ID from opening-options reusableDocuments. The server derives the document number and file metadata.
         documentType:
           $ref: '#/components/schemas/DocumentType'
         documentNumber:
@@ -1426,8 +1441,12 @@ components:
 
     AccountOpeningOptionsResponse:
       type: object
-      required: [accountTypes, requiredDocuments, payoutAccounts]
+      required: [accountTypes, requiredDocuments, payoutAccounts, reusableDocuments]
       properties:
+        reusableDocuments:
+          type: array
+          description: One eligible document per type, preferring the primary holder then highest document ID. No storage paths are returned.
+          items: { $ref: '#/components/schemas/ReusableCustomerDocumentResponse' }
         accountTypes:
           type: array
           items: { $ref: '#/components/schemas/AccountTypeResponse' }
@@ -1451,6 +1470,16 @@ components:
               accountTypeCode: { type: string }
               status: { $ref: '#/components/schemas/AccountStatus' }
               accountTypeName: { type: string }
+    ReusableCustomerDocumentResponse:
+      type: object
+      required: [id, customerId, holderName, documentType]
+      properties:
+        id: { type: integer, format: int64 }
+        customerId: { type: integer, format: int64 }
+        holderName: { type: string }
+        documentType: { $ref: '#/components/schemas/DocumentType' }
+        documentNumber: { type: string, nullable: true }
+        expiryDate: { type: string, format: date, nullable: true }
     AccountTransactionDetailResponse:
       type: object
       properties:

@@ -207,7 +207,8 @@ public sealed class AccountService : IAccountService
         var payoutAccounts = await _accountHolderService.GetEligiblePayoutAccountsAsync(
             holders[0].Id,
             cancellationToken);
-        return new AccountOpeningOptionsResponse(eligibleTypes, requiredDocuments, payoutAccounts);
+        var reusableDocuments = await _accountDocumentService.GetReusableDocumentsAsync(holderIds, cancellationToken);
+        return new AccountOpeningOptionsResponse(eligibleTypes, requiredDocuments, payoutAccounts, reusableDocuments);
     }
 
     /// <summary>Gets calculated interest accrual periods for an account.</summary>
@@ -248,6 +249,7 @@ public sealed class AccountService : IAccountService
         await _accountDocumentService.ValidateRequiredDocumentsAsync(
             accountType.Id,
             documents,
+            customers.Select(customer => customer.Id).ToArray(),
             cancellationToken);
         var requiredRefererCount = _accountTypeService.GetRequiredRefererCount(accountType, customers);
         var referers = await _accountRefererService.ResolveAndValidateReferersAsync(
@@ -294,6 +296,7 @@ public sealed class AccountService : IAccountService
             storedFileReferences = await _accountDocumentService.StoreAccountDocumentsAsync(
                 account,
                 documents,
+                customers.Select(customer => customer.Id).ToArray(),
                 now,
                 cancellationToken);
             // Record audit log for account opening

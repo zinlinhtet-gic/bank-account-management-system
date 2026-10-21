@@ -4,6 +4,8 @@ Message codes are stable client/server contracts. Clients must branch on the num
 
 ## Canonical registries
 
+Account document reuse adds `3133 / AccountDocumentSourceInvalid` (exactly one upload or source reference is required) and `3134 / ReusableAccountDocumentUnavailable` (refresh options because the source no longer satisfies ownership, type, expiry, or file requirements). Both are validation failures and are mirrored in the desktop client.
+
 - Server names and values: [`Messages/MessageCode.cs`](../Messages/MessageCode.cs).
 - Server default message text: [`Messages/MessageCatalog.cs`](../Messages/MessageCatalog.cs).
 - Desktop mirror and client-only codes: [`bams.desktop/Utils/MessageCode.cs`](../../bams.desktop/Utils/MessageCode.cs).

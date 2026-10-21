@@ -95,6 +95,8 @@ public enum MessageCode
     AccountRefererSelectionInvalid = 3130,
     AccountRefererMustOwnAccount = 3131,
     AccountHolderKycNotVerified = 3132,
+    AccountDocumentSourceInvalid = 3133,
+    ReusableAccountDocumentUnavailable = 3134,
 
     // Authentication: 4000 - 4099
     AuthenticationRequired = 4000,

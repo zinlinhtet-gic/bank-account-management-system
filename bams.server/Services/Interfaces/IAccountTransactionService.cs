@@ -11,8 +11,9 @@ public interface IAccountTransactionService
 
     /// <summary>
     /// Posts the opening deposit of a newly created (already saved) account as a completed cash deposit:
-    /// debit Cash on Hand, credit Customer Deposits and the account. Nothing is posted for a zero balance.
-    /// The caller saves and commits.
+    /// debit Cash on Hand, credit Customer Deposits and the account, and increase the initiating teller's
+    /// activated session cash through a linked deposit movement. Nothing is posted for a zero balance.
+    /// Saves and validates the journal inside the caller's transaction; the caller commits.
     /// </summary>
     Task RecordAccountOpeningTransactionAsync(
         Account account,
