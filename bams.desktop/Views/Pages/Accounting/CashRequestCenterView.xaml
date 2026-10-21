@@ -12,7 +12,7 @@
                         <TextBlock Text="BUSINESS DATE" Style="{StaticResource Text.FieldLabel}" />
                         <DatePicker SelectedDate="{Binding SelectedDate}" Style="{StaticResource Input.Date}" />
                     </StackPanel>
-                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Width="180" Margin="0,0,10,0" VerticalAlignment="Bottom"/><Button Content="Load Requests" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" VerticalAlignment="Bottom" />
+                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Style="{StaticResource Input.Select}" Width="180" Margin="0,0,10,0" VerticalAlignment="Bottom"/><Button Content="Load Requests" Command="{Binding RefreshCommand}" Style="{StaticResource Button.Secondary}" VerticalAlignment="Bottom" />
                 </WrapPanel>
             </Border>
             <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,10" />
