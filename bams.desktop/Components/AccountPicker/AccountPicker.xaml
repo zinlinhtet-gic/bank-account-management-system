@@ -12,15 +12,15 @@
                  t:ThemeAssist.Placeholder="{Binding Placeholder, ElementName=Root}"
                  t:ThemeAssist.HasError="{Binding HasError, ElementName=Root}"/>
         <Popup x:Name="ResultsPopup" PlacementTarget="{Binding ElementName=Input}" Placement="Bottom"
-               StaysOpen="False" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+               StaysOpen="True" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
             <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                     CornerRadius="{StaticResource Radius}" Margin="0,4,0,0"
                     Width="{Binding ActualWidth, ElementName=Input}" MaxHeight="240">
                 <Grid>
                     <ListBox x:Name="ResultsList" BorderThickness="0" Background="Transparent"
-                             Foreground="{StaticResource ForegroundBrush}" Padding="2"
+                             Foreground="{StaticResource ForegroundBrush}" Padding="2" Focusable="False"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             PreviewMouseLeftButtonUp="OnResultClicked"/>
+                             PreviewMouseLeftButtonDown="OnResultClicked"/>
                     <TextBlock x:Name="EmptyText" Text="No matching account" Margin="12,10"
                                Foreground="{StaticResource MutedForegroundBrush}" Visibility="Collapsed"/>
                 </Grid>
