@@ -15,10 +15,10 @@ public sealed class MonthlySummaryGenerationService(ApplicationDbContext db)
     public async Task EnsurePreviousMonthClosedAsync(DateTime scheduledForUtc, CancellationToken cancellationToken)
     {
         var runDate = BusinessTime.ToBusinessDate(scheduledForUtc);
-        var (_, periodEnd) = ScheduledJobPeriod.GetPreviousCalendarMonth(runDate);
-        var periodEndIsClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
-            item.Date == periodEnd && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
-        if (!periodEndIsClosed || await db.BusinessDates.AnyAsync(item => item.Date <= periodEnd && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken))
+        var (periodStart, periodEnd) = ScheduledJobPeriod.GetPreviousCalendarMonth(runDate);
+        // var periodEndIsClosed = await db.BusinessDates.AsNoTracking().AnyAsync(item =>
+        //     item.Date == periodEnd && item.Status == OperationsConstants.BusinessDateClosed, cancellationToken);
+        if (await db.BusinessDates.AnyAsync(item =>item.Date >= periodStart && item.Date <= periodEnd && item.Status != OperationsConstants.BusinessDateClosed, cancellationToken))
             throw new BusinessRuleException(MessageCode.MonthlyAccountingPeriodNotClosed);
     }
 
