@@ -179,6 +179,8 @@
         <StackPanel Margin="0,20,0,0">
             <TextBlock Text="PERMISSIONS" Style="{StaticResource Text.FieldLabel}"/>
             <WrapPanel Margin="0,8,0,0">
+                <CheckBox Content="Allow deposit" Style="{StaticResource Input.Check}" Margin="0,0,20,8"
+                          IsChecked="{Binding AllowDeposit}"/>
                 <CheckBox Content="Allow withdrawal" Style="{StaticResource Input.Check}" Margin="0,0,20,8"
                           IsChecked="{Binding AllowWithdrawal}"/>
                 <CheckBox Content="Allow transfer" Style="{StaticResource Input.Check}" Margin="0,0,20,8"

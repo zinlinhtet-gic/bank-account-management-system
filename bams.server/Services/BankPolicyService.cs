@@ -74,6 +74,7 @@ public sealed class BankPolicyService : IBankPolicyService
             DailyWithdrawalLimit = request.DailyWithdrawalLimit,
             MinimumDepositAmount = request.MinimumDepositAmount,
             MinimumWithdrawalAmount = request.MinimumWithdrawalAmount,
+            AllowDeposit = request.AllowDeposit,
             AllowWithdrawal = request.AllowWithdrawal,
             AllowTransfer = request.AllowTransfer,
             AllowPartialWithdrawal = request.AllowPartialWithdrawal,
@@ -123,6 +124,7 @@ public sealed class BankPolicyService : IBankPolicyService
         accountType.DailyWithdrawalLimit = request.DailyWithdrawalLimit;
         accountType.MinimumDepositAmount = request.MinimumDepositAmount;
         accountType.MinimumWithdrawalAmount = request.MinimumWithdrawalAmount;
+        accountType.AllowDeposit = request.AllowDeposit;
         accountType.AllowWithdrawal = request.AllowWithdrawal;
         accountType.AllowTransfer = request.AllowTransfer;
         accountType.AllowPartialWithdrawal = request.AllowPartialWithdrawal;

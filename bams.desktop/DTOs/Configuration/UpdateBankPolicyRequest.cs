@@ -12,6 +12,7 @@ public sealed record UpdateBankPolicyRequest(
     decimal? DailyWithdrawalLimit,
     decimal? MinimumDepositAmount,
     decimal? MinimumWithdrawalAmount,
+    bool AllowDeposit,
     bool AllowWithdrawal,
     bool AllowTransfer,
     bool AllowPartialWithdrawal,

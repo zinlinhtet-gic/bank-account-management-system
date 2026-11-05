@@ -84,7 +84,7 @@
                                 VerticalAlignment="Center"
                                 Visibility="{Binding DataContext.IsCollapsed, ElementName=Root,
                                              Converter={StaticResource BoolToCollapsedVisibility}}">
-                        <TextBlock Text="DaLanBank"
+                        <TextBlock Text="GICBank"
                                    FontFamily="{StaticResource SerifFont}"
                                    FontSize="14"
                                    FontWeight="SemiBold"
@@ -119,7 +119,8 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:NavItem}">
                             <StackPanel>
-                            <Button Command="{Binding Command}"
+                            <Button x:Name="NavItemButton"
+                                    Command="{Binding Command}"
                                     Height="36"
                                     HorizontalContentAlignment="Left"
                                     Background="Transparent"
@@ -226,9 +227,16 @@
                                                         Value="{StaticResource HoverBrush}"/>
                                             </Trigger>
 
-                                            <DataTrigger Binding="{Binding HasChildren}" Value="True">
+                                            <!-- The chevron does not fit in the minimized sidebar, so show it only when expanded. -->
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding HasChildren}" Value="True"/>
+                                                    <Condition Binding="{Binding DataContext.IsCollapsed,
+                                                               RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                               Value="False"/>
+                                                </MultiDataTrigger.Conditions>
                                                 <Setter TargetName="Chevron" Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
+                                            </MultiDataTrigger>
 
                                             <DataTrigger Binding="{Binding IsExpanded}" Value="True">
                                                 <Setter TargetName="Chevron" Property="RenderTransform">
@@ -242,10 +250,113 @@
                                 </Button.Template>
                             </Button>
 
+                            <!-- Minimized sub-menu: the group's child pages in a pop-up beside the sidebar.
+                                 StaysOpen=False closes it on any click outside it. -->
+                            <Popup PlacementTarget="{Binding ElementName=NavItemButton}"
+                                   Placement="Right"
+                                   HorizontalOffset="4"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade"
+                                   StaysOpen="False"
+                                   IsOpen="{Binding IsFlyoutOpen, Mode=TwoWay}">
+                                <!-- Right/bottom margin leaves room for the drop shadow inside the transparent popup. -->
+                                <Border Margin="0,0,12,16"
+                                        Padding="0,4"
+                                        MinWidth="200"
+                                        Background="{StaticResource CardBrush}"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource Radius}"
+                                        Effect="{StaticResource PopupShadow}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Label}"
+                                                   Margin="16,6,16,6"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource MutedForegroundBrush}"/>
+
+                                        <ItemsControl ItemsSource="{Binding Children}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:NavItem}">
+                                                    <Button Command="{Binding Command}"
+                                                            Height="32"
+                                                            Background="Transparent"
+                                                            Cursor="Hand">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Grid x:Name="FlyoutRootGrid"
+                                                                      Background="{TemplateBinding Background}">
+                                                                    <Rectangle x:Name="FlyoutActiveBar"
+                                                                               Width="3"
+                                                                               HorizontalAlignment="Left"
+                                                                               Margin="0,4,0,4"
+                                                                               RadiusX="2"
+                                                                               RadiusY="2"
+                                                                               Fill="{StaticResource AccentBrush}"
+                                                                               Visibility="Collapsed"/>
+
+                                                                    <TextBlock x:Name="FlyoutTabText"
+                                                                               Text="{Binding Label}"
+                                                                               Margin="16,0"
+                                                                               VerticalAlignment="Center"
+                                                                               FontSize="13"
+                                                                               Foreground="{StaticResource ForegroundBrush}"/>
+                                                                </Grid>
+
+                                                                <ControlTemplate.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                        <Setter TargetName="FlyoutRootGrid"
+                                                                                Property="Background"
+                                                                                Value="{StaticResource SecondaryBrush}"/>
+                                                                        <Setter TargetName="FlyoutActiveBar"
+                                                                                Property="Visibility"
+                                                                                Value="Visible"/>
+                                                                        <Setter TargetName="FlyoutTabText"
+                                                                                Property="Foreground"
+                                                                                Value="{StaticResource AccentBrush}"/>
+                                                                        <Setter TargetName="FlyoutTabText"
+                                                                                Property="FontWeight"
+                                                                                Value="SemiBold"/>
+                                                                    </DataTrigger>
+
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="FlyoutRootGrid"
+                                                                                Property="Background"
+                                                                                Value="{StaticResource HoverBrush}"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+
                             <!-- Sub-menu-->
                             <ItemsControl ItemsSource="{Binding Children}"
-                                          Margin="24,0,0,0"
-                                          Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                          Margin="24,0,0,0">
+                                <!-- Child pages are text-only, so hide them while the sidebar is minimized
+                                     instead of leaving empty rows under the group icon. -->
+                                <ItemsControl.Style>
+                                    <Style TargetType="ItemsControl">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsExpanded}" Value="True"/>
+                                                    <Condition Binding="{Binding DataContext.IsCollapsed,
+                                                               RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                               Value="False"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ItemsControl.Style>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type local:NavItem}">
                                         <Button Command="{Binding Command}"

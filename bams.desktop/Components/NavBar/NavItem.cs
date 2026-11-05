@@ -19,4 +19,8 @@ public partial class NavItem : ObservableObject
 
     [ObservableProperty]
     private bool _isExpanded;
+
+    // Shows the group's child pages in a pop-up beside the minimized sidebar.
+    [ObservableProperty]
+    private bool _isFlyoutOpen;
 }
