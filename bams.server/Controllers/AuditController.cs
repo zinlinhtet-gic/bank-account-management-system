@@ -3,15 +3,12 @@ using bams.server.Constants;
 using bams.server.DTO.Audit;
 using bams.server.DTOs.Audit;
 using bams.server.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bams.server.Controllers;
 
 [ApiController]
 [Route("api/audit")]
-// Audit logs and the end-of-day close are restricted to users holding the audit permission.
-[RequirePermission(SecurityConstants.Audit)]
 public sealed class AuditController : ControllerBase
 {
     private readonly IAuditService _auditService;
@@ -27,6 +24,7 @@ public sealed class AuditController : ControllerBase
 
     // Returns system audit logs ordered from newest to oldest.
     [HttpGet("logs")]
+    [RequirePermission(SecurityConstants.Audit)]
     public async Task<ActionResult<IReadOnlyList<AuditLogResponse>>>
         GetAuditLogsAsync(
             CancellationToken cancellationToken)
@@ -40,6 +38,7 @@ public sealed class AuditController : ControllerBase
 
     // Returns one audit log by its unique identifier.
     [HttpGet("logs/{id:long}")]
+    [RequirePermission(SecurityConstants.Audit)]
     public async Task<ActionResult<AuditLogResponse>>
         GetAuditLogByIdAsync(
             long id,
@@ -54,8 +53,8 @@ public sealed class AuditController : ControllerBase
     }
 
     // Runs the end-of-day accounting audit for the requested date.
-    [Authorize]
     [HttpPost("end-of-day")]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<EndOfDayAuditResult>>RunEndOfDayAuditAsync(
             [FromQuery] DateOnly date,
             CancellationToken cancellationToken)

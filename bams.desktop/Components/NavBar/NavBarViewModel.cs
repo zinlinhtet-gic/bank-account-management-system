@@ -221,7 +221,7 @@ public partial class NavBarViewModel : ObservableObject
             accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
 
         }
-        if (flags.CanAccessAccounting || flags.CanApproveEndOfDay)
+        if (flags.CanApproveEndOfDay)
             accounting.Children.Add(CreateChildNavItem(PageNames.EndOfDay));
 
         accounting.Command =new RelayCommand(_ => ToggleGroup(accounting));

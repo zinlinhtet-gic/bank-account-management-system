@@ -30,7 +30,7 @@ public sealed class EndOfDayController(IEndOfDayWorkflowService workflow) : Cont
     }
 
     [HttpGet("dates")]
-    [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<BusinessDateResponse>>>> SearchBusinessDatesAsync(
         [FromQuery] DateOnly? fromDate, [FromQuery] DateOnly? toDate, CancellationToken cancellationToken)
     {
@@ -39,7 +39,7 @@ public sealed class EndOfDayController(IEndOfDayWorkflowService workflow) : Cont
     }
 
     [HttpGet("dates/{date}/latest-run")]
-    [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<EndOfDayRunResponse?>>> GetLatestRunAsync(DateOnly date, CancellationToken cancellationToken)
     {
         var result = await workflow.GetLatestRunAsync(date, cancellationToken);
@@ -47,7 +47,7 @@ public sealed class EndOfDayController(IEndOfDayWorkflowService workflow) : Cont
     }
 
     [HttpPost("{date}/pre-close")]
-    [RequirePermission(SecurityConstants.Accounting, SecurityConstants.Audit, SecurityConstants.EndOfDayApproval)]
+    [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<ActionResult<ApiMessageResponse<EndOfDayRunResponse>>> RunPreCloseAsync(DateOnly date, CancellationToken cancellationToken)
     {
         var result = await workflow.RunPreCloseAsync(date, cancellationToken);

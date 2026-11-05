@@ -552,6 +552,7 @@ Authorization: Bearer <token>
 
 The reconciliation/cash/business-date features add `cash_operations`, `reconciliation_investigation`, and
 `end_of_day_approval` permissions. Managers receive all three; officers receive `cash_operations`; auditors receive
-`reconciliation_investigation`. Existing accounting/audit permissions remain required for the corresponding read and
-pre-close operations. EOD approval and close require `end_of_day_approval`, and the service also enforces distinct-user
-dual control between preparation and approval. Cash funded transaction requests require an open teller/vault session.
+`reconciliation_investigation`. Auditors do not receive `end_of_day_approval`, so the End of Day workspace and its
+workflow APIs are manager-only. Existing accounting/audit permissions still govern their unrelated read and
+reconciliation operations. The service enforces distinct-user dual control between EOD preparation and approval. Cash
+funded transaction requests require an open teller/vault session.

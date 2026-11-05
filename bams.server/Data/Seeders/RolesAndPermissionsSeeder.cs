@@ -55,6 +55,17 @@ public static class RolesAndPermissionsSeeder
 
         var rolesByCode = await dbContext.Roles.ToDictionaryAsync(role => role.Code);
         var permissionIds = await dbContext.Permissions.ToDictionaryAsync(permission => permission.Code, permission => permission.Id);
+
+        // Auditors must never inherit the manager-only End of Day workspace. This also corrects
+        // databases that received the grant from an earlier or manually modified seed state.
+        if (rolesByCode.TryGetValue(SecurityConstants.AuditorRole, out var auditorRole) &&
+            permissionIds.TryGetValue(SecurityConstants.EndOfDayApproval, out var endOfDayApprovalId))
+        {
+            await dbContext.RolePermissions
+                .Where(mapping => mapping.RoleId == auditorRole.Id && mapping.PermissionId == endOfDayApprovalId)
+                .ExecuteDeleteAsync();
+        }
+
         var grants = new[]
         {
             (SecurityConstants.ManagerRole, SecurityConstants.CashOperations),

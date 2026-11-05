@@ -122,6 +122,14 @@ public sealed class MainViewModel : ViewModelBase
         if (string.IsNullOrEmpty(pageLabel))
             return;
 
+        // End of Day is a manager-only workspace. Keep programmatic navigation (for example,
+        // a stale command or a future notification route) consistent with the sidebar.
+        if (pageLabel == PageNames.EndOfDay && !_authContext.HasPermission(PermissionCodes.EndOfDayApproval))
+        {
+            AppLog.WriteInformation("Navigation to End of Day was rejected because the user lacks end_of_day_approval.");
+            return;
+        }
+
         if (IsOfficer && CurrentPage is SessionManagementViewModel &&
             pageLabel != PageNames.CashReconciliation && pageLabel != PageNames.AssignedReconciliationTasks && !_cashSessionContext.HasOpenSession)
         {
