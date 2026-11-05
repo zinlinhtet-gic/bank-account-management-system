@@ -137,7 +137,7 @@ public partial class NavBarViewModel : ObservableObject
             group.Children.Add(child);
         }
 
-        group.Command = new RelayCommand(_ => group.IsExpanded = !group.IsExpanded);
+        group.Command = new RelayCommand(_ => ToggleGroup(group));
         Items.Add(group);
     }
 
@@ -166,10 +166,15 @@ public partial class NavBarViewModel : ObservableObject
     [RelayCommand]
     private void ToggleCollapsed() => IsCollapsed = !IsCollapsed;
 
+    // A group's pop-up belongs to the minimized layout only, so close it whenever the sidebar is resized.
+    partial void OnIsCollapsedChanged(bool value) => CloseGroupFlyouts();
+
     // Asks the shell to open the item's page. The highlight is not changed here: the shell sets ActiveItem only
     // when navigation succeeds, and OnActiveItemChanged then moves the highlight.
     private void Select(NavItem item)
     {
+        CloseGroupFlyouts();
+
         foreach (var navItem in Items)
         {
             navItem.IsActive = navItem == item;
@@ -262,11 +267,37 @@ public partial class NavBarViewModel : ObservableObject
         return item;
     }
     /// <summary>
-    /// Expands or collapses a parent navigation group.
+    /// Expands or collapses a parent navigation group. While the sidebar is minimized the child labels have no
+    /// room, so the group's pop-up is opened instead.
     /// </summary>
-    private static void ToggleGroup(NavItem item)
+    private void ToggleGroup(NavItem item)
     {
+        if (IsCollapsed)
+        {
+            OpenGroupFlyout(item);
+            return;
+        }
+
         item.IsExpanded = !item.IsExpanded;
+    }
+
+    /// <summary>
+    /// Opens one group's pop-up and closes any other. It only opens: the pop-up closes itself on an outside click,
+    /// and that click may be the group button, which would otherwise reopen a toggled pop-up.
+    /// </summary>
+    private void OpenGroupFlyout(NavItem group)
+    {
+        foreach (var item in Items)
+            item.IsFlyoutOpen = item == group;
+    }
+
+    /// <summary>
+    /// Closes every group's pop-up.
+    /// </summary>
+    private void CloseGroupFlyouts()
+    {
+        foreach (var item in Items)
+            item.IsFlyoutOpen = false;
     }
     /// <summary>
     /// Sends a child page's label to the main navigation service; the highlight follows only when the page opens
@@ -274,6 +305,7 @@ public partial class NavBarViewModel : ObservableObject
     /// </summary>
     private void SelectPage(NavItem selectedItem)
     {
+        CloseGroupFlyouts();
         NavigateCommand?.Execute(selectedItem.Label);
     }
 }

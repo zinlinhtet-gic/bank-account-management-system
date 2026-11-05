@@ -35,6 +35,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
     private string _dailyWithdrawalLimitText = string.Empty;
     private string _minimumDepositAmountText = string.Empty;
     private string _minimumWithdrawalAmountText = string.Empty;
+    private bool _allowDeposit = true;
     private bool _allowWithdrawal = true;
     private bool _allowTransfer = true;
     private bool _allowPartialWithdrawal = true;
@@ -232,6 +233,12 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
                 MinimumWithdrawalAmountError = string.Empty;
             }
         }
+    }
+
+    public bool AllowDeposit
+    {
+        get => _allowDeposit;
+        set => SetProperty(ref _allowDeposit, value);
     }
 
     public bool AllowWithdrawal
@@ -540,6 +547,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
         _dailyWithdrawalLimitText = FormatOptionalAmount(policy.DailyWithdrawalLimit);
         _minimumDepositAmountText = FormatOptionalAmount(policy.MinimumDepositAmount);
         _minimumWithdrawalAmountText = FormatOptionalAmount(policy.MinimumWithdrawalAmount);
+        _allowDeposit = policy.AllowDeposit;
         _allowWithdrawal = policy.AllowWithdrawal;
         _allowTransfer = policy.AllowTransfer;
         _allowPartialWithdrawal = policy.AllowPartialWithdrawal;
@@ -572,7 +580,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
                         input.MinimumMaintainedBalance, input.DailyTransactionLimit, input.MonthlyTransactionLimit,
                         input.WeeklyTransactionLimit, input.DailyWithdrawalLimit, input.MinimumDepositAmount,
                         input.MinimumWithdrawalAmount,
-                        input.AllowWithdrawal, input.AllowTransfer, input.AllowPartialWithdrawal,
+                        input.AllowDeposit, input.AllowWithdrawal, input.AllowTransfer, input.AllowPartialWithdrawal,
                         input.AllowCitizen, input.AllowForeigner, input.CitizenRequiredRefer,
                         input.ForeignRequiredRefer, input.Status),
                     CancellationToken.None)
@@ -582,7 +590,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
                         input.MinimumMaintainedBalance, input.DailyTransactionLimit, input.MonthlyTransactionLimit,
                         input.WeeklyTransactionLimit, input.DailyWithdrawalLimit, input.MinimumDepositAmount,
                         input.MinimumWithdrawalAmount,
-                        input.AllowWithdrawal, input.AllowTransfer, input.AllowPartialWithdrawal,
+                        input.AllowDeposit, input.AllowWithdrawal, input.AllowTransfer, input.AllowPartialWithdrawal,
                         input.AllowCitizen, input.AllowForeigner, input.CitizenRequiredRefer,
                         input.ForeignRequiredRefer, input.Status),
                     CancellationToken.None);
@@ -720,6 +728,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
                 dailyWithdrawalLimit,
                 minimumDepositAmount,
                 minimumWithdrawalAmount,
+                AllowDeposit,
                 AllowWithdrawal,
                 AllowTransfer,
                 AllowPartialWithdrawal,
@@ -786,6 +795,7 @@ public sealed class BankPolicyFormViewModel : ViewModelBase
         decimal? DailyWithdrawalLimit,
         decimal? MinimumDepositAmount,
         decimal? MinimumWithdrawalAmount,
+        bool AllowDeposit,
         bool AllowWithdrawal,
         bool AllowTransfer,
         bool AllowPartialWithdrawal,

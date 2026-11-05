@@ -21,6 +21,7 @@ public static class BankPolicyMappings
             accountType.DailyWithdrawalLimit,
             accountType.MinimumDepositAmount,
             accountType.MinimumWithdrawalAmount,
+            accountType.AllowDeposit,
             accountType.AllowWithdrawal,
             accountType.AllowTransfer,
             accountType.AllowPartialWithdrawal,
