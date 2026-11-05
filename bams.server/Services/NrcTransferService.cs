@@ -63,7 +63,7 @@ public sealed class NrcTransferService : INrcTransferService
             async key =>
             {
                 var now = DateTime.UtcNow;
-                var entity = LedgerPostingService.CreateTransaction(
+                var entity = await _ledger.CreateTransactionAsync(
                     TransactionType.NrcTransfer,
                     TransactionStatus.Pending,
                     request.Amount,
@@ -71,7 +71,9 @@ public sealed class NrcTransferService : INrcTransferService
                     request.ReferenceNo,
                     key,
                     actor.UserId,
-                    now);
+                    now,
+                    bams.server.Utils.BusinessTime.ToBusinessDate(now),
+                    cancellationToken);
 
                 // Money in: from the sender's account after the debit rules, or cash handed over at the counter.
                 long? sourceAccountId = null;

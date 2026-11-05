@@ -15,7 +15,7 @@ namespace bams.server.Services;
 /// <summary>Owns proposal review transactions and dispatches case-specific correction operations.</summary>
 public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICurrentUserService user,
     CorrectionPlanningService planner, ReconciliationProjectionService projections, ReconciliationCheckService checks,
-    UnifiedReconciliationService unified, Notifications.ReconciliationNotifier notifier)
+    UnifiedReconciliationService unified, Notifications.ReconciliationNotifier notifier, LedgerPostingService ledger)
 {
     /// <summary>Returns proposal history without exposing persistence entities.</summary>
     public async Task<IReadOnlyList<CorrectionProposalResponse>> ListAsync(long? exceptionId, CancellationToken ct)
@@ -228,9 +228,9 @@ public sealed class ReconciliationCorrectionService(ApplicationDbContext db, ICu
         var now = DateTime.UtcNow;
         var type = preview.IsJournalRepair ? TransactionType.ReconciliationRepair :
             preview.Lines.All(x => x.Ledger == CorrectionPlanningService.CustomerLedger) ? TransactionType.AccountPostingRepair : TransactionType.ReconciliationAdjustment;
-        var transaction = LedgerPostingService.CreateTransaction(type, TransactionStatus.Completed, preview.SuggestedAmount,
-            $"Reconciliation proposal {proposal.Id}: {proposal.Kind}", $"EX-{proposal.ExceptionId}", $"RECON-{proposal.Id}", user.GetCurrentUserId(), now);
-        transaction.BusinessDate = preview.PostingDate;
+        var transaction = await ledger.CreateTransactionAsync(type, TransactionStatus.Completed, preview.SuggestedAmount,
+            $"Reconciliation proposal {proposal.Id}: {proposal.Kind}", $"EX-{proposal.ExceptionId}", $"RECON-{proposal.Id}", user.GetCurrentUserId(), now,
+            preview.PostingDate, ct);
         transaction.AuthorizedBy = user.GetCurrentUserId();
         transaction.AuthorizedAt = now;
         if (preview.IsJournalRepair) transaction.AccountingRootTransactionId = input.TransactionId;

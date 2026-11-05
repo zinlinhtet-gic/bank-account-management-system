@@ -60,7 +60,7 @@ public sealed class TransactionService : ITransactionService
                     now,
                     cancellationToken);
 
-                var entity = LedgerPostingService.CreateTransaction(
+                var entity = await _ledger.CreateTransactionAsync(
                     TransactionType.CashDeposit,
                     TransactionStatus.Completed,
                     request.Amount,
@@ -68,7 +68,9 @@ public sealed class TransactionService : ITransactionService
                     request.ReferenceNo,
                     key,
                     actor.UserId,
-                    now);
+                    now,
+                    bams.server.Utils.BusinessTime.ToBusinessDate(now),
+                    cancellationToken);
                 await _cashOperations.AddTransactionMovementAsync(entity, true, actor.UserId, request.Amount, cancellationToken);
                 await _ledger.PostGlEntryAsync(
                     entity,
@@ -125,7 +127,7 @@ public sealed class TransactionService : ITransactionService
                     now,
                     cancellationToken);
 
-                var entity = LedgerPostingService.CreateTransaction(
+                var entity = await _ledger.CreateTransactionAsync(
                     TransactionType.CashWithdrawal,
                     TransactionStatus.Completed,
                     request.Amount,
@@ -133,7 +135,9 @@ public sealed class TransactionService : ITransactionService
                     request.ReferenceNo,
                     key,
                     actor.UserId,
-                    now);
+                    now,
+                    bams.server.Utils.BusinessTime.ToBusinessDate(now),
+                    cancellationToken);
                 await _cashOperations.AddTransactionMovementAsync(entity, false, actor.UserId, request.Amount, cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, account, EntryType.Debit, now, cancellationToken);
                 await _ledger.PostGlEntryAsync(
@@ -204,7 +208,7 @@ public sealed class TransactionService : ITransactionService
                     cancellationToken,
                     fee);
 
-                var entity = LedgerPostingService.CreateTransaction(
+                var entity = await _ledger.CreateTransactionAsync(
                     TransactionType.InternalTransfer,
                     TransactionStatus.Completed,
                     request.Amount,
@@ -212,7 +216,9 @@ public sealed class TransactionService : ITransactionService
                     request.ReferenceNo,
                     key,
                     actor.UserId,
-                    now);
+                    now,
+                    bams.server.Utils.BusinessTime.ToBusinessDate(now),
+                    cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, source, EntryType.Debit, now, cancellationToken);
                 await _ledger.PostTransferFeeAsync(entity, source, fee, now, cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, destination, EntryType.Credit, now, cancellationToken);

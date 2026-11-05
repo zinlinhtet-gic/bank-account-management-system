@@ -2981,6 +2981,26 @@ namespace bams.server.Data.Migrations
                     b.ToTable("TransactionEntries");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Transactions.TransactionNumberGeneration", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LastSequenceNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDate")
+                        .IsUnique();
+
+                    b.ToTable("TransactionNumberGenerations");
+                });
+
             modelBuilder.Entity("bams.server.Models.Accounting.AccountReconciliationResult", b =>
                 {
                     b.HasOne("bams.server.Models.Accounts.Account", "Account")

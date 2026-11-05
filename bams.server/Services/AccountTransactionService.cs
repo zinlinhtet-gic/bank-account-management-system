@@ -73,7 +73,7 @@ public sealed class AccountTransactionService : IAccountTransactionService
 
         // The opening deposit is booked exactly like a teller cash deposit so reports and statements need no
         // special case.
-        var entity = LedgerPostingService.CreateTransaction(
+        var entity = await _ledger.CreateTransactionAsync(
             TransactionType.CashDeposit,
             TransactionStatus.Completed,
             openingBalance,
@@ -81,7 +81,9 @@ public sealed class AccountTransactionService : IAccountTransactionService
             referenceNo: account.AccountNo,
             idempotencyKey: null,
             initiatedByUserId,
-            currentDateTime);
+            currentDateTime,
+            Utils.BusinessTime.ToBusinessDate(currentDateTime),
+            cancellationToken);
         // Cash custody and accounting belong to the caller's account-opening transaction.
         await _cashOperations.AddTransactionMovementAsync(
             entity,

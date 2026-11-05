@@ -136,11 +136,10 @@ public sealed class BankExpenseService(ApplicationDbContext db, ICurrentUserServ
             session.ExpectedClosingCash - expense.Amount < session.ReservedCash)
             throw new BusinessRuleException(MessageCode.InsufficientCashPositionBalance);
         DateTime now = DateTime.UtcNow;
-        Transaction transaction = LedgerPostingService.CreateTransaction(TransactionType.BankCashExpense,
-            TransactionStatus.Completed, expense.Amount, expense.Purpose, $"BANK-EXP-{expense.Id}",
-            $"BANK-EXP-{expense.Id}", expense.RequestedBy, now);
         DateOnly financialDate = postingDate ?? expense.BusinessDate;
-        transaction.BusinessDate = financialDate;
+        Transaction transaction = await ledger.CreateTransactionAsync(TransactionType.BankCashExpense,
+            TransactionStatus.Completed, expense.Amount, expense.Purpose, $"BANK-EXP-{expense.Id}",
+            $"BANK-EXP-{expense.Id}", expense.RequestedBy, now, financialDate, ct);
         transaction.AuthorizedBy = approver;
         transaction.AuthorizedAt = now;
         long expenseGl = await db.GlAccounts.Where(x => x.Code == AccountingConstants.BankOperatingExpenseGlCode && x.Status == AccountingConstants.ActiveStatus)

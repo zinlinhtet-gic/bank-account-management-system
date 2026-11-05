@@ -364,10 +364,9 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
             session.ExpectedClosingCash + preview.CashChange < session.ReservedCash)
             throw new BusinessRuleException(MessageCode.InsufficientBalance);
         DateTime now = DateTime.UtcNow;
-        Transaction transaction = LedgerPostingService.CreateTransaction(change > 0m ? TransactionType.CashDeposit : TransactionType.CashWithdrawal,
+        Transaction transaction = await ledger.CreateTransactionAsync(change > 0m ? TransactionType.CashDeposit : TransactionType.CashWithdrawal,
             TransactionStatus.Completed, preview.SuggestedAmount, input.Findings, $"CASH-EX-{proposal.ExceptionId}",
-            $"CASH-EX-{proposal.Id}", proposal.ProposerId, now);
-        transaction.BusinessDate = preview.PostingDate;
+            $"CASH-EX-{proposal.Id}", proposal.ProposerId, now, preview.PostingDate, ct);
         transaction.AuthorizedBy = approver;
         transaction.AuthorizedAt = now;
         db.Transactions.Add(transaction);
@@ -409,10 +408,9 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
         if (change == 0m || session.ExpectedClosingCash + change < session.ReservedCash)
             throw new BusinessRuleException(MessageCode.InsufficientCashPositionBalance);
         DateTime now = DateTime.UtcNow;
-        Transaction transaction = LedgerPostingService.CreateTransaction(TransactionType.CashOverShort,
+        Transaction transaction = await ledger.CreateTransactionAsync(TransactionType.CashOverShort,
             TransactionStatus.Completed, Math.Abs(change), "Cash over/short reconciliation", $"CASH-EX-{proposal.ExceptionId}",
-            $"CASH-EX-{proposal.Id}", proposal.ProposerId, now);
-        transaction.BusinessDate = preview.PostingDate;
+            $"CASH-EX-{proposal.Id}", proposal.ProposerId, now, preview.PostingDate, ct);
         transaction.AuthorizedBy = approver;
         transaction.AuthorizedAt = now;
         long cashGl = await db.GlAccounts.Where(x => x.Code == AccountingConstants.CashOnHandGlCode).Select(x => x.Id).SingleAsync(ct);

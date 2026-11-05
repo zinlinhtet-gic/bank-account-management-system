@@ -143,6 +143,7 @@ public static class MessageCatalog
             [MessageCode.DailyWithdrawalLimitExceeded] = "This withdrawal exceeds the account's daily withdrawal limit.",
             [MessageCode.DepositBelowMinimumAmount] = "The deposit is below the account's minimum deposit amount.",
             [MessageCode.WithdrawalBelowMinimumAmount] = "The withdrawal is below the account's minimum withdrawal amount.",
+            [MessageCode.TransactionNumberSequenceExhausted] = "The transaction number sequence is exhausted for this business date.",
             [MessageCode.PickupAttemptsExceeded] = "Too many wrong pickup codes. The transfer is blocked and can only be cancelled.",
             [MessageCode.TransactionNotPending] = "This transaction is no longer pending.",
             [MessageCode.NrcPickupLocationMismatch] = "This NRC transfer is paid out elsewhere: our branches verify the pickup code, other banks' payouts are recorded instead.",

@@ -174,6 +174,7 @@ public enum MessageCode
     DailyWithdrawalLimitExceeded = 4455,
     DepositBelowMinimumAmount = 4456,
     WithdrawalBelowMinimumAmount = 4457,
+    TransactionNumberSequenceExhausted = 4458,
 
     // Accounting / Audit: 4460 - 4479
     TransactionMissingAccountingEntries = 4460,

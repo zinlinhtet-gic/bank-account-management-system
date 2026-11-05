@@ -5,11 +5,11 @@ namespace bams.server.Constants;
 /// </summary>
 public static class TransactionConstants
 {
-    // Transaction numbers: prefix + UTC timestamp + random suffix, so two postings in the same millisecond stay unique.
+    // Transaction numbers use one Myanmar-business-date sequence, shared by operator and scheduled postings.
     public const string TransactionNumberPrefix = "TXN";
-    public const string TransactionNumberTimestampFormat = "yyyyMMddHHmmssfff";
-    public const int TransactionNumberSuffixExclusiveMaximum = 10_000;
-    public const string TransactionNumberSuffixFormat = "D4";
+    public const string ScheduledTransactionNumberPrefix = "JOB";
+    public const int TransactionNumberDailySequenceMaximum = 999_999;
+    public const string TransactionNumberSequenceFormat = "D6";
 
     // Amounts are stored as decimal(18, 2), so more decimal places would be silently rounded by the database.
     public const int MaximumAmountDecimalPlaces = 2;

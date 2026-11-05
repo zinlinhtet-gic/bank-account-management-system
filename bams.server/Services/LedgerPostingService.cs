@@ -1,5 +1,4 @@
 using bams.server.Utils;
-using System.Security.Cryptography;
 using System.Text.Json;
 using bams.server.Constants;
 using bams.server.Data;
@@ -55,14 +54,17 @@ public sealed class LedgerPostingService
 
     private readonly ApplicationDbContext _dbContext;
     private readonly IBusinessDateService _businessDates;
+    private readonly ITransactionNumberGenerator _transactionNumbers;
 
     // General-ledger ids do not change at runtime, so each is looked up at most once per request.
     private readonly Dictionary<string, long> _glAccountIdsByCode = new();
 
-    public LedgerPostingService(ApplicationDbContext dbContext, IBusinessDateService businessDates)
+    public LedgerPostingService(ApplicationDbContext dbContext, IBusinessDateService businessDates,
+        ITransactionNumberGenerator transactionNumbers)
     {
         _dbContext = dbContext;
         _businessDates = businessDates;
+        _transactionNumbers = transactionNumbers;
     }
 
     /// <summary>
@@ -618,9 +620,10 @@ public sealed class LedgerPostingService
         decimal Amount);
 
     /// <summary>
-    /// Creates a transaction header. Completed transactions are also marked as posted by the initiating user.
+    /// Creates a normal (non-scheduled) transaction header with a durably reserved daily transaction number.
+    /// Completed transactions are also marked as posted by the initiating user.
     /// </summary>
-    public static Transaction CreateTransaction(
+    public async Task<Transaction> CreateTransactionAsync(
         TransactionType type,
         TransactionStatus status,
         decimal amount,
@@ -628,13 +631,16 @@ public sealed class LedgerPostingService
         string? referenceNo,
         string? idempotencyKey,
         long userId,
-        DateTime now)
+        DateTime now,
+        DateOnly businessDate,
+        CancellationToken cancellationToken)
     {
         var isCompleted = status == TransactionStatus.Completed;
+        var transactionNumber = await _transactionNumbers.ReserveAsync(businessDate, isScheduled: false, cancellationToken);
 
         return new Transaction
         {
-            TransactionNo = GenerateTransactionNumber(now),
+            TransactionNo = transactionNumber,
             TransactionType = type,
             TransactionStatus = status,
             InitiatedBy = userId,
@@ -643,6 +649,7 @@ public sealed class LedgerPostingService
             Amount = amount,
             FeeAmount = 0m,
             TransactionAt = now,
+            BusinessDate = businessDate,
             Description = TransactionRequestValidator.TrimToNull(description),
             ReferenceNo = TransactionRequestValidator.TrimToNull(referenceNo),
             IdempotencyKey = idempotencyKey,
@@ -826,7 +833,7 @@ public sealed class LedgerPostingService
             .Select(entry => (long?)entry.AccountId)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var refund = CreateTransaction(
+        var refund = await CreateTransactionAsync(
             TransactionType.Reversal,
             TransactionStatus.Completed,
             original.Amount,
@@ -834,7 +841,9 @@ public sealed class LedgerPostingService
             original.ReferenceNo,
             null,
             actor.UserId,
-            now);
+            now,
+            BusinessTime.ToBusinessDate(now),
+            cancellationToken);
         refund.ReversalOfTransactionId = original.Id;
         await PostGlEntryAsync(refund, clearingGlAccountCode, EntryType.Debit, null, now, cancellationToken);
 
@@ -1060,14 +1069,4 @@ public sealed class LedgerPostingService
         return glAccountId;
     }
 
-    // Generates a readable transaction number; the random suffix keeps numbers unique within the same millisecond.
-    private static string GenerateTransactionNumber(DateTime now)
-    {
-        return string.Concat(
-            TransactionConstants.TransactionNumberPrefix,
-            now.ToString(TransactionConstants.TransactionNumberTimestampFormat),
-            RandomNumberGenerator
-                .GetInt32(TransactionConstants.TransactionNumberSuffixExclusiveMaximum)
-                .ToString(TransactionConstants.TransactionNumberSuffixFormat));
-    }
 }

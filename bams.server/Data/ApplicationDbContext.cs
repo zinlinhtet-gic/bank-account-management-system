@@ -53,6 +53,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<AccountTransaction> AccountTransactions => Set<AccountTransaction>();
     public DbSet<NrcCashTransferDetail> NrcCashTransferDetails => Set<NrcCashTransferDetail>();
     public DbSet<InterbankTransferDetail> InterbankTransferDetails => Set<InterbankTransferDetail>();
+    public DbSet<TransactionNumberGeneration> TransactionNumberGenerations => Set<TransactionNumberGeneration>();
 
     // Interest / fees
     public DbSet<InterestAccrual> InterestAccruals => Set<InterestAccrual>();

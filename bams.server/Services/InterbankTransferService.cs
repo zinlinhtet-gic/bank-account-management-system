@@ -85,7 +85,7 @@ public sealed class InterbankTransferService : IInterbankTransferService
                     cancellationToken,
                     fee);
 
-                var entity = LedgerPostingService.CreateTransaction(
+                var entity = await _ledger.CreateTransactionAsync(
                     TransactionType.InterbankTransfer,
                     TransactionStatus.Pending,
                     request.Amount,
@@ -93,7 +93,9 @@ public sealed class InterbankTransferService : IInterbankTransferService
                     request.ReferenceNo,
                     key,
                     actor.UserId,
-                    now);
+                    now,
+                    bams.server.Utils.BusinessTime.ToBusinessDate(now),
+                    cancellationToken);
                 await _ledger.PostCustomerEntryAsync(entity, source, EntryType.Debit, now, cancellationToken);
                 await _ledger.PostGlEntryAsync(
                     entity,
