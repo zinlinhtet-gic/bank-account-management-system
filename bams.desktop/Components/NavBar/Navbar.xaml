@@ -84,7 +84,7 @@
                                 VerticalAlignment="Center"
                                 Visibility="{Binding DataContext.IsCollapsed, ElementName=Root,
                                              Converter={StaticResource BoolToCollapsedVisibility}}">
-                        <TextBlock Text="DaLanBank"
+                        <TextBlock Text="GICBank"
                                    FontFamily="{StaticResource SerifFont}"
                                    FontSize="14"
                                    FontWeight="SemiBold"
