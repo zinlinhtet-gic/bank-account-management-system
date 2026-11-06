@@ -97,7 +97,7 @@
             <!-- Row 3: balance range (optional) -->
             <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="MIN BALANCE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 100000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 100000"
                          Text="{Binding BalanceMinText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasBalanceMinError}"/>
                 <TextBlock Text="{Binding BalanceMinError}" Style="{StaticResource Text.Error}"
@@ -105,7 +105,7 @@
             </StackPanel>
             <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="MAX BALANCE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 5000000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 5000000"
                          Text="{Binding BalanceMaxText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasBalanceMaxError}"/>
                 <TextBlock Text="{Binding BalanceMaxError}" Style="{StaticResource Text.Error}"

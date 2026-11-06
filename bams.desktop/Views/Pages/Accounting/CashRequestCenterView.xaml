@@ -24,10 +24,10 @@
                     <DataGridTextColumn Header="Request" Binding="{Binding Id}" />
                     <DataGridTextColumn Header="Session" Binding="{Binding SessionId}" />
                     <DataGridTextColumn Header="Officer" Binding="{Binding OfficerId}" />
-                    <DataGridTextColumn Header="Requested amount" Binding="{Binding RequestedAmount, StringFormat=N2}" />
+                    <DataGridTextColumn Header="Requested amount" Binding="{Binding RequestedAmount, Converter={StaticResource Money}}" />
                     <DataGridTextColumn Header="Reason" Binding="{Binding Note}" Width="2*" />
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
-                    <DataGridTextColumn Header="Approved amount" Binding="{Binding ApprovedAmount, StringFormat=N2}" />
+                    <DataGridTextColumn Header="Approved amount" Binding="{Binding ApprovedAmount, Converter={StaticResource Money}}" />
                     <DataGridTemplateColumn Header="Actions"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Button Content="Accept" Command="{Binding DataContext.AcceptRowCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0"/><Button Content="Reject" Command="{Binding DataContext.RejectRowCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource Button.Secondary}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>

@@ -24,7 +24,7 @@
    <TextBlock Text="{Binding VaultExpected,StringFormat='Expected cash: {0:N2}'}" Margin="0,8"/>
    <TextBlock Text="{Binding VaultCounted,StringFormat='Latest physical count: {0:N2}'}"/>
    <TextBlock Text="{Binding VaultDifference,StringFormat='Difference: {0:N2}'}" Margin="0,6"/>
-   <TextBlock Text="Physical cash amount" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding VaultActual,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
+   <TextBlock Text="Physical cash amount" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding VaultActual,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Money}"/>
    <TextBlock Text="Count notes" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0"/><TextBox Text="{Binding VaultNote,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
    <Button Content="Record final count and close vault" Command="{Binding FinalVaultCountCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>
   </StackPanel></Border>

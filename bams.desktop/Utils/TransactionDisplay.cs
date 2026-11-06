@@ -1,4 +1,3 @@
-using System.Globalization;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Transactions;
 
@@ -37,7 +36,7 @@ public static class TransactionDisplay
     /// <summary>"1,204,550.00": thousands separators and two decimals, without the currency.</summary>
     public static string FormatAmount(decimal amount)
     {
-        return amount.ToString(DisplayFormats.Amount, CultureInfo.CurrentCulture);
+        return MoneyText.Format(amount);
     }
 
     /// <summary>"MMK 1,204,550.00".</summary>

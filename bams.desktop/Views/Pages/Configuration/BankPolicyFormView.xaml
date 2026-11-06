@@ -87,7 +87,7 @@
             <!-- Row 2: balance range -->
             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="MIN OPENING BALANCE" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 10000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 10000"
                          Text="{Binding MinimumOpeningBalanceText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMinimumOpeningBalanceError}"/>
                 <TextBlock Text="{Binding MinimumOpeningBalanceError}" Style="{StaticResource Text.Error}"
@@ -95,7 +95,7 @@
             </StackPanel>
             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="MIN MAINTAINED BALANCE" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 5000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 5000"
                          Text="{Binding MinimumMaintainedBalanceText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMinimumMaintainedBalanceError}"/>
                 <TextBlock Text="{Binding MinimumMaintainedBalanceError}" Style="{StaticResource Text.Error}"
@@ -105,7 +105,7 @@
             <!-- Row 3: transaction limits (optional) -->
             <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="DAILY LIMIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 1000000"
                          Text="{Binding DailyTransactionLimitText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasDailyTransactionLimitError}"/>
                 <TextBlock Text="{Binding DailyTransactionLimitError}" Style="{StaticResource Text.Error}"
@@ -113,7 +113,7 @@
             </StackPanel>
             <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="MONTHLY LIMIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 10000000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 10000000"
                          Text="{Binding MonthlyTransactionLimitText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMonthlyTransactionLimitError}"/>
                 <TextBlock Text="{Binding MonthlyTransactionLimitError}" Style="{StaticResource Text.Error}"
@@ -123,7 +123,7 @@
             <!-- Row 4: weekly limit + daily cash-withdrawal limit -->
             <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="WEEKLY LIMIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 5000000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 5000000"
                          Text="{Binding WeeklyTransactionLimitText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasWeeklyTransactionLimitError}"/>
                 <TextBlock Text="{Binding WeeklyTransactionLimitError}" Style="{StaticResource Text.Error}"
@@ -131,7 +131,7 @@
             </StackPanel>
             <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="DAILY WITHDRAWAL LIMIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 1000000"
                          Text="{Binding DailyWithdrawalLimitText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasDailyWithdrawalLimitError}"/>
                 <TextBlock Text="{Binding DailyWithdrawalLimitError}" Style="{StaticResource Text.Error}"
@@ -141,7 +141,7 @@
             <!-- Row 5: minimum cash deposit + minimum cash withdrawal -->
             <StackPanel Grid.Row="5" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="MINIMUM DEPOSIT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 1000"
                          Text="{Binding MinimumDepositAmountText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMinimumDepositAmountError}"/>
                 <TextBlock Text="{Binding MinimumDepositAmountError}" Style="{StaticResource Text.Error}"
@@ -149,7 +149,7 @@
             </StackPanel>
             <StackPanel Grid.Row="5" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="MINIMUM WITHDRAWAL (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 1000"
                          Text="{Binding MinimumWithdrawalAmountText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMinimumWithdrawalAmountError}"/>
                 <TextBlock Text="{Binding MinimumWithdrawalAmountError}" Style="{StaticResource Text.Error}"

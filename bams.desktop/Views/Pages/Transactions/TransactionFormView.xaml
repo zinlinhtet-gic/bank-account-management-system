@@ -241,7 +241,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="AMOUNT" Style="{StaticResource Text.FieldLabel}"/>
-                        <TextBox x:Name="AmountBox" Style="{StaticResource Input.Text}" t:ThemeAssist.Prefix="{x:Static constants:DisplayFormats.CurrencyCode}"
+                        <TextBox x:Name="AmountBox" Style="{StaticResource Input.Money}" t:ThemeAssist.Prefix="{x:Static constants:DisplayFormats.CurrencyCode}"
                                  t:ThemeAssist.Placeholder="0.00" FontFamily="{StaticResource MonoFont}"
                                  Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
                                  t:ThemeAssist.HasError="{Binding AmountError.HasError}"/>

@@ -25,6 +25,7 @@
             <conv:ActiveToVisibilityConverter x:Key="ActiveToVisibility"/>
             <conv:IconKeyToGeometryConverter x:Key="IconKeyToGeometry"/>
             <conv:CountToVisibilityConverter x:Key="CountToVisibility"/>
+            <conv:MoneyConverter x:Key="Money"/>
         </ResourceDictionary> 
     </Application.Resources>
 </Application>
