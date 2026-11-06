@@ -49,7 +49,8 @@
             </UniformGrid>
           </StackPanel>
         </Border>
-        <TextBlock Text="Transactions" Style="{StaticResource Text.Subheading}" Margin="0,8" />
+        <TextBlock Text="Customers" Style="{StaticResource Text.Subheading}"/><ItemsControl ItemsSource="{Binding Workflow.SelectedAccount.Customers}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,3"><TextBlock Text="{Binding FullName}"/><TextBlock Text="{Binding CustomerId, StringFormat=Customer ID: {0}}"/><TextBlock Text="{Binding CustomerNo}"/><TextBlock Text="{Binding IsPrimary, StringFormat=Primary holder: {0}}"/><TextBlock Text="{Binding NrcNumber}"/><TextBlock Text="{Binding PassportNumber}"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+<TextBlock Text="Transactions" Style="{StaticResource Text.Subheading}" Margin="0,8" />
         <ItemsControl ItemsSource="{Binding Workflow.AccountTransactions, diag:PresentationTraceSources.TraceLevel=High}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>

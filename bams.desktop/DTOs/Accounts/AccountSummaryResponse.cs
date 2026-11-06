@@ -5,4 +5,5 @@ public sealed record AccountSummaryResponse(
     string AccountNo,
     string AccountTypeCode,
     string Status,
-    decimal AvailableBalance);
+    decimal AvailableBalance,
+    IReadOnlyList<AccountCustomerResponse> Customers);

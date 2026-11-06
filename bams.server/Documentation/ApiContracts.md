@@ -307,3 +307,6 @@ CashCorrectionPreview now includes server-calculated JournalLines, AccountEffect
 - `GET /api/cash-handoffs/recipients?sourceSessionId={id}` filters recipients for the authorized source. Officers need an active same-date session and cannot receive older-date handoffs. Manager receipt returns teller cash to the source date's open vault; auditor receipt records custody only. Reassignment clears the previous destination.
 
 No schema migration is needed: cancellation uses existing status/closure fields, and batch keys use existing session idempotency keys. Deploy server and desktop together because activation now includes initial cash receipt. Historical records are retained. Scheduled reconciliation preserves its explicit occurrence-date behavior without requiring an open business date.
+
+## Account customer identities
+Account detail, create, status and balance responses and list summaries include Customers (customerId, customerNo, fullName, nullable nrcNumber/passportNumber, isPrimary), ordered primary first then customer ID. Account list search matches account number or any holder NRC by substring and preserves filters and cursor pagination. Desktop account list and details display these identities.

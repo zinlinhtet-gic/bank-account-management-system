@@ -18,7 +18,7 @@
     </DockPanel>
     <Border Grid.Row="1" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,14">
       <WrapPanel VerticalAlignment="Center">
-        <TextBox Width="260" Margin="0,0,10,0" Style="{StaticResource Input.Text}" Text="{Binding Workflow.SearchText, UpdateSourceTrigger=PropertyChanged}" t:ThemeAssist.Placeholder="Account number" />
+        <TextBox Width="260" Margin="0,0,10,0" Style="{StaticResource Input.Text}" Text="{Binding Workflow.SearchText, UpdateSourceTrigger=PropertyChanged}" t:ThemeAssist.Placeholder="Account number or customer NRC" />
         <ComboBox Width="220" Margin="0,0,10,0" Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.AccountTypes}" SelectedItem="{Binding Workflow.SelectedFilterType}" DisplayMemberPath="Name" t:ThemeAssist.Placeholder="All account types" />
         <ComboBox Width="165" Margin="0,0,10,0" Style="{StaticResource Input.Select}" ItemsSource="{Binding Workflow.StatusOptions}" SelectedItem="{Binding Workflow.SelectedStatus}" t:ThemeAssist.Placeholder="All statuses" />
         <Button Content="Apply filters" Style="{StaticResource Button.Secondary}" Command="{Binding Workflow.SearchAccountsCommand}" />
@@ -38,6 +38,7 @@
           </Style>
         </DataGrid.RowStyle>
         <DataGrid.Columns>
+<DataGridTemplateColumn Header="CUSTOMERS" Width="2*" MinWidth="200"><DataGridTemplateColumn.CellTemplate><DataTemplate><ItemsControl ItemsSource="{Binding Customers}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,3"><TextBlock Text="{Binding FullName}"/><TextBlock Text="{Binding NrcNumber}"/><TextBlock Text="{Binding PassportNumber}"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
           <DataGridTextColumn Header="ACCOUNT NUMBER" Binding="{Binding AccountNo}" ElementStyle="{StaticResource Text.Mono}" Width="2*" MinWidth="190" />
           <DataGridTextColumn Header="TYPE" Binding="{Binding AccountTypeCode}" Width="*" MinWidth="120" />
           <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*" MinWidth="120" />

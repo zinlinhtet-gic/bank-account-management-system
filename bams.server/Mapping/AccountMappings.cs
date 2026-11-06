@@ -5,7 +5,7 @@ namespace bams.server.Mapping;
 
 public static class AccountMappings
 {
-    // Converts an Account entity (with AccountType loaded) into the detailed API response contract.
+    // Converts an Account entity (with AccountType and holder customers loaded) into the detailed API response contract.
     public static AccountResponse ToResponse(this Account account)
     {
         return new AccountResponse(
@@ -18,6 +18,9 @@ public static class AccountMappings
             account.LedgerBalance,
             account.OpenedAt,
             account.CreatedAt,
-            account.Version);
+            account.Version,
+            account.AccountHolders.OrderByDescending(holder => holder.IsPrimary).ThenBy(holder => holder.CustomerId)
+                .Select(holder => new AccountCustomerResponse(holder.CustomerId, holder.Customer!.CustomerNo,
+                    holder.Customer.FullName, holder.Customer.NrcNumber, holder.Customer.PassportNumber, holder.IsPrimary)).ToList());
     }
 }

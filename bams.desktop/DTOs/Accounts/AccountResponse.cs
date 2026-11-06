@@ -10,4 +10,5 @@ public sealed record AccountResponse(
     decimal LedgerBalance,
     DateTime OpenedAt,
     DateTime CreatedAt,
-    long Version);
+    long Version,
+    IReadOnlyList<AccountCustomerResponse> Customers);

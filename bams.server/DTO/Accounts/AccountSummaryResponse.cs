@@ -8,4 +8,5 @@ public sealed record AccountSummaryResponse(
     string AccountNo,
     string AccountTypeCode,
     AccountStatus Status,
-    decimal AvailableBalance);
+    decimal AvailableBalance,
+    IReadOnlyList<AccountCustomerResponse> Customers);

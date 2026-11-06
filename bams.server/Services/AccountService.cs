@@ -71,7 +71,9 @@ public sealed class AccountService : IAccountService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(account => account.AccountNo.Contains(search));
+            query = query.Where(account => account.AccountNo.Contains(search) ||
+                account.AccountHolders.Any(holder => holder.Customer != null &&
+                    holder.Customer.NrcNumber != null && holder.Customer.NrcNumber.Contains(search)));
         }
 
         if (request.AccountTypeId.HasValue)
@@ -92,7 +94,10 @@ public sealed class AccountService : IAccountService
                 account.AccountNo,
                 account.AccountType!.Code,
                 account.Status,
-                account.AvailableBalance))
+                account.AvailableBalance,
+                account.AccountHolders.OrderByDescending(holder => holder.IsPrimary).ThenBy(holder => holder.CustomerId)
+                    .Select(holder => new AccountCustomerResponse(holder.CustomerId, holder.Customer!.CustomerNo,
+                        holder.Customer.FullName, holder.Customer.NrcNumber, holder.Customer.PassportNumber, holder.IsPrimary)).ToList()))
             .Take(request.PageSize + 1)
             .ToListAsync(cancellationToken);
 
@@ -181,6 +186,7 @@ public sealed class AccountService : IAccountService
         var account = await _dbContext.Accounts
             .AsNoTracking()
             .Include(account => account.AccountType)
+            .Include(account => account.AccountHolders).ThenInclude(holder => holder.Customer)
             .FirstOrDefaultAsync(account => account.Id == id, cancellationToken);
 
         if (account is null)
@@ -313,6 +319,8 @@ public sealed class AccountService : IAccountService
                 cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            await _dbContext.Entry(account).Collection(entry => entry.AccountHolders).Query()
+                .Include(holder => holder.Customer).LoadAsync(cancellationToken);
             account.AccountType = accountType;
             return account.ToResponse();
         }
@@ -446,6 +454,7 @@ public sealed class AccountService : IAccountService
     {
         var account = await _dbContext.Accounts
             .Include(existingAccount => existingAccount.AccountType)
+            .Include(account => account.AccountHolders).ThenInclude(holder => holder.Customer)
             .FirstOrDefaultAsync(existingAccount => existingAccount.Id == accountId, cancellationToken);
 
         if (account is null)
