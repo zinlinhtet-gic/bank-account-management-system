@@ -25,6 +25,7 @@ public enum MessageCode
     TransactionRefundedSuccessfully = 1202,
     InterbankTransferSettledSuccessfully = 1203,
     NrcPickupCodeReissuedSuccessfully = 1204,
+    FixedDepositWithdrawnEarlySuccessfully = 1105,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -100,6 +101,8 @@ public enum MessageCode
     // Business Rules: 4400 - 4499
     InsufficientBalance = 4440,
     AccountNotOperational = 4441,
+    FixedDepositNotActive = 4408,
+    FixedDepositAlreadyMatured = 4409,
     PickupCodeExpired = 4442,
     TransactionNotPendingPickup = 4443,
     WithdrawalNotAllowed = 4444,

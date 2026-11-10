@@ -23,4 +23,5 @@ public static class PermissionCodes
     public const string EndOfDayApproval = "end_of_day_approval";
     public const string ScheduledJobManagement = "scheduled_job_management";
     public const string TransactionCorrectionApproval = "transaction_correction_approval";
+    public const string FixedDepositEarlyWithdrawal = "fixed_deposit_early_withdrawal";
 }

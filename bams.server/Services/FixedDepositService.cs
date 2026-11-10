@@ -19,15 +19,18 @@ public sealed class FixedDepositService : IFixedDepositService
     private readonly ApplicationDbContext _dbContext;
     private readonly IAccountHolderService _accountHolderService;
     private readonly IAuditLogService _auditLogService;
+    private readonly ILogger<FixedDepositService> _logger;
 
     public FixedDepositService(
         ApplicationDbContext dbContext,
         IAccountHolderService accountHolderService,
-        IAuditLogService auditLogService)
+        IAuditLogService auditLogService,
+        ILogger<FixedDepositService> logger)
     {
         _dbContext = dbContext;
         _accountHolderService = accountHolderService;
         _auditLogService = auditLogService;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -336,7 +339,7 @@ public sealed class FixedDepositService : IFixedDepositService
         {
             return null;
         }
-        var renewedDeposit = CreateRenewedDeposit(fixedDeposit, updatedAt);
+        FixedDeposit renewedDeposit = await CreateRenewedDepositAsync(fixedDeposit, updatedAt, cancellationToken);
         await _dbContext.FixedDeposits.AddAsync(renewedDeposit, cancellationToken);
         return renewedDeposit;
     }
@@ -446,18 +449,77 @@ public sealed class FixedDepositService : IFixedDepositService
         }
     }
 
-    private static FixedDeposit CreateRenewedDeposit(FixedDeposit maturedDeposit, DateTime createdAt)
+    // Renews a deposit matured through the lifecycle workflow; the new term starts on today's business date.
+    private Task<FixedDeposit> CreateRenewedDepositAsync(
+        FixedDeposit maturedDeposit,
+        DateTime createdAt,
+        CancellationToken cancellationToken)
     {
-        var principal = maturedDeposit.CalculateFromCurrent
+        decimal principal = maturedDeposit.CalculateFromCurrent
             ? maturedDeposit.CurrentPrincipal
             : maturedDeposit.OriginalPrincipal;
-        var startDate = BusinessTime.ToBusinessDate(createdAt);
+        return BuildRenewedDepositAsync(
+            maturedDeposit, principal, BusinessTime.ToBusinessDate(createdAt), createdAt, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<FixedDeposit> BuildRenewedDepositAsync(
+        FixedDeposit maturedDeposit,
+        decimal principal,
+        DateOnly startDate,
+        DateTime createdAt,
+        CancellationToken cancellationToken)
+    {
+        InterestRateRule? renewalRule = await FindRenewalInterestRateRuleAsync(
+            maturedDeposit, principal, startDate, cancellationToken);
+        if (renewalRule is null)
+        {
+            // No rule is in force for this term any more; the renewal keeps the previous rate rather than failing.
+            _logger.LogWarning(
+                "No active interest rate rule applies to the renewal of fixed deposit {FixedDepositId} on {StartDate}; the previous rate is kept.",
+                maturedDeposit.Id,
+                startDate);
+        }
+
+        return BuildRenewedDeposit(maturedDeposit, renewalRule, principal, startDate, createdAt);
+    }
+
+    // Finds the rate rule in force for a renewal: the newest active rule of the deposit's account type with the
+    // same term, effective on the new term's start date, whose balance band contains the renewed principal.
+    private Task<InterestRateRule?> FindRenewalInterestRateRuleAsync(
+        FixedDeposit maturedDeposit,
+        decimal principal,
+        DateOnly startDate,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.InterestRateRules.AsNoTracking()
+            .Where(rule => rule.Status == ActiveRuleStatus &&
+                rule.TermDays == maturedDeposit.TermDays && rule.TermMonths == maturedDeposit.TermMonths &&
+                rule.EffectiveFrom <= startDate && (rule.EffectiveTo == null || rule.EffectiveTo >= startDate) &&
+                (rule.BalanceMin == null || rule.BalanceMin <= principal) &&
+                (rule.BalanceMax == null || rule.BalanceMax >= principal) &&
+                _dbContext.Accounts.Any(account =>
+                    account.Id == maturedDeposit.AccountId && account.AccountTypeId == rule.AccountTypeId))
+            .OrderByDescending(rule => rule.EffectiveFrom)
+            .ThenByDescending(rule => rule.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    // Builds the successor of a renewing deposit: same account, term, payout account and settings, a new term
+    // starting on startDate, and the rate of renewalRule (the matured deposit's rule and rate when there is none).
+    private static FixedDeposit BuildRenewedDeposit(
+        FixedDeposit maturedDeposit,
+        InterestRateRule? renewalRule,
+        decimal principal,
+        DateOnly startDate,
+        DateTime createdAt)
+    {
         return new FixedDeposit
         {
             AccountId = maturedDeposit.AccountId,
             PrincipalAmount = principal,
-            InterestRateRuleId = maturedDeposit.InterestRateRuleId,
-            AppliedAnnualRate = maturedDeposit.AppliedAnnualRate,
+            InterestRateRuleId = renewalRule?.Id ?? maturedDeposit.InterestRateRuleId,
+            AppliedAnnualRate = renewalRule?.AnnualRate ?? maturedDeposit.AppliedAnnualRate,
             StartDate = startDate,
             MaturityDate = CalculateMaturityDate(startDate, maturedDeposit.TermDays, maturedDeposit.TermMonths),
             TermDays = maturedDeposit.TermDays,
@@ -482,7 +544,7 @@ public sealed class FixedDepositService : IFixedDepositService
         return parsedStatus;
     }
 
-    private static FixedDepositResponse ToResponse(FixedDeposit deposit)
+    internal static FixedDepositResponse ToResponse(FixedDeposit deposit)
     {
         return new FixedDepositResponse(deposit.Id, deposit.AccountId, deposit.PrincipalAmount,
             deposit.InterestRateRuleId, deposit.AppliedAnnualRate, deposit.StartDate, deposit.MaturityDate,

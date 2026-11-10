@@ -313,6 +313,13 @@ public sealed class NrcTransferService : INrcTransferService
             // The same row lock as pickup and cancel, so a reissue cannot race a pickup with the old code.
             var (entity, detail) = await LockPendingTransferAsync(transactionId, cancellationToken);
 
+            // A transfer blocked by too many wrong attempts can only be cancelled and refunded; reissuing a code
+            // would reset the counter and allow another round of guessing.
+            if (detail.FailedPickupAttempts >= TransactionConstants.MaximumFailedPickupAttempts)
+            {
+                throw new BusinessRuleException(MessageCode.PickupAttemptsExceeded);
+            }
+
             var now = DateTime.UtcNow;
             detail.PickupCodeHash = PasswordHasher.HashPassword(pickupCode);
             detail.PickupExpiresAt = now.Add(TransactionConstants.NrcPickupCodeValidity);

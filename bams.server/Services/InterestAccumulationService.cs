@@ -196,19 +196,29 @@ public sealed class InterestAccumulationService
         return deposits.SingleOrDefault();
     }
 
-    private async Task AccrueFixedDepositInterestAsync(
+    /// <summary>
+    /// Accrues a fixed deposit's interest for the days of [<paramref name="periodStart"/>, <paramref name="periodEnd"/>]
+    /// that fall inside its term and are not yet covered by another accrual of the account. Used by the monthly
+    /// run and by the fixed-deposit payout, which accrues the final part-month before paying out.
+    /// </summary>
+    /// <param name="recordOn">
+    /// Business date to record the accrual posting on; defaults to the period end. The payout passes today, because
+    /// the period end (yesterday or earlier) may already be closed by End of Day.
+    /// </param>
+    public async Task AccrueFixedDepositInterestAsync(
         Account account,
         FixedDeposit fixedDeposit,
         DateOnly periodStart,
         DateOnly periodEnd,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateOnly? recordOn = null)
     {
         var existing = await _dbContext.InterestAccruals.SingleOrDefaultAsync(accrual =>
                 accrual.AccountId == account.Id && accrual.PeriodStart == periodStart &&
                 accrual.PeriodEnd == periodEnd, cancellationToken);
         if (existing is not null)
         {
-            await EnsureAccrualTransactionAsync(existing, cancellationToken);
+            await EnsureAccrualTransactionAsync(existing, cancellationToken, recordOn);
             return;
         }
 
@@ -217,16 +227,23 @@ public sealed class InterestAccumulationService
         var lastInterestDay = fixedDeposit.MaturityDate.AddDays(-1);
         var activeStart = fixedDeposit.StartDate > periodStart ? fixedDeposit.StartDate : periodStart;
         var activeEnd = lastInterestDay < periodEnd ? lastInterestDay : periodEnd;
+
+        // A payout or early withdrawal accrues the final part-month itself; those days must not be accrued again
+        // when the monthly run later covers the whole month.
+        var lastAccruedDay = await GetLastAccruedDayAsync(account.Id, periodStart, periodEnd, cancellationToken);
+        if (lastAccruedDay.HasValue && lastAccruedDay.Value >= activeStart)
+        {
+            activeStart = lastAccruedDay.Value.AddDays(1);
+        }
+
         var activeDays = activeEnd.DayNumber - activeStart.DayNumber + 1;
         if (activeDays <= 0)
         {
             return;
         }
 
-        // Round once on the period total; rounding the daily amount first over- or under-pays by up to half a
-        // cent per day (about 10% on small deposits).
-        var annualAmount = fixedDeposit.CurrentPrincipal * fixedDeposit.AppliedAnnualRate / PercentageDivisor;
-        var totalInterest = ScheduledJobPeriod.RoundMoney(annualAmount * activeDays / DaysPerYear);
+        var totalInterest = CalculateFixedDepositInterest(
+            fixedDeposit.CurrentPrincipal, fixedDeposit.AppliedAnnualRate, activeDays);
         var accrual = new InterestAccrual
         {
             AccountId = account.Id,
@@ -241,12 +258,43 @@ public sealed class InterestAccumulationService
         };
         _dbContext.InterestAccruals.Add(accrual);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        await EnsureAccrualTransactionAsync(accrual, cancellationToken);
+        await EnsureAccrualTransactionAsync(accrual, cancellationToken, recordOn);
     }
 
+    /// <summary>
+    /// Fixed-deposit interest for <paramref name="days"/> days at an annual percentage rate, on an actual/365 day
+    /// count. The total is rounded once; rounding a daily amount first over- or under-pays by up to half a cent per
+    /// day (about 10% on small deposits).
+    /// </summary>
+    public static decimal CalculateFixedDepositInterest(decimal principal, decimal annualRatePercent, int days)
+    {
+        if (days <= 0)
+        {
+            return 0m;
+        }
+
+        var annualAmount = principal * annualRatePercent / PercentageDivisor;
+        return ScheduledJobPeriod.RoundMoney(annualAmount * days / DaysPerYear);
+    }
+
+    // Latest day already covered by an accrual of the account that overlaps the period, or null when none does.
+    private async Task<DateOnly?> GetLastAccruedDayAsync(
+        long accountId,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.InterestAccruals.AsNoTracking()
+            .Where(accrual => accrual.AccountId == accountId &&
+                accrual.PeriodStart <= periodEnd && accrual.PeriodEnd >= periodStart)
+            .MaxAsync(accrual => (DateOnly?)accrual.PeriodEnd, cancellationToken);
+    }
+
+    // Records the accrual's ledger posting once, on recordOn or else on the accrual's period end.
     private Task EnsureAccrualTransactionAsync(
         InterestAccrual accrual,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateOnly? recordOn = null)
     {
         if (accrual.CalculatedAmount <= 0m || accrual.AccruedTransactionId.HasValue || accrual.Status != "Accrued")
         {
@@ -258,7 +306,7 @@ public sealed class InterestAccumulationService
             TransactionType.InterestAccrual,
             accrual.CalculatedAmount,
             "Monthly account interest accrued",
-            accrual.PeriodEnd,
+            recordOn ?? accrual.PeriodEnd,
             interestAccrual: accrual,
             feeAccrual: null,
             cancellationToken: cancellationToken);
@@ -277,15 +325,40 @@ public sealed class InterestAccumulationService
             return;
         }
 
+        await PostAccruedInterestAsync(
+            accountId,
+            runDate,
+            periodEnd,
+            fixedDepositId,
+            category == AccountTypeCategory.SAVING
+                ? "Quarterly savings interest credit"
+                : "Quarterly fixed-deposit interest credit",
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Credits every accrued, not yet credited interest accrual of the account that ends on or before
+    /// <paramref name="accruedThrough"/>, as one interest credit posted on <paramref name="postingDate"/>. Credits to a
+    /// fixed deposit (<paramref name="fixedDepositId"/>) also raise its current principal.
+    /// </summary>
+    public async Task PostAccruedInterestAsync(
+        long accountId,
+        DateOnly postingDate,
+        DateOnly accruedThrough,
+        long? fixedDepositId,
+        string description,
+        CancellationToken cancellationToken,
+        DateOnly? recordAccrualsOn = null)
+    {
         var accruals = await _dbContext.InterestAccruals
             .Where(accrual => accrual.AccountId == accountId && accrual.Status == "Accrued" &&
-                accrual.PeriodEnd <= periodEnd)
+                accrual.PeriodEnd <= accruedThrough)
             .OrderBy(accrual => accrual.PeriodStart)
             .ToListAsync(cancellationToken);
         // Include older unpaid accruals if an earlier quarter's posting could not complete.
         foreach (var accrual in accruals)
         {
-            await EnsureAccrualTransactionAsync(accrual, cancellationToken);
+            await EnsureAccrualTransactionAsync(accrual, cancellationToken, recordAccrualsOn);
         }
 
         var amount = ScheduledJobPeriod.RoundMoney(accruals.Sum(accrual => accrual.CalculatedAmount));
@@ -309,10 +382,8 @@ public sealed class InterestAccumulationService
             accountId,
             TransactionType.InterestCredit,
             amount,
-            category == AccountTypeCategory.SAVING
-                ? "Quarterly savings interest credit"
-                : "Quarterly fixed-deposit interest credit",
-            runDate,
+            description,
+            postingDate,
             interestAccruals: accruals,
             feeAccruals: null,
             fixedDepositId: fixedDepositId,

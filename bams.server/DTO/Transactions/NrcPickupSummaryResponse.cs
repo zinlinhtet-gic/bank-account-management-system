@@ -5,7 +5,7 @@ namespace bams.server.DTO.Transactions;
 /// returned: the officer still reads the identity from the collector's NRC card and the server checks it.
 /// </summary>
 /// <param name="IsExpired">The pickup code expired; the transfer can only be reissued a code or cancelled.</param>
-/// <param name="IsBlocked">Too many failed pickups; the transfer can only be reissued a code or cancelled.</param>
+/// <param name="IsBlocked">Too many failed pickups; the transfer can only be cancelled and refunded.</param>
 public sealed record NrcPickupSummaryResponse(
     long TransactionId,
     string TransactionNo,

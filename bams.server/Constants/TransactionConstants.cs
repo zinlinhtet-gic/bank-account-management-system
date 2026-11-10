@@ -52,6 +52,7 @@ public static class TransactionConstants
 
     // Paging for transaction lists and account statements.
     public const int FirstPageNumber = 1;
+    public const int MinimumPageSize = 1;
     public const int DefaultPageSize = 20;
     public const int MaximumPageSize = 100;
 

@@ -32,6 +32,14 @@ public partial class AccountPicker : UserControl
     public static readonly DependencyProperty DisplayMemberPathProperty = DependencyProperty.Register(
         nameof(DisplayMemberPath), typeof(string), typeof(AccountPicker), new PropertyMetadata(null));
 
+    /// <summary>Optional template for the result rows; when unset, rows show <see cref="DisplayMemberPath"/>.</summary>
+    public static readonly DependencyProperty ItemTemplateProperty = DependencyProperty.Register(
+        nameof(ItemTemplate), typeof(DataTemplate), typeof(AccountPicker), new PropertyMetadata(null));
+
+    /// <summary>Optional member matched against the typed text; defaults to the display text.</summary>
+    public static readonly DependencyProperty SearchMemberPathProperty = DependencyProperty.Register(
+        nameof(SearchMemberPath), typeof(string), typeof(AccountPicker), new PropertyMetadata(null));
+
     public static readonly DependencyProperty SelectedValuePathProperty = DependencyProperty.Register(
         nameof(SelectedValuePath), typeof(string), typeof(AccountPicker), new PropertyMetadata(null));
 
@@ -125,6 +133,18 @@ public partial class AccountPicker : UserControl
     {
         get => (string?)GetValue(DisplayMemberPathProperty);
         set => SetValue(DisplayMemberPathProperty, value);
+    }
+
+    public DataTemplate? ItemTemplate
+    {
+        get => (DataTemplate?)GetValue(ItemTemplateProperty);
+        set => SetValue(ItemTemplateProperty, value);
+    }
+
+    public string? SearchMemberPath
+    {
+        get => (string?)GetValue(SearchMemberPathProperty);
+        set => SetValue(SearchMemberPathProperty, value);
     }
 
     public string? SelectedValuePath
@@ -323,12 +343,23 @@ public partial class AccountPicker : UserControl
         var source = ItemsSource?.Cast<object>() ?? [];
         var matches = (SelectedItem is not null && string.Equals(Input.Text, Describe(SelectedItem), StringComparison.Ordinal)
                 ? source
-                : source.Where(item => Describe(item).Contains(query, StringComparison.OrdinalIgnoreCase)))
+                : source.Where(item => SearchTextOf(item).Contains(query, StringComparison.OrdinalIgnoreCase)))
             .Take(MaxResults)
             .ToList();
 
+        // A ListBox takes either a template or a display member, never both.
+        if (ItemTemplate is not null)
+        {
+            ResultsList.DisplayMemberPath = string.Empty;
+            ResultsList.ItemTemplate = ItemTemplate;
+        }
+        else
+        {
+            ResultsList.ItemTemplate = null;
+            ResultsList.DisplayMemberPath = DisplayMemberPath;
+        }
+
         ResultsList.ItemsSource = matches;
-        ResultsList.DisplayMemberPath = DisplayMemberPath;
         EmptyText.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -345,6 +376,13 @@ public partial class AccountPicker : UserControl
         var text = string.IsNullOrEmpty(DisplayMemberPath) ? item : ReadMember(item, DisplayMemberPath);
 
         return text?.ToString() ?? string.Empty;
+    }
+
+    private string SearchTextOf(object item)
+    {
+        return string.IsNullOrEmpty(SearchMemberPath)
+            ? Describe(item)
+            : ReadMember(item, SearchMemberPath)?.ToString() ?? string.Empty;
     }
 
     private static object? ReadMember(object item, string path)

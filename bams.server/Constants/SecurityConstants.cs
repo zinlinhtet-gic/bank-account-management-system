@@ -27,4 +27,6 @@ public static class SecurityConstants
     public const string EndOfDayApproval = "end_of_day_approval";
     public const string ScheduledJobManagement = "scheduled_job_management";
     public const string TransactionCorrectionApproval = "transaction_correction_approval";
+    // Breaking a fixed deposit before maturity forfeits interest, so it is a manager decision.
+    public const string FixedDepositEarlyWithdrawal = "fixed_deposit_early_withdrawal";
 }
