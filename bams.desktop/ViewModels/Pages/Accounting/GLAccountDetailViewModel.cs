@@ -40,6 +40,8 @@ public sealed class GLAccountDetailViewModel : ViewModelBase, IAsyncInitializabl
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool IsEmpty => !IsLoading && !HasError && Entries.Count == 0;
     public string CountText => _totalCount == 1 ? "1 transaction" : $"{_totalCount} transactions";
+    /// <summary>Legend text explaining which journal lines are highlighted in the shared table.</summary>
+    public string HighlightHint => "Highlighted lines post to this account.";
     public void SetAccountId(long accountId) => _accountId = accountId;
 
     public Task InitializeAsync(CancellationToken cancellationToken) => LoadPageAsync(1, cancellationToken);
@@ -57,8 +59,10 @@ public sealed class GLAccountDetailViewModel : ViewModelBase, IAsyncInitializabl
             Entries.Clear();
             foreach (var entry in detail.Entries.Items) Entries.Add(entry);
             TransactionGroups.Clear();
-            foreach (var group in detail.Entries.Items.GroupBy(entry => entry.TransactionId).OrderByDescending(group => group.First().TransactionAt).ThenByDescending(group => group.Key))
-                TransactionGroups.Add(new AccountingTransactionGroupDisplayModel(group.OrderBy(entry => entry.Id).ToList()));
+            // Lines that post to the GL account being viewed are highlighted; the rest are their offsetting lines.
+            foreach (var group in AccountingTransactionGroupDisplayModel.BuildGroups(
+                         detail.Entries.Items, entry => entry.GlAccountId == _accountId))
+                TransactionGroups.Add(group);
             _page = detail.Entries.PageNumber;
             _totalCount = detail.Entries.TotalCount;
             OnPropertyChanged(nameof(Page)); OnPropertyChanged(nameof(TotalPages)); OnPropertyChanged(nameof(PageInfo));

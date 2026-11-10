@@ -2,6 +2,12 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:bams.desktop.Themes">
+    <!--
+        Shared journal table for the Accounting Entries and GL Account Detail pages.
+        Each transaction is one block: a header strip (number, type, date, description, Dr/Cr totals and a
+        Balanced badge) followed by its debit and credit lines. The header row and every line use the same
+        column definitions and horizontal insets so they stay aligned.
+    -->
     <UserControl.Resources>
         <!-- Customer-only content: hidden on bank-level GL lines that have no customer account. -->
         <Style x:Key="Journal.CustomerOnly" TargetType="TextBlock">
@@ -14,7 +20,7 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Bank-only placeholder text: replaces the old "—" so users see the line belongs to the bank. -->
+        <!-- Bank-only owner text for lines that belong to the bank rather than a customer. -->
         <Style x:Key="Journal.BankOnlyText" TargetType="TextBlock" BasedOn="{StaticResource Text.BodyMuted}">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Visibility" Value="Collapsed"/>
@@ -37,94 +43,215 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Dr/Cr side marker: solid for debits, neutral for credits. -->
+        <Style x:Key="Journal.SideBadge" TargetType="ContentControl" BasedOn="{StaticResource Badge.Neutral}">
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="t:ThemeAssist.ShowDot" Value="False"/>
+            <Setter Property="MinWidth" Value="32"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDebit}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryForegroundBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Line row: a transparent 3px left bar that turns into an accent bar on highlighted lines. -->
+        <Style x:Key="Journal.LineRow" TargetType="Border">
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="3,0,0,0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Background" Value="{StaticResource RingSoftBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="Journal.Amount" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="Journal.ColumnLabel" TargetType="TextBlock" BasedOn="{StaticResource Text.FieldLabel}">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
     </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto">
-            <StackPanel MinWidth="1840">
-            <Grid Background="{StaticResource MutedBrush}" Height="38">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180"/><ColumnDefinition Width="110"/><ColumnDefinition Width="80"/>
-                    <ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="200"/>
-                    <ColumnDefinition Width="140"/><ColumnDefinition Width="140"/><ColumnDefinition Width="150"/>
-                    <ColumnDefinition Width="180"/><ColumnDefinition Width="410"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Transaction No" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="12,0"/>
-                <TextBlock Grid.Column="1" Text="Date" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="2" Text="Time" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="3" Text="Posting Date" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="4" Text="GL Code" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="5" Text="GL Account" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="6" Text="Credit" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="7" Text="Debit" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="8" Text="Account No" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="9" Text="Account Owner" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-                <TextBlock Grid.Column="10" Text="Description" Style="{StaticResource Text.FieldLabel}" VerticalAlignment="Center" Margin="8,0"/>
-            </Grid>
-            <ItemsControl ItemsSource="{Binding TransactionGroups}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid MinHeight="48" Background="Transparent">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="180"/><ColumnDefinition Width="110"/><ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="200"/>
-                                <ColumnDefinition Width="140"/><ColumnDefinition Width="140"/><ColumnDefinition Width="150"/>
-                                <ColumnDefinition Width="180"/><ColumnDefinition Width="410"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Grid.RowSpan="1000" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="12,8" VerticalAlignment="Stretch">
-                                <TextBlock Text="{Binding TransactionNo}" VerticalAlignment="Center" TextWrapping="Wrap" FontWeight="SemiBold"/>
-                            </Border>
-                            <Border Grid.Column="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8" VerticalAlignment="Stretch">
-                                <TextBlock Text="{Binding TransactionDate}" VerticalAlignment="Center"/>
-                            </Border>
-                            <Border Grid.Column="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8" VerticalAlignment="Stretch">
-                                <TextBlock Text="{Binding TransactionTime}" VerticalAlignment="Center"/>
-                            </Border>
-                            <ItemsControl Grid.Column="3" Grid.ColumnSpan="8" ItemsSource="{Binding Entries}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid MinHeight="48">
+
+        <!-- Legend: how to read a block, plus which lines are highlighted on this page. -->
+        <StackPanel Grid.Row="0" Margin="16,10,16,0">
+            <TextBlock Style="{StaticResource Text.Hint}" TextWrapping="Wrap"
+                       Text="Each block is one transaction. Dr = debit, Cr = credit; a transaction's debits always equal its credits."/>
+            <TextBlock Text="{Binding HighlightHint}" TextWrapping="Wrap" Margin="0,2,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Hint}">
+                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HighlightHint}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel MinWidth="1040" Margin="16,12,16,0">
+
+                <!-- Column header; Margin 1 matches the block's 1px border so columns line up with the lines. -->
+                <Border Margin="1,0" BorderThickness="3,0,0,0" BorderBrush="Transparent" Padding="12,0,12,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="56"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*" MinWidth="200"/>
+                            <ColumnDefinition Width="150"/><ColumnDefinition Width="180"/><ColumnDefinition Width="140"/><ColumnDefinition Width="140"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Side" Style="{StaticResource Journal.ColumnLabel}"/>
+                        <TextBlock Grid.Column="1" Text="GL Code" Style="{StaticResource Journal.ColumnLabel}"/>
+                        <TextBlock Grid.Column="2" Text="GL Account" Style="{StaticResource Journal.ColumnLabel}"/>
+                        <TextBlock Grid.Column="3" Text="Account No" Style="{StaticResource Journal.ColumnLabel}"/>
+                        <TextBlock Grid.Column="4" Text="Account Owner" Style="{StaticResource Journal.ColumnLabel}"/>
+                        <TextBlock Grid.Column="5" Text="Debit" Style="{StaticResource Journal.ColumnLabel}" TextAlignment="Right"/>
+                        <TextBlock Grid.Column="6" Text="Credit" Style="{StaticResource Journal.ColumnLabel}" TextAlignment="Right"/>
+                    </Grid>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding TransactionGroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- ===== One transaction block ===== -->
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="6" Margin="0,0,0,12" Background="{StaticResource CardBrush}">
+                                <StackPanel>
+                                    <!-- Header strip: what happened, when, and whether it balances. -->
+                                    <Border Background="{StaticResource MutedBrush}" CornerRadius="6,6,0,0"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
+                                            Padding="15,10,12,10">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="130"/><ColumnDefinition Width="120"/><ColumnDefinition Width="200"/>
-                                                <ColumnDefinition Width="140"/><ColumnDefinition Width="140"/><ColumnDefinition Width="150"/>
-                                                <ColumnDefinition Width="180"/><ColumnDefinition Width="410"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding PostingDate}" VerticalAlignment="Center"/></Border>
-                                            <Border Grid.Column="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding GlAccountCode}" VerticalAlignment="Center"/></Border>
-                                            <Border Grid.Column="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding GlAccountName}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
-                                            <Border Grid.Column="3" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding CreditAmount, Converter={StaticResource Money}}" VerticalAlignment="Center" TextAlignment="Right"/></Border>
-                                            <Border Grid.Column="4" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8"><TextBlock Text="{Binding DebitAmount, Converter={StaticResource Money}}" VerticalAlignment="Center" TextAlignment="Right"/></Border>
-                                            <!-- Account No: the customer account number, or a "Bank internal" badge for bank-level GL lines. -->
-                                            <Border Grid.Column="5" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8">
-                                                <Grid>
-                                                    <TextBlock Text="{Binding CustomerAccountNumber}" Style="{StaticResource Journal.CustomerOnly}"/>
-                                                    <ContentControl Content="Bank internal" Style="{StaticResource Journal.BankOnlyBadge}"/>
-                                                </Grid>
-                                            </Border>
-                                            <!-- Account Owner: the primary holder's name, or "Bank" for bank-level GL lines. -->
-                                            <Border Grid.Column="6" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,1" Padding="8">
-                                                <Grid>
-                                                    <TextBlock Text="{Binding CustomerAccountOwnerName}" Style="{StaticResource Journal.CustomerOnly}"/>
-                                                    <TextBlock Text="Bank" Style="{StaticResource Journal.BankOnlyText}"/>
-                                                </Grid>
-                                            </Border>
-                                            <Border Grid.Column="7" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8"><TextBlock Text="{Binding Description}" VerticalAlignment="Center" TextWrapping="Wrap"/></Border>
+
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding TransactionNo}" Style="{StaticResource Text.Mono}"
+                                                           FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                <ContentControl Content="{Binding TransactionTypeName}" Style="{StaticResource Badge.Info}"
+                                                                Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock Style="{StaticResource Text.BodyMuted}" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                    <Run Text="{Binding TransactionDate, Mode=OneWay}"/>
+                                                    <Run Text="{Binding TransactionTime, Mode=OneWay}"/>
+                                                    <Run Text="{Binding PostingDateText, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Description}"
+                                                       Style="{StaticResource Text.Body}" TextWrapping="Wrap" Margin="0,4,12,0"/>
+
+                                            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                                        Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding TotalsText}" FontFamily="{StaticResource MonoFont}"
+                                                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                <ContentControl VerticalAlignment="Center">
+                                                    <ContentControl.Style>
+                                                        <Style TargetType="ContentControl" BasedOn="{StaticResource Badge.Success}">
+                                                            <Setter Property="Content" Value="Balanced"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsBalanced}" Value="False">
+                                                                    <Setter Property="Content" Value="Unbalanced"/>
+                                                                    <Setter Property="Background" Value="{StaticResource DangerSoftBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ContentControl.Style>
+                                                </ContentControl>
+                                            </StackPanel>
                                         </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                                    </Border>
+
+                                    <!-- Journal lines: debits first, then credits. -->
+                                    <ItemsControl ItemsSource="{Binding Lines}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource Journal.LineRow}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="56"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*" MinWidth="200"/>
+                                                            <ColumnDefinition Width="150"/><ColumnDefinition Width="180"/><ColumnDefinition Width="140"/><ColumnDefinition Width="140"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <ContentControl Grid.Column="0" Content="{Binding SideLabel}" Style="{StaticResource Journal.SideBadge}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding GlAccountCode}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center"/>
+
+                                                        <!-- GL name, plus the line's own description only when it differs from the header. -->
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                            <TextBlock Text="{Binding GlAccountName}" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding ExtraDescription}" TextWrapping="Wrap">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Hint}">
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding ExtraDescription}" Value="{x:Null}">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </StackPanel>
+
+                                                        <!-- Account No: customer account number, or a "Bank internal" badge. -->
+                                                        <Grid Grid.Column="3" Margin="0,0,12,0">
+                                                            <TextBlock Text="{Binding CustomerAccountNumber}" FontFamily="{StaticResource MonoFont}" Style="{StaticResource Journal.CustomerOnly}"/>
+                                                            <ContentControl Content="Bank internal" Style="{StaticResource Journal.BankOnlyBadge}"/>
+                                                        </Grid>
+
+                                                        <!-- Account Owner: primary holder's name, or "Bank". -->
+                                                        <Grid Grid.Column="4" Margin="0,0,12,0">
+                                                            <TextBlock Text="{Binding CustomerAccountOwnerName}" Style="{StaticResource Journal.CustomerOnly}"/>
+                                                            <TextBlock Text="Bank" Style="{StaticResource Journal.BankOnlyText}"/>
+                                                        </Grid>
+
+                                                        <TextBlock Grid.Column="5" Text="{Binding DebitAmount, Converter={StaticResource Money}}" Style="{StaticResource Journal.Amount}"/>
+                                                        <TextBlock Grid.Column="6" Text="{Binding CreditAmount, Converter={StaticResource Money}}" Style="{StaticResource Journal.Amount}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
-        <DockPanel Grid.Row="1" Margin="8" LastChildFill="False">
-            <TextBlock DockPanel.Dock="Left" Text="{Binding PageInfo}" VerticalAlignment="Center" Margin="4,0"/>
+
+        <!-- Paging footer: current page and how many transactions match. -->
+        <DockPanel Grid.Row="2" Margin="16,8" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Style="{StaticResource Text.BodyMuted}">
+                <Run Text="{Binding PageInfo, Mode=OneWay}"/>
+                <Run Text="·"/>
+                <Run Text="{Binding CountText, Mode=OneWay}"/>
+            </TextBlock>
             <Button DockPanel.Dock="Right" Content="Next" Command="{Binding NextPageCommand}" Style="{StaticResource Button.Secondary}" Margin="8,0,0,0"/>
             <Button DockPanel.Dock="Right" Content="Previous" Command="{Binding PreviousPageCommand}" Style="{StaticResource Button.Ghost}"/>
         </DockPanel>

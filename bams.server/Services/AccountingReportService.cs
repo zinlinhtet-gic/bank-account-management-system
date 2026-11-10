@@ -233,7 +233,10 @@ public sealed class AccountingReportService : IAccountingReportService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var items = await query
+        // Filters choose which transactions appear, but every line of each transaction is returned so the client
+        // always shows a complete, balanced journal and highlights the lines that matched the filter.
+        var items = await _dbContext.TransactionEntries
+            .AsNoTracking()
             .Where(entry => transactionIds.Contains(entry.TransactionId))
             .OrderByDescending(entry => entry.PostingDate)
             .ThenByDescending(entry => entry.Id)
