@@ -40,6 +40,7 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
     private readonly InterestAccumulationService _interest;
     private readonly ScheduledFinancialPostingService _scheduledPostings;
     private readonly IBusinessDateService _businessDates;
+    private readonly IFixedDepositService _fixedDeposits;
     private readonly ILogger<FixedDepositPayoutService> _logger;
 
     public FixedDepositPayoutService(
@@ -48,8 +49,10 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         InterestAccumulationService interest,
         ScheduledFinancialPostingService scheduledPostings,
         IBusinessDateService businessDates,
+        IFixedDepositService fixedDeposits,
         ILogger<FixedDepositPayoutService> logger)
     {
+        _fixedDeposits = fixedDeposits;
         _dbContext = dbContext;
         _ledger = ledger;
         _interest = interest;
@@ -228,7 +231,9 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         {
             // The new term starts on the maturity date, so no day is skipped even when the payout runs late.
             deposit.Status = FixedDepositStatus.Matured.ToString();
-            renewedDeposit = FixedDepositService.BuildRenewedDeposit(deposit, renewalPrincipal, deposit.MaturityDate, now);
+            // It takes the rate in force on that date, not the matured term's rate.
+            renewedDeposit = await _fixedDeposits.BuildRenewedDepositAsync(
+                deposit, renewalPrincipal, deposit.MaturityDate, now, cancellationToken);
             await _dbContext.FixedDeposits.AddAsync(renewedDeposit, cancellationToken);
         }
         else
