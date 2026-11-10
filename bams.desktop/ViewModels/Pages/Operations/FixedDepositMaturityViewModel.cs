@@ -205,8 +205,10 @@ public sealed class FixedDepositMaturityViewModel : ViewModelBase, IAsyncInitial
                 isEligible: detail.Status == FixedDepositStatus.Active && detail.DaysToMaturity > 0,
                 canWithdraw: _authContext.HasPermission(PermissionCodes.FixedDepositEarlyWithdrawal));
 
-            // The dialog returns true when the deposit was broken; reload so the row shows it closed.
-            if (_dialogService.ShowDialog(new FixedDepositMaturityDetailsViewModel(detail, earlyWithdrawal)))
+            // Reload when the deposit was broken so the row shows it closed, however the dialog was closed
+            // (Close button, Esc or a backdrop click).
+            _dialogService.ShowDialog(new FixedDepositMaturityDetailsViewModel(detail, earlyWithdrawal));
+            if (earlyWithdrawal.IsCompleted)
             {
                 await LoadAsync(CancellationToken.None);
             }

@@ -29,6 +29,7 @@ public interface INrcTransferService
     /// <summary>
     /// Replaces the pickup code of a pending NRC transfer (lost code, or a create response that never arrived).
     /// The old code stops working, failed attempts reset and the new code gets a fresh validity period.
+    /// A transfer already blocked by too many failed attempts is rejected; it can only be cancelled and refunded.
     /// The new code is returned once, in <see cref="TransactionResponse.PickupCode"/>, and is never stored.
     /// </summary>
     Task<TransactionResponse> ReissuePickupCodeAsync(

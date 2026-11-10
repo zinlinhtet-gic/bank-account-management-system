@@ -1,0 +1,71 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Transactions.AccountSelectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:bams.desktop.Themes"
+             xmlns:ap="clr-namespace:bams.desktop.Components.AccountPicker"
+             Focusable="False">
+    <!--
+        One account choice on a transaction form: account type, account search, balance or error, and the
+        read-only owner of the chosen account. DataContext: AccountSelectionViewModel.
+    -->
+    <UserControl.Resources>
+        <!-- Account picker result row: account number, then owner name and NRC -->
+        <DataTemplate x:Key="AccountOptionTemplate">
+            <StackPanel Margin="0,2">
+                <TextBlock Text="{Binding AccountNo}" Style="{StaticResource Text.Body}"/>
+                <TextBlock Text="{Binding OwnerText}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <!-- Account type first; the account search then lists only accounts of that type -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="ACCOUNT TYPE" Style="{StaticResource Text.FieldLabel}"/>
+                <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a type"
+                          ItemsSource="{Binding AccountTypes}"
+                          SelectedItem="{Binding AccountType, Mode=TwoWay}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="{Binding Label}" Style="{StaticResource Text.FieldLabel}"/>
+                <ap:AccountPicker Placeholder="Type an account number, owner name or NRC"
+                                  ItemTemplate="{StaticResource AccountOptionTemplate}" SearchMemberPath="SearchText"
+                                  ItemsSource="{Binding Accounts}" DisplayMemberPath="AccountNo"
+                                  SelectedItem="{Binding Account, Mode=TwoWay}"
+                                  IsEnabled="{Binding HasAccountType}"
+                                  HasError="{Binding Error.HasError}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Available balance of the chosen account, replaced by the error when there is one -->
+        <TextBlock Text="{Binding BalanceText}" Style="{StaticResource Text.Hint}"
+                   Visibility="{Binding Error.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+        <TextBlock Text="{Binding Error.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
+                   Visibility="{Binding Error.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- Owner of the chosen account, read-only -->
+        <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="OWNER NAME" Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                         Text="{Binding Account.OwnerName, Mode=OneWay}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="NRC NO." Style="{StaticResource Text.FieldLabel}"/>
+                <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                         Text="{Binding Account.OwnerNrc, Mode=OneWay}"/>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</UserControl>

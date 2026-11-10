@@ -69,7 +69,7 @@ public static class TransactionRequestValidator
         // The page offset (page - 1) * pageSize must fit in an int; a larger page would overflow to a negative
         // OFFSET and fail in the database instead of being rejected here.
         if (resolvedPage < TransactionConstants.FirstPageNumber
-            || resolvedPageSize < 1
+            || resolvedPageSize < TransactionConstants.MinimumPageSize
             || resolvedPageSize > TransactionConstants.MaximumPageSize
             || resolvedPage - 1 > int.MaxValue / resolvedPageSize)
         {

@@ -487,10 +487,7 @@ public sealed class LedgerPostingService
         if (purpose == DebitPurpose.Deposit)
         {
             // A deposit adds money, so balance, minimum-balance and debit-limit checks do not apply.
-            if (!accountType.AllowDeposit)
-            {
-                throw new BusinessRuleException(MessageCode.DepositNotAllowed);
-            }
+            EnsureCanReceiveTransfer(account);
 
             // A null minimum means any positive amount is accepted.
             if (amount < accountType.MinimumDepositAmount)
@@ -651,9 +648,10 @@ public sealed class LedgerPostingService
         decimal Amount);
 
     /// <summary>
-    /// Creates a normal (non-scheduled) transaction header with a durably reserved daily transaction number.
+    /// Creates a transaction header with a durably reserved daily transaction number.
     /// Completed transactions are also marked as posted by the initiating user.
     /// </summary>
+    /// <param name="isScheduled">True for postings made by a scheduled job, which get the scheduled number prefix.</param>
     public async Task<Transaction> CreateTransactionAsync(
         TransactionType type,
         TransactionStatus status,
@@ -664,10 +662,11 @@ public sealed class LedgerPostingService
         long userId,
         DateTime now,
         DateOnly businessDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isScheduled = false)
     {
         var isCompleted = status == TransactionStatus.Completed;
-        var transactionNumber = await _transactionNumbers.ReserveAsync(businessDate, isScheduled: false, cancellationToken);
+        var transactionNumber = await _transactionNumbers.ReserveAsync(businessDate, isScheduled, cancellationToken);
 
         return new Transaction
         {
@@ -695,6 +694,10 @@ public sealed class LedgerPostingService
     /// </summary>
     /// <param name="amount">Amount of this entry; defaults to the transaction amount (a fee line passes the fee).</param>
     /// <param name="description">Entry description; defaults to the transaction description.</param>
+    /// <param name="countsAsCustomerActivity">
+    /// False for scheduled postings (e.g. fixed-deposit maturity), which must not refresh the account's last
+    /// activity or reactivate a dormant account, because the customer did nothing.
+    /// </param>
     public async Task PostCustomerEntryAsync(
         Transaction transaction,
         Account account,
@@ -702,7 +705,8 @@ public sealed class LedgerPostingService
         DateTime now,
         CancellationToken cancellationToken,
         decimal? amount = null,
-        string? description = null)
+        string? description = null,
+        bool countsAsCustomerActivity = true)
     {
         var entryAmount = amount ?? transaction.Amount;
         var ledgerBalanceBefore = account.LedgerBalance;
@@ -712,9 +716,14 @@ public sealed class LedgerPostingService
         transaction.BusinessDate ??= postingDate;
         account.LedgerBalance += signedAmount;
         account.AvailableBalance += signedAmount;
-        account.LastActivityAt = now;
         account.UpdatedAt = now;
-        await ReactivateDormantAccountAsync(account, transaction.InitiatedBy, now, cancellationToken);
+
+        // Only customer-initiated postings count as activity for dormancy.
+        if (countsAsCustomerActivity)
+        {
+            account.LastActivityAt = now;
+            await ReactivateDormantAccountAsync(account, transaction.InitiatedBy, now, cancellationToken);
+        }
 
         _dbContext.AccountTransactions.Add(new AccountTransaction
         {
@@ -728,7 +737,7 @@ public sealed class LedgerPostingService
             AvailableBalanceAfter = account.AvailableBalance,
             ValueDate = postingDate,
             PostingDate = postingDate,
-            Description = transaction.Description,
+            Description = description ?? transaction.Description,
             ReferenceNo = transaction.ReferenceNo,
             Status = TransactionConstants.CompletedStatus,
             CreatedAt = now
@@ -748,7 +757,7 @@ public sealed class LedgerPostingService
     /// <summary>
     /// Moves a dormant account back to Active when a teller posting touches it, so the monthly dormant penalty
     /// stops once the customer uses the account again. Scheduled interest, fee and penalty postings do not come
-    /// through here and therefore never count as customer activity.
+    /// through here, and scheduled fixed-deposit maturity payouts opt out, so they never count as customer activity.
     /// </summary>
     private async Task ReactivateDormantAccountAsync(
         Account account,

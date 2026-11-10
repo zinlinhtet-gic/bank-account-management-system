@@ -177,7 +177,8 @@ public sealed class FixedDepositMaturityDetailsViewModel : ViewModelBase, IDialo
 
     public bool CanCloseOnBackdropClick => true;
 
-    public bool CanCancel => true;
+    // Esc and backdrop clicks wait while a withdrawal is being posted.
+    public bool CanCancel => !EarlyWithdrawal.IsBusy;
 
     public OperationAccountDisplayModel Account { get; }
     public string Title { get; }

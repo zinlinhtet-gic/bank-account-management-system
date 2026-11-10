@@ -43,9 +43,6 @@ public sealed class FixedDepositEarlyWithdrawalViewModel : ViewModelBase
         WithdrawCommand = new AsyncRelayCommand(WithdrawAsync, () => CanWithdraw && HasQuote && !IsBusy && !IsCompleted);
     }
 
-    /// <summary>Raised once the deposit has been broken, so the card can tell the list to reload.</summary>
-    public event Action? Completed;
-
     public AsyncRelayCommand ShowQuoteCommand { get; }
 
     public RelayCommand HideQuoteCommand { get; }
@@ -159,7 +156,6 @@ public sealed class FixedDepositEarlyWithdrawalViewModel : ViewModelBase
                 _fixedDepositId, request, _idempotencyKey, CancellationToken.None);
 
             ResultMessage = BuildResultMessage(transaction);
-            Completed?.Invoke();
         }
         catch (AppException exception)
         {

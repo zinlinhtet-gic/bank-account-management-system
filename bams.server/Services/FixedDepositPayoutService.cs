@@ -127,7 +127,9 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
     }
 
     // Active deposits due today or earlier, oldest first. Deposits on a frozen, suspended or closed account stay
-    // put until the account is usable again: paying them out would move restricted money.
+    // put until the account is usable again: paying them out would move restricted money. The same holds for the
+    // payout account of a deposit that pays something out, so such deposits do not fill every batch and starve
+    // the deposits behind them.
     private async Task<IReadOnlyList<long>> GetDueFixedDepositIdsAsync(
         DateOnly today,
         CancellationToken cancellationToken)
@@ -137,7 +139,11 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         return await _dbContext.FixedDeposits.AsNoTracking()
             .Where(deposit => deposit.Status == activeStatus && deposit.MaturityDate <= today &&
                 deposit.Account != null &&
-                (deposit.Account.Status == AccountStatus.Active || deposit.Account.Status == AccountStatus.Dormant))
+                (deposit.Account.Status == AccountStatus.Active || deposit.Account.Status == AccountStatus.Dormant) &&
+                (deposit.RenewalInstruction == RenewalInstruction.PrincipalAndInterest ||
+                    (deposit.PayoutAccount != null &&
+                        (deposit.PayoutAccount.Status == AccountStatus.Active ||
+                            deposit.PayoutAccount.Status == AccountStatus.Dormant))))
             .OrderBy(deposit => deposit.MaturityDate)
             .ThenBy(deposit => deposit.Id)
             .Select(deposit => deposit.Id)
@@ -324,6 +330,16 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         await _businessDates.GetPostingBusinessDateValueAsync(now, cancellationToken);
         DateOnly today = BusinessTime.ToBusinessDate(now);
         FixedDeposit deposit = await GetFixedDepositWithAccountsAsync(fixedDepositId, cancellationToken);
+        if (deposit.Status != FixedDepositStatus.Active.ToString())
+        {
+            // A parallel retry with the same key may have closed the deposit since the replay check above.
+            replay = await FindEarlyWithdrawalReplayAsync(idempotencyKey, actor, cancellationToken);
+            if (replay is not null)
+            {
+                return replay;
+            }
+        }
+
         ValidateCanWithdrawEarly(deposit, today);
 
         // Interest accrues up to yesterday; today is the withdrawal day.
@@ -568,8 +584,12 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
                 deposit.Account!, deposit, firstUnaccruedDay, lastInterestDay, cancellationToken, recordOn: postingDate);
         }
 
+        // Credit every accrual still waiting, not only those ending by lastInterestDay: a monthly run that happened
+        // before a late maturity payout records the term's last days under a period ending at month end. Accruals
+        // not yet recorded (an earlier attempt failed) are recorded today, since their period end may be closed.
         await _interest.PostAccruedInterestAsync(
-            deposit.AccountId, postingDate, lastInterestDay, deposit.Id, creditDescription, cancellationToken);
+            deposit.AccountId, postingDate, postingDate, deposit.Id, creditDescription, cancellationToken,
+            recordAccrualsOn: postingDate);
     }
 
     // First day of the term that no interest accrual of the account covers yet.
@@ -588,6 +608,8 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
     /// Posts a payout from the deposit account to the payout account. A forfeited interest amount is debited from
     /// the deposit as a second entry and credited back to Interest Expense (stored as the transaction's fee).
     /// The accounts must be locked; fixed-deposit debit rules are bypassed on purpose.
+    /// A scheduled maturity payout gets the scheduled transaction-number prefix and does not count as customer
+    /// activity (it neither refreshes last activity nor reactivates a dormant account).
     /// </summary>
     private async Task<Transaction> PostPayoutAsync(
         TransactionType transactionType,
@@ -603,6 +625,8 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
     {
         LedgerPostingService.EnsureCanReceiveTransfer(payoutAccount);
 
+        // Maturity is posted by the scheduled job; early withdrawal is a customer request at the counter.
+        bool isScheduled = transactionType == TransactionType.FdMaturity;
         Transaction transaction = await _ledger.CreateTransactionAsync(
             transactionType,
             TransactionStatus.Completed,
@@ -613,15 +637,19 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
             actor.UserId,
             now,
             BusinessTime.ToBusinessDate(now),
-            cancellationToken);
-        await _ledger.PostCustomerEntryAsync(transaction, depositAccount, EntryType.Debit, now, cancellationToken);
-        await _ledger.PostCustomerEntryAsync(transaction, payoutAccount, EntryType.Credit, now, cancellationToken);
+            cancellationToken,
+            isScheduled);
+        await _ledger.PostCustomerEntryAsync(transaction, depositAccount, EntryType.Debit, now, cancellationToken,
+            countsAsCustomerActivity: !isScheduled);
+        await _ledger.PostCustomerEntryAsync(transaction, payoutAccount, EntryType.Credit, now, cancellationToken,
+            countsAsCustomerActivity: !isScheduled);
 
         if (forfeitedInterest > 0m)
         {
             transaction.FeeAmount = forfeitedInterest;
             await _ledger.PostCustomerEntryAsync(transaction, depositAccount, EntryType.Debit, now, cancellationToken,
-                forfeitedInterest, FixedDepositConstants.ForfeitedInterestEntryDescription);
+                forfeitedInterest, FixedDepositConstants.ForfeitedInterestEntryDescription,
+                countsAsCustomerActivity: !isScheduled);
             await _ledger.PostGlEntryAsync(transaction, AccountingConstants.InterestExpenseGlCode, EntryType.Credit,
                 null, now, cancellationToken, forfeitedInterest);
         }

@@ -347,7 +347,8 @@ public sealed class InterestAccumulationService
         DateOnly accruedThrough,
         long? fixedDepositId,
         string description,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateOnly? recordAccrualsOn = null)
     {
         var accruals = await _dbContext.InterestAccruals
             .Where(accrual => accrual.AccountId == accountId && accrual.Status == "Accrued" &&
@@ -357,7 +358,7 @@ public sealed class InterestAccumulationService
         // Include older unpaid accruals if an earlier quarter's posting could not complete.
         foreach (var accrual in accruals)
         {
-            await EnsureAccrualTransactionAsync(accrual, cancellationToken);
+            await EnsureAccrualTransactionAsync(accrual, cancellationToken, recordAccrualsOn);
         }
 
         var amount = ScheduledJobPeriod.RoundMoney(accruals.Sum(accrual => accrual.CalculatedAmount));
