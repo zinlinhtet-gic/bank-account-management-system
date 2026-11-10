@@ -136,9 +136,9 @@
 
     <!-- Applies live thousands grouping only where a view explicitly identifies a monetary input. -->
     <Style x:Key="Input.Money" TargetType="TextBox" BasedOn="{StaticResource Input.Text}">
+        <Setter Property="behaviors:MoneyInput.IsMoneyField" Value="True"/>
         <Setter Property="behaviors:MoneyInput.IsEnabled" Value="True"/>
         <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
-        <Setter Property="HorizontalContentAlignment" Value="Right"/>
     </Style>
 
     <!-- ===================== PasswordBox ===================== -->

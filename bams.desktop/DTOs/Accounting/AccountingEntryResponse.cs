@@ -13,6 +13,7 @@ public sealed record AccountingEntryResponse(
     string GlAccountName,
     long? CustomerAccountId,
     string? CustomerAccountNumber,
+    string? CustomerAccountOwnerName,
     EntryType EntryType,
     decimal Amount,
     DateOnly PostingDate,
@@ -23,6 +24,9 @@ public sealed record AccountingEntryResponse(
     public decimal? DebitAmount => EntryType == EntryType.Debit ? Amount : null;
 
     public decimal? CreditAmount => EntryType == EntryType.Credit ? Amount : null;
+
+    /// <summary>True for bank-level GL lines (cash, income, payables) that do not belong to a customer account.</summary>
+    public bool IsBankInternal => CustomerAccountId is null;
 }
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EntryType

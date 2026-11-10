@@ -15,6 +15,8 @@ public static class MoneyText
 
     /// <summary>
     /// Converts an in-progress money value to grouped text without adding decimal zeroes.
+    /// Existing commas are always discarded and the whole part is regrouped every three digits,
+    /// so grouping stays correct however many digits are typed, deleted, or pasted.
     /// Invalid text is returned unchanged so the owning form can report its existing validation error.
     /// </summary>
     public static string FormatWhileEditing(string text)
@@ -24,11 +26,7 @@ public static class MoneyText
             return string.Empty;
         }
 
-        if (!HasValidGrouping(text))
-        {
-            return text;
-        }
-
+        // Stale commas from the previous edit (e.g. "1,2345") are dropped and recomputed below.
         var ungrouped = text.Replace(",", string.Empty, StringComparison.Ordinal);
         var hasMinus = ungrouped.StartsWith("-", StringComparison.Ordinal);
         var unsigned = hasMinus ? ungrouped[1..] : ungrouped;
@@ -89,21 +87,5 @@ public static class MoneyText
         }
 
         return builder.ToString();
-    }
-
-    private static bool HasValidGrouping(string text)
-    {
-        var unsigned = text.StartsWith("-", StringComparison.Ordinal) ? text[1..] : text;
-        var wholePart = unsigned.Split('.', 2)[0];
-        if (!wholePart.Contains(',', StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        var groups = wholePart.Split(',');
-        return groups.Length > 1 &&
-            groups[0].Length is >= 1 and <= 3 &&
-            groups.All(group => group.All(char.IsDigit)) &&
-            groups.Skip(1).All(group => group.Length == 3);
     }
 }
