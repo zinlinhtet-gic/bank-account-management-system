@@ -3,6 +3,7 @@ using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.Exceptions;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
@@ -275,7 +276,8 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
 
     private async Task FinalVaultCountAsync()
     {
-        if (Summary.BusinessDate is null || !decimal.TryParse(VaultActual, out decimal actual))
+        // MoneyText parses the comma-grouped text shown in the field, independent of the OS culture.
+        if (Summary.BusinessDate is null || !MoneyText.TryParse(VaultActual, out decimal actual))
         { ErrorMessage = "Enter the vault's physical cash amount."; return; }
         try
         {

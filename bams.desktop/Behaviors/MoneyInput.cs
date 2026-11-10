@@ -27,6 +27,17 @@ public static class MoneyInput
 
     public static void SetIsEnabled(DependencyObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
+    /// <summary>
+    /// Marks a text box as monetary regardless of its binding path name (e.g. <c>VaultActual</c>).
+    /// Set by the <c>Input.Money</c> style so explicitly money-styled fields are always formatted.
+    /// </summary>
+    public static readonly DependencyProperty IsMoneyFieldProperty =
+        DependencyProperty.RegisterAttached("IsMoneyField", typeof(bool), typeof(MoneyInput), new PropertyMetadata(false));
+
+    public static bool GetIsMoneyField(DependencyObject element) => (bool)element.GetValue(IsMoneyFieldProperty);
+
+    public static void SetIsMoneyField(DependencyObject element, bool value) => element.SetValue(IsMoneyFieldProperty, value);
+
     private static void OnIsEnabledChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs eventArgs)
     {
         if (dependencyObject is not TextBox textBox)
@@ -131,8 +142,14 @@ public static class MoneyInput
     }
 
     // Keeps the shared input style safe for non-financial fields such as account numbers and phone numbers.
+    // Explicit money fields always qualify; the shared Input.Text style falls back to binding-path markers.
     private static bool IsMoneyTextBox(TextBox textBox)
     {
+        if (GetIsMoneyField(textBox))
+        {
+            return true;
+        }
+
         var path = textBox.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path;
         return path is not null && MoneyPropertyMarkers.Any(marker =>
             path.Contains(marker, StringComparison.OrdinalIgnoreCase));

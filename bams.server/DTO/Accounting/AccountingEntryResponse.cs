@@ -13,6 +13,8 @@ public sealed record AccountingEntryResponse
     string GlAccountName,
     long? CustomerAccountId,
     string? CustomerAccountNumber,
+    // Primary holder's full name; null for bank-level GL lines that have no customer account.
+    string? CustomerAccountOwnerName,
     EntryType EntryType,
     decimal Amount,
     DateOnly PostingDate,
