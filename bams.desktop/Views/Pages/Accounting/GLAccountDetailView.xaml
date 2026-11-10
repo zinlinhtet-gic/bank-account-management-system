@@ -41,11 +41,11 @@
                     <TextBlock Text="{Binding Account.AccountClass}" Style="{StaticResource Text.Body}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="3">
-                    <TextBlock Text="STATUS / PARENT ID" Style="{StaticResource Text.FieldLabel}"/>
+                    <TextBlock Text="STATUS / PARENT ACCOUNT" Style="{StaticResource Text.FieldLabel}"/>
                     <TextBlock Style="{StaticResource Text.Body}">
-                        <Run Text="{Binding Account.Status}"/>
-                        <Run Text=" / Parent #"/>
-                        <Run Text="{Binding Account.ParentId, TargetNullValue=—}"/>
+                        <Run Text="{Binding Account.Status, Mode=OneWay}"/>
+                        <Run Text=" / Parent: "/>
+                        <Run Text="{Binding Account.ParentId, Mode=OneWay, StringFormat='#{0}', TargetNullValue=None}"/>
                     </TextBlock>
                 </StackPanel>
             </Grid>
@@ -94,7 +94,27 @@
                             <TextBlock Text="Related Journal Entries" Style="{StaticResource Text.Title}"/>
                         </DockPanel>
                     </Border>
-                    <accounting:AccountingJournalTable/>
+                    <Grid>
+                        <accounting:AccountingJournalTable/>
+
+                        <!-- Empty state -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top"
+                                    Margin="0,96,0,0" IsHitTestVisible="False">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsEmpty}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="No journal entries yet" Style="{StaticResource Text.Subheading}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Nothing has been posted to this GL account."
+                                       Style="{StaticResource Text.BodyMuted}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
                 </DockPanel>
             </Border>
         </Grid>
