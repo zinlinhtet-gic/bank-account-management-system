@@ -9,6 +9,16 @@
         New deposit / withdrawal / transfer form, shown inline under the Transactions page tabs.
         DataContext: TransactionFormViewModel. Only the sections for the form's kind are visible; Enter posts.
     -->
+    <UserControl.Resources>
+        <!-- Account picker result row: account number, then owner name and NRC -->
+        <DataTemplate x:Key="AccountOptionTemplate">
+            <StackPanel Margin="0,2">
+                <TextBlock Text="{Binding AccountNo}" Style="{StaticResource Text.Body}"/>
+                <TextBlock Text="{Binding OwnerText}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <StackPanel>
         <!-- What this tab posts; the tab itself names it -->
         <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"/>
@@ -20,29 +30,101 @@
                 <!-- Source account (NRC shows its own inside the sender section) -->
                 <StackPanel Margin="0,0,0,16"
                             Visibility="{Binding ShowsSourceAccountAtTop, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
-                    <ap:AccountPicker Placeholder="Type an account number"
-                              ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
-                              SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
-                              HasError="{Binding SourceAccountError.HasError}"/>
+                    <!-- Account type first; the account search then lists only accounts of that type -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="ACCOUNT TYPE" Style="{StaticResource Text.FieldLabel}"/>
+                            <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a type"
+                                      ItemsSource="{Binding SourceAccountTypes}"
+                                      SelectedItem="{Binding SourceAccountType, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
+                            <ap:AccountPicker Placeholder="Type an account number, owner name or NRC"
+                                      ItemTemplate="{StaticResource AccountOptionTemplate}" SearchMemberPath="SearchText"
+                                      ItemsSource="{Binding SourceAccounts}" DisplayMemberPath="AccountNo"
+                                      SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
+                                      IsEnabled="{Binding HasSourceAccountType}"
+                                      HasError="{Binding SourceAccountError.HasError}"/>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="{Binding SourceBalanceText}" Style="{StaticResource Text.Hint}"
                                Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
                     <TextBlock Text="{Binding SourceAccountError.Message}" Style="{StaticResource Text.Error}"
                                Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Owner of the chosen account, read-only -->
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="OWNER NAME" Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                                     Text="{Binding SourceAccount.OwnerName, Mode=OneWay}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="NRC NO." Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                                     Text="{Binding SourceAccount.OwnerNrc, Mode=OneWay}"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Destination account in this bank -->
                 <StackPanel Margin="0,0,0,16"
                             Visibility="{Binding ShowsDestinationAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="{Binding DestinationAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
-                    <ap:AccountPicker Placeholder="Type an account number"
-                              ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
-                              SelectedItem="{Binding DestinationAccount, Mode=TwoWay}"
-                              HasError="{Binding DestinationAccountError.HasError}"/>
+                    <!-- Account type first; the account search then lists only accounts of that type -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="ACCOUNT TYPE" Style="{StaticResource Text.FieldLabel}"/>
+                            <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a type"
+                                      ItemsSource="{Binding DestinationAccountTypes}"
+                                      SelectedItem="{Binding DestinationAccountType, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{Binding DestinationAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
+                            <ap:AccountPicker Placeholder="Type an account number, owner name or NRC"
+                                      ItemTemplate="{StaticResource AccountOptionTemplate}" SearchMemberPath="SearchText"
+                                      ItemsSource="{Binding DestinationAccounts}" DisplayMemberPath="AccountNo"
+                                      SelectedItem="{Binding DestinationAccount, Mode=TwoWay}"
+                                      IsEnabled="{Binding HasDestinationAccountType}"
+                                      HasError="{Binding DestinationAccountError.HasError}"/>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="{Binding DestinationBalanceText}" Style="{StaticResource Text.Hint}"
                                Visibility="{Binding DestinationAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
                     <TextBlock Text="{Binding DestinationAccountError.Message}" Style="{StaticResource Text.Error}"
                                Visibility="{Binding DestinationAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Owner of the chosen account, read-only -->
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="OWNER NAME" Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                                     Text="{Binding DestinationAccount.OwnerName, Mode=OneWay}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="NRC NO." Style="{StaticResource Text.FieldLabel}"/>
+                            <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                                     Text="{Binding DestinationAccount.OwnerNrc, Mode=OneWay}"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Interbank: bank, account there, beneficiary -->
@@ -140,15 +222,51 @@
                     </Grid>
                     <StackPanel Margin="0,12,0,0"
                                 Visibility="{Binding IsPaidFromAccount, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
-                        <ap:AccountPicker Placeholder="Type an account number"
-                              ItemsSource="{Binding Accounts}" DisplayMemberPath="DisplayName"
-                              SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
-                              HasError="{Binding SourceAccountError.HasError}"/>
+                        <!-- Account type first; the account search then lists only accounts of that type -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="ACCOUNT TYPE" Style="{StaticResource Text.FieldLabel}"/>
+                                <ComboBox Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Choose a type"
+                                          ItemsSource="{Binding SourceAccountTypes}"
+                                          SelectedItem="{Binding SourceAccountType, Mode=TwoWay}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{Binding SourceAccountLabel}" Style="{StaticResource Text.FieldLabel}"/>
+                                <ap:AccountPicker Placeholder="Type an account number, owner name or NRC"
+                                          ItemTemplate="{StaticResource AccountOptionTemplate}" SearchMemberPath="SearchText"
+                                          ItemsSource="{Binding SourceAccounts}" DisplayMemberPath="AccountNo"
+                                          SelectedItem="{Binding SourceAccount, Mode=TwoWay}"
+                                          IsEnabled="{Binding HasSourceAccountType}"
+                                          HasError="{Binding SourceAccountError.HasError}"/>
+                            </StackPanel>
+                        </Grid>
                         <TextBlock Text="{Binding SourceBalanceText}" Style="{StaticResource Text.Hint}"
                                    Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BoolToCollapsedVisibility}}"/>
                         <TextBlock Text="{Binding SourceAccountError.Message}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
                                    Visibility="{Binding SourceAccountError.HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <!-- Owner of the chosen account, read-only -->
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="OWNER NAME" Style="{StaticResource Text.FieldLabel}"/>
+                                <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                                         Text="{Binding SourceAccount.OwnerName, Mode=OneWay}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="NRC NO." Style="{StaticResource Text.FieldLabel}"/>
+                                <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" IsTabStop="False"
+                                         Text="{Binding SourceAccount.OwnerNrc, Mode=OneWay}"/>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
 
                     <Separator Style="{StaticResource Divider}" Margin="0,20,0,16"/>

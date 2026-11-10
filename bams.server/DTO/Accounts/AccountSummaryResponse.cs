@@ -9,4 +9,7 @@ public sealed record AccountSummaryResponse(
     string AccountTypeCode,
     AccountStatus Status,
     decimal AvailableBalance,
-    IReadOnlyList<AccountCustomerResponse> Customers);
+    IReadOnlyList<AccountCustomerResponse> Customers,
+    bool AllowDeposit,
+    bool AllowWithdrawal,
+    bool AllowTransfer);

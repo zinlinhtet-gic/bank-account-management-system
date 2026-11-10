@@ -44,7 +44,8 @@ public static class RolesAndPermissionsSeeder
             (SecurityConstants.ReconciliationInvestigation, "reconciliation investigation"),
             (SecurityConstants.EndOfDayApproval, "end of day approval"),
             (SecurityConstants.ScheduledJobManagement, "scheduled job management"),
-            (SecurityConstants.TransactionCorrectionApproval, "transaction correction approval")
+            (SecurityConstants.TransactionCorrectionApproval, "transaction correction approval"),
+            (SecurityConstants.FixedDepositEarlyWithdrawal, "fixed deposit early withdrawal")
         };
         var permissions = await dbContext.Permissions.ToListAsync();
         foreach (var (code, name) in additions)
@@ -73,6 +74,7 @@ public static class RolesAndPermissionsSeeder
             (SecurityConstants.ManagerRole, SecurityConstants.EndOfDayApproval),
             (SecurityConstants.ManagerRole, SecurityConstants.ScheduledJobManagement),
             (SecurityConstants.ManagerRole, SecurityConstants.TransactionCorrectionApproval),
+            (SecurityConstants.ManagerRole, SecurityConstants.FixedDepositEarlyWithdrawal),
             (SecurityConstants.OfficerRole, SecurityConstants.CashOperations),
             (SecurityConstants.OfficerRole, SecurityConstants.ReconciliationInvestigation),
             (SecurityConstants.AuditorRole, SecurityConstants.ReconciliationInvestigation)
@@ -127,7 +129,8 @@ public static class RolesAndPermissionsSeeder
             new Permission { Code = SecurityConstants.ReconciliationInvestigation, Name = "reconciliation investigation" },
             new Permission { Code = SecurityConstants.EndOfDayApproval, Name = "end of day approval" },
             new Permission { Code = SecurityConstants.ScheduledJobManagement, Name = "scheduled job management" },
-            new Permission { Code = SecurityConstants.TransactionCorrectionApproval, Name = "transaction correction approval" }
+            new Permission { Code = SecurityConstants.TransactionCorrectionApproval, Name = "transaction correction approval" },
+            new Permission { Code = SecurityConstants.FixedDepositEarlyWithdrawal, Name = "fixed deposit early withdrawal" }
         };
 
         await dbContext.Permissions.AddRangeAsync(permissions);
@@ -182,7 +185,8 @@ public static class RolesAndPermissionsSeeder
             SecurityConstants.ReconciliationInvestigation,
             SecurityConstants.EndOfDayApproval,
             SecurityConstants.ScheduledJobManagement,
-            SecurityConstants.TransactionCorrectionApproval
+            SecurityConstants.TransactionCorrectionApproval,
+            SecurityConstants.FixedDepositEarlyWithdrawal
         };
 
         foreach (var permissionCode in managerPermissionCodes)

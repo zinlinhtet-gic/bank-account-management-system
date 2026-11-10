@@ -31,6 +31,8 @@ public static class AuditConstants
     public const string AccountHoldersUpdatedAction = "AccountHoldersUpdated";
     public const string FixedDepositCreatedAction = "FixedDepositCreated";
     public const string FixedDepositUpdatedAction = "FixedDepositUpdated";
+    public const string FixedDepositMaturedAction = "transaction.fd_maturity";
+    public const string FixedDepositEarlyWithdrawalAction = "transaction.fd_early_withdrawal";
     public const string ScheduledFinancialAccruedAction = "ScheduledFinancialAccrued";
     public const string ScheduledFinancialPostedAction = "ScheduledFinancialPosted";
     public const string EndOfDayReconciliationType = "EndOfDay";

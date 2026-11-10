@@ -27,4 +27,16 @@ public interface IOperationService
 
     /// <summary>Loads one fixed deposit with its account, customer and monthly interest schedule.</summary>
     Task<FixedDepositMaturityDetailResponse> GetFixedDepositMaturityByIdAsync(long id, CancellationToken cancellationToken);
+
+    /// <summary>Calculates what breaking the fixed deposit today would pay, without posting anything.</summary>
+    Task<FixedDepositEarlyWithdrawalQuoteResponse> GetEarlyWithdrawalQuoteAsync(
+        long fixedDepositId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Breaks the fixed deposit and pays it to its payout account (manager only). The same
+    /// <paramref name="idempotencyKey"/> on a retry returns the first result instead of paying twice.
+    /// </summary>
+    Task<DTOs.Transactions.TransactionResponse> WithdrawFixedDepositEarlyAsync(
+        long fixedDepositId, EarlyWithdrawFixedDepositRequest request, string idempotencyKey,
+        CancellationToken cancellationToken);
 }

@@ -146,6 +146,21 @@ The operation cannot add, remove, or replace customers. It requires exactly one 
 
 `calculateFromCurrent` is immutable after creation. Current-principal and status changes are internal `IFixedDepositService` operations and are not exposed through HTTP.
 
+## Fixed-deposit early withdrawal
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/fixed-deposits/{id}/early-withdrawal-quote` | `operation` or `fixed_deposit_early_withdrawal` | Calculate what breaking the deposit today pays. Nothing is posted. |
+| POST | `/api/fixed-deposits/{id}/early-withdrawal` | `fixed_deposit_early_withdrawal` | Break the deposit and pay it to its payout account. |
+
+The route ID is the fixed-deposit row ID. The quote returns `principal`, `daysHeld`, `annualRate`, `earlyWithdrawalRate`, `interestEarned`, `interestAtEarlyWithdrawalRate`, `interestForfeited`, and `netPayout`, plus the account and payout account numbers.
+
+The POST body is `{ "reason": "..." }` (optional, at most 300 characters, kept in the audit log). It accepts the `Idempotency-Key` header; a retry with the same key returns the original transaction. The response is a `TransactionResponse` of type `FdEarlyWithdrawal` with `amount` = net payout and `feeAmount` = forfeited interest, and message code `1105 FixedDepositWithdrawnEarlySuccessfully`.
+
+Errors: `4205 FixedDepositNotFound`, `4408 FixedDepositNotActive`, `4409 FixedDepositAlreadyMatured` (on or after the maturity date the maturity job pays it out), `4441 AccountNotOperational` (deposit or payout account), `4469 BusinessDateTransitionConflict` when no business date is open, and `4304 ConcurrentModification` when the deposit changed while the withdrawal was being made.
+
+Maturity payouts have no endpoint; they run as the `fixed-deposit-maturity` scheduled job and post `FdMaturity` transactions.
+
 ## Concurrency and errors
 
 Account, holder, and fixed-deposit responses include `version`. Mutation callers must echo the latest version. A stale version rejects the complete operation with HTTP 409 and `ConcurrentModification`; clients must refresh before retrying.

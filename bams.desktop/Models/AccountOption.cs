@@ -6,10 +6,25 @@ namespace bams.desktop.Models;
 /// <summary>
 /// An account in a transaction form's account picker.
 /// </summary>
-public sealed record AccountOption(long Id, string AccountNo, string AccountTypeCode, decimal AvailableBalance)
+public sealed record AccountOption(
+    long Id,
+    string AccountNo,
+    string AccountTypeCode,
+    decimal AvailableBalance,
+    string OwnerName = "",
+    string? OwnerNrc = null,
+    bool AllowDeposit = true,
+    bool AllowWithdrawal = true,
+    bool AllowTransfer = true)
 {
     /// <summary>"ACC20260925… · SAV".</summary>
     public string DisplayName => $"{AccountNo} · {AccountTypeCode}";
+
+    /// <summary>"U Ba · 12/ABC(N)123456", shown under the account number in the picker's results.</summary>
+    public string OwnerText => string.IsNullOrWhiteSpace(OwnerNrc) ? OwnerName : $"{OwnerName} · {OwnerNrc}";
+
+    /// <summary>Text the picker matches typed input against: account number, owner name and NRC.</summary>
+    public string SearchText => $"{AccountNo} {OwnerName} {OwnerNrc}";
 
     /// <summary>"Available MMK 12,000.00", shown under the picker.</summary>
     public string BalanceText => $"Available {TransactionDisplay.FormatMoney(AvailableBalance)}";
@@ -41,7 +56,20 @@ public sealed record AccountOption(long Id, string AccountNo, string AccountType
     /// </summary>
     public static AccountOption FromResponse(AccountSummaryResponse account)
     {
-        return new AccountOption(account.Id, account.AccountNo, account.AccountTypeCode, account.AvailableBalance);
+        // Primary holder; joint accounts show "+N" for the other holders.
+        var holders = account.Customers ?? [];
+        var owner = holders.FirstOrDefault(holder => holder.IsPrimary) ?? holders.FirstOrDefault();
+        var ownerName = owner is null ? string.Empty : owner.FullName;
+
+        if (holders.Count > 1)
+        {
+            ownerName += $" +{holders.Count - 1}";
+        }
+
+        var ownerId = owner is null ? null : owner.NrcNumber ?? owner.PassportNumber;
+
+        return new AccountOption(account.Id, account.AccountNo, account.AccountTypeCode, account.AvailableBalance,
+            ownerName, ownerId, account.AllowDeposit, account.AllowWithdrawal, account.AllowTransfer);
     }
 
     // ComboBox shows ToString() when no template is set.

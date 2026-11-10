@@ -43,6 +43,10 @@ public sealed class TransactionFormViewModel : ViewModelBase
     private readonly ITransactionService _transactionService;
     private readonly string _idempotencyKey = Guid.NewGuid().ToString("N");
 
+    private readonly IReadOnlyList<AccountOption> _sourcePool;
+    private readonly IReadOnlyList<AccountOption> _destinationPool;
+    private string? _sourceAccountType;
+    private string? _destinationAccountType;
     private AccountOption? _sourceAccount;
     private AccountOption? _destinationAccount;
     private OtherBankResponse? _selectedBank;
@@ -78,6 +82,24 @@ public sealed class TransactionFormViewModel : ViewModelBase
         _transactionService = transactionService;
         Kind = kind;
         Accounts = accounts;
+        // Each side lists only the accounts whose type allows what this form does to them.
+        _sourcePool = accounts.Where(account => kind == TransactionFormKind.Withdrawal
+            ? account.AllowWithdrawal
+            : account.AllowTransfer).ToList();
+        _destinationPool = accounts.Where(account => account.AllowDeposit).ToList();
+        SourceAccountTypes = TypesOf(_sourcePool);
+        DestinationAccountTypes = TypesOf(_destinationPool);
+
+        // Nothing to choose when only one account type qualifies.
+        if (SourceAccountTypes.Count == 1)
+        {
+            _sourceAccountType = SourceAccountTypes[0];
+        }
+
+        if (DestinationAccountTypes.Count == 1)
+        {
+            _destinationAccountType = DestinationAccountTypes[0];
+        }
         Banks = banks;
         Branches = branches;
 
@@ -94,6 +116,18 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public TransactionFormKind Kind { get; }
 
     public IReadOnlyList<AccountOption> Accounts { get; }
+
+    /// <summary>Account types the source can be: those allowing withdrawals (withdrawal form) or transfers (others).</summary>
+    public IReadOnlyList<string> SourceAccountTypes { get; }
+
+    /// <summary>Account types the destination can be: those allowing deposits.</summary>
+    public IReadOnlyList<string> DestinationAccountTypes { get; }
+
+    private static IReadOnlyList<string> TypesOf(IEnumerable<AccountOption> accounts)
+    {
+        return accounts.Select(account => account.AccountTypeCode).Distinct()
+            .OrderBy(code => code, StringComparer.OrdinalIgnoreCase).ToList();
+    }
 
     public IReadOnlyList<OtherBankResponse> Banks { get; }
 
@@ -250,6 +284,59 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public string PickupLocationText => (IsCollectedAtBranch ? PickupBranch?.Name : PickupBank?.BankName) ?? string.Empty;
 
     // ===== Fields =====
+
+    /// <summary>Chosen first; the source account search then lists only accounts of this type.</summary>
+    public string? SourceAccountType
+    {
+        get => _sourceAccountType;
+        set
+        {
+            if (SetProperty(ref _sourceAccountType, value))
+            {
+                OnPropertyChanged(nameof(SourceAccounts));
+                OnPropertyChanged(nameof(HasSourceAccountType));
+
+                if (SourceAccount is not null && SourceAccount.AccountTypeCode != value)
+                {
+                    SourceAccount = null;
+                }
+            }
+        }
+    }
+
+    public bool HasSourceAccountType => SourceAccountType is not null;
+
+    public IReadOnlyList<AccountOption> SourceAccounts => AccountsOfType(_sourcePool, SourceAccountType);
+
+    /// <summary>Chosen first; the destination account search then lists only accounts of this type.</summary>
+    public string? DestinationAccountType
+    {
+        get => _destinationAccountType;
+        set
+        {
+            if (SetProperty(ref _destinationAccountType, value))
+            {
+                OnPropertyChanged(nameof(DestinationAccounts));
+                OnPropertyChanged(nameof(HasDestinationAccountType));
+
+                if (DestinationAccount is not null && DestinationAccount.AccountTypeCode != value)
+                {
+                    DestinationAccount = null;
+                }
+            }
+        }
+    }
+
+    public bool HasDestinationAccountType => DestinationAccountType is not null;
+
+    public IReadOnlyList<AccountOption> DestinationAccounts => AccountsOfType(_destinationPool, DestinationAccountType);
+
+    private static IReadOnlyList<AccountOption> AccountsOfType(IEnumerable<AccountOption> pool, string? accountTypeCode)
+    {
+        return accountTypeCode is null
+            ? []
+            : pool.Where(account => account.AccountTypeCode == accountTypeCode).ToList();
+    }
 
     public AccountOption? SourceAccount
     {
@@ -567,12 +654,14 @@ public sealed class TransactionFormViewModel : ViewModelBase
             ? "Please enter the amount."
             : amount is null ? MessageCatalog.GetMessage(MessageCode.InvalidAmount) : string.Empty);
 
-        SourceAccountError.Set(ShowsSourceAccount && SourceAccount is null ? "Please choose the account." : string.Empty);
+        SourceAccountError.Set(!ShowsSourceAccount || SourceAccount is not null
+            ? string.Empty
+            : SourceAccountType is null ? "Please choose the account type first." : "Please choose the account.");
 
         DestinationAccountError.Set(!ShowsDestinationAccount
             ? string.Empty
             : DestinationAccount is null
-                ? "Please choose the account."
+                ? DestinationAccountType is null ? "Please choose the account type first." : "Please choose the account."
                 : ShowsSourceAccount && SourceAccount?.Id == DestinationAccount.Id
                     ? MessageCatalog.GetMessage(MessageCode.SameSourceAndDestinationAccount)
                     : string.Empty);
@@ -639,6 +728,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
                 CashSessionError.Set(exception.Message);
                 break;
             case MessageCode.SameSourceAndDestinationAccount:
+            case MessageCode.DepositNotAllowed:
                 DestinationAccountError.Set(exception.Message);
                 break;
             case MessageCode.OtherBankNotFound when Kind == TransactionFormKind.NrcTransfer:

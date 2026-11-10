@@ -226,6 +226,7 @@ public sealed class LedgerPostingService
         TransactionType.InterbankTransfer => 2 + (status == TransactionStatus.Completed ? 2 : 0) + (feeAmount > 0m ? 2 : 0),
         TransactionType.NrcTransfer => status == TransactionStatus.Completed ? 4 : 2,
         TransactionType.Reversal => 2 + (refundedFeeAmount > 0m ? 2 : 0),
+        TransactionType.FdEarlyWithdrawal => 2 + (feeAmount > 0m ? 2 : 0),
         _ => 2
     };
 
@@ -316,6 +317,21 @@ public sealed class LedgerPostingService
                     Add(AccountingConstants.NrcTransfersPayableGlCode, EntryType.Debit, amount);
                     Add(deliveryType == TransactionConstants.NrcDeliveryAtBranch
                         ? AccountingConstants.CashOnHandGlCode : AccountingConstants.DueFromOtherBanksGlCode, EntryType.Credit, amount);
+                }
+                break;
+            }
+            case TransactionType.FdMaturity:
+            case TransactionType.FdEarlyWithdrawal:
+            {
+                // A fixed deposit pays out to its payout account. On an early withdrawal the interest the customer
+                // forfeits (FeeAmount) leaves the deposit too and reduces the bank's interest expense.
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit, amount,
+                    await FindAccountIdAsync(EntryType.Credit, amount));
+                if (transactionType == TransactionType.FdEarlyWithdrawal && feeAmount > 0m)
+                {
+                    Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, feeAmount, sourceAccountId);
+                    Add(AccountingConstants.InterestExpenseGlCode, EntryType.Credit, feeAmount);
                 }
                 break;
             }
@@ -488,6 +504,21 @@ public sealed class LedgerPostingService
         EnsureDebitIsPermitted(accountType, amount, purpose);
         EnsureBalanceCoversDebit(account, amount + feeAmount);
         await EnsureWithinTransactionLimitsAsync(account, amount, purpose, now, cancellationToken);
+    }
+
+    /// <summary>
+    /// Rejects a transfer into an account whose type does not take deposits (e.g. a fixed deposit), the same rule a
+    /// cash deposit gets. The account type must be loaded.
+    /// </summary>
+    public static void EnsureCanReceiveTransfer(Account account)
+    {
+        var accountType = account.AccountType
+            ?? throw new InvalidOperationException("The account type must be loaded before checking credit rules.");
+
+        if (!accountType.AllowDeposit)
+        {
+            throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+        }
     }
 
     // Rejects a withdrawal or transfer the account type does not allow, and a withdrawal below its minimum amount.

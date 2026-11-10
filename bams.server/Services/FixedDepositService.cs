@@ -451,7 +451,19 @@ public sealed class FixedDepositService : IFixedDepositService
         var principal = maturedDeposit.CalculateFromCurrent
             ? maturedDeposit.CurrentPrincipal
             : maturedDeposit.OriginalPrincipal;
-        var startDate = BusinessTime.ToBusinessDate(createdAt);
+        return BuildRenewedDeposit(maturedDeposit, principal, BusinessTime.ToBusinessDate(createdAt), createdAt);
+    }
+
+    /// <summary>
+    /// Builds the successor of a renewing deposit: same account, rate, term, payout account and settings, a new term
+    /// starting on <paramref name="startDate"/>, and <paramref name="principal"/> as its principal.
+    /// </summary>
+    internal static FixedDeposit BuildRenewedDeposit(
+        FixedDeposit maturedDeposit,
+        decimal principal,
+        DateOnly startDate,
+        DateTime createdAt)
+    {
         return new FixedDeposit
         {
             AccountId = maturedDeposit.AccountId,
@@ -482,7 +494,7 @@ public sealed class FixedDepositService : IFixedDepositService
         return parsedStatus;
     }
 
-    private static FixedDepositResponse ToResponse(FixedDeposit deposit)
+    internal static FixedDepositResponse ToResponse(FixedDeposit deposit)
     {
         return new FixedDepositResponse(deposit.Id, deposit.AccountId, deposit.PrincipalAmount,
             deposit.InterestRateRuleId, deposit.AppliedAnnualRate, deposit.StartDate, deposit.MaturityDate,
