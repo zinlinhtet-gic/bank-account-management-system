@@ -8,6 +8,8 @@ public static class CustomerFieldRules
 {
     public const int FullNameMaximumLength = 150;
     public const int NrcNumberMaximumLength = 20;
+    // The digits-only serial segment shown in parentheses on the NRC number, e.g. the "123456" in "9/AHMAYA(N)123456".
+    public const int NrcSerialNumberLength = 6;
     public const int PassportNumberMaximumLength = 20;
     public const int MinimumAgeYears = 18;
     public const string CustomerEmailRegexPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";

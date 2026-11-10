@@ -77,7 +77,30 @@
                                     <Run Text="NRC NUMBER" />
                                     <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                 </TextBlock>
-                                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 12/AhLaNa(N)123456" Text="{Binding NrcNumber, UpdateSourceTrigger=PropertyChanged}" t:ThemeAssist.HasError="{Binding HasNrcNumberError}" />
+                                <!-- Two rows of two controls each: a single row of four combo/text boxes does not
+                                     fit this column's width (one third of the page), so it wraps here instead. -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" MinWidth="55" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="50" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="75" />
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox Grid.Column="0" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="State" ItemsSource="{Binding NrcStates}" SelectedItem="{Binding SelectedNrcState, Mode=TwoWay}" t:ThemeAssist.HasError="{Binding HasNrcNumberError}" />
+                                    <!-- / -->
+                                    <TextBlock Grid.Column="1" Text="/" VerticalAlignment="Center" Margin="4,0" />
+                                    <ComboBox Grid.Column="2" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Township" ItemsSource="{Binding NrcTownships}" SelectedItem="{Binding SelectedNrcTownship, Mode=TwoWay}" t:ThemeAssist.HasError="{Binding HasNrcNumberError}" />
+                                    <!-- ( -->
+                                    <TextBlock Grid.Column="3" Text="(" VerticalAlignment="Center" Margin="3,0" />
+                                    <ComboBox Grid.Column="4" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Type" ItemsSource="{Binding NrcTypeOptions}" SelectedItem="{Binding SelectedNrcType, Mode=TwoWay}" t:ThemeAssist.HasError="{Binding HasNrcNumberError}" />
+                                    <!-- ) -->
+                                    <TextBlock Grid.Column="5" Text=")" VerticalAlignment="Center" Margin="3,0" />
+                                    <TextBox Grid.Column="6" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="123456" MaxLength="{Binding NrcSerialNumberLength}" Text="{Binding NrcSerialNumber, UpdateSourceTrigger=PropertyChanged}" t:ThemeAssist.HasError="{Binding HasNrcNumberError}" />
+                                </Grid>
+                                <TextBlock Text="{Binding NrcNumber, StringFormat='NRC: {0}'}" Style="{StaticResource Text.BodyMuted}" Margin="0,4,0,0" Visibility="{Binding HasComposedNrcNumber, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 <TextBlock Text="{Binding NrcNumberError}" Style="{StaticResource Text.Error}" Visibility="{Binding HasNrcNumberError, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0" IsEnabled="{Binding IsForeigner}">

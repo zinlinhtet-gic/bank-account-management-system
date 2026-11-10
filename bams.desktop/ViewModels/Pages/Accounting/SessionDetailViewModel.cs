@@ -23,6 +23,10 @@ public sealed class SessionDetailViewModel : SessionPageViewModel
     public AsyncRelayCommand RejectCommand { get; }
     public AsyncRelayCommand RecountCommand { get; }
     public bool IsOwner => Session?.TellerId == _auth.UserId;
+    // The server only allows cash to be received into a teller session that is already Open
+    // (CashOperationsService.ResolveCashProposalAsync throws CashSessionNotOpen otherwise), so a
+    // Scheduled session's owner must activate it from Session Management before a receipt can be accepted.
+    public bool RequiresSessionActivation => Session?.Status == "Scheduled";
     public SessionDetailViewModel(ICashOperationsClientService client, AuthContext auth, IDialogService dialogs)
     {
         _client = client; _auth = auth; _dialogs = dialogs;
@@ -32,7 +36,7 @@ public sealed class SessionDetailViewModel : SessionPageViewModel
             var request = (CashProposalResponse)row!;
             await client.ReceiveCashProposalAsync(request.Id, new(request.Version, null), CancellationToken.None);
             await LoadAsync(CancellationToken.None);
-        }), row => !IsBusy && IsOwner && row is CashProposalResponse { Status: "PendingReceipt" });
+        }), row => !IsBusy && IsOwner && Session?.Status == "Open" && row is CashProposalResponse { Status: "PendingReceipt" });
         RejectCommand = new(row => RunAsync(async () =>
         {
             var request = (CashProposalResponse)row!;
@@ -58,7 +62,7 @@ public sealed class SessionDetailViewModel : SessionPageViewModel
     {
         if (SessionId is null) return;
         var detail = await _client.GetSessionDetailAsync(SessionId.Value, cancellationToken);
-        Session = detail.Session; OnPropertyChanged(nameof(IsOwner));
+        Session = detail.Session; OnPropertyChanged(nameof(IsOwner)); OnPropertyChanged(nameof(RequiresSessionActivation));
         Transactions.Clear(); foreach (var row in detail.Transactions ?? []) Transactions.Add(row);
         Movements.Clear(); foreach (var row in detail.Movements) Movements.Add(row);
         Counts.Clear(); foreach (var row in detail.Counts) Counts.Add(row);
