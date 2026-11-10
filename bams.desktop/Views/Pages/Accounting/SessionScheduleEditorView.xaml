@@ -4,7 +4,7 @@
 <ComboBox Style="{StaticResource Input.Select}" Width="240" Margin="0,0,8,0" ItemsSource="{Binding DataContext.Officers, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding Officer}" DisplayMemberPath="FullName" ToolTip="Assigned officer"/>
 <TextBox Width="95" Margin="0,0,8,0" Text="{Binding Start,UpdateSourceTrigger=PropertyChanged}" ToolTip="Start time (HH:mm)" Style="{StaticResource Input.Text}"/>
 <TextBox Width="95" Margin="0,0,8,0" Text="{Binding End,UpdateSourceTrigger=PropertyChanged}" ToolTip="End time (HH:mm)" Style="{StaticResource Input.Text}"/>
-<TextBox Width="140" Margin="0,0,8,0" Text="{Binding Cash,UpdateSourceTrigger=PropertyChanged}" ToolTip="Starting cash" Style="{StaticResource Input.Text}"/>
+<TextBox Width="140" Margin="0,0,8,0" Text="{Binding Cash,UpdateSourceTrigger=PropertyChanged}" ToolTip="Starting cash" Style="{StaticResource Input.Money}"/>
 <Button Content="Add" Style="{StaticResource Button.Secondary}" Command="{Binding DataContext.AddCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" Visibility="{Binding IsLast,Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0"/>
 <Button Content="Remove" Style="{StaticResource Button.Secondary}" Command="{Binding DataContext.RemoveCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
 </WrapPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>

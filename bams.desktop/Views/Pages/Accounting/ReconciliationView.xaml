@@ -81,9 +81,9 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Account" Binding="{Binding AccountNo}" />
                                 <DataGridTextColumn Header="Date" Binding="{Binding BusinessDate}" />
-                                <DataGridTextColumn Header="Account balance" Binding="{Binding OperationalBalance, StringFormat=N2}" />
-                                <DataGridTextColumn Header="General Ledger balance" Binding="{Binding LedgerBalance, StringFormat=N2}" />
-                                <DataGridTextColumn Header="Difference (account − ledger)" Binding="{Binding Difference, StringFormat=N2}" />
+                                <DataGridTextColumn Header="Account balance" Binding="{Binding OperationalBalance, Converter={StaticResource Money}}" />
+                                <DataGridTextColumn Header="General Ledger balance" Binding="{Binding LedgerBalance, Converter={StaticResource Money}}" />
+                                <DataGridTextColumn Header="Difference (account − ledger)" Binding="{Binding Difference, Converter={StaticResource Money}}" />
                                 <DataGridTextColumn Header="Result" Binding="{Binding Status}" />
                             </DataGrid.Columns>
                         </DataGrid>
@@ -116,9 +116,9 @@
                                 <DataGridTextColumn Header="Case number" Binding="{Binding Id}" />
                                 <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
                                 <DataGridTextColumn Header="Date" Binding="{Binding BusinessDate}" />
-                                <DataGridTextColumn Header="Account balance" Binding="{Binding ExpectedAmount, StringFormat=N2}" />
-                                <DataGridTextColumn Header="General Ledger balance" Binding="{Binding ActualAmount, StringFormat=N2}" />
-                                <DataGridTextColumn Header="Difference (account − ledger)" Binding="{Binding Difference, StringFormat=N2}" />
+                                <DataGridTextColumn Header="Account balance" Binding="{Binding ExpectedAmount, Converter={StaticResource Money}}" />
+                                <DataGridTextColumn Header="General Ledger balance" Binding="{Binding ActualAmount, Converter={StaticResource Money}}" />
+                                <DataGridTextColumn Header="Difference (account − ledger)" Binding="{Binding Difference, Converter={StaticResource Money}}" />
                                 <DataGridTextColumn Header="Case status" Binding="{Binding Status}" />
                             </DataGrid.Columns>
                         </DataGrid>
@@ -179,7 +179,7 @@
                                         <DataGridTextColumn Header="Transaction number" Binding="{Binding TransactionNo}" />
                                         <DataGridTextColumn Header="Transaction type" Binding="{Binding Type}" />
                                         <DataGridTextColumn Header="Posting status" Binding="{Binding Status}" />
-                                        <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=N2}" />
+                                        <DataGridTextColumn Header="Amount" Binding="{Binding Amount, Converter={StaticResource Money}}" />
                                         <DataGridTextColumn Header="General Ledger entries (debit / credit)" Binding="{Binding JournalPreview}" Width="*" />
                                     </DataGrid.Columns>
                                 </DataGrid>

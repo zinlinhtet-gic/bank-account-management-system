@@ -67,7 +67,7 @@
             <!-- Row 1: amount + percentage (optional; a fee rule may use either) -->
             <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="AMOUNT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 5000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 5000"
                          Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasAmountError}"/>
                 <TextBlock Text="{Binding AmountError}" Style="{StaticResource Text.Error}"
@@ -85,7 +85,7 @@
             <!-- Row 2: fee range (optional) -->
             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="MINIMUM FEE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 1000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 1000"
                          Text="{Binding MinimumFeeText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMinimumFeeError}"/>
                 <TextBlock Text="{Binding MinimumFeeError}" Style="{StaticResource Text.Error}"
@@ -93,7 +93,7 @@
             </StackPanel>
             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="MAXIMUM FEE (OPTIONAL)" Style="{StaticResource Text.FieldLabel}"/>
-                <TextBox Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="e.g. 20000"
+                <TextBox Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="e.g. 20000"
                          Text="{Binding MaximumFeeText, UpdateSourceTrigger=PropertyChanged}"
                          t:ThemeAssist.HasError="{Binding HasMaximumFeeError}"/>
                 <TextBlock Text="{Binding MaximumFeeError}" Style="{StaticResource Text.Error}"

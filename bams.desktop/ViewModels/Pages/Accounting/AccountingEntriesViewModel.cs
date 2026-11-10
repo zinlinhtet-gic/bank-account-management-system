@@ -150,13 +150,42 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
     {
         Entries.Clear(); foreach (var entry in result.Items) Entries.Add(entry);
         TransactionGroups.Clear();
-        foreach (var group in result.Items.GroupBy(entry => entry.TransactionId).OrderByDescending(group => group.First().TransactionAt).ThenByDescending(group => group.Key))
-            TransactionGroups.Add(new AccountingTransactionGroupDisplayModel(group.OrderBy(entry => entry.Id).ToList()));
+        foreach (var group in AccountingTransactionGroupDisplayModel.BuildGroups(result.Items, CreateFilterMatcher()))
+            TransactionGroups.Add(group);
+        OnPropertyChanged(nameof(HighlightHint));
         _currentPage = result.PageNumber; 
         _totalCount = result.TotalCount;
         OnPropertyChanged(nameof(CurrentPage)); OnPropertyChanged(nameof(TotalPages)); OnPropertyChanged(nameof(PageInfo));
         OnPropertyChanged(nameof(HasPreviousPage)); OnPropertyChanged(nameof(HasNextPage)); OnPropertyChanged(nameof(CountText)); OnPropertyChanged(nameof(IsEmpty));
         PreviousPageCommand.RaiseCanExecuteChanged(); NextPageCommand.RaiseCanExecuteChanged();
+    }
+
+    // True when any filter narrows the result; only then are matching journal lines highlighted.
+    private bool HasActiveFilter =>
+        FromDate.HasValue || ToDate.HasValue ||
+        SelectedGlAccount is { IsAll: false } || SelectedEntryType is { IsAll: false };
+
+    /// <summary>Legend text for highlighted lines, or null when no filter is active.</summary>
+    public string? HighlightHint => HasActiveFilter ? "Highlighted lines match your filter." : null;
+
+    // The server returns every line of each matching transaction; this marks the lines that met the filter.
+    private Func<AccountingEntryResponse, bool>? CreateFilterMatcher()
+    {
+        if (!HasActiveFilter)
+        {
+            return null;
+        }
+
+        var fromDate = FromDate.HasValue ? DateOnly.FromDateTime(FromDate.Value) : (DateOnly?)null;
+        var toDate = ToDate.HasValue ? DateOnly.FromDateTime(ToDate.Value) : (DateOnly?)null;
+        var glAccountId = SelectedGlAccount is { IsAll: false } gl ? gl.Value : (long?)null;
+        var entryType = SelectedEntryType is { IsAll: false } type ? type.Value : (EntryType?)null;
+
+        return entry =>
+            (fromDate is null || entry.PostingDate >= fromDate) &&
+            (toDate is null || entry.PostingDate <= toDate) &&
+            (glAccountId is null || entry.GlAccountId == glAccountId) &&
+            (entryType is null || entry.EntryType == entryType);
     }
 
     private void ResetFilters()

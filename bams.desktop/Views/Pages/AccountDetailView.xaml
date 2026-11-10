@@ -28,11 +28,11 @@
               </StackPanel>
               <StackPanel Margin="0,8">
                 <TextBlock Text="AVAILABLE BALANCE" Style="{StaticResource Text.FieldLabel}" />
-                <TextBlock Text="{Binding Workflow.SelectedAccount.AvailableBalance, StringFormat={}{0:N2}, diag:PresentationTraceSources.TraceLevel=High}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.AvailableBalance, Converter={StaticResource Money}, diag:PresentationTraceSources.TraceLevel=High}" />
               </StackPanel>
               <StackPanel Margin="0,8">
                 <TextBlock Text="LEDGER BALANCE" Style="{StaticResource Text.FieldLabel}" />
-                <TextBlock Text="{Binding Workflow.SelectedAccount.LedgerBalance, StringFormat={}{0:N2}, diag:PresentationTraceSources.TraceLevel=High}" />
+                <TextBlock Text="{Binding Workflow.SelectedAccount.LedgerBalance, Converter={StaticResource Money}, diag:PresentationTraceSources.TraceLevel=High}" />
               </StackPanel>
               <StackPanel Margin="0,8">
                 <TextBlock Text="OPENED" Style="{StaticResource Text.FieldLabel}" />
@@ -57,7 +57,7 @@
               <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="10" Margin="0,3">
                 <DockPanel>
                   <TextBlock Text="{Binding TransactionNo}" Style="{StaticResource Text.Mono}" />
-                  <TextBlock Text="{Binding Amount, StringFormat={}{0:N2}}" Style="{StaticResource Text.Mono}" DockPanel.Dock="Right" />
+                  <TextBlock Text="{Binding Amount, Converter={StaticResource Money}}" Style="{StaticResource Text.Mono}" DockPanel.Dock="Right" />
                   <TextBlock Text="{Binding TransactionType}" Style="{StaticResource Text.Body}" Margin="14,0,0,0" />
                   <TextBlock Text="{Binding TransactionStatus}" Style="{StaticResource Text.Caption}" Margin="10,0,0,0" />
                   <TextBlock Text="{Binding EntryType}" Style="{StaticResource Text.Caption}" Margin="10,0,0,0" />
@@ -97,7 +97,7 @@
                   <TextBlock Text="{Binding PeriodStart}" />
                   <TextBlock Text=" – " />
                   <TextBlock Text="{Binding PeriodEnd}" />
-                  <TextBlock Text="{Binding CalculatedAmount, StringFormat={}{0:N2}}" DockPanel.Dock="Right" />
+                  <TextBlock Text="{Binding CalculatedAmount, Converter={StaticResource Money}}" DockPanel.Dock="Right" />
                 </DockPanel>
               </Border>
             </DataTemplate>

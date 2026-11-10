@@ -1158,6 +1158,7 @@ Sizes: `t:ThemeAssist.Size="Small"` (28px, toolbars and filter bars), default Me
 | Style              | Control      | Extras                                                            |
 | ------------------ | ------------ | ----------------------------------------------------------------- |
 | `Input.Text`       | TextBox      | `t:ThemeAssist.Placeholder`, `.Prefix="MMK"`, `.HasError`; `AcceptsReturn="True"` for multi-line |
+| `Input.Money`      | TextBox      | Use for explicit money fields; formats thousands separators while typing and normalizes valid values to `1,000.00` on focus loss |
 | `Input.Password`   | PasswordBox  | `.HasError` (no placeholder: WPF limitation)                      |
 | `Input.Select`     | ComboBox     | `.Placeholder`, `.HasError`                                       |
 | `Input.Check`      | CheckBox     | Content is the label                                              |

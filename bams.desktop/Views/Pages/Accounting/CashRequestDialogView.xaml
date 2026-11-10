@@ -11,7 +11,7 @@
 
         <TextBlock Text="AMOUNT (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" />
         <TextBox Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
-                 Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Leave blank for the manager to choose" />
+                 Style="{StaticResource Input.Money}" t:ThemeAssist.Placeholder="Leave blank for the manager to choose" />
         <TextBlock Text="{Binding AmountError}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"
                    Visibility="{Binding HasAmountError, Converter={StaticResource BooleanToVisibilityConverter}}" />
 

@@ -123,22 +123,7 @@ public sealed class AccountingReportService : IAccountingReportService
             .OrderByDescending(entry => entry.Transaction!.TransactionAt)
             .ThenBy(entry => entry.TransactionId)
             .ThenBy(entry => entry.Id)
-            .Select(entry => new AccountingEntryResponse(
-                entry.Id,
-                entry.TransactionId,
-                entry.Transaction!.TransactionNo,
-                entry.Transaction.TransactionType,
-                entry.Transaction.TransactionAt,
-                entry.GlAccountId,
-                entry.GlAccount!.Code,
-                entry.GlAccount.Name,
-                entry.CustomerAccountId,
-                entry.CustomerAccount == null ? null : entry.CustomerAccount.AccountNo,
-                entry.EntryType,
-                entry.Amount,
-                entry.PostingDate,
-                entry.Description,
-                entry.CreatedAt))
+            .Select(ToAccountingEntryResponse)
             .ToListAsync(cancellationToken);
 
         return new GlAccountDetailResponse(account, new PagedResponse<AccountingEntryResponse>(entries, page, pageSize, totalCount,(int)Math.Ceiling(totalCount/(double)pageSize)));
@@ -248,30 +233,44 @@ public sealed class AccountingReportService : IAccountingReportService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var items = await query
+        // Filters choose which transactions appear, but every line of each transaction is returned so the client
+        // always shows a complete, balanced journal and highlights the lines that matched the filter.
+        var items = await _dbContext.TransactionEntries
+            .AsNoTracking()
             .Where(entry => transactionIds.Contains(entry.TransactionId))
             .OrderByDescending(entry => entry.PostingDate)
             .ThenByDescending(entry => entry.Id)
-            .Select(entry => new AccountingEntryResponse(
-                entry.Id,
-                entry.TransactionId,
-                entry.Transaction!.TransactionNo,
-                entry.Transaction.TransactionType,
-                entry.Transaction.TransactionAt,
-                entry.GlAccountId,
-                entry.GlAccount!.Code,
-                entry.GlAccount.Name,
-                entry.CustomerAccountId,
-                entry.CustomerAccount == null ? null : entry.CustomerAccount.AccountNo,
-                entry.EntryType,
-                entry.Amount,
-                entry.PostingDate,
-                entry.Description,
-                entry.CreatedAt
-            )).ToListAsync(cancellationToken);
+            .Select(ToAccountingEntryResponse)
+            .ToListAsync(cancellationToken);
 
         return new PagedResponse<AccountingEntryResponse>(items, page, pageSize, totalCount,(int)Math.Ceiling(totalCount/(double)pageSize));
     }
+
+    // Shared EF-translatable projection for journal lines on the GL detail and Accounting Entries pages.
+    // The owner is the primary holder of the customer account; bank-level GL lines have no customer account.
+    private static readonly System.Linq.Expressions.Expression<Func<TransactionEntry, AccountingEntryResponse>>
+        ToAccountingEntryResponse = entry => new AccountingEntryResponse(
+            entry.Id,
+            entry.TransactionId,
+            entry.Transaction!.TransactionNo,
+            entry.Transaction.TransactionType,
+            entry.Transaction.TransactionAt,
+            entry.GlAccountId,
+            entry.GlAccount!.Code,
+            entry.GlAccount.Name,
+            entry.CustomerAccountId,
+            entry.CustomerAccount == null ? null : entry.CustomerAccount.AccountNo,
+            entry.CustomerAccount == null
+                ? null
+                : entry.CustomerAccount.AccountHolders
+                    .Where(holder => holder.IsPrimary)
+                    .Select(holder => holder.Customer!.FullName)
+                    .FirstOrDefault(),
+            entry.EntryType,
+            entry.Amount,
+            entry.PostingDate,
+            entry.Description,
+            entry.CreatedAt);
 
     // Ensures the supplied month represents a valid calendar month.
     private static void ValidateMonth(int month)

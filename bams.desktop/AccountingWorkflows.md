@@ -2,6 +2,14 @@
 
 The Accounting navigation contains General Ledger, Journal Entries, End of Day, and Bank Expense Recording. Reconciliation has its own navigation group; Cash Management retains teller cash-session operations. Pages use the existing MVVM flow: views bind to page ViewModels, ViewModels call typed client services, and services use the shared `ApiClient`.
 
+## Journal tables
+
+The GL account detail and Accounting Entries pages use the shared `AccountingJournalTable`. Each transaction is shown as one block. Its header gives the transaction number, type, date and time (and the posting date when it differs), description, Dr/Cr totals and a Balanced/Unbalanced badge. Below the header are its journal lines, debits first, each with a Dr/Cr badge, GL code and name, Account No, Account Owner, and the debit or credit amount.
+
+Account Owner is the account's primary holder (`customerAccountOwnerName` in `AccountingEntryResponse`). Bank-level GL lines with no customer account, such as Cash on Hand, fee income or interest payable, show a "Bank internal" badge and "Bank" as the owner.
+
+On GL account detail, lines that post to the viewed account are highlighted. On Accounting Entries, filters (dates, GL account, entry type) choose which transactions appear, but the server always returns every line of each transaction, so blocks stay complete and balanced. The lines that matched the filter are highlighted.
+
 ## Reconciliation
 
 The Reconciliation master page runs unified account/GL and cash checks and displays active exceptions in separate tabs. Row actions are Assign, Perform Reconcile, and Force Pass. Assign opens a dialog for an officer or auditor. Assigned staff use Assigned Reconciliation Tasks, which lists only their work and offers Perform Reconcile. Managers use Reconcile Proposals to accept or reject submitted proposals.

@@ -16,9 +16,9 @@
                     <DataGridTextColumn Header="ID" Binding="{Binding Id}"/>
                     <DataGridTextColumn Header="Type / Source" Binding="{Binding Type}"/>
                     <DataGridTextColumn Header="Date" Binding="{Binding BusinessDate}"/>
-                    <DataGridTextColumn Header="Expected" Binding="{Binding ExpectedAmount, StringFormat=N2}"/>
-                    <DataGridTextColumn Header="Actual" Binding="{Binding ActualAmount, StringFormat=N2}"/>
-                    <DataGridTextColumn Header="Difference" Binding="{Binding Difference, StringFormat=N2}"/>
+                    <DataGridTextColumn Header="Expected" Binding="{Binding ExpectedAmount, Converter={StaticResource Money}}"/>
+                    <DataGridTextColumn Header="Actual" Binding="{Binding ActualAmount, Converter={StaticResource Money}}"/>
+                    <DataGridTextColumn Header="Difference" Binding="{Binding Difference, Converter={StaticResource Money}}"/>
                     <DataGridTextColumn Header="Severity" Binding="{Binding Severity}"/>
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}"/>
                     <DataGridTextColumn Header="Assigned" Binding="{Binding AssignedTo}"/>

@@ -1,7 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:t="clr-namespace:bams.desktop.Themes"
-                    xmlns:icon="clr-namespace:bams.desktop.Components.Icon">
+                    xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
+                    xmlns:behaviors="clr-namespace:bams.desktop.Behaviors">
 
     <!-- Tokens this file uses. WPF cannot see sibling dictionaries, so each theme file merges its own. -->
     <ResourceDictionary.MergedDictionaries>
@@ -27,6 +28,8 @@
 
     <!-- ===================== TextBox ===================== -->
     <Style x:Key="Input.Text" TargetType="TextBox">
+        <!-- The behavior detects money bindings by name; non-financial text boxes remain unchanged. -->
+        <Setter Property="behaviors:MoneyInput.IsEnabled" Value="True"/>
         <Setter Property="FontFamily" Value="{StaticResource SansFont}"/>
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}"/>
         <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
@@ -129,6 +132,13 @@
                 <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- Applies live thousands grouping only where a view explicitly identifies a monetary input. -->
+    <Style x:Key="Input.Money" TargetType="TextBox" BasedOn="{StaticResource Input.Text}">
+        <Setter Property="behaviors:MoneyInput.IsMoneyField" Value="True"/>
+        <Setter Property="behaviors:MoneyInput.IsEnabled" Value="True"/>
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
     </Style>
 
     <!-- ===================== PasswordBox ===================== -->
