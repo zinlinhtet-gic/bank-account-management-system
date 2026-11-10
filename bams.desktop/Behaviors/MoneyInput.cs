@@ -105,6 +105,13 @@ public static class MoneyInput
     {
         var meaningfulCharacterCount = originalText[..Math.Min(originalCaret, originalText.Length)]
             .Count(character => char.IsDigit(character) || character is '.' or '-');
+
+        // A caret before every meaningful character stays at the start instead of jumping to the end.
+        if (meaningfulCharacterCount == 0)
+        {
+            return 0;
+        }
+
         var seen = 0;
 
         for (var index = 0; index < formattedText.Length; index++)
