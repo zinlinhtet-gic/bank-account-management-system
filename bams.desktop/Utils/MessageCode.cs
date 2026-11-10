@@ -57,6 +57,8 @@ public enum MessageCode
     PassportNumberRequired = 3204,
     CustomerDocumentFileEmpty = 3205,
     CustomerEmailInvalid = 3206,
+    NrcNumberInvalid = 3209,
+    PassportNumberInvalid = 3210,
     SameSourceAndDestinationAccount = 3300,
     InvalidPickupCode = 3301,
 

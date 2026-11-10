@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Customers;
@@ -37,6 +38,8 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     private string _dateOfBirthError = string.Empty;
     private string _nrcNumberError = string.Empty;
     private string _passportNumberError = string.Empty;
+
+    private string _emailError = string.Empty;
     private string _nationalityError = string.Empty;
     private string _phoneError = string.Empty;
     private string _addressLine1Error = string.Empty;
@@ -176,7 +179,13 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     public string Email
     {
         get => _email;
-        set => SetProperty(ref _email, value);
+        set
+        {
+            if (SetProperty(ref _email, value))
+            {
+                EmailError = string.Empty;
+            }
+        }
     }
 
     public string Occupation
@@ -335,6 +344,20 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
     public bool HasNationalityError => !string.IsNullOrEmpty(NationalityError);
 
+
+    public string EmailError
+    {
+        get => _emailError;
+        private set
+        {
+            if (SetProperty(ref _emailError, value))
+            {
+                OnPropertyChanged(nameof(HasEmailError));
+            }
+        }
+    }
+
+    public bool HasEmailError => !string.IsNullOrEmpty(EmailError);
     public string PhoneError
     {
         get => _phoneError;
@@ -567,16 +590,43 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
         DateOfBirthError = ValidateDateOfBirth();
 
-        NrcNumberError = IsCitizen && NrcNumber.Trim().Length == 0
-            ? MessageCatalog.GetMessage(MessageCode.NrcNumberRequired)
-            : string.Empty;
+        var nrc = NrcNumber.Trim();
 
-        PassportNumberError = IsForeigner && PassportNumber.Trim().Length == 0
+        NrcNumberError = !IsCitizen
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(nrc)
+            ? MessageCatalog.GetMessage(MessageCode.NrcNumberRequired)
+            : !Regex.IsMatch(nrc, CustomerFieldRules.NrcNumberRegexPattern)
+                ? MessageCatalog.GetMessage(MessageCode.NrcNumberInvalid)
+                : string.Empty;
+
+
+        var passport = PassportNumber.Trim();
+        PassportNumberError = !IsForeigner
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(passport)
             ? MessageCatalog.GetMessage(MessageCode.PassportNumberRequired)
+            : !Regex.IsMatch(passport, CustomerFieldRules.PassportNumberRegexPattern)
+                ? MessageCatalog.GetMessage(MessageCode.PassportNumberInvalid)
+                : string.Empty;
+
+        var email = Email.Trim();
+
+        EmailError = !string.IsNullOrWhiteSpace(email)
+        && !Regex.IsMatch(email, CustomerFieldRules.CustomerEmailRegexPattern)
+            ? "Please enter a valid email address."
             : string.Empty;
 
         NationalityError = Nationality.Trim().Length == 0 ? "Please enter the nationality." : string.Empty;
-        PhoneError = Phone.Trim().Length == 0 ? "Please enter a phone number." : string.Empty;
+        // PhoneError = Phone.Trim().Length == 0 ? "Please enter a phone number." : string.Empty 
+        //     : !Regex.IsMatch(Phone.Trim(), CustomerFieldRules.PhoneNumberRegexPattern)
+        //         ? "Please enter a valid phone number."
+        //         : string.Empty;
+
+        PhoneError = !string.IsNullOrWhiteSpace(Phone.Trim())
+        && !Regex.IsMatch(Phone.Trim(), CustomerFieldRules.PhoneNumberRegexPattern)
+            ? "Please enter a valid phone number."
+            : string.Empty;
         AddressLine1Error = AddressLine1.Trim().Length == 0 ? "Please enter the address." : string.Empty;
         CityError = City.Trim().Length == 0 ? "Please enter the city." : string.Empty;
         StateError = State.Trim().Length == 0 ? "Please enter the state or region." : string.Empty;
@@ -587,7 +637,7 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         var documentsValid = AllDocuments.Aggregate(true, (valid, document) => document.Validate() & valid);
 
         return !HasFullNameError && !HasDateOfBirthError && !HasNrcNumberError && !HasPassportNumberError
-            && !HasNationalityError && !HasPhoneError && !HasAddressLine1Error && !HasCityError
+            && !HasNationalityError && !HasPhoneError && !HasEmailError && !HasAddressLine1Error && !HasCityError
             && !HasStateError && !HasCountryError && documentsValid;
     }
 
@@ -694,9 +744,11 @@ public sealed class CustomerCreateViewModel : ViewModelBase
                 DateOfBirthError = exception.Message;
                 break;
             case MessageCode.NrcNumberRequired:
+            case MessageCode.NrcNumberInvalid:
                 NrcNumberError = exception.Message;
                 break;
             case MessageCode.PassportNumberRequired:
+            case MessageCode.PassportNumberInvalid:
                 PassportNumberError = exception.Message;
                 break;
             default:

@@ -51,6 +51,10 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         RefreshCommand = new AsyncRelayCommand(() => ReloadFirstPageAsync(CancellationToken.None));
         ShowCreateFormCommand = new RelayCommand(_ =>
         {
+            if (!CanManageCustomers)
+            {
+                return;
+            }
             CreateForm.Reset();
             IsShowingCreateForm = true;
         });

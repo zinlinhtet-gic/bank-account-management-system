@@ -71,6 +71,8 @@ public static class MessageCatalog
             [MessageCode.InvalidCredentials] = "Invalid username or password.",
             [MessageCode.PasswordDoesNotMeetRequirements] = "The password does not meet the requirements.",
             [MessageCode.InvalidEmailFormat] = "Please enter a valid email address.",
+            [MessageCode.NrcNumberInvalid] = "The NRC number format is invalid. It must match the pattern: 01/ABC(N)123456.",
+            [MessageCode.PassportNumberInvalid] = "The passport number format is invalid. It must be 6-9 alphanumeric characters.",
             [MessageCode.InvalidUsernameFormat] = "3-64 characters: letters, numbers, dot, underscore or hyphen. No spaces.",
             [MessageCode.InvalidPhoneFormat] = "Please enter a valid phone number.",
             [MessageCode.InvalidRole] = "Please choose a role.",
