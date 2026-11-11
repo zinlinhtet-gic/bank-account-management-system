@@ -25,7 +25,17 @@ This page summarizes invariants enforced by server services. Constants and servi
 - Fixed-deposit behavior is selected by the product's `FIXED` category. Creation requires an applicable interest rule, renewal instruction, and calculation-source choice.
 - The calculation-source choice is immutable after creation. The HTTP update surface is limited to payout account and renewal instruction; lifecycle operations are service workflows.
 - A payout account must be active, individually owned by the primary holder, and not itself a fixed-deposit product. If omitted at creation, the server selects an eligible account. Product-opening prerequisites do not constrain payout-account selection.
-- Closed and Cancelled deposits are terminal. Current principal cannot be negative. Renewable maturity creates a successor using the applicable rate, term, payout account, and renewal settings. Renewal principal follows the stored calculation-source choice.
+- Closed and Cancelled deposits are terminal. Current principal cannot be negative. Renewable maturity creates a successor using the applicable rate, term, payout account, and renewal settings.
+- Fixed-deposit account types allow no deposits, withdrawals, or transfers, so tellers cannot move money in or out. An internal transfer into an account whose type does not allow deposits is rejected with `DepositNotAllowed`, the same as a cash deposit. Money leaves a fixed deposit only through maturity or early withdrawal, always to its payout account.
+- Maturity (`fixed-deposit-maturity` job, hourly, only while the business date is open): for each active deposit due today or earlier whose account is active or dormant, the remaining interest up to the day before maturity is accrued and credited to the deposit, then the renewal instruction is applied to the balance:
+  - `NoRenewal` pays the whole balance out (`FdMaturity`), closes the deposit (`Closed`), and closes the account.
+  - `PrincipalOnly` pays the interest out and renews the term's principal.
+  - `PrincipalAndInterest` renews the whole balance and pays nothing out.
+  - A renewed deposit becomes `Matured` and its successor starts on the old maturity date with the same term, payout account, and settings. Its rate is the one in force on that start date: the newest active interest rate rule of the account type with the same term whose balance band contains the renewed principal. When no such rule exists, the matured deposit's rule and rate are kept and a warning is logged. A deposit whose payout account is not active or dormant (for example frozen) is not selected, and is picked up by a later run once that account is usable again.
+  - All interest accruals still pending on the deposit up to the payout date are credited, including a monthly accrual whose period ends after maturity when the payout runs late.
+  - The payout is a scheduled posting: it gets a `JOB-` transaction number and does not count as customer activity, so it neither refreshes last activity nor reactivates a dormant deposit or payout account.
+- Early withdrawal (`fixed_deposit_early_withdrawal`, managers): only an active deposit before its maturity date. Interest is accrued and credited up to yesterday at the contract rate. The customer keeps interest up to what the term's principal earns at the interest rule's `EarlyWithdrawalRate` (zero when unset) for the days held, never more than was earned; the rest is forfeited. One `FdEarlyWithdrawal` posting pays the net to the payout account and debits the forfeited interest (its `FeeAmount`) to Interest Expense. The deposit and its account are closed.
+- The final part-month accrual made by a payout is recorded on the payout's business date. The monthly interest run skips days an earlier accrual of the account already covers.
 - Required account documents are defined by product configuration. Each document type can be supplied once; allowed formats and size limits are enforced by upload validation. Stored files use private generated references and begin pending verification.
 - Required documents may reuse a file from either current account holder. Automatic selection prefers the primary holder, then the highest eligible document ID. A source must be readable, nonempty, compatible with account upload validation, and unexpired on the Myanmar business date (expiry today is valid). Document verification is not an additional requirement; verified holder KYC remains mandatory.
 - Reused files are independent copies in account storage, with backend-derived metadata and a nullable source-document relationship (`ON DELETE SET NULL`). Customer file replacement or deletion never changes the account copy. New copies and uploads are removed if account creation rolls back.
@@ -42,7 +52,7 @@ This page summarizes invariants enforced by server services. Constants and servi
 ### Common posting rules
 
 - Transaction amounts must be positive and fit the configured decimal precision. Request text, dates, paging values, and account combinations are validated by the transaction services.
-- Closed, Frozen, and Suspended accounts cannot send or receive funds. Dormant accounts may be used for teller postings and are reactivated with status history; scheduled interest, fee, and dormant-penalty postings do not reactivate them.
+- Closed, Frozen, and Suspended accounts cannot send or receive funds. Dormant accounts may be used for teller postings and are reactivated with status history; scheduled interest, fee, dormant-penalty, and fixed-deposit maturity postings do not reactivate them.
 - Product capabilities govern deposits, withdrawals, and transfers. Minimum deposit/withdrawal amounts, minimum maintained balance, available funds, and daily/weekly/monthly customer debit limits apply where configured.
 - Financial postings are idempotent when an `Idempotency-Key` is supplied as required by the endpoint. A key cannot be reused for a different request.
 - Balance changes go through the ledger posting workflow. Customer and general-ledger entries must balance; refunds and linked account transactions are recorded atomically with their originating workflow.
@@ -50,7 +60,7 @@ This page summarizes invariants enforced by server services. Constants and servi
 ### Transfer lifecycle
 
 - Internal transfers post both sides in one operation. Interbank and NRC transfers can remain pending until completed, paid out, or cancelled under their respective workflows.
-- Pending transfers cannot be completed twice. Failure/cancellation refunds the source under the applicable rules. NRC pickup uses a protected pickup code; reissue invalidates the previous code.
+- Pending transfers cannot be completed twice. Failure/cancellation refunds the source under the applicable rules. NRC pickup uses a protected pickup code; reissue invalidates the previous code. After `MaximumFailedPickupAttempts` wrong codes or identity mismatches the transfer is blocked: it cannot be picked up or reissued a code, only cancelled and refunded.
 - Transfer fees and account-type restrictions are evaluated by the server. A caller cannot make an otherwise forbidden debit by choosing a different client screen.
 
 ### Cash custody

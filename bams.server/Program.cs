@@ -193,6 +193,8 @@ builder.Services.AddScoped<MonthlySummaryGenerationService>();
 builder.Services.AddScoped<MonthlyAccountingCloseService>();
 builder.Services.AddScoped<AccountMaintenanceService>();
 builder.Services.AddScoped<InterestAccumulationService>();
+builder.Services.AddScoped<FixedDepositPayoutService>();
+builder.Services.AddScoped<IFixedDepositPayoutService>(provider => provider.GetRequiredService<FixedDepositPayoutService>());
 builder.Services.AddScoped<ProductSeeder>();
 builder.Services.AddScoped<InterestRateRuleSeeder>();
 builder.Services.AddScoped<FeeRuleSeeder>();
@@ -223,6 +225,12 @@ builder.Services.AddScheduledJobs(builder.Configuration, jobs =>
         "Unactivated Cash Session Expiry",
         JobSchedule.Every(TimeSpan.FromMinutes(15)),
         (service, execution, cancellationToken) => service.ExecuteAsync(execution, cancellationToken));
+
+    jobs.Add<FixedDepositPayoutService>(
+        FixedDepositConstants.MaturityJobKey,
+        FixedDepositConstants.MaturityJobDisplayName,
+        JobSchedule.Every(FixedDepositConstants.MaturityJobInterval),
+        (service, execution, cancellationToken) => service.MatureDueFixedDepositsAsync(execution, cancellationToken));
 
     var monthlyAtMyanmarMidnight = JobSchedule.Monthly(2, TimeSpan.Zero, ScheduledJobPeriod.TimeZoneId);
     jobs.Add<MonthlyAccountingCloseService>(

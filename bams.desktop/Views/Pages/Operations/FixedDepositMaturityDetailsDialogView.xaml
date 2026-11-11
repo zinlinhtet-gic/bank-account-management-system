@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:bams.desktop.Themes"
              xmlns:icon="clr-namespace:bams.desktop.Components.Icon"
+             xmlns:constants="clr-namespace:bams.desktop.Constants"
              Width="620">
     <!-- Read-only fixed deposit card, hosted by ModalDialog (header and Close button stay put; the details scroll). DataContext: FixedDepositMaturityDetailsViewModel. -->
 
@@ -36,6 +37,10 @@
         </Grid>
 
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <!-- Opens the early-withdrawal quote; only for an active deposit before maturity -->
+            <Button Content="Break deposit early" Style="{StaticResource Button.Danger}" MinWidth="96" Margin="0,0,8,0"
+                    Command="{Binding EarlyWithdrawal.ShowQuoteCommand}"
+                    Visibility="{Binding EarlyWithdrawal.ShowsStartButton, Converter={StaticResource BooleanToVisibilityConverter}}"/>
             <Button Content="Close" Style="{StaticResource Button.Secondary}" MinWidth="96" IsDefault="True" IsCancel="True"
                     Command="{Binding CloseCommand}"/>
         </StackPanel>
@@ -43,6 +48,86 @@
         <!-- Details fill the space between header and footer and scroll when the window is too short -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0" Margin="0,20,0,0">
             <StackPanel>
+                <!-- Early withdrawal: result, error, then the quote with its confirm buttons. DataContext: FixedDepositEarlyWithdrawalViewModel. -->
+                <StackPanel DataContext="{Binding EarlyWithdrawal}">
+                    <ContentControl Style="{StaticResource Alert.Success}" Content="{Binding ResultMessage}" Margin="0,0,0,16"
+                                    Visibility="{Binding IsCompleted, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <ContentControl Style="{StaticResource Alert.Danger}" Content="{Binding ErrorMessage}" Margin="0,0,0,16"
+                                    Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                    <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,20"
+                            Visibility="{Binding ShowsQuote, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="BREAK DEPOSIT EARLY" Style="{StaticResource Text.Label}"/>
+                            <TextBlock Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,4,0,12"
+                                       Text="Interest above the early-withdrawal rate is forfeited. The rest is paid to the payout account and the deposit is closed."/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="PRINCIPAL" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Principal}" Style="{StaticResource Text.Mono}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Text="HELD FOR" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DaysHeld}" Style="{StaticResource Text.Body}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Text="CONTRACT RATE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ContractRate}" Style="{StaticResource Text.Mono}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Text="EARLY-WITHDRAWAL RATE" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding EarlyWithdrawalRate}" Style="{StaticResource Text.Mono}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Text="INTEREST EARNED" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding InterestEarned}" Style="{StaticResource Text.Mono}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Text="INTEREST KEPT" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding InterestKept}" Style="{StaticResource Text.Mono}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Text="INTEREST FORFEITED" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding InterestForfeited}" Style="{StaticResource Text.Mono}"
+                                           Foreground="{StaticResource DangerBrush}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="7" Text="PAID TO CUSTOMER" Style="{StaticResource Text.Label}" Margin="0,2,0,0"/>
+                                <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding NetPayout}" Style="{StaticResource Text.Mono}" FontWeight="SemiBold"/>
+                                    <TextBlock Style="{StaticResource Text.Caption}">
+                                        <Run Text="to payout account"/>
+                                        <Run Text="{Binding PayoutAccountNo, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="REASON (OPTIONAL)" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0"/>
+                            <TextBox Style="{StaticResource Input.Text}" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="{x:Static constants:TransactionFieldRules.DescriptionMaximumLength}"
+                                     t:ThemeAssist.Placeholder="Why the customer is breaking the deposit"/>
+                            <TextBlock Text="Only a manager can break a fixed deposit." Style="{StaticResource Text.Hint}"
+                                       Visibility="{Binding CanWithdraw, Converter={StaticResource BoolToCollapsedVisibility}}"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                                <Button Content="Cancel" Style="{StaticResource Button.Secondary}" MinWidth="96"
+                                        Command="{Binding HideQuoteCommand}"/>
+                                <Button Content="Withdraw early" Style="{StaticResource Button.DangerSolid}" MinWidth="120" Margin="8,0,0,0"
+                                        Command="{Binding WithdrawCommand}"
+                                        Visibility="{Binding CanWithdraw, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <ContentControl Content="{Binding Account}" ContentTemplate="{StaticResource OperationAccountCardTemplate}"/>
 
                 <Separator Style="{StaticResource Divider}" Margin="0,20"/>

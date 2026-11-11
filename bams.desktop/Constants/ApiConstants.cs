@@ -51,6 +51,9 @@ public static class ApiConstants
     public const string OperationFeesEndpoint = OperationsEndpoint + "/fees";
     public const string OperationFixedDepositMaturityEndpoint = OperationsEndpoint + "/fixed-deposit-maturity";
 
+    // Breaking a fixed deposit early: GET {id}/early-withdrawal-quote, POST {id}/early-withdrawal.
+    public const string FixedDepositsEndpoint = "api/fixed-deposits";
+
     // Transactions. Routes with an id: $"{TransactionsEndpoint}/{id}",
     // $"{InterbankTransferEndpoint}/{id}/{CompleteSegment}", $"{NrcTransferEndpoint}/{id}/{CancelSegment}".
     public const string TransactionsEndpoint = "api/transactions";

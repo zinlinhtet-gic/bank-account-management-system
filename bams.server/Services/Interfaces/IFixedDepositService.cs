@@ -20,6 +20,20 @@ public interface IFixedDepositService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Builds (without saving) the successor of a renewing deposit: same account, term, payout account and settings,
+    /// a new term starting on <paramref name="startDate"/> with <paramref name="principal"/> as its principal.
+    /// The rate is the one in force on <paramref name="startDate"/>: the newest active rate rule of the account
+    /// type with the same term whose balance band contains the principal. When no such rule exists, the matured
+    /// deposit's rule and rate are kept.
+    /// </summary>
+    Task<FixedDeposit> BuildRenewedDepositAsync(
+        FixedDeposit maturedDeposit,
+        decimal principal,
+        DateOnly startDate,
+        DateTime createdAt,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Updates the payout account and renewal instruction exposed by the API.
     /// </summary>
     Task<FixedDepositResponse> UpdateFixedDepositAsync(

@@ -28,16 +28,21 @@ public sealed class FixedDepositMaturityViewModel : ViewModelBase, IAsyncInitial
 
     private readonly IOperationService _operationService;
     private readonly IDialogService _dialogService;
+    private readonly AuthContext _authContext;
     private string _errorMessage = string.Empty;
     private bool _isLoading;
     private int _page = FirstPage;
     private int _totalCount;
 
-    public FixedDepositMaturityViewModel(IOperationService operationService, IDialogService dialogService)
+    public FixedDepositMaturityViewModel(
+        IOperationService operationService,
+        IDialogService dialogService,
+        AuthContext authContext)
     {
         // Constructors only store dependencies. No server calls here.
         _operationService = operationService;
         _dialogService = dialogService;
+        _authContext = authContext;
 
         Filter = new OperationFilterViewModel<FixedDepositStatus>(StatusOptionList);
         Filter.FiltersChanged += OnFiltersChanged;
@@ -194,7 +199,19 @@ public sealed class FixedDepositMaturityViewModel : ViewModelBase, IAsyncInitial
         try
         {
             var detail = await _operationService.GetFixedDepositMaturityByIdAsync(row.Id, CancellationToken.None);
-            _dialogService.ShowDialog(new FixedDepositMaturityDetailsViewModel(detail));
+            var earlyWithdrawal = new FixedDepositEarlyWithdrawalViewModel(
+                _operationService,
+                detail.Id,
+                isEligible: detail.Status == FixedDepositStatus.Active && detail.DaysToMaturity > 0,
+                canWithdraw: _authContext.HasPermission(PermissionCodes.FixedDepositEarlyWithdrawal));
+
+            // Reload when the deposit was broken so the row shows it closed, however the dialog was closed
+            // (Close button, Esc or a backdrop click).
+            _dialogService.ShowDialog(new FixedDepositMaturityDetailsViewModel(detail, earlyWithdrawal));
+            if (earlyWithdrawal.IsCompleted)
+            {
+                await LoadAsync(CancellationToken.None);
+            }
         }
         catch (AppException exception)
         {

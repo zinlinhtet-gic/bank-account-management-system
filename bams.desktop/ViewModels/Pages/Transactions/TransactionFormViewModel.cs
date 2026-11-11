@@ -43,8 +43,6 @@ public sealed class TransactionFormViewModel : ViewModelBase
     private readonly ITransactionService _transactionService;
     private readonly string _idempotencyKey = Guid.NewGuid().ToString("N");
 
-    private AccountOption? _sourceAccount;
-    private AccountOption? _destinationAccount;
     private OtherBankResponse? _selectedBank;
     private string _amountText = string.Empty;
     private string _description = string.Empty;
@@ -77,7 +75,15 @@ public sealed class TransactionFormViewModel : ViewModelBase
     {
         _transactionService = transactionService;
         Kind = kind;
-        Accounts = accounts;
+        // Each side lists only the accounts whose type allows what this form does to them.
+        SourceSelection = new AccountSelectionViewModel(
+            accounts.Where(account => kind == TransactionFormKind.Withdrawal
+                ? account.AllowWithdrawal
+                : account.AllowTransfer).ToList(),
+            GetSourceAccountLabel(kind));
+        DestinationSelection = new AccountSelectionViewModel(
+            accounts.Where(account => account.AllowDeposit).ToList(),
+            kind == TransactionFormKind.Deposit ? "ACCOUNT" : "TO ACCOUNT");
         Banks = banks;
         Branches = branches;
 
@@ -93,7 +99,13 @@ public sealed class TransactionFormViewModel : ViewModelBase
 
     public TransactionFormKind Kind { get; }
 
-    public IReadOnlyList<AccountOption> Accounts { get; }
+    /// <summary>
+    /// The account money comes out of: one whose type allows withdrawals (withdrawal form) or transfers (others).
+    /// </summary>
+    public AccountSelectionViewModel SourceSelection { get; }
+
+    /// <summary>The account in this bank that is credited: one whose type allows deposits.</summary>
+    public AccountSelectionViewModel DestinationSelection { get; }
 
     public IReadOnlyList<OtherBankResponse> Banks { get; }
 
@@ -167,14 +179,13 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public bool ShowsCashSession => Kind is TransactionFormKind.Deposit or TransactionFormKind.Withdrawal ||
         Kind == TransactionFormKind.NrcTransfer && IsPaidInCash;
 
-    public string SourceAccountLabel => Kind switch
+    // Field label above the source account search for the form's kind.
+    private static string GetSourceAccountLabel(TransactionFormKind kind) => kind switch
     {
         TransactionFormKind.Withdrawal => "ACCOUNT",
         TransactionFormKind.NrcTransfer => "SENDER'S ACCOUNT",
         _ => "FROM ACCOUNT"
     };
-
-    public string DestinationAccountLabel => Kind == TransactionFormKind.Deposit ? "ACCOUNT" : "TO ACCOUNT";
 
     // ===== NRC: how the sender pays and where the receiver collects =====
 
@@ -186,7 +197,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
         {
             if (SetProperty(ref _isPaidInCash, value))
             {
-                SourceAccountError.Clear();
+                SourceSelection.Error.Clear();
                 OnPropertyChanged(nameof(IsPaidFromAccount));
                 OnPropertyChanged(nameof(ShowsSourceAccount));
                 OnPropertyChanged(nameof(ShowsCashSession));
@@ -250,36 +261,6 @@ public sealed class TransactionFormViewModel : ViewModelBase
     public string PickupLocationText => (IsCollectedAtBranch ? PickupBranch?.Name : PickupBank?.BankName) ?? string.Empty;
 
     // ===== Fields =====
-
-    public AccountOption? SourceAccount
-    {
-        get => _sourceAccount;
-        set
-        {
-            if (SetProperty(ref _sourceAccount, value))
-            {
-                SourceAccountError.Clear();
-                OnPropertyChanged(nameof(SourceBalanceText));
-            }
-        }
-    }
-
-    public string SourceBalanceText => SourceAccount?.BalanceText ?? string.Empty;
-
-    public AccountOption? DestinationAccount
-    {
-        get => _destinationAccount;
-        set
-        {
-            if (SetProperty(ref _destinationAccount, value))
-            {
-                DestinationAccountError.Clear();
-                OnPropertyChanged(nameof(DestinationBalanceText));
-            }
-        }
-    }
-
-    public string DestinationBalanceText => DestinationAccount?.BalanceText ?? string.Empty;
 
     public OtherBankResponse? SelectedBank
     {
@@ -404,10 +385,6 @@ public sealed class TransactionFormViewModel : ViewModelBase
 
     // ===== Errors =====
 
-    public FieldError SourceAccountError { get; } = new();
-
-    public FieldError DestinationAccountError { get; } = new();
-
     public FieldError BankError { get; } = new();
 
     public FieldError AmountError { get; } = new();
@@ -517,20 +494,20 @@ public sealed class TransactionFormViewModel : ViewModelBase
         return Kind switch
         {
             TransactionFormKind.Deposit => _transactionService.DepositAsync(
-                new DepositRequest(DestinationAccount!.Id, amount, description, referenceNo),
+                new DepositRequest(DestinationSelection.Account!.Id, amount, description, referenceNo),
                 _idempotencyKey,
                 CancellationToken.None),
             TransactionFormKind.Withdrawal => _transactionService.WithdrawAsync(
-                new WithdrawalRequest(SourceAccount!.Id, amount, description, referenceNo),
+                new WithdrawalRequest(SourceSelection.Account!.Id, amount, description, referenceNo),
                 _idempotencyKey,
                 CancellationToken.None),
             TransactionFormKind.InternalTransfer => _transactionService.TransferInternallyAsync(
-                new InternalTransferRequest(SourceAccount!.Id, DestinationAccount!.Id, amount, description, referenceNo),
+                new InternalTransferRequest(SourceSelection.Account!.Id, DestinationSelection.Account!.Id, amount, description, referenceNo),
                 _idempotencyKey,
                 CancellationToken.None),
             TransactionFormKind.InterbankTransfer => _transactionService.TransferInterbankAsync(
                 new InterbankTransferRequest(
-                    SourceAccount!.Id,
+                    SourceSelection.Account!.Id,
                     SelectedBank!.Id,
                     DestinationAccountNo.Trim(),
                     BeneficiaryName.Trim(),
@@ -541,7 +518,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
                 CancellationToken.None),
             _ => _transactionService.CreateNrcTransferAsync(
                 new NrcTransferRequest(
-                    IsPaidInCash ? null : SourceAccount!.Id,
+                    IsPaidInCash ? null : SourceSelection.Account!.Id,
                     SenderName.Trim(),
                     SenderNrc.Trim(),
                     TrimToNull(SenderPhone),
@@ -567,13 +544,13 @@ public sealed class TransactionFormViewModel : ViewModelBase
             ? "Please enter the amount."
             : amount is null ? MessageCatalog.GetMessage(MessageCode.InvalidAmount) : string.Empty);
 
-        SourceAccountError.Set(ShowsSourceAccount && SourceAccount is null ? "Please choose the account." : string.Empty);
+        SourceSelection.Error.Set(ShowsSourceAccount ? SourceSelection.RequiredMessage : string.Empty);
 
-        DestinationAccountError.Set(!ShowsDestinationAccount
+        DestinationSelection.Error.Set(!ShowsDestinationAccount
             ? string.Empty
-            : DestinationAccount is null
-                ? "Please choose the account."
-                : ShowsSourceAccount && SourceAccount?.Id == DestinationAccount.Id
+            : DestinationSelection.Account is null
+                ? DestinationSelection.RequiredMessage
+                : ShowsSourceAccount && SourceSelection.Account?.Id == DestinationSelection.Account.Id
                     ? MessageCatalog.GetMessage(MessageCode.SameSourceAndDestinationAccount)
                     : string.Empty);
 
@@ -611,7 +588,7 @@ public sealed class TransactionFormViewModel : ViewModelBase
 
         var hasFieldError = new[]
         {
-            AmountError, SourceAccountError, DestinationAccountError, BankError, DestinationAccountNoError,
+            AmountError, SourceSelection.Error, DestinationSelection.Error, BankError, DestinationAccountNoError,
             BeneficiaryNameError, SenderNameError, SenderNrcError, ReceiverNameError, ReceiverNrcError, PickupLocationError
         }.Any(error => error.HasError);
 
@@ -633,13 +610,14 @@ public sealed class TransactionFormViewModel : ViewModelBase
                 break;
             case MessageCode.WithdrawalNotAllowed:
             case MessageCode.TransferNotAllowed:
-                SourceAccountError.Set(exception.Message);
+                SourceSelection.Error.Set(exception.Message);
                 break;
             case MessageCode.CashSessionNotOpen:
                 CashSessionError.Set(exception.Message);
                 break;
             case MessageCode.SameSourceAndDestinationAccount:
-                DestinationAccountError.Set(exception.Message);
+            case MessageCode.DepositNotAllowed:
+                DestinationSelection.Error.Set(exception.Message);
                 break;
             case MessageCode.OtherBankNotFound when Kind == TransactionFormKind.NrcTransfer:
             case MessageCode.BranchNotFound:

@@ -37,6 +37,7 @@ public static class MessageCatalog
             [MessageCode.AccountBalanceUpdatedSuccessfully] = "Account balance updated successfully.",
             [MessageCode.AccountHoldersUpdatedSuccessfully] = "Account holders updated successfully.",
             [MessageCode.FixedDepositUpdatedSuccessfully] = "Fixed deposit updated successfully.",
+            [MessageCode.FixedDepositWithdrawnEarlySuccessfully] = "Fixed deposit withdrawn early and paid to its payout account.",
             [MessageCode.RequiredFieldMissing] = "Please fill in all required fields.",
             [MessageCode.InvalidRequest] = "The request is invalid.",
             [MessageCode.InvalidAmount] = "The provided amount is invalid.",
@@ -179,6 +180,8 @@ public static class MessageCatalog
             [MessageCode.AccountHolderUpdateNotAllowed] = "Holder details can be updated only for a non-closed joint account.",
             [MessageCode.InterestRateRuleNotApplicable] = "The interest rate rule is not applicable to this fixed deposit.",
             [MessageCode.FixedDepositStatusTransitionNotAllowed] = "The requested fixed-deposit status transition is not allowed.",
+            [MessageCode.FixedDepositNotActive] = "Only an active fixed deposit can be withdrawn.",
+            [MessageCode.FixedDepositAlreadyMatured] = "This fixed deposit has reached maturity and is paid out by the maturity run, not by early withdrawal.",
             [MessageCode.InternalServerError] = "An unexpected error occurred.",
             [MessageCode.FileStorageFailed] = "The uploaded document could not be stored."
         };

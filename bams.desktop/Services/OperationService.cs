@@ -77,4 +77,22 @@ public sealed class OperationService : IOperationService
         return _apiClient.GetAsync<FixedDepositMaturityDetailResponse>(
             $"{ApiConstants.OperationFixedDepositMaturityEndpoint}/{id}", cancellationToken);
     }
+
+    public Task<FixedDepositEarlyWithdrawalQuoteResponse> GetEarlyWithdrawalQuoteAsync(
+        long fixedDepositId, CancellationToken cancellationToken)
+    {
+        return _apiClient.GetAsync<FixedDepositEarlyWithdrawalQuoteResponse>(
+            $"{ApiConstants.FixedDepositsEndpoint}/{fixedDepositId}/early-withdrawal-quote", cancellationToken);
+    }
+
+    public Task<DTOs.Transactions.TransactionResponse> WithdrawFixedDepositEarlyAsync(
+        long fixedDepositId, EarlyWithdrawFixedDepositRequest request, string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        var headers = new Dictionary<string, string> { [ApiConstants.IdempotencyKeyHeader] = idempotencyKey };
+
+        return _apiClient.PostAsync<EarlyWithdrawFixedDepositRequest, DTOs.Transactions.TransactionResponse>(
+            $"{ApiConstants.FixedDepositsEndpoint}/{fixedDepositId}/early-withdrawal", request, headers,
+            cancellationToken);
+    }
 }

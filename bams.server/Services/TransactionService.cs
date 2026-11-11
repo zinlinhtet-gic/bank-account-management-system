@@ -192,6 +192,7 @@ public sealed class TransactionService : ITransactionService
                     cancellationToken);
                 var source = accounts[request.SourceAccountId];
                 var destination = accounts[request.DestinationAccountId];
+                LedgerPostingService.EnsureCanReceiveTransfer(destination);
 
                 var now = DateTime.UtcNow;
                 var fee = await _transferFees.CalculateInternalTransferFeeAsync(

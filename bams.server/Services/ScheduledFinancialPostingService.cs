@@ -116,7 +116,8 @@ public sealed class ScheduledFinancialPostingService
         await _dbContext.Accounts.SingleOrDefaultAsync(a => a.Id == accountId, cancellationToken)
         ?? throw new InvalidOperationException($"Account {accountId} no longer exists.");
 
-    private async Task<long> GetSystemActorIdAsync(CancellationToken cancellationToken) =>
+    /// <summary>Id of the disabled system user that scheduled jobs post and audit as.</summary>
+    public async Task<long> GetSystemActorIdAsync(CancellationToken cancellationToken) =>
         await _dbContext.Users.AsNoTracking()
             .Where(u => u.Username == ScheduledJobConstants.SystemActorUsername && u.Status == UserStatus.Disabled)
             .Select(u => (long?)u.Id).SingleOrDefaultAsync(cancellationToken)

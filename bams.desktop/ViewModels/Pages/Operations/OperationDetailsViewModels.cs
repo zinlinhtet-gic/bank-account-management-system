@@ -137,8 +137,12 @@ public sealed record FixedDepositInterestLineDisplayModel(string Period, string 
 /// </summary>
 public sealed class FixedDepositMaturityDetailsViewModel : ViewModelBase, IDialogViewModel
 {
-    public FixedDepositMaturityDetailsViewModel(FixedDepositMaturityDetailResponse deposit)
+    /// <param name="earlyWithdrawal">The card's "Break deposit early" panel.</param>
+    public FixedDepositMaturityDetailsViewModel(
+        FixedDepositMaturityDetailResponse deposit,
+        FixedDepositEarlyWithdrawalViewModel earlyWithdrawal)
     {
+        EarlyWithdrawal = earlyWithdrawal;
         Account = new OperationAccountDisplayModel(deposit.Account);
         Title = $"Fixed deposit · {OperationDisplay.FormatTerm(deposit.TermDays, deposit.TermMonths)}";
         Status = deposit.Status.ToString();
@@ -163,14 +167,18 @@ public sealed class FixedDepositMaturityDetailsViewModel : ViewModelBase, IDialo
                 OperationDisplay.FormatOptionalDateTime(line.PostedAt)))
             .ToList();
 
-        CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(false));
+        // Closing reports whether the deposit was broken, so the list reloads only when something changed.
+        CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(EarlyWithdrawal.IsCompleted));
     }
 
     public event Action<bool>? CloseRequested;
 
+    public FixedDepositEarlyWithdrawalViewModel EarlyWithdrawal { get; }
+
     public bool CanCloseOnBackdropClick => true;
 
-    public bool CanCancel => true;
+    // Esc and backdrop clicks wait while a withdrawal is being posted.
+    public bool CanCancel => !EarlyWithdrawal.IsBusy;
 
     public OperationAccountDisplayModel Account { get; }
     public string Title { get; }

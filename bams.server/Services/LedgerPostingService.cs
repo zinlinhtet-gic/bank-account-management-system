@@ -226,6 +226,7 @@ public sealed class LedgerPostingService
         TransactionType.InterbankTransfer => 2 + (status == TransactionStatus.Completed ? 2 : 0) + (feeAmount > 0m ? 2 : 0),
         TransactionType.NrcTransfer => status == TransactionStatus.Completed ? 4 : 2,
         TransactionType.Reversal => 2 + (refundedFeeAmount > 0m ? 2 : 0),
+        TransactionType.FdEarlyWithdrawal => 2 + (feeAmount > 0m ? 2 : 0),
         _ => 2
     };
 
@@ -316,6 +317,21 @@ public sealed class LedgerPostingService
                     Add(AccountingConstants.NrcTransfersPayableGlCode, EntryType.Debit, amount);
                     Add(deliveryType == TransactionConstants.NrcDeliveryAtBranch
                         ? AccountingConstants.CashOnHandGlCode : AccountingConstants.DueFromOtherBanksGlCode, EntryType.Credit, amount);
+                }
+                break;
+            }
+            case TransactionType.FdMaturity:
+            case TransactionType.FdEarlyWithdrawal:
+            {
+                // A fixed deposit pays out to its payout account. On an early withdrawal the interest the customer
+                // forfeits (FeeAmount) leaves the deposit too and reduces the bank's interest expense.
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, amount, sourceAccountId);
+                Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Credit, amount,
+                    await FindAccountIdAsync(EntryType.Credit, amount));
+                if (transactionType == TransactionType.FdEarlyWithdrawal && feeAmount > 0m)
+                {
+                    Add(AccountingConstants.CustomerDepositsGlCode, EntryType.Debit, feeAmount, sourceAccountId);
+                    Add(AccountingConstants.InterestExpenseGlCode, EntryType.Credit, feeAmount);
                 }
                 break;
             }
@@ -471,10 +487,7 @@ public sealed class LedgerPostingService
         if (purpose == DebitPurpose.Deposit)
         {
             // A deposit adds money, so balance, minimum-balance and debit-limit checks do not apply.
-            if (!accountType.AllowDeposit)
-            {
-                throw new BusinessRuleException(MessageCode.DepositNotAllowed);
-            }
+            EnsureCanReceiveTransfer(account);
 
             // A null minimum means any positive amount is accepted.
             if (amount < accountType.MinimumDepositAmount)
@@ -488,6 +501,21 @@ public sealed class LedgerPostingService
         EnsureDebitIsPermitted(accountType, amount, purpose);
         EnsureBalanceCoversDebit(account, amount + feeAmount);
         await EnsureWithinTransactionLimitsAsync(account, amount, purpose, now, cancellationToken);
+    }
+
+    /// <summary>
+    /// Rejects a transfer into an account whose type does not take deposits (e.g. a fixed deposit), the same rule a
+    /// cash deposit gets. The account type must be loaded.
+    /// </summary>
+    public static void EnsureCanReceiveTransfer(Account account)
+    {
+        var accountType = account.AccountType
+            ?? throw new InvalidOperationException("The account type must be loaded before checking credit rules.");
+
+        if (!accountType.AllowDeposit)
+        {
+            throw new BusinessRuleException(MessageCode.DepositNotAllowed);
+        }
     }
 
     // Rejects a withdrawal or transfer the account type does not allow, and a withdrawal below its minimum amount.
@@ -620,9 +648,10 @@ public sealed class LedgerPostingService
         decimal Amount);
 
     /// <summary>
-    /// Creates a normal (non-scheduled) transaction header with a durably reserved daily transaction number.
+    /// Creates a transaction header with a durably reserved daily transaction number.
     /// Completed transactions are also marked as posted by the initiating user.
     /// </summary>
+    /// <param name="isScheduled">True for postings made by a scheduled job, which get the scheduled number prefix.</param>
     public async Task<Transaction> CreateTransactionAsync(
         TransactionType type,
         TransactionStatus status,
@@ -633,10 +662,11 @@ public sealed class LedgerPostingService
         long userId,
         DateTime now,
         DateOnly businessDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isScheduled = false)
     {
         var isCompleted = status == TransactionStatus.Completed;
-        var transactionNumber = await _transactionNumbers.ReserveAsync(businessDate, isScheduled: false, cancellationToken);
+        var transactionNumber = await _transactionNumbers.ReserveAsync(businessDate, isScheduled, cancellationToken);
 
         return new Transaction
         {
@@ -664,6 +694,10 @@ public sealed class LedgerPostingService
     /// </summary>
     /// <param name="amount">Amount of this entry; defaults to the transaction amount (a fee line passes the fee).</param>
     /// <param name="description">Entry description; defaults to the transaction description.</param>
+    /// <param name="countsAsCustomerActivity">
+    /// False for scheduled postings (e.g. fixed-deposit maturity), which must not refresh the account's last
+    /// activity or reactivate a dormant account, because the customer did nothing.
+    /// </param>
     public async Task PostCustomerEntryAsync(
         Transaction transaction,
         Account account,
@@ -671,7 +705,8 @@ public sealed class LedgerPostingService
         DateTime now,
         CancellationToken cancellationToken,
         decimal? amount = null,
-        string? description = null)
+        string? description = null,
+        bool countsAsCustomerActivity = true)
     {
         var entryAmount = amount ?? transaction.Amount;
         var ledgerBalanceBefore = account.LedgerBalance;
@@ -681,9 +716,14 @@ public sealed class LedgerPostingService
         transaction.BusinessDate ??= postingDate;
         account.LedgerBalance += signedAmount;
         account.AvailableBalance += signedAmount;
-        account.LastActivityAt = now;
         account.UpdatedAt = now;
-        await ReactivateDormantAccountAsync(account, transaction.InitiatedBy, now, cancellationToken);
+
+        // Only customer-initiated postings count as activity for dormancy.
+        if (countsAsCustomerActivity)
+        {
+            account.LastActivityAt = now;
+            await ReactivateDormantAccountAsync(account, transaction.InitiatedBy, now, cancellationToken);
+        }
 
         _dbContext.AccountTransactions.Add(new AccountTransaction
         {
@@ -697,7 +737,7 @@ public sealed class LedgerPostingService
             AvailableBalanceAfter = account.AvailableBalance,
             ValueDate = postingDate,
             PostingDate = postingDate,
-            Description = transaction.Description,
+            Description = description ?? transaction.Description,
             ReferenceNo = transaction.ReferenceNo,
             Status = TransactionConstants.CompletedStatus,
             CreatedAt = now
@@ -717,7 +757,7 @@ public sealed class LedgerPostingService
     /// <summary>
     /// Moves a dormant account back to Active when a teller posting touches it, so the monthly dormant penalty
     /// stops once the customer uses the account again. Scheduled interest, fee and penalty postings do not come
-    /// through here and therefore never count as customer activity.
+    /// through here, and scheduled fixed-deposit maturity payouts opt out, so they never count as customer activity.
     /// </summary>
     private async Task ReactivateDormantAccountAsync(
         Account account,

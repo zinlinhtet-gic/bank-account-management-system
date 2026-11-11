@@ -97,7 +97,10 @@ public sealed class AccountService : IAccountService
                 account.AvailableBalance,
                 account.AccountHolders.OrderByDescending(holder => holder.IsPrimary).ThenBy(holder => holder.CustomerId)
                     .Select(holder => new AccountCustomerResponse(holder.CustomerId, holder.Customer!.CustomerNo,
-                        holder.Customer.FullName, holder.Customer.NrcNumber, holder.Customer.PassportNumber, holder.IsPrimary)).ToList()))
+                        holder.Customer.FullName, holder.Customer.NrcNumber, holder.Customer.PassportNumber, holder.IsPrimary)).ToList(),
+                account.AccountType.AllowDeposit,
+                account.AccountType.AllowWithdrawal,
+                account.AccountType.AllowTransfer))
             .Take(request.PageSize + 1)
             .ToListAsync(cancellationToken);
 

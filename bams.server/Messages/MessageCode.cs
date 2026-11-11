@@ -29,6 +29,7 @@ public enum MessageCode
     AccountBalanceUpdatedSuccessfully = 1102,
     AccountHoldersUpdatedSuccessfully = 1103,
     FixedDepositUpdatedSuccessfully = 1104,
+    FixedDepositWithdrawnEarlySuccessfully = 1105,
 
     // Validation: 3000 - 3999
     ValidationFailed = 3000,
@@ -154,6 +155,8 @@ public enum MessageCode
     AccountHolderUpdateNotAllowed = 4404,
     InterestRateRuleNotApplicable = 4405,
     FixedDepositStatusTransitionNotAllowed = 4407,
+    FixedDepositNotActive = 4408,
+    FixedDepositAlreadyMatured = 4409,
 
     // Transactions: 4440 - 4459
     InsufficientBalance = 4440,
