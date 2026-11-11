@@ -1,5 +1,6 @@
 using bams.server.Utils;
 using System.Globalization;
+using bams.server.Constants;
 using bams.server.Data;
 using bams.server.Models.Accounts;
 using bams.server.Models.Accounts.Enums;
@@ -156,7 +157,7 @@ public sealed class InterestAccumulationService
         }
 
         var annualAmount = account.LedgerBalance * rateRule.AnnualRate / PercentageDivisor;
-        var monthlyAmount = ScheduledJobPeriod.RoundMoney(annualAmount / 12m);
+        var monthlyAmount = ScheduledJobPeriod.RoundMoney(annualAmount / InterestAccrualConstants.MonthsPerYear);
         var accrual = new InterestAccrual
         {
             AccountId = account.Id,
@@ -166,7 +167,7 @@ public sealed class InterestAccumulationService
             CalculationBalance = account.LedgerBalance,
             AnnualRate = rateRule.AnnualRate,
             CalculatedAmount = monthlyAmount,
-            Status = "Accrued",
+            Status = OperationConstants.InterestAccruedStatus,
             CalculatedAt = DateTime.UtcNow
         };
         _dbContext.InterestAccruals.Add(accrual);
@@ -244,16 +245,19 @@ public sealed class InterestAccumulationService
 
         var totalInterest = CalculateFixedDepositInterest(
             fixedDeposit.CurrentPrincipal, fixedDeposit.AppliedAnnualRate, activeDays);
+        // The accrual records the days it really covers (activeStart..activeEnd), not the whole period. Coverage
+        // lookups read PeriodEnd as the last accrued day, so a month-end value here would hide the unaccrued days
+        // of a renewal that starts on the same account before that month end.
         var accrual = new InterestAccrual
         {
             AccountId = account.Id,
             InterestRateRuleId = fixedDeposit.InterestRateRuleId,
-            PeriodStart = periodStart,
-            PeriodEnd = periodEnd,
+            PeriodStart = activeStart,
+            PeriodEnd = activeEnd,
             CalculationBalance = fixedDeposit.CurrentPrincipal,
             AnnualRate = fixedDeposit.AppliedAnnualRate,
             CalculatedAmount = totalInterest,
-            Status = "Accrued",
+            Status = OperationConstants.InterestAccruedStatus,
             CalculatedAt = DateTime.UtcNow
         };
         _dbContext.InterestAccruals.Add(accrual);
@@ -296,7 +300,8 @@ public sealed class InterestAccumulationService
         CancellationToken cancellationToken,
         DateOnly? recordOn = null)
     {
-        if (accrual.CalculatedAmount <= 0m || accrual.AccruedTransactionId.HasValue || accrual.Status != "Accrued")
+        if (accrual.CalculatedAmount <= 0m || accrual.AccruedTransactionId.HasValue ||
+            accrual.Status != OperationConstants.InterestAccruedStatus)
         {
             return Task.CompletedTask;
         }
@@ -305,7 +310,7 @@ public sealed class InterestAccumulationService
             accrual.AccountId,
             TransactionType.InterestAccrual,
             accrual.CalculatedAmount,
-            "Monthly account interest accrued",
+            InterestAccrualConstants.AccrualDescription,
             recordOn ?? accrual.PeriodEnd,
             interestAccrual: accrual,
             feeAccrual: null,
@@ -320,7 +325,8 @@ public sealed class InterestAccumulationService
         long? fixedDepositId,
         CancellationToken cancellationToken)
     {
-        if (periodEnd.Month % 3 != 0)
+        // Credits happen only after the last month of a calendar quarter.
+        if (periodEnd.Month % InterestAccrualConstants.MonthsPerQuarter != 0)
         {
             return;
         }
@@ -331,8 +337,8 @@ public sealed class InterestAccumulationService
             periodEnd,
             fixedDepositId,
             category == AccountTypeCategory.SAVING
-                ? "Quarterly savings interest credit"
-                : "Quarterly fixed-deposit interest credit",
+                ? InterestAccrualConstants.QuarterlySavingsCreditDescription
+                : InterestAccrualConstants.QuarterlyFixedDepositCreditDescription,
             cancellationToken);
     }
 
@@ -351,7 +357,7 @@ public sealed class InterestAccumulationService
         DateOnly? recordAccrualsOn = null)
     {
         var accruals = await _dbContext.InterestAccruals
-            .Where(accrual => accrual.AccountId == accountId && accrual.Status == "Accrued" &&
+            .Where(accrual => accrual.AccountId == accountId && accrual.Status == OperationConstants.InterestAccruedStatus &&
                 accrual.PeriodEnd <= accruedThrough)
             .OrderBy(accrual => accrual.PeriodStart)
             .ToListAsync(cancellationToken);
@@ -366,7 +372,7 @@ public sealed class InterestAccumulationService
         {
             foreach (var accrual in accruals)
             {
-                accrual.Status = "Posted";
+                accrual.Status = OperationConstants.InterestPostedStatus;
                 accrual.PostedAt = DateTime.UtcNow;
             }
 
