@@ -4,6 +4,7 @@ using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
@@ -102,7 +103,7 @@ public sealed class ReconciliationProposalEditorViewModel : ReconciliationOperat
         decimal? amount=null;
         if(!string.IsNullOrWhiteSpace(CorrectAmount))
         {
-            if(!decimal.TryParse(CorrectAmount,NumberStyles.Number,CultureInfo.CurrentCulture,out decimal parsed))
+            if(!MoneyText.TryParse(CorrectAmount,out decimal parsed))
             { ErrorMessage="Enter a valid amount."; return null; }
             amount=parsed;
         }

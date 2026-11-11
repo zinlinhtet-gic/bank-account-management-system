@@ -4,6 +4,7 @@ using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
@@ -148,7 +149,7 @@ public sealed class CashProposalEditorViewModel:ReconciliationOperationViewModel
     private CashCorrectionInputs? GetInputs()
     {
         decimal? amount=null;
-        if(NeedsAmount && !string.IsNullOrWhiteSpace(Amount)) { if(!decimal.TryParse(Amount,out decimal parsed)) { ErrorMessage="Enter a valid amount."; return null; } amount=parsed; }
+        if(NeedsAmount && !string.IsNullOrWhiteSpace(Amount)) { if(!MoneyText.TryParse(Amount,out decimal parsed)) { ErrorMessage="Enter a valid amount."; return null; } amount=parsed; }
         if((NeedsAccount && !long.TryParse(AccountId,out _)) || (NeedsTransaction && !long.TryParse(TransactionId,out _)) ||
             (NeedsMovement && !long.TryParse(MovementId,out _)) || (NeedsDestination && !long.TryParse(DestinationId,out _)) ||
             (NeedsCounterpart && !long.TryParse(CounterpartMovementId,out _)) || (NeedsHandoff && !long.TryParse(HandoffId,out _)))

@@ -3,6 +3,7 @@ using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.Exceptions;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
@@ -27,13 +28,14 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
     public bool IsStepTwo => Step == 2;
     public bool IsStepThree => Step == 3;
     public string TodayLabel => (BusinessDate?.Today ?? BusinessDate?.Date)?.ToString("yyyy-MM-dd") ?? "Loading";
-    public string ReviewSummary => $"Date: {TodayLabel}   |   Vault cash: {StartingCashText}   |   Officer sessions: {Editor.Rows.Count}";
+    public string ReviewSummary => $"Date: {TodayLabel}   |   Vault cash: {VaultCashDisplay}   |   Officer sessions: {Editor.Rows.Count}";
+    public string VaultCashDisplay => MoneyText.TryParse(StartingCashText, out var cash) ? $"MMK {MoneyText.Format(cash)}" : "Not entered";
     public RelayCommand NextCommand { get; }
     public RelayCommand PreviousCommand { get; }
     // Checks required values before advancing the opening stepper.
     private void AdvanceStep()
     {
-        if (!decimal.TryParse(StartingCashText, out var cash) || cash < 0 || decimal.Round(cash, 2) != cash)
+        if (!MoneyText.TryParse(StartingCashText, out var cash) || cash < 0 || decimal.Round(cash, 2) != cash)
         { ErrorMessage = "Enter non-negative vault cash with at most two decimal places."; return; }
         if (Step == 2 && !Editor.TryBuild(BusinessDate!.Today ?? BusinessDate.Date, out _, out var error)) { ErrorMessage = error; return; }
         ErrorMessage = "";
@@ -57,7 +59,7 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
 
     public BusinessDateResponse? BusinessDate { get => _businessDate; private set => SetProperty(ref _businessDate, value); }
     public CashPositionSessionResponse? VaultSession { get => _vaultSession; private set => SetProperty(ref _vaultSession, value); }
-    public string StartingCashText { get => _startingCashText; set { if (SetProperty(ref _startingCashText, value)) ErrorMessage = string.Empty; } }
+    public string StartingCashText { get => _startingCashText; set { if (SetProperty(ref _startingCashText, value)) { ErrorMessage = string.Empty; OnPropertyChanged(nameof(ReviewSummary)); OnPropertyChanged(nameof(VaultCashDisplay)); } } }
     public string ErrorMessage { get => _errorMessage; private set { if (SetProperty(ref _errorMessage, value)) OnPropertyChanged(nameof(HasError)); } }
     public string SuccessMessage { get => _successMessage; private set { if (SetProperty(ref _successMessage, value)) OnPropertyChanged(nameof(HasSuccess)); } }
     public bams.desktop.Utils.MessageCode? ErrorCode => HasError ? bams.desktop.Utils.MessageCode.ValidationFailed : null;
@@ -114,7 +116,7 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
     private async Task StartBusinessDateAsync()
     {
         if (!CanStartBusinessDate) return;
-        if (!decimal.TryParse(StartingCashText, out var startingCash) || startingCash < 0m ||
+        if (!MoneyText.TryParse(StartingCashText, out var startingCash) || startingCash < 0m ||
             decimal.Round(startingCash, 2) != startingCash)
         {
             ErrorMessage = string.IsNullOrWhiteSpace(StartingCashText)
