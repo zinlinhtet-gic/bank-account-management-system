@@ -17,7 +17,6 @@ public static class PermissionCodes
     public const string Transactions = "transactions";
     public const string TransactionHistory = "transaction_history";
     public const string Audit = "audit";
-    public const string CustomerList = "customer_list";
     public const string CashOperations = "cash_operations";
     public const string ReconciliationInvestigation = "reconciliation_investigation";
     public const string EndOfDayApproval = "end_of_day_approval";

@@ -93,9 +93,6 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanConfigureSystem)
             AddNavGroup(PageNames.Configurations, "Icon.Settings", PageNames.InterestRate, PageNames.FeeRate, PageNames.BankPolicies, PageNames.OtherBanks);
 
-        if (flags.CanViewCustomerList)
-            AddNavItem(PageNames.CustomerList, "Icon.Users");
-
         // Set first item as active if none is active
         if (Items.Count > 0 && !Items.Any(i => i.IsActive))
         {

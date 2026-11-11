@@ -57,7 +57,6 @@ You do **not** need to create these for the pages below; just build the page.
 | `operation`           | `SecurityConstants.Operation`          | `PermissionFlags.CanPerformOperations`     | Operations / `OperationsViewModel`                    | manager            |
 | `audit`               | `SecurityConstants.Audit`              | `PermissionFlags.CanViewAudit`             | Audit / `AuditViewModel`                              | auditor            |
 | `configuration`       | `SecurityConstants.Configuration`      | `PermissionFlags.CanConfigureSystem`       | Configurations / `ConfigurationsViewModel`            | manager            |
-| `customer_list`       | `SecurityConstants.CustomerList`       | `PermissionFlags.CanViewCustomerList`      | Customer List / `CustomerListViewModel`               | auditor            |
 
 Where these live:
 - Permission codes: `bams.server/Constants/SecurityConstants.cs`
@@ -115,10 +114,10 @@ public sealed class CustomersController : ControllerBase
     }
 
     /// <summary>
-    /// Lists customers. Officers/managers manage customers; auditors may only view the list.
+    /// Lists customers. Only officers and managers (customer_management) may view customers.
     /// </summary>
     [HttpGet]
-    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<CustomerSummaryResponse>>>> GetCustomersAsync(
         CancellationToken cancellationToken)
     {
@@ -279,8 +278,8 @@ public sealed class CustomerManagementViewModel : ViewModelBase
     public bool CanCreateCustomers => _authContext.PermissionFlags.CanManageCustomers;
 
     // Use HasAnyPermission when an action is allowed by more than one permission.
-    public bool CanViewCustomers =>
-        _authContext.HasAnyPermission(PermissionCodes.CustomerManagement, PermissionCodes.CustomerList);
+    public bool CanViewTransactionHistory =>
+        _authContext.HasAnyPermission(PermissionCodes.Transactions, PermissionCodes.TransactionHistory);
 
     public AsyncRelayCommand CreateCustomerCommand { get; }
     ...

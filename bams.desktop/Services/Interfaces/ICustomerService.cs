@@ -4,8 +4,7 @@ using bams.desktop.DTOs.Customers;
 namespace bams.desktop.Services;
 
 /// <summary>
-/// Customer Management API calls (<c>api/customers</c>). Listing needs the <c>customer_management</c>
-/// or <c>customer_list</c> permission; creating needs <c>customer_management</c>.
+/// Customer Management API calls (<c>api/customers</c>). Every call needs the <c>customer_management</c> permission.
 /// </summary>
 public interface ICustomerService
 {

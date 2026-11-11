@@ -187,8 +187,7 @@
                                                         </Style>
                                                     </Button.Style>
                                                 </Button>
-                                                <!-- Auditors (read-only) have no CustomerManagement permission, so the row shows View only. -->
-                                                <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}" Command="{Binding DataContext.EditCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageCustomers, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                <Button Style="{StaticResource Button.Icon}" ToolTip="Edit customer" Margin="4,0,0,0" t:ThemeAssist.Icon="{StaticResource Icon.Edit}" Command="{Binding DataContext.EditCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

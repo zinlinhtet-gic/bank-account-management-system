@@ -49,7 +49,6 @@ public static class PageNames
     public const string OperationFees = "Fees";
     public const string FixedDepositMaturity = "Fixed Deposit Maturity";
     public const string Configurations = "Configurations";
-    public const string CustomerList = "Customer List";
 
     // Configuration sub-pages
     public const string InterestRate = "Interest Rate";
