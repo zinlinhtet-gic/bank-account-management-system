@@ -200,7 +200,6 @@ builder.Services.AddScoped<InterestRateRuleSeeder>();
 builder.Services.AddScoped<FeeRuleSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddScoped<OperationSampleDataSeeder>();
-builder.Services.AddSingleton<FileUploadUtils>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOtherBankService, OtherBankService>();
 builder.Services.AddScoped<IInterestRateService, InterestRateService>();

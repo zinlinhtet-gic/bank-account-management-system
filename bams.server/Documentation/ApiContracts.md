@@ -109,7 +109,7 @@ Errors `3133 / AccountDocumentSourceInvalid` and `3134 / ReusableAccountDocument
 - The complete multipart request is limited to 60 MB by default.
 - Each required document is one PDF, JPEG, or PNG file up to 10 MB.
 - Seeded products require NRC, Photo, ProofOfAddress, HouseholdRegistration, and SourceOfFunds.
-- Files are stored under `FileUploads:RootPath`; no public download endpoint is exposed.
+- Files are stored under `uploads/accounts/{accountId}/` (relative to the content root); no public download endpoint is exposed.
 - The authenticated user's JWT identity supplies audit attribution.
 - A positive opening balance also requires that user's activated open teller session for the active posting business date. The server records a linked cash Deposit movement and increases the session's expected cash in the account-creation transaction. No session ID is accepted from the client. Missing or ineligible sessions return `CashSessionNotOpen`; zero balances create no deposit or cash movement and require no session.
 - Referrer NRC rows must resolve to distinct existing customers who each own an account; the minimum is computed from the selected account type for each account holder. Referrer rows are saved with the account in the creation transaction.

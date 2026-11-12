@@ -9,6 +9,12 @@ public static class DocumentConstants
     public const int ContentTypeMaximumLength = 100;
     public const int StatusMaximumLength = 20;
 
+    // Single private storage root (relative to the content root) shared by customer and account documents.
+    public const string UploadRootFolderName = "uploads";
+    public const string AccountDocumentFolderName = "accounts";
+    public const int FileSignatureLength = 8;
+    public const int FileCopyBufferSizeBytes = 64 * 1024;
+
     public static readonly IReadOnlyDictionary<string, string> AllowedContentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

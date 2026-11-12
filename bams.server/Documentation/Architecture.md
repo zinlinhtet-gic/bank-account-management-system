@@ -31,7 +31,7 @@ The server uses EF Core with MySQL. Startup applies database migrations. `Applic
 
 Account, account-holder, and fixed-deposit records use application-managed optimistic concurrency versions. Callers send the version they read; stale updates fail with HTTP 409 and `ConcurrentModification`. Operations that change business state and audit history together use one database transaction. Audit records are committed by the owning workflow rather than independently.
 
-Uploaded customer and account documents use `IFileStorageService` and configured private storage. Services coordinate file cleanup with database transaction outcomes so failed writes do not leave newly uploaded files orphaned. No public file URL should be inferred from a stored reference.
+Uploaded customer and account documents use `IFileStorageService` (`LocalFileStorageService`) and one private root, `uploads/` under the content root: customer documents go to `uploads/customers/`, account documents to `uploads/accounts/{accountId}/`. Every upload is validated (size from `FileUploads:MaximumFileSizeBytes`, PDF/JPEG/PNG extension, matching content type, magic-byte signature) before it is written. Services coordinate file cleanup with database transaction outcomes so failed writes do not leave newly uploaded files orphaned. No public file URL should be inferred from a stored reference.
 
 ## Authentication and authorization
 
