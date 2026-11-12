@@ -156,6 +156,9 @@ public sealed class InterestAccumulationService
             return;
         }
 
+        // Savings interest uses simple monthly accrual: annual rate ÷ 12. This differs from fixed deposits, which
+        // accrue daily over their exact term (actual/365). The monthly method is a policy choice for savings accounts,
+        // allowing balance tiers to apply and simplifying compound accrual across months.
         var annualAmount = account.LedgerBalance * rateRule.AnnualRate / PercentageDivisor;
         var monthlyAmount = ScheduledJobPeriod.RoundMoney(annualAmount / InterestAccrualConstants.MonthsPerYear);
         var accrual = new InterestAccrual

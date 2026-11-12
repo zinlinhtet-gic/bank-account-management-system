@@ -70,7 +70,8 @@ public sealed class TransferFeeService
     }
 
     // Applies the newest active rule effective on the business date: fixed amount plus percentage of the transfer
-    // amount, kept within the rule's minimum and maximum fee, rounded to the stored money scale.
+    // amount, kept within the rule's minimum and maximum fee, rounded to the stored money scale. Tax is applied to
+    // the final fee before rounding.
     private async Task<decimal> CalculateFeeAsync(
         long accountTypeId,
         FeeType feeType,
@@ -93,16 +94,21 @@ public sealed class TransferFeeService
             return 0m;
         }
 
-        var fee = (rule.Amount ?? 0m) + amount * (rule.Percentage ?? 0m) / TransactionConstants.PercentageDivisor;
-        if (rule.MinimumFee is { } minimumFee && fee < minimumFee)
+        var baseFee = (rule.Amount ?? 0m) + amount * (rule.Percentage ?? 0m) / TransactionConstants.PercentageDivisor;
+        if (rule.MinimumFee is { } minimumFee && baseFee < minimumFee)
         {
-            fee = minimumFee;
+            baseFee = minimumFee;
         }
 
-        if (rule.MaximumFee is { } maximumFee && fee > maximumFee)
+        if (rule.MaximumFee is { } maximumFee && baseFee > maximumFee)
         {
-            fee = maximumFee;
+            baseFee = maximumFee;
         }
+
+        // Apply tax to the base fee, if defined.
+        var fee = rule.TaxRate.HasValue && rule.TaxRate.Value > 0m
+            ? baseFee * (1m + (rule.TaxRate.Value / TransactionConstants.PercentageDivisor))
+            : baseFee;
 
         return decimal.Round(fee, TransactionConstants.MaximumAmountDecimalPlaces, MidpointRounding.AwayFromZero);
     }
