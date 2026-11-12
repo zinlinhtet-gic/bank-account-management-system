@@ -206,6 +206,7 @@ builder.Services.AddScoped<IOtherBankService, OtherBankService>();
 builder.Services.AddScoped<IInterestRateService, InterestRateService>();
 builder.Services.AddScoped<IFeeRateService, FeeRateService>();
 builder.Services.AddScoped<IBankPolicyService, BankPolicyService>();
+builder.Services.AddSingleton<INrcService, NrcService>();
 builder.Services.AddScoped<bams.server.Services.Notifications.INotificationService, bams.server.Services.Notifications.NotificationService>();
 builder.Services.AddScoped<bams.server.Services.Notifications.ReconciliationNotifier>();
 builder.Services.AddScheduledJobs(builder.Configuration, jobs =>

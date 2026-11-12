@@ -49,9 +49,15 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         CreateForm.Completed += OnCreateFormCompleted;
 
         RefreshCommand = new AsyncRelayCommand(() => ReloadFirstPageAsync(CancellationToken.None));
-        ShowCreateFormCommand = new RelayCommand(_ =>
+        ShowCreateFormCommand = new AsyncRelayCommand(async () =>
         {
+            if (!CanManageCustomers)
+            {
+                return;
+            }
             CreateForm.Reset();
+            // Loads the NRC state list for the create form's NRC-number builder before it is shown.
+            await CreateForm.LoadNrcStatesAsync();
             IsShowingCreateForm = true;
         });
         ShowCustomerDetailsCommand = new AsyncRelayCommand(ShowCustomerDetailsAsync);
@@ -71,13 +77,13 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
 
     public AsyncRelayCommand RefreshCommand { get; }
 
-    public RelayCommand ShowCreateFormCommand { get; }
+    public AsyncRelayCommand ShowCreateFormCommand { get; }
 
     /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>.</summary>
     public AsyncRelayCommand ShowCustomerDetailsCommand { get; }
 
     /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>. Opens the same
-    /// create form, pre-filled and in edit mode (see <see cref="CustomerCreateViewModel.LoadForEdit"/>).</summary>
+    /// create form, pre-filled and in edit mode (see <see cref="CustomerCreateViewModel.LoadForEditAsync"/>).</summary>
     public AsyncRelayCommand EditCustomerCommand { get; }
 
     /// <summary>Row action: parameter is the row's <see cref="CustomerDisplayModel"/>. Opens the KYC
@@ -215,7 +221,7 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         try
         {
             var customer = await _customerService.GetCustomerByIdAsync(row.Id, CancellationToken.None);
-            CreateForm.LoadForEdit(customer);
+            await CreateForm.LoadForEditAsync(customer);
             IsShowingCreateForm = true;
         }
         catch (AppException exception)

@@ -134,6 +134,15 @@ public sealed class DocumentFormViewModel : ViewModelBase
         IssuedDate = null;
         ExpiryDate = null;
         FilePath = null;
+
+        // Explicitly clear validation error.
+        FileError = string.Empty;
+
+        // Refresh UI properties.
+        OnPropertyChanged(nameof(ExistingDocumentId));
+        OnPropertyChanged(nameof(HasExistingFile));
+        OnPropertyChanged(nameof(HasFile));
+        OnPropertyChanged(nameof(FileButtonText));
     }
 
     /// <summary>Fills this card from an existing customer's document, for the edit form.</summary>
@@ -145,7 +154,15 @@ public sealed class DocumentFormViewModel : ViewModelBase
         IssuedDate = document.IssuedDate is null ? null : document.IssuedDate.Value.ToDateTime(TimeOnly.MinValue);
         ExpiryDate = document.ExpiryDate is null ? null : document.ExpiryDate.Value.ToDateTime(TimeOnly.MinValue);
 
+        FileError = string.Empty;
+
+        OnPropertyChanged(nameof(ExistingDocumentId));
+        OnPropertyChanged(nameof(HasExistingFile));
+        OnPropertyChanged(nameof(HasFile));
         OnPropertyChanged(nameof(FileButtonText));
+        OnPropertyChanged(nameof(DocumentNumber));
+        OnPropertyChanged(nameof(IssuedDate));
+        OnPropertyChanged(nameof(ExpiryDate));
     }
 
     /// <summary>Builds the request entry for this document; only called for documents that have a file.</summary>
