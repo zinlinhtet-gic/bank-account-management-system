@@ -199,6 +199,8 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
             accountIds, isRefund: false, cancellationToken);
 
         FixedDeposit deposit = await GetTrackedFixedDepositAsync(settledDeposit.Id, cancellationToken);
+        // Use reloaded deposit to ensure payout-account settings are current after interest settlement.
+        settledDeposit = deposit;
         if (deposit.Status != FixedDepositStatus.Active.ToString())
         {
             // Another run or an early withdrawal handled it first.
@@ -480,7 +482,11 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         decimal interestEarned = Math.Max(0m, settledBalance - deposit.PrincipalAmount);
         decimal interestAtEarlyRate = InterestAccumulationService.CalculateFixedDepositInterest(
             deposit.PrincipalAmount, earlyWithdrawalRate, daysHeld);
-        decimal interestForfeited = Math.Max(0m, interestEarned - interestAtEarlyRate);
+
+        // Customer forfeits excess interest if early rate is below the applied rate. If early rate equals or exceeds
+        // applied rate (unlikely but possible if rates are misconfigured), no penalty is applied.
+        bool carriesPenalty = earlyWithdrawalRate < deposit.AppliedAnnualRate;
+        decimal interestForfeited = carriesPenalty ? Math.Max(0m, interestEarned - interestAtEarlyRate) : 0m;
 
         return new EarlyWithdrawalBreakdown(
             deposit.PrincipalAmount,

@@ -161,7 +161,13 @@ public sealed class FeeRateService : IFeeRateService
             throw new ValidationException(MessageCode.InvalidRequest);
         }
 
-        if (amount < 0 || percentage < 0 || minimumFee < 0 || maximumFee < 0 || taxRate < 0)
+        // At least one of amount or percentage must be specified.
+        if (!amount.HasValue && !percentage.HasValue)
+        {
+            throw new ValidationException(MessageCode.RequiredFieldMissing);
+        }
+
+        if ((amount ?? 0m) < 0 || (percentage ?? 0m) < 0 || (minimumFee ?? 0m) < 0 || (maximumFee ?? 0m) < 0 || (taxRate ?? 0m) < 0)
         {
             throw new ValidationException(MessageCode.InvalidAmount);
         }
