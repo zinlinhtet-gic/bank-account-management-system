@@ -57,15 +57,7 @@ public static class RolesAndPermissionsSeeder
         var rolesByCode = await dbContext.Roles.ToDictionaryAsync(role => role.Code);
         var permissionIds = await dbContext.Permissions.ToDictionaryAsync(permission => permission.Code, permission => permission.Id);
 
-        // Auditors must never inherit the manager-only End of Day workspace. This also corrects
-        // databases that received the grant from an earlier or manually modified seed state.
-        if (rolesByCode.TryGetValue(SecurityConstants.AuditorRole, out var auditorRole) &&
-            permissionIds.TryGetValue(SecurityConstants.EndOfDayApproval, out var endOfDayApprovalId))
-        {
-            await dbContext.RolePermissions
-                .Where(mapping => mapping.RoleId == auditorRole.Id && mapping.PermissionId == endOfDayApprovalId)
-                .ExecuteDeleteAsync();
-        }
+        await RevokeAuditorForbiddenPermissionsAsync(dbContext, rolesByCode, permissionIds);
 
         var grants = new[]
         {
@@ -89,6 +81,35 @@ public static class RolesAndPermissionsSeeder
             dbContext.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionId = permissionId });
         }
         await dbContext.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Removes write permissions that auditors must never hold. Auditors are read-only: End of Day approval is
+    /// manager-only, and customer_management belongs to managers and officers. This also corrects databases
+    /// that received these grants from an earlier or manually modified seed state.
+    /// </summary>
+    private static async Task RevokeAuditorForbiddenPermissionsAsync(
+        ApplicationDbContext dbContext,
+        Dictionary<string, Role> rolesByCode,
+        Dictionary<string, long> permissionIds)
+    {
+        if (!rolesByCode.TryGetValue(SecurityConstants.AuditorRole, out Role? auditorRole))
+            return;
+
+        string[] forbiddenPermissionCodes =
+        {
+            SecurityConstants.EndOfDayApproval,
+            SecurityConstants.CustomerManagement
+        };
+
+        List<long> forbiddenPermissionIds = forbiddenPermissionCodes
+            .Where(permissionIds.ContainsKey)
+            .Select(code => permissionIds[code])
+            .ToList();
+
+        await dbContext.RolePermissions
+            .Where(mapping => mapping.RoleId == auditorRole.Id && forbiddenPermissionIds.Contains(mapping.PermissionId))
+            .ExecuteDeleteAsync();
     }
 
     /// <summary>
@@ -124,7 +145,6 @@ public static class RolesAndPermissionsSeeder
             new Permission { Code = SecurityConstants.Transactions, Name = "transactions" },
             new Permission { Code = SecurityConstants.TransactionHistory, Name = "transaction history" },
             new Permission { Code = SecurityConstants.Audit, Name = "audit" },
-            new Permission { Code = SecurityConstants.CustomerList, Name = "customer list" },
             new Permission { Code = SecurityConstants.CashOperations, Name = "cash operations" },
             new Permission { Code = SecurityConstants.ReconciliationInvestigation, Name = "reconciliation investigation" },
             new Permission { Code = SecurityConstants.EndOfDayApproval, Name = "end of day approval" },
@@ -159,7 +179,7 @@ public static class RolesAndPermissionsSeeder
     /// 
     /// Manager: user_management, customer_management, customer_kyc, accounting, configuration, operation
     /// Officer: customer_management, account_management, transactions
-    /// Auditor: customer_list, accounting, transaction_history, audit
+    /// Auditor: accounting, transaction_history, audit
     /// </summary>
     private static async Task SeedRolePermissionsAsync(ApplicationDbContext dbContext)
     {
@@ -219,10 +239,9 @@ public static class RolesAndPermissionsSeeder
             });
         }
 
-        // Auditor: customer_list, accounting, transaction_history, audit
+        // Auditor: accounting, transaction_history, audit
         var auditorPermissionCodes = new[]
         {
-            SecurityConstants.CustomerList,
             SecurityConstants.Accounting,
             SecurityConstants.TransactionHistory,
             SecurityConstants.Audit,

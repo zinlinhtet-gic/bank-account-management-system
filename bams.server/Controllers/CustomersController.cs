@@ -27,7 +27,7 @@ public sealed class CustomersController : ControllerBase
     /// number, name, KYC status, status, or risk level.
     /// </summary>
     [HttpGet]
-    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
     public async Task<ActionResult<ApiMessageResponse<PagedResponse<CustomerSummaryResponse>>>> GetCustomersAsync(
         [FromQuery] GetCustomersRequest request,
         CancellationToken cancellationToken)
@@ -41,7 +41,7 @@ public sealed class CustomersController : ControllerBase
     /// Gets a single customer, including its documents, by its unique identifier.
     /// </summary>
     [HttpGet("{id:long}", Name = GetCustomerByIdRouteName)]
-    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
     public async Task<ActionResult<ApiMessageResponse<CustomerResponse>>> GetCustomerByIdAsync(
         long id,
         CancellationToken cancellationToken)
@@ -55,7 +55,7 @@ public sealed class CustomersController : ControllerBase
     /// Downloads one of a customer's documents by its unique identifier.
     /// </summary>
     [HttpGet("{id:long}/documents/{documentId:long}/file")]
-    [RequirePermission(SecurityConstants.CustomerManagement, SecurityConstants.CustomerList)]
+    [RequirePermission(SecurityConstants.CustomerManagement)]
     public async Task<IActionResult> DownloadCustomerDocumentAsync(
         long id,
         long documentId,

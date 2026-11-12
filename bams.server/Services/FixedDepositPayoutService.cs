@@ -459,6 +459,10 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         {
             throw new BusinessRuleException(MessageCode.AccountNotOperational);
         }
+
+        // The payout account must accept deposits. Checked before interest is settled, because settling commits
+        // interest to the deposit even when the payout later fails.
+        LedgerPostingService.EnsureCanReceiveTransfer(deposit.PayoutAccount!);
     }
 
     // Accounts that can take part in a posting: the same rule LockAccountsAsync applies.
@@ -493,7 +497,7 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
             daysHeld,
             earlyWithdrawalRate,
             interestEarned,
-            Math.Min(interestAtEarlyRate, interestEarned),
+            carriesPenalty ? Math.Min(interestAtEarlyRate, interestEarned) : interestEarned,
             interestForfeited,
             settledBalance - interestForfeited);
     }
@@ -545,6 +549,7 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
         return await _ledger.BuildTransactionResponseAsync(existing.Id, cancellationToken);
     }
 
+    // Builds the early-withdrawal quote shown to the manager from the calculated breakdown.
     private static FixedDepositEarlyWithdrawalQuoteResponse BuildQuoteResponse(
         FixedDeposit deposit,
         EarlyWithdrawalBreakdown breakdown)
@@ -712,7 +717,7 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
     {
         return await _dbContext.FixedDeposits.AsNoTracking()
             .Include(deposit => deposit.Account)
-            .Include(deposit => deposit.PayoutAccount)
+            .Include(deposit => deposit.PayoutAccount!).ThenInclude(account => account.AccountType)
             .Include(deposit => deposit.InterestRateRule)
             .SingleOrDefaultAsync(deposit => deposit.Id == fixedDepositId, cancellationToken)
             ?? throw new NotFoundException(MessageCode.FixedDepositNotFound);
@@ -729,6 +734,7 @@ public sealed class FixedDepositPayoutService : IFixedDepositPayoutService
             ?? throw new NotFoundException(MessageCode.FixedDepositNotFound);
     }
 
+    // Writes a fixed-deposit audit row holding its before and after state.
     private void AddFixedDepositAuditLog(
         string action,
         long fixedDepositId,

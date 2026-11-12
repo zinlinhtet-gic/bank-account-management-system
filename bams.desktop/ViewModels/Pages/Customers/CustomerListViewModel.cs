@@ -66,7 +66,7 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
     }
 
     // Kept for the placeholder view; the header already shows the page name.
-    public string PageTitle => "Customer List";
+    public string PageTitle => "Customer Management";
     public string PageDescription => "View and search customer records";
 
     public CustomerFilterViewModel Filter { get; }
@@ -92,9 +92,6 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
 
     /// <summary>Whether the signed-in user may review KYC (manager); gates the row's "Review" action.</summary>
     public bool CanPerformKyc => _authContext.PermissionFlags.CanPerformKYC;
-
-    /// <summary>Whether the signed-in user may edit customers; gates the row's "Edit" action (auditors are read-only).</summary>
-    public bool CanManageCustomers => _authContext.PermissionFlags.CanManageCustomers;
 
     /// <summary>True while the create-customer form replaces the table.</summary>
     public bool IsShowingCreateForm
