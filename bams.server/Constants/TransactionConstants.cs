@@ -14,6 +14,9 @@ public static class TransactionConstants
     // Amounts are stored as decimal(18, 2), so more decimal places would be silently rounded by the database.
     public const int MaximumAmountDecimalPlaces = 2;
 
+    // Largest value decimal(18, 2) can hold; a bigger amount would overflow on save and surface as a 500.
+    public const decimal MaximumTransactionAmount = 9_999_999_999_999_999.99m;
+
     // Business weeks for the weekly transaction limit start on Monday (Myanmar business date).
     public const DayOfWeek FirstDayOfBusinessWeek = DayOfWeek.Monday;
     public const int DaysPerWeek = 7;

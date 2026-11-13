@@ -10,10 +10,11 @@ namespace bams.server.Services;
 /// </summary>
 public static class TransactionRequestValidator
 {
-    // Amounts must be positive and fit the stored scale, so the posted amount equals the requested amount.
+    // Amounts must be positive, fit the stored precision and scale, so the posted amount equals the requested amount.
     public static void ValidateAmount(decimal amount)
     {
         if (amount <= 0m
+            || amount > TransactionConstants.MaximumTransactionAmount
             || decimal.Round(amount, TransactionConstants.MaximumAmountDecimalPlaces) != amount)
         {
             throw new ValidationException(MessageCode.InvalidAmount);

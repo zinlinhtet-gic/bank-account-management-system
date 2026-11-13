@@ -201,19 +201,34 @@ public sealed class LedgerPostingService
 
         if (transaction.TransactionType == TransactionType.InternalTransfer)
         {
-            var customerLines = actualLines.Where(line => line.GlCode == AccountingConstants.CustomerDepositsGlCode).ToList();
-            var sourceId = customerLines.FirstOrDefault(line => line.EntryType == EntryType.Debit && line.Amount == transaction.Amount)?.CustomerAccountId;
-            var destinationId = customerLines.FirstOrDefault(line => line.EntryType == EntryType.Credit && line.Amount == transaction.Amount)?.CustomerAccountId;
-            if (!sourceId.HasValue || !destinationId.HasValue || sourceId == destinationId ||
-                customerLines.Count != (transaction.FeeAmount > 0m ? 3 : 2) ||
-                customerLines.Any(line => line.CustomerAccountId != sourceId && line.CustomerAccountId != destinationId) ||
-                customerLines.Count(line => line.CustomerAccountId == sourceId && line.EntryType == EntryType.Debit && line.Amount == transaction.Amount) != 1 ||
-                customerLines.Count(line => line.CustomerAccountId == destinationId && line.EntryType == EntryType.Credit && line.Amount == transaction.Amount) != 1 ||
-                (transaction.FeeAmount > 0m && customerLines.Count(line =>
-                    line.CustomerAccountId == sourceId && line.EntryType == EntryType.Debit && line.Amount == transaction.FeeAmount) != 1))
+            List<JournalLine> customerLines = actualLines.Where(line => line.GlCode == AccountingConstants.CustomerDepositsGlCode).ToList();
+            if (!IsValidInternalTransferCustomerLines(customerLines, transaction.Amount, transaction.FeeAmount))
                 throw new BusinessRuleException(MessageCode.TransactionAccountingEntriesIncomplete);
         }
 
+    }
+
+    // An internal transfer posts one debit of the amount (plus one debit of the fee when charged) to the source and
+    // exactly one credit of the amount to a different destination. Lines are matched by entry type and account, not
+    // by value, so a fee equal to the amount is not mistaken for a duplicate amount line.
+    private static bool IsValidInternalTransferCustomerLines(
+        IReadOnlyCollection<JournalLine> customerLines, decimal amount, decimal feeAmount)
+    {
+        bool hasFee = feeAmount > 0m;
+        List<JournalLine> debitLines = customerLines.Where(line => line.EntryType == EntryType.Debit).ToList();
+        List<JournalLine> creditLines = customerLines.Where(line => line.EntryType == EntryType.Credit).ToList();
+        if (debitLines.Count != (hasFee ? 2 : 1) || creditLines.Count != 1)
+            return false;
+
+        long? sourceId = debitLines[0].CustomerAccountId;
+        long? destinationId = creditLines[0].CustomerAccountId;
+        if (!sourceId.HasValue || !destinationId.HasValue || sourceId == destinationId)
+            return false;
+        if (debitLines.Any(line => line.CustomerAccountId != sourceId) || creditLines[0].Amount != amount)
+            return false;
+
+        List<decimal> expectedDebitAmounts = hasFee ? [amount, feeAmount] : [amount];
+        return debitLines.Select(line => line.Amount).Order().SequenceEqual(expectedDebitAmounts.Order());
     }
 
     private sealed record JournalLine(string GlCode, EntryType EntryType, decimal Amount, long? CustomerAccountId);
@@ -403,7 +418,13 @@ public sealed class LedgerPostingService
     public async Task<T> RunInTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
     {
         await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-        // Hold the currently open business-date row through commit so EOD cannot close across an in-flight posting.
+        // Share-lock the business-date row through commit: postings run concurrently, but EOD takes the row
+        // FOR UPDATE and so waits for in-flight postings. The lock comes before the open check so EOD cannot
+        // close the date between the check and the lock.
+        DateOnly currentBusinessDate = BusinessTime.ToBusinessDate(DateTime.UtcNow);
+        await _dbContext.BusinessDates
+            .FromSql($"SELECT * FROM BusinessDates WHERE Date = {currentBusinessDate} FOR SHARE")
+            .ToListAsync(cancellationToken);
         await GetPostingBusinessDateAsync(DateTime.UtcNow, cancellationToken);
         var result = await operation();
         await dbTransaction.CommitAsync(cancellationToken);
