@@ -18,7 +18,18 @@ public sealed class BankExpensesViewModel:ReconciliationOperationViewModel
     public BankExpenseResponse? SelectedExpense { get=>_selectedExpense; set=>SetProperty(ref _selectedExpense,value); }
     public ObservableCollection<CashPositionSessionResponse> Sessions { get; }=[];
     public ObservableCollection<BankExpenseResponse> Expenses { get; }=[];
-    public CashPositionSessionResponse? SelectedSession { get=>_session; set=>SetProperty(ref _session,value); }
+    public CashPositionSessionResponse? SelectedSession
+    {
+        get=>_session;
+        set { if(SetProperty(ref _session,value)) { OnPropertyChanged(nameof(ActiveSessionText)); OnPropertyChanged(nameof(HasNoActiveSession)); } }
+    }
+    // Managers choose between the vault and their own session; officers always use their activated teller session.
+    public bool ShowSessionPicker=>CanReview;
+    public bool ShowActiveSession=>!CanReview;
+    public bool HasNoActiveSession=>!CanReview && SelectedSession==null;
+    public string ActiveSessionText=>SelectedSession==null
+        ? "No activated cash session. Activate your session before recording an expense."
+        : $"{SelectedSession.PositionType} — session {SelectedSession.Id} — {SelectedSession.BusinessDate}";
     public string Amount { get=>_amount; set=>SetProperty(ref _amount,value); }
     public string Payee { get=>_payee; set=>SetProperty(ref _payee,value); }
     public string Purpose { get=>_purpose; set=>SetProperty(ref _purpose,value); }
@@ -46,7 +57,8 @@ public sealed class BankExpensesViewModel:ReconciliationOperationViewModel
         }),value=>value is BankExpenseResponse {ReceiptFileName:not null});
         SubmitCommand=new(()=>RunAsync(async()=>
         {
-            if(SelectedSession==null || !decimal.TryParse(Amount,out decimal amount)) { ErrorMessage="Choose a cash position and enter the expense amount."; return; }
+            if(SelectedSession==null) { ErrorMessage=CanReview?"Choose a cash position.":"No activated cash session is available."; return; }
+            if(!decimal.TryParse(Amount,out decimal amount)) { ErrorMessage="Enter the expense amount."; return; }
             await unified.SubmitExpenseAsync(new(SelectedSession.Id,amount,Payee,Purpose,_receiptName,_receiptType,_receipt,MissingReceiptReason));
             Amount=""; Payee=""; Purpose=""; MissingReceiptReason=""; _receipt=null; _receiptName=null; _receiptType=null;
             OnPropertyChanged(nameof(ReceiptName)); await LoadAsync(default);
@@ -80,8 +92,11 @@ public sealed class BankExpensesViewModel:ReconciliationOperationViewModel
     {
         Sessions.Clear();
         foreach(CashPositionSessionResponse session in await _cash.GetSessionsAsync(null,ct))
-            if(session.Status=="Open" && (session.TellerId==Auth.UserId || CanReview && session.PositionType=="Vault")) Sessions.Add(session);
-        SelectedSession=Sessions.FirstOrDefault();
+            // Open = activated. Manager: vault plus own session. Officer: only own teller session.
+            if(session.Status=="Open" && (session.PositionType=="Teller" && session.TellerId==Auth.UserId || CanReview && session.PositionType=="Vault")) Sessions.Add(session);
+        // Keep the manager's previous choice across reloads; otherwise take the first available session.
+        long? previousSessionId=SelectedSession?.Id;
+        SelectedSession=Sessions.FirstOrDefault(session=>session.Id==previousSessionId) ?? Sessions.FirstOrDefault();
         // Keep the selected expense across reloads, or select the one a notification points to.
         long? selectedId=TakeFocusId() ?? SelectedExpense?.Id;
         Expenses.Clear(); foreach(BankExpenseResponse expense in await _unified.ExpensesAsync(ct)) Expenses.Add(expense);
