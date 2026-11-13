@@ -216,7 +216,7 @@
                                         <Run Text="Passport" />
                                         <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                     </TextBlock>
-                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBlock Text="PASSPORT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                                     <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
@@ -241,7 +241,7 @@
                             <Border Grid.Row="0" Grid.Column="4" Style="{StaticResource Card.Compact}" DataContext="{Binding VisaDocument}">
                                 <StackPanel>
                                     <TextBlock Text="Visa" Style="{StaticResource Text.Label}" />
-                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBlock Text="VISA NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                                     <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
@@ -269,7 +269,7 @@
                                         <Run Text="NRC" />
                                         <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                     </TextBlock>
-                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBlock Text="NRC NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                                     <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
@@ -297,7 +297,7 @@
                                         <Run Text="Household Registration" />
                                         <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                     </TextBlock>
-                                    <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
+                                    <TextBlock Text="HOUSEHOLD REGISTRATION NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
                                     <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
@@ -322,23 +322,6 @@
                             <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding ProofOfAddressDocument}">
                                 <StackPanel>
                                     <TextBlock Text="Proof of Address" Style="{StaticResource Text.Label}" />
-                                    <!-- <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
-                                    <Grid Margin="0,8,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
-                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
-                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
-                                        </StackPanel>
-                                    </Grid> -->
                                     <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch" t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
                                     <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}" Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </StackPanel>
@@ -347,23 +330,6 @@
                             <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding TaxDocumentDocument}">
                                 <StackPanel>
                                     <TextBlock Text="Tax Document" Style="{StaticResource Text.Label}" />
-                                    <!-- <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
-                                    <Grid Margin="0,8,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
-                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
-                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
-                                        </StackPanel>
-                                    </Grid !-->
                                     <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch" t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
                                     <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}" Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </StackPanel>
@@ -372,23 +338,6 @@
                             <Border Grid.Row="1" Grid.Column="4" Style="{StaticResource Card.Compact}" Margin="0,16,0,0" DataContext="{Binding SourceOfFundsDocument}">
                                 <StackPanel>
                                     <TextBlock Text="Source of Funds" Style="{StaticResource Text.Label}" />
-                                    <!-- <TextBlock Text="DOCUMENT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
-                                    <Grid Margin="0,8,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="ISSUED" Style="{StaticResource Text.FieldLabel}" />
-                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding IssuedDate, Mode=TwoWay}" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="EXPIRY" Style="{StaticResource Text.FieldLabel}" />
-                                            <DatePicker Style="{StaticResource Input.Date}" SelectedDate="{Binding ExpiryDate, Mode=TwoWay}" />
-                                        </StackPanel>
-                                    </Grid> -->
                                     <Button Content="{Binding FileButtonText}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch" t:ThemeAssist.Icon="{StaticResource Icon.Upload}" Margin="0,12,0,0" Command="{Binding ChooseFileCommand}" />
                                     <TextBlock Text="{Binding FileError}" Style="{StaticResource Text.Error}" Visibility="{Binding HasFileError, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </StackPanel>

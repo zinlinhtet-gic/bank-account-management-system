@@ -3,6 +3,7 @@ using System.Windows.Media.Effects;
 using bams.desktop.Components.ConfirmDialog;
 using bams.desktop.Components.ModalDialog;
 using bams.desktop.ViewModels;
+using System.IO;
 
 namespace bams.desktop.Services;
 
@@ -52,11 +53,15 @@ public sealed class DialogService : IDialogService
     /// <inheritdoc />
     public string? PickSaveFile(string title, string suggestedFileName, string filter)
     {
+        var extension = Path.GetExtension(suggestedFileName);
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = title,
             FileName = suggestedFileName,
-            Filter = filter
+            Filter = filter,
+            AddExtension = true,
+            DefaultExt = extension,
+            OverwritePrompt = true
         };
 
         return dialog.ShowDialog(Application.Current?.MainWindow) == true ? dialog.FileName : null;

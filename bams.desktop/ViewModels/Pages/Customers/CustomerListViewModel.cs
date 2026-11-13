@@ -51,10 +51,6 @@ public sealed class CustomerListViewModel : ViewModelBase, IAsyncInitializable
         RefreshCommand = new AsyncRelayCommand(() => ReloadFirstPageAsync(CancellationToken.None));
         ShowCreateFormCommand = new AsyncRelayCommand(async () =>
         {
-            if (!CanManageCustomers)
-            {
-                return;
-            }
             CreateForm.Reset();
             // Loads the NRC state list for the create form's NRC-number builder before it is shown.
             await CreateForm.LoadNrcStatesAsync();

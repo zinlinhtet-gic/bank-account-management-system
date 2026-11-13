@@ -15,7 +15,7 @@ public static class CustomerFieldRules
     public const string CustomerEmailRegexPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
 
     public const string NrcNumberRegexPattern =
-       @"^(0[1-9]|1[0-4])/[A-Z]{3,6}\([NEP]\)\d{6}$";
+       @"^(0[1-9]|1[0-4])/[A-Z]{3,10}\([NEP]\)\d{6}$";
 
     // General passport format: 6-9 alphanumeric characters
     public const string PassportNumberRegexPattern =
