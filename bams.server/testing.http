@@ -29,6 +29,10 @@ GET http://localhost:5121/api/accounting/daily-summaries?date=2026-09-21&glAccou
 Accept: application/json
 
 ###
+GET http://localhost:5121/api/accounting/monthly-summaries
+Accept: application/json
+
+###
 GET http://localhost:5121/api/accounting/monthly-summaries?year=2026&month=9
 Accept: application/json
 

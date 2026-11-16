@@ -186,9 +186,18 @@
 
                     <DockPanel>
 
+                        <!-- Declared first so it sits at the far right, after the count badge -->
+                        <Button DockPanel.Dock="Right"
+                                Content="Export to Excel"
+                                Style="{StaticResource Button.Accent}"
+                                t:ThemeAssist.Icon="{StaticResource Icon.Download}"
+                                Command="{Binding ExportToExcelCommand}"
+                                Margin="12,0,0,0"/>
+
                         <ContentControl DockPanel.Dock="Right"
                                         Style="{StaticResource Badge.Neutral}"
                                         t:ThemeAssist.ShowDot="False"
+                                        VerticalAlignment="Center"
                                         Content="{Binding CountText}"/>
 
                         <TextBlock Text="Accounting Entries"

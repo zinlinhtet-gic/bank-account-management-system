@@ -177,6 +177,7 @@ public partial class App : Application
         // Register Page ViewModels
         services.AddTransient<UserManagementViewModel>();
         services.AddTransient<AccountingEntriesViewModel>();
+        services.AddTransient<MonthlySummariesViewModel>();
         // Each navigation gets fresh account-management UI state instead of reusing a stale singleton view tree.
         services.AddTransient<AccountManagementViewModel>();
         services.AddTransient<TransactionsViewModel>();
@@ -240,6 +241,7 @@ public partial class App : Application
 
         // Register Accounting Service
         services.AddScoped<IAccountingService, AccountingService>();
+        services.AddScoped<IAccountingExportService, AccountingExportService>();
 
     }
 }

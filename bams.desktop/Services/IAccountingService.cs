@@ -17,4 +17,14 @@ public interface IAccountingService
         int pageSize,
         CancellationToken cancellationToken
     );
+
+    /// <summary>
+    /// Lists monthly GL summaries. Every filter is optional; with none, all stored periods are returned newest first.
+    /// </summary>
+    Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(
+        int? year,
+        int? month,
+        long? glAccountId,
+        CancellationToken cancellationToken
+    );
 }

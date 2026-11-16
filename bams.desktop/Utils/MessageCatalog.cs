@@ -84,6 +84,8 @@ public static class MessageCatalog
             [MessageCode.ScheduledJobAlertsUnavailable] = "Scheduled operation alerts could not be loaded. Try refreshing.",
             [MessageCode.NotificationsUnavailable] = "Notifications could not be loaded. Try refreshing.",
             [MessageCode.NotificationTargetNotPermitted] = "You do not have access to the page for this notification.",
+            [MessageCode.AccountingExportUnavailable] = "Excel export is not available yet. The server export service has not been released.",
+            [MessageCode.AccountingExportSaveFailed] = "The exported file could not be saved to the chosen location. Choose another location and try again.",
             [MessageCode.MonthlyAccountingPeriodNotClosed] = "The previous month's final business date is still open. Close it through End of Day before retrying the monthly accounting close.",
             [MessageCode.ScheduledJobRetryUnavailable] = "This scheduled operation is not in a state that can be retried manually.",
             [MessageCode.NewPasswordSameAsCurrent] = "The new password must be different from your current password.",

@@ -19,6 +19,66 @@
     <DataTemplate DataType="{x:Type accounting:CashAmountDialogViewModel}"><StackPanel Width="400" Margin="24"><TextBlock Text="Approve cash amount" Style="{StaticResource Text.Heading}"/><TextBox t:ThemeAssist.Placeholder="e.g. 1,000,000" Text="{Binding AmountText,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="0,16"/><TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap"/><WrapPanel Margin="0,16,0,0"><Button Content="Accept" Command="{Binding ConfirmCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/><Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/></WrapPanel></StackPanel></DataTemplate>
 
 
+    <!-- Accounting: Export to Excel (account type, start/end period, save location) -->
+    <DataTemplate DataType="{x:Type accounting:ExportAccountingDialogViewModel}">
+        <StackPanel Width="480" Margin="24">
+            <TextBlock Text="Export to Excel" Style="{StaticResource Text.Heading}" Margin="0,0,0,16"/>
+
+            <TextBlock Text="ACCOUNT TYPE" Style="{StaticResource Text.FieldLabel}"/>
+            <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding AccountClassOptions}"
+                      SelectedItem="{Binding SelectedAccountClass}" DisplayMemberPath="Label" Margin="0,0,0,12"/>
+
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="START PERIOD" Style="{StaticResource Text.FieldLabel}"/>
+                    <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding MonthOptions}"
+                              SelectedItem="{Binding StartMonth}" DisplayMemberPath="Label"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
+                    <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding YearOptions}"
+                              SelectedItem="{Binding StartYear}"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="END PERIOD" Style="{StaticResource Text.FieldLabel}"/>
+                    <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding MonthOptions}"
+                              SelectedItem="{Binding EndMonth}" DisplayMemberPath="Label"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
+                    <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding YearOptions}"
+                              SelectedItem="{Binding EndYear}"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Text="SAVE TO" Style="{StaticResource Text.FieldLabel}"/>
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Browse..." Command="{Binding BrowseCommand}"
+                        Style="{StaticResource Button.Secondary}" Margin="8,0,0,0"/>
+                <TextBox t:ThemeAssist.Placeholder="Choose where to save the file" Text="{Binding FilePath, Mode=OneWay}"
+                         IsReadOnly="True" Style="{StaticResource Input.Text}"/>
+            </DockPanel>
+
+            <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+
+            <WrapPanel Margin="0,16,0,0">
+                <Button Content="Export" Command="{Binding ConfirmCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0"/>
+                <Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource Button.Secondary}"/>
+            </WrapPanel>
+        </StackPanel>
+    </DataTemplate>
+
     <BooleanToVisibilityConverter x:Key="DialogBooleanToVisibilityConverter"/>
 
     <!--

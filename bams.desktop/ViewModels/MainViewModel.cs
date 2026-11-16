@@ -161,6 +161,11 @@ public sealed class MainViewModel : ViewModelBase
                 transactionAudit.DetailRequested += OpenTransactionAuditDetail;
             }
 
+            if (viewModel is MonthlySummariesViewModel monthlySummaries)
+            {
+                monthlySummaries.MonthSelected += OpenAccountingEntriesForMonth;
+            }
+
             if (notificationFocus is { } focus && viewModel is INotificationFocusTarget focusTarget)
                 focusTarget.FocusOn(focus.TargetType, focus.TargetId);
 
@@ -206,6 +211,23 @@ public sealed class MainViewModel : ViewModelBase
         ActiveItem = route.Page is PageNames.ReconciliationProposalEditor or PageNames.CashProposalEditor
             ? PageNames.AssignedReconciliationTasks : route.Page;
         StartPageInitialization(next);
+    }
+
+    // Opens the Accounting Entries page already filtered to the month clicked on the Monthly Summaries page.
+    private void OpenAccountingEntriesForMonth(int year, int month)
+    {
+        if (_navigationService.GetPageViewModel(PageNames.AccountingEntries) is not AccountingEntriesViewModel entries)
+        {
+            return;
+        }
+
+        _previousPage = CurrentPage;
+        _previousPageLabel = _currentPageLabel;
+        CurrentPage = entries;
+        _currentPageLabel = PageNames.AccountingEntries;
+        ActiveItem = PageNames.AccountingEntries;
+        // The month replaces the normal first load, so the page opens with that month's entries only.
+        StartPageInitialization(entries, cancellationToken => entries.LoadMonthAsync(year, month, cancellationToken));
     }
 
     private void OpenGlAccountDetail(long accountId)
@@ -291,12 +313,13 @@ public sealed class MainViewModel : ViewModelBase
     /// </summary>
     // async void is intentional: this is fired from a navigation command, and an unexpected
     // exception must surface instead of being silently lost in an unobserved Task.
-    private async void StartPageInitialization(object page)
+    // initializeOverride replaces the page's own InitializeAsync when the page must open in a specific state.
+    private async void StartPageInitialization(object page, Func<CancellationToken, Task>? initializeOverride = null)
     {
         _pageInitializationCancellation?.Cancel();
         _pageInitializationCancellation = null;
 
-        if (page is not IAsyncInitializable initializablePage)
+        if (initializeOverride is null && page is not IAsyncInitializable)
         {
             return;
         }
@@ -306,7 +329,7 @@ public sealed class MainViewModel : ViewModelBase
 
         try
         {
-            await initializablePage.InitializeAsync(cancellation.Token);
+            await (initializeOverride?.Invoke(cancellation.Token) ?? ((IAsyncInitializable)page).InitializeAsync(cancellation.Token));
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {

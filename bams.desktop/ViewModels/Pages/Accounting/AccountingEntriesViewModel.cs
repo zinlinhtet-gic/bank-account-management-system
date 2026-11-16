@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using bams.desktop.Commands;
+using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.DTOs.Common;
 using bams.desktop.Exceptions;
 using bams.desktop.Models;
 using bams.desktop.Services;
+using bams.desktop.Utils;
 
 namespace bams.desktop.ViewModels.Pages.Accounting;
 
@@ -12,6 +14,9 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
 {
     private const int PageSize = 10;
     private readonly IAccountingService _accountingService;
+    private readonly IAccountingExportService _exportService;
+    private readonly IDialogService _dialogService;
+    private bool _defaultsToCurrentMonth;
     private CancellationTokenSource? _loadCancellation;
     private bool _isLoading;
     private bool _isRefreshing;
@@ -26,15 +31,21 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
 
     public sealed record FilterOption<T>(string Label, T Value, bool IsAll = false);
 
-    public AccountingEntriesViewModel(IAccountingService accountingService)
+    public AccountingEntriesViewModel(
+        IAccountingService accountingService,
+        IAccountingExportService exportService,
+        IDialogService dialogService)
     {
         _accountingService = accountingService;
+        _exportService = exportService;
+        _dialogService = dialogService;
         GlAccountOptions.Add(new("All GL accounts", default, true));
         EntryTypeOptions = [new("All entry types", default, true), new("Debit", EntryType.Debit), new("Credit", EntryType.Credit)];
         _selectedGlAccount = GlAccountOptions[0];
         _selectedEntryType = EntryTypeOptions[0];
         RefreshCommand = new AsyncRelayCommand(async _ => await RefreshAsync());
         ResetFiltersCommand = new RelayCommand(_ => ResetFilters());
+        ExportToExcelCommand = new AsyncRelayCommand(ExportToExcelAsync);
         PreviousPageCommand = new RelayCommand(_ => _ = LoadPageAsync(CurrentPage - 1), _ => HasPreviousPage && !IsLoading);
         NextPageCommand = new RelayCommand(_ => _ = LoadPageAsync(CurrentPage + 1), _ => HasNextPage && !IsLoading);
     }
@@ -45,6 +56,7 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
     public IReadOnlyList<FilterOption<EntryType>> EntryTypeOptions { get; }
     public AsyncRelayCommand RefreshCommand { get; }
     public RelayCommand ResetFiltersCommand { get; }
+    public AsyncRelayCommand ExportToExcelCommand { get; }
     public RelayCommand PreviousPageCommand { get; }
     public RelayCommand NextPageCommand { get; }
     public int CurrentPage => _currentPage;
@@ -85,6 +97,61 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
     public bool IsEmpty => !IsLoading && !HasInvalidDateRange && Entries.Count == 0;
     public string CountText => _totalCount == 1 ? "1 transaction" : $"{_totalCount} transactions";
 
+    /// <summary>
+    /// Makes this instance the "Current Month Entries" view: the date filters start at the first and last day of the
+    /// current Myanmar business month, and Reset returns to them. Call before <see cref="InitializeAsync"/>.
+    /// </summary>
+    public void UseCurrentMonthDefault()
+    {
+        _defaultsToCurrentMonth = true;
+        ApplyCurrentMonthDates();
+    }
+
+    // Sets the date filters to the current Myanmar business month without triggering a reload.
+    private void ApplyCurrentMonthDates()
+    {
+        var today = MyanmarTimeDisplay.ToMyanmarTime(DateTime.UtcNow);
+        SetMonthDates(today.Year, today.Month);
+    }
+
+    // Writes the first and last day of a month into the date filters through the backing fields (no reload).
+    private void SetMonthDates(int year, int month)
+    {
+        var firstDay = new DateTime(year, month, 1);
+        _fromDate = firstDay;
+        _toDate = firstDay.AddMonths(1).AddDays(-1);
+        OnPropertyChanged(nameof(FromDate));
+        OnPropertyChanged(nameof(ToDate));
+        OnPropertyChanged(nameof(HasInvalidDateRange));
+        OnPropertyChanged(nameof(HighlightHint));
+    }
+
+    /// <summary>
+    /// Shows every entry posted in the given month (used when a Monthly Summaries row is clicked).
+    /// Loads GL accounts first if this tab has not been opened yet.
+    /// </summary>
+    public async Task LoadMonthAsync(int year, int month, CancellationToken cancellationToken)
+    {
+        SetMonthDates(year, month);
+        SelectedGlAccountSilently(GlAccountOptions[0]);
+        if (_hasLoaded)
+        {
+            await LoadPageAsync(1);
+            return;
+        }
+
+        await InitializeAsync(cancellationToken);
+    }
+
+    // Selects a GL account option without starting a reload (the caller reloads once afterwards).
+    private void SelectedGlAccountSilently(FilterOption<long> option)
+    {
+        if (SetProperty(ref _selectedGlAccount, option, nameof(SelectedGlAccount)))
+        {
+            OnPropertyChanged(nameof(HighlightHint));
+        }
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         try
@@ -92,7 +159,11 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
             IsLoading = true;
             ErrorMessage = null;
             var accountsTask = _accountingService.GetGlAccountsAsync(cancellationToken);
-            var entriesTask = _accountingService.GetAccountingEntriesAsync(null, null, null, null, 1, PageSize, cancellationToken);
+            // Use the current filters so a month tab opens already narrowed to its month.
+            var entriesTask = _accountingService.GetAccountingEntriesAsync(
+                FromDate.HasValue ? DateOnly.FromDateTime(FromDate.Value) : null,
+                ToDate.HasValue ? DateOnly.FromDateTime(ToDate.Value) : null,
+                null, null, 1, PageSize, cancellationToken);
             await Task.WhenAll(accountsTask, entriesTask);
             foreach (var account in await accountsTask) GlAccountOptions.Add(new($"{account.Code} - {account.Name}", account.Id));
             UpdatePage(await entriesTask);
@@ -188,10 +259,45 @@ public sealed class AccountingEntriesViewModel : ViewModelBase, IAsyncInitializa
             (entryType is null || entry.EntryType == entryType);
     }
 
+    // Clears every filter; the Current Month tab goes back to the current month instead of "all dates".
     private void ResetFilters()
     {
-        FromDate = null; ToDate = null;
+        if (_defaultsToCurrentMonth)
+        {
+            // Date fields are set silently here, so reload once explicitly after the other filters reset.
+            ApplyCurrentMonthDates();
+        }
+        else
+        {
+            FromDate = null; ToDate = null;
+        }
         SelectedGlAccount = GlAccountOptions[0];
         SelectedEntryType = EntryTypeOptions[0];
+        if (_defaultsToCurrentMonth && _hasLoaded)
+        {
+            _ = LoadPageAsync(1);
+        }
+    }
+
+    // Asks for the export options, then downloads and saves the Excel file; outcome is shown in a message dialog.
+    private async Task ExportToExcelAsync()
+    {
+        var dialog = new ExportAccountingDialogViewModel(_dialogService, _accountingService);
+        await dialog.LoadAccountsAsync(CancellationToken.None);
+        if (!_dialogService.ShowDialog(dialog))
+        {
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = null;
+            await _exportService.ExportToExcelAsync(dialog.BuildRequest(), CancellationToken.None);
+            _dialogService.ShowMessage("Export complete", $"Saved to {dialog.FilePath}");
+        }
+        catch (AppException exception)
+        {
+            ErrorMessage = exception.Message;
+        }
     }
 }

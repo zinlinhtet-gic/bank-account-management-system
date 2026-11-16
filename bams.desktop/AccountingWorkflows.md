@@ -10,6 +10,18 @@ Account Owner is the account's primary holder (`customerAccountOwnerName` in `Ac
 
 On GL account detail, lines that post to the viewed account are highlighted. On Accounting Entries, filters (dates, GL account, entry type) choose which transactions appear, but the server always returns every line of each transaction, so blocks stay complete and balanced. The lines that matched the filter are highlighted.
 
+## Accounting Entries pages and Excel export
+
+The Accounting sidebar group has three entries pages. Each is its own nav item and loads its data when opened.
+
+- **Accounting Entries**: all entries, filters empty by default.
+- **Current Month Entries**: the same view and API as Accounting Entries (`AccountingEntriesViewModel` created by `NavigationService` in current-month mode). Dates default to the first and last day of the current Myanmar business month; a month with no postings shows the empty state. Reset restores the current month.
+- **Monthly Summaries**: `GET /api/accounting/monthly-summaries` called with no filters (year, month and glAccountId are optional on the server). Rows are grouped per month (month, GL account count, total debit, total credit). Clicking a row opens the Accounting Entries page filtered to that month (`MainViewModel.OpenAccountingEntriesForMonth` and `AccountingEntriesViewModel.LoadMonthAsync`), GL account set to all.
+
+**Export to Excel** (button in the table title row, right of the transaction count) opens `ExportAccountingDialogViewModel`: account type ("All Account" or a GL account class), start and end month/year, and a save location chosen with the Save dialog. Validation uses `RequiredFieldMissing` (no location) and `InvalidDateRange` (start after end).
+
+The backend does not save the file to a chosen folder: the client downloads it to a temp file and `AccountingExportService` moves it to the chosen path, then deletes the temp file. **The server export route does not exist yet.** `ApiConstants.AccountingExportEndpoint` and `DownloadExportToTemporaryFileAsync` are placeholders, and the export currently reports `AccountingExportUnavailable` (6023). A failed move or copy reports `AccountingExportSaveFailed` (6024). Both are client-only codes.
+
 ## Reconciliation
 
 The Reconciliation master page runs unified account/GL and cash checks and displays active exceptions in separate tabs. Row actions are Assign, Perform Reconcile, and Force Pass. Assign opens a dialog for an officer or auditor. Assigned staff use Assigned Reconciliation Tasks, which lists only their work and offers Perform Reconcile. Managers use Reconcile Proposals to accept or reject submitted proposals.

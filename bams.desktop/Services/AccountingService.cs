@@ -1,4 +1,5 @@
 using bams.desktop.Api;
+using bams.desktop.Constants;
 using bams.desktop.DTOs.Accounting;
 using bams.desktop.DTOs.Common;
 
@@ -68,5 +69,33 @@ public sealed class AccountingService : IAccountingService
         return _apiClient.GetAsync<PagedResponse<AccountingEntryResponse>>(
             endpoint,
             cancellationToken);
+    }
+
+    // Requests monthly summaries, sending only the filters the caller supplied.
+    public Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(
+        int? year,
+        int? month,
+        long? glAccountId,
+        CancellationToken cancellationToken)
+    {
+        var query = new List<string>();
+        if (year.HasValue)
+        {
+            query.Add($"year={year.Value}");
+        }
+        if (month.HasValue)
+        {
+            query.Add($"month={month.Value}");
+        }
+        if (glAccountId.HasValue)
+        {
+            query.Add($"glAccountId={glAccountId.Value}");
+        }
+        var endpoint = ApiConstants.MonthlySummariesEndpoint;
+        if (query.Count > 0)
+        {
+            endpoint += "?" + string.Join("&", query);
+        }
+        return _apiClient.GetAsync<IReadOnlyList<MonthlySummaryResponse>>(endpoint, cancellationToken);
     }
 }

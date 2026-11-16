@@ -221,6 +221,8 @@ public partial class NavBarViewModel : ObservableObject
         {
             accounting.Children.Add(CreateChildNavItem(PageNames.GeneralLedger));
             accounting.Children.Add(CreateChildNavItem(PageNames.AccountingEntries));
+            accounting.Children.Add(CreateChildNavItem(PageNames.CurrentMonthEntries));
+            accounting.Children.Add(CreateChildNavItem(PageNames.MonthlySummaries));
 
         }
         if (flags.CanApproveEndOfDay)

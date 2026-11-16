@@ -160,22 +160,35 @@ public sealed class AccountingReportService : IAccountingReportService
             .ToListAsync(cancellationToken);
     }
     /// <summary>
-    /// Retrieves monthly accounting summaries for a specific period
-    /// and optionally limits the result to one GL account.
+    /// Retrieves monthly accounting summaries, optionally limited to a year,
+    /// a month and/or one GL account. Newest period first.
     /// </summary>
-    public async Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(int year, int month, long? glAccountId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(int? year, int? month, long? glAccountId, CancellationToken cancellationToken)
     {
-        ValidateMonth(month);
-        var query = _dbContext.MonthlySummaries
-                .AsNoTracking()
-                .Where(summary => summary.Year == year && summary.Month == month);
+        // Validate the month only when the caller supplies one.
+        if (month.HasValue)
+        {
+            ValidateMonth(month.Value);
+        }
+        IQueryable<Models.Accounting.MonthlySummary> query = _dbContext.MonthlySummaries.AsNoTracking();
+        // Apply period filtering only for the values the caller provides.
+        if (year.HasValue)
+        {
+            query = query.Where(summary => summary.Year == year.Value);
+        }
+        if (month.HasValue)
+        {
+            query = query.Where(summary => summary.Month == month.Value);
+        }
         // Apply account filtering only when the caller provides an account ID.
         if (glAccountId.HasValue)
         {
             query = query.Where(summary => summary.GlAccountId == glAccountId.Value);
         }
         return await query
-            .OrderBy(summary => summary.GlAccount!.Code)
+            .OrderByDescending(summary => summary.Year)
+            .ThenByDescending(summary => summary.Month)
+            .ThenBy(summary => summary.GlAccount!.Code)
             .Select(summary => new MonthlySummaryResponse(
                 summary.Id,
                 summary.Year,

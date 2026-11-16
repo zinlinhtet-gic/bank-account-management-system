@@ -86,8 +86,12 @@
                         <accountingViews:GLAccountDetailView/>
                     </DataTemplate>
 
+                    <!-- Accounting Entries and Current Month Entries share this view; only the ViewModel's filters differ. -->
                     <DataTemplate DataType="{x:Type accountingViewModels:AccountingEntriesViewModel}">
                         <accountingViews:AccountingEntriesView />
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:MonthlySummariesViewModel}">
+                        <accountingViews:MonthlySummariesView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:UnifiedReconciliationViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:AssignedReconciliationTasksViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>

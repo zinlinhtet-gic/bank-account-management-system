@@ -155,5 +155,7 @@ public enum MessageCode
     ScheduledJobAlertsUnavailable = 6020,
     NotificationsUnavailable = 6021,
     NotificationTargetNotPermitted = 6022,
+    AccountingExportUnavailable = 6023,
+    AccountingExportSaveFailed = 6024,
     CurrentPasswordIncorrect = 6010
 }

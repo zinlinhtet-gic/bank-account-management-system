@@ -22,6 +22,14 @@ public sealed class NavigationService : INavigationService
         _serviceProvider = serviceProvider;
     }
 
+    // Creates the entries ViewModel in current-month mode; it shares its view with the Accounting Entries page.
+    private AccountingEntriesViewModel? CreateCurrentMonthEntriesViewModel()
+    {
+        var viewModel = _serviceProvider.GetService<AccountingEntriesViewModel>();
+        viewModel?.UseCurrentMonthDefault();
+        return viewModel;
+    }
+
     /// <summary>
     /// Gets the ViewModel for a given navigation item label.
     /// </summary>
@@ -37,6 +45,8 @@ public sealed class NavigationService : INavigationService
             PageNames.GeneralLedger => _serviceProvider.GetService<GeneralLedgerViewModel>(),
             PageNames.GLAccountDetail => _serviceProvider.GetService<GLAccountDetailViewModel>(),
             PageNames.AccountingEntries => _serviceProvider.GetService<AccountingEntriesViewModel>(),
+            PageNames.CurrentMonthEntries => CreateCurrentMonthEntriesViewModel(),
+            PageNames.MonthlySummaries => _serviceProvider.GetService<MonthlySummariesViewModel>(),
             // Placeholder until reconciliation is built (shown by the generic page view).
             PageNames.Reconciliation => _serviceProvider.GetService<UnifiedReconciliationViewModel>(),
             PageNames.ReconciliationMaster => _serviceProvider.GetService<UnifiedReconciliationViewModel>(),

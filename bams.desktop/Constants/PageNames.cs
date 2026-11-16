@@ -20,6 +20,8 @@ public static class PageNames
     public const string GeneralLedger = "General Ledger";
     public const string GLAccountDetail = "GL Account Detail";
     public const string AccountingEntries = "Accounting Entries";
+    public const string CurrentMonthEntries = "Current Month Entries";
+    public const string MonthlySummaries = "Monthly Summaries";
     public const string ReconciliationChecks = "Run Checks";
     public const string ReconciliationExceptions = "Exceptions & Assignment";
     public const string ReconciliationInvestigations = "Investigations";

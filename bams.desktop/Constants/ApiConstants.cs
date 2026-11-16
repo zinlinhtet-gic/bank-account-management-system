@@ -87,5 +87,11 @@ public static class ApiConstants
     // Retrying a posting with the same key returns the first result instead of posting twice.
     public const string IdempotencyKeyHeader = "Idempotency-Key";
 
+    // Accounting. Monthly summaries accept optional year, month and glAccountId query values.
+    public const string AccountingEndpoint = "/api/accounting";
+    public const string MonthlySummariesEndpoint = AccountingEndpoint + "/monthly-summaries";
+    // PLACEHOLDER: the server has no Excel export route yet. Update this value when the backend defines it.
+    public const string AccountingExportEndpoint = AccountingEndpoint + "/export";
+
     public const string BearerScheme = "Bearer";
 }

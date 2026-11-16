@@ -177,12 +177,12 @@ public sealed class AccountingController : ControllerBase
             summaries));
     }
 
-    // Returns monthly accounting summaries for the requested period.
+    // Returns monthly accounting summaries; year, month and GL account are optional filters.
     [HttpGet("monthly-summaries")]
     public async Task<ActionResult<ApiMessageResponse<IReadOnlyList<MonthlySummaryResponse>>>>
         GetMonthlySummariesAsync(
-            [FromQuery] int year,
-            [FromQuery] int month,
+            [FromQuery] int? year,
+            [FromQuery] int? month,
             [FromQuery] long? glAccountId,
             CancellationToken cancellationToken)
     {

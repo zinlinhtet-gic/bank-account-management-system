@@ -23,10 +23,10 @@ public interface IAccountingReportService
     /// </summary>
     Task<IReadOnlyList<DailySummaryResponse>> GetDailySummariesAsync(DateOnly summaryDate, long? glAccountId, CancellationToken cancellationToken);
     /// <summary>
-    /// Retrieves monthly accounting summaries for the specified period
-    /// and optional GL account.
+    /// Retrieves monthly accounting summaries. Year, month and GL account are
+    /// optional filters; omitting them lists every stored period.
     /// </summary>
-    Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(int year, int month, long? glAccountId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MonthlySummaryResponse>> GetMonthlySummariesAsync(int? year, int? month, long? glAccountId, CancellationToken cancellationToken);
 
     Task<PagedResponse<AccountingEntryResponse>> GetAccountingEntriesAsync(
         DateOnly? fromDate,

@@ -294,6 +294,20 @@ await using (var scope = app.Services.CreateAsyncScope())
             await operationSampleDataSeeder.SeedAsync();
         }
     }
+
+    // Build any missing monthly GL summaries (first entry's month up to last month) after all data is seeded.
+    // A failure here is logged and must not stop the server from starting; the monthly close job still runs normally.
+    try
+    {
+        var summaryService = scope.ServiceProvider.GetRequiredService<MonthlySummaryGenerationService>();
+        var generatedMonths = await summaryService.BackfillMissingMonthsAsync(
+            BusinessTime.Today, app.Logger, CancellationToken.None);
+        app.Logger.LogInformation("Monthly summary backfill finished: {GeneratedMonths} month(s) generated.", generatedMonths);
+    }
+    catch (Exception exception)
+    {
+        app.Logger.LogError(exception, "Monthly summary backfill failed at startup.");
+    }
 }
 
 // Configure the HTTP request pipeline.
