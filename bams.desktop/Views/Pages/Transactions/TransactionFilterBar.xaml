@@ -82,7 +82,7 @@
                     <TextBlock Text="TYPE"
                                Style="{StaticResource Text.FieldLabel}"/>
 
-                    <ComboBox
+                    <ComboBox t:ThemeAssist.Placeholder="All types"
                         Style="{StaticResource Input.Select}"
                         ItemsSource="{Binding TypeOptions}"
                         DisplayMemberPath="DisplayName"
@@ -93,7 +93,7 @@
                     <TextBlock Text="STATUS"
                                Style="{StaticResource Text.FieldLabel}"/>
 
-                    <ComboBox
+                    <ComboBox t:ThemeAssist.Placeholder="All statuses"
                         Style="{StaticResource Input.Select}"
                         ItemsSource="{Binding StatusOptions}"
                         DisplayMemberPath="DisplayName"

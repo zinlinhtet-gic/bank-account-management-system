@@ -52,7 +52,7 @@
                                     <Run Text="CUSTOMER TYPE" />
                                     <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                 </TextBlock>
-                                <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding CustomerTypeOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedCustomerType, Mode=TwoWay}" />
+                                <ComboBox t:ThemeAssist.Placeholder="Select customer type" Style="{StaticResource Input.Select}" ItemsSource="{Binding CustomerTypeOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedCustomerType, Mode=TwoWay}" />
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="2">
                                 <TextBlock Style="{StaticResource Text.FieldLabel}">
@@ -175,7 +175,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="POSTAL CODE" Style="{StaticResource Text.FieldLabel}" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding PostalCode, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox t:ThemeAssist.Placeholder="e.g. 11181" Style="{StaticResource Input.Text}" Text="{Binding PostalCode, UpdateSourceTrigger=PropertyChanged}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Style="{StaticResource Text.FieldLabel}">
@@ -217,7 +217,7 @@
                                         <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                     </TextBlock>
                                     <TextBlock Text="PASSPORT NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox t:ThemeAssist.Placeholder="e.g. E12345678" Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -242,7 +242,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Visa" Style="{StaticResource Text.Label}" />
                                     <TextBlock Text="VISA NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox t:ThemeAssist.Placeholder="e.g. V1234567" Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -270,7 +270,7 @@
                                         <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                     </TextBlock>
                                     <TextBlock Text="NRC NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox t:ThemeAssist.Placeholder="e.g. 12/MaKaNa(N)123456" Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -298,7 +298,7 @@
                                         <Run Text=" *" Foreground="{StaticResource DangerBrush}" />
                                     </TextBlock>
                                     <TextBlock Text="HOUSEHOLD REGISTRATION NUMBER" Style="{StaticResource Text.FieldLabel}" Margin="0,12,0,0" />
-                                    <TextBox Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox t:ThemeAssist.Placeholder="e.g. HH-123456" Style="{StaticResource Input.Text}" Text="{Binding DocumentNumber, UpdateSourceTrigger=PropertyChanged}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />

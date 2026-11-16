@@ -56,7 +56,7 @@
                     <TextBlock Text="GL ACCOUNT"
                             Style="{StaticResource Text.FieldLabel}"/>
 
-                    <ComboBox Style="{StaticResource Input.Select}"
+                    <ComboBox t:ThemeAssist.Placeholder="All GL accounts" Style="{StaticResource Input.Select}"
                             ItemsSource="{Binding GlAccountOptions}"
                             SelectedItem="{Binding SelectedGlAccount}"
                             DisplayMemberPath="Label"/>
@@ -67,7 +67,7 @@
                     <TextBlock Text="ENTRY TYPE"
                             Style="{StaticResource Text.FieldLabel}"/>
 
-                    <ComboBox Style="{StaticResource Input.Select}"
+                    <ComboBox t:ThemeAssist.Placeholder="All entry types" Style="{StaticResource Input.Select}"
                             ItemsSource="{Binding EntryTypeOptions}"
                             SelectedItem="{Binding SelectedEntryType}"
                             DisplayMemberPath="Label"/>

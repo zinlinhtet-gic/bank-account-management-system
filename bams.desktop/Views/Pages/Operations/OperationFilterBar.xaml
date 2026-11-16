@@ -36,7 +36,7 @@
 
             <StackPanel Grid.Column="3">
                 <TextBlock Text="STATUS" Style="{StaticResource Text.FieldLabel}"/>
-                <ComboBox Style="{StaticResource Input.Select}"
+                <ComboBox t:ThemeAssist.Placeholder="All statuses" Style="{StaticResource Input.Select}"
                           ItemsSource="{Binding Filter.StatusOptions}" DisplayMemberPath="DisplayName"
                           SelectedItem="{Binding Filter.SelectedStatus, Mode=TwoWay}"/>
             </StackPanel>

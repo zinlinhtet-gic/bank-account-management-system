@@ -41,7 +41,7 @@
 
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="ROLE" Style="{StaticResource Text.FieldLabel}"/>
-                    <ComboBox Style="{StaticResource Input.Select}"
+                    <ComboBox t:ThemeAssist.Placeholder="All roles" Style="{StaticResource Input.Select}"
                               ItemsSource="{Binding RoleOptions}" DisplayMemberPath="DisplayName"
                               SelectedItem="{Binding SelectedRole, Mode=TwoWay}"/>
                 </StackPanel>

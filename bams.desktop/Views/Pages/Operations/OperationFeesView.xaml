@@ -28,7 +28,7 @@
             <ops:OperationFilterBar.ExtraFilter>
                 <StackPanel Width="160">
                     <TextBlock Text="FEE TYPE" Style="{StaticResource Text.FieldLabel}"/>
-                    <ComboBox Style="{StaticResource Input.Select}"
+                    <ComboBox t:ThemeAssist.Placeholder="All fee types" Style="{StaticResource Input.Select}"
                               ItemsSource="{Binding FeeTypeOptions}" DisplayMemberPath="DisplayName"
                               SelectedItem="{Binding SelectedFeeType, Mode=TwoWay}"/>
                 </StackPanel>

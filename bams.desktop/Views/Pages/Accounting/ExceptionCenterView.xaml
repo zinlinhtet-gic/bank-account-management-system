@@ -30,12 +30,12 @@
             </Border>
             <WrapPanel Margin="0,8,0,0">
                 <Button Content="Load audit timeline" Command="{Binding LoadExceptionTimelineCommand}" Style="{StaticResource Button.Secondary}"/>
-                <ComboBox Width="210" ItemsSource="{Binding InvestigationStatuses}" SelectedItem="{Binding InvestigationStatus}" Style="{StaticResource Input.Select}" Margin="8,0,0,0"/>
-                <TextBox Width="130" ToolTip="Assigned user ID" Text="{Binding AssignedToText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="8,0,0,0"/>
-                <TextBox Width="180" ToolTip="Correction transaction ID" Text="{Binding CorrectionTransactionIdText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="8,0,0,0"/>
+                <ComboBox t:ThemeAssist.Placeholder="Select status" Width="210" ItemsSource="{Binding InvestigationStatuses}" SelectedItem="{Binding InvestigationStatus}" Style="{StaticResource Input.Select}" Margin="8,0,0,0"/>
+                <TextBox t:ThemeAssist.Placeholder="e.g. 12" Width="130" ToolTip="Assigned user ID" Text="{Binding AssignedToText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="8,0,0,0"/>
+                <TextBox t:ThemeAssist.Placeholder="e.g. 4587" Width="180" ToolTip="Correction transaction ID" Text="{Binding CorrectionTransactionIdText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" Margin="8,0,0,0"/>
                 <Button Content="Save Investigation" Command="{Binding UpdateExceptionCommand}" Style="{StaticResource Button.Primary}" Margin="8,0,0,0"/>
             </WrapPanel>
-            <TextBox Text="{Binding InvestigationNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" MinHeight="56" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            <TextBox t:ThemeAssist.Placeholder="e.g. Contacted teller; waiting for the slip" Text="{Binding InvestigationNotes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}" AcceptsReturn="True" MinHeight="56" TextWrapping="Wrap" Margin="0,8,0,0"/>
             <Border Style="{StaticResource Card.Flush}" Margin="0,8,0,0">
             <DockPanel>
             <Border DockPanel.Dock="Top" Style="{StaticResource Card.Caption}"><TextBlock Text="Investigation timeline" Style="{StaticResource Text.FieldLabel}"/></Border>
