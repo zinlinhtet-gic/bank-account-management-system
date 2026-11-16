@@ -38,7 +38,7 @@
                     <TextBlock Text="ACCOUNT CLASS"
                             Style="{StaticResource Text.FieldLabel}"/>
 
-                    <ComboBox Style="{StaticResource Input.Select}"
+                    <ComboBox t:ThemeAssist.Placeholder="All account classes" Style="{StaticResource Input.Select}"
                             ItemsSource="{Binding AccountClassOptions}"
                             SelectedItem="{Binding SelectedAccountClass}"
                             DisplayMemberPath="Label"/>
@@ -48,7 +48,7 @@
                     <TextBlock Text="STATUS"
                             Style="{StaticResource Text.FieldLabel}"/>
 
-                    <ComboBox Style="{StaticResource Input.Select}"
+                    <ComboBox t:ThemeAssist.Placeholder="All statuses" Style="{StaticResource Input.Select}"
                             ItemsSource="{Binding StatusOptions}"
                             SelectedItem="{Binding SelectedStatus}"
                             DisplayMemberPath="Label"/>

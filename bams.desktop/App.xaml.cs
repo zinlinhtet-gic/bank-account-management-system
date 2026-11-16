@@ -156,6 +156,7 @@ public partial class App : Application
 
         // Customer Management
         services.AddSingleton<Services.ICustomerService, Services.CustomerService>();
+        services.AddSingleton<Services.INrcLookupClientService, Services.NrcLookupClientService>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerFilterViewModel>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerTableViewModel>();
         services.AddTransient<ViewModels.Pages.Customers.CustomerCreateViewModel>();

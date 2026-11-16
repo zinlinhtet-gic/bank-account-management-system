@@ -24,8 +24,8 @@
    <TextBlock Text="{Binding VaultExpected,StringFormat='Expected cash: {0:N2}'}" Margin="0,8"/>
    <TextBlock Text="{Binding VaultCounted,StringFormat='Latest physical count: {0:N2}'}"/>
    <TextBlock Text="{Binding VaultDifference,StringFormat='Difference: {0:N2}'}" Margin="0,6"/>
-   <TextBlock Text="Physical cash amount" Style="{StaticResource Text.FieldLabel}"/><TextBox Text="{Binding VaultActual,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Money}"/>
-   <TextBlock Text="Count notes" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0"/><TextBox Text="{Binding VaultNote,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
+   <TextBlock Text="Physical cash amount" Style="{StaticResource Text.FieldLabel}"/><TextBox t:ThemeAssist.Placeholder="e.g. 25,000,000" Text="{Binding VaultActual,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Money}"/>
+   <TextBlock Text="Count notes" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0"/><TextBox t:ThemeAssist.Placeholder="e.g. Vault counted with two officers" Text="{Binding VaultNote,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
    <Button Content="Record final count and close vault" Command="{Binding FinalVaultCountCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>
   </StackPanel></Border>
   <StackPanel Visibility="{Binding IsStep3,Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -64,7 +64,7 @@
    <TextBlock Text="Bypasses every readiness blocker, including cash validation, unresolved proposals and accounting inequalities. All required managers must approve. The final approval closes the date automatically; investigations remain open." TextWrapping="Wrap" Style="{StaticResource Text.BodyMuted}"/>
    <TextBlock Text="{Binding OverrideApprovalStatus}" TextWrapping="Wrap" Margin="0,8"/>
    <TextBlock Text="Reason for force close (5?1000 characters)" Style="{StaticResource Text.FieldLabel}"/>
-   <TextBox Style="{StaticResource Input.Text}" Text="{Binding ForceCloseReason,UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" MinHeight="70" TextWrapping="Wrap" AcceptsReturn="True"/>
+   <TextBox t:ThemeAssist.Placeholder="e.g. Bank outage prevented final reconciliation" Style="{StaticResource Input.Text}" Text="{Binding ForceCloseReason,UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" MinHeight="70" TextWrapping="Wrap" AcceptsReturn="True"/>
    <WrapPanel Margin="0,12"><Button Content="Request force close" Command="{Binding RequestForceCloseCommand}" Style="{StaticResource Button.Danger}" Margin="0,0,8,0"/><Button Content="Approve force close" Command="{Binding ApproveForceCloseCommand}" Style="{StaticResource Button.Danger}"/></WrapPanel>
   </StackPanel></Expander></Border>
   <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,12"/>

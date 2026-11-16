@@ -14,20 +14,17 @@ namespace bams.server.Services;
 public sealed class AccountDocumentService : IAccountDocumentService
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly FileUploadUtils _fileUploadUtils;
     private readonly ILogger<AccountDocumentService> _logger;
-    private readonly IFileStorageService _customerStorage;
+    private readonly IFileStorageService _fileStorage;
 
     public AccountDocumentService(
         ApplicationDbContext dbContext,
-        FileUploadUtils fileUploadUtils,
         ILogger<AccountDocumentService> logger,
-        IFileStorageService customerStorage)
+        IFileStorageService fileStorage)
     {
         _dbContext = dbContext;
-        _fileUploadUtils = fileUploadUtils;
         _logger = logger;
-        _customerStorage = customerStorage;
+        _fileStorage = fileStorage;
     }
 
     /// <inheritdoc />
@@ -73,7 +70,7 @@ public sealed class AccountDocumentService : IAccountDocumentService
                 throw new ValidationException(MessageCode.AccountDocumentNumberTooLong);
             }
 
-            await _fileUploadUtils.ValidateFileAsync(document.File, cancellationToken);
+            await _fileStorage.ValidateFileAsync(document.File, cancellationToken);
         }
 
         var requiredTypes = await _dbContext.AccountTypeRequiredDocuments
@@ -137,11 +134,11 @@ public sealed class AccountDocumentService : IAccountDocumentService
         var reference = document.FileReference?.Replace('\\', '/');
         if (string.IsNullOrWhiteSpace(reference) ||
             reference.Split('/').Any(segment => segment is "." or "..") ||
-            !reference.StartsWith($"uploads/{CustomerConstants.DocumentUploadFolder}/", StringComparison.OrdinalIgnoreCase))
+            !reference.StartsWith($"{DocumentConstants.UploadRootFolderName}/{CustomerConstants.DocumentUploadFolder}/", StringComparison.OrdinalIgnoreCase))
             throw new ValidationException(MessageCode.ReusableAccountDocumentUnavailable);
         try
         {
-            return new FileStream(_customerStorage.GetPhysicalPath(reference), FileMode.Open, FileAccess.Read,
+            return new FileStream(_fileStorage.GetPhysicalPath(reference), FileMode.Open, FileAccess.Read,
                 FileShare.Read, bufferSize: 81920, useAsync: true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or ValidationException)
@@ -155,7 +152,7 @@ public sealed class AccountDocumentService : IAccountDocumentService
     {
         try
         {
-            await _fileUploadUtils.ValidateFileAsync(CreateSourceUpload(stream, document), cancellationToken);
+            await _fileStorage.ValidateFileAsync(CreateSourceUpload(stream, document), cancellationToken);
         }
         catch (Exception exception) when (exception is ValidationException or IOException or UnauthorizedAccessException)
         {
@@ -213,7 +210,7 @@ public sealed class AccountDocumentService : IAccountDocumentService
                 await using var sourceStream = source is null ? null : OpenCustomerFile(source);
                 if (sourceStream is not null) await ValidateReusableFileAsync(sourceStream, source!, cancellationToken);
                 var file = sourceStream is null ? document.File! : CreateSourceUpload(sourceStream, source!);
-                var fileReference = await _fileUploadUtils.SaveAccountDocumentAsync(
+                var fileReference = await _fileStorage.SaveAccountDocumentAsync(
                     account.Id,
                     file,
                     cancellationToken);
@@ -252,7 +249,7 @@ public sealed class AccountDocumentService : IAccountDocumentService
         {
             try
             {
-                _fileUploadUtils.DeleteFile(fileReference);
+                _fileStorage.DeleteFile(fileReference);
             }
             catch (Exception exception)
             {

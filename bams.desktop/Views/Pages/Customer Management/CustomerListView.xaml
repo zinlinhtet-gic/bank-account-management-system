@@ -44,17 +44,17 @@
                         <!-- Status -->
                         <StackPanel Grid.Column="2" Margin="0,0,16,12">
                             <TextBlock Text="STATUS" Style="{StaticResource Text.FieldLabel}" />
-                            <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding StatusOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedStatus, Mode=TwoWay}" />
+                            <ComboBox t:ThemeAssist.Placeholder="All statuses" Style="{StaticResource Input.Select}" ItemsSource="{Binding StatusOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedStatus, Mode=TwoWay}" />
                         </StackPanel>
                         <!-- Risk Level -->
                         <StackPanel Grid.Column="3" Margin="0,0,16,12">
                             <TextBlock Text="RISK LEVEL" Style="{StaticResource Text.FieldLabel}" />
-                            <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding RiskLevelOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedRiskLevel, Mode=TwoWay}" />
+                            <ComboBox t:ThemeAssist.Placeholder="All risk levels" Style="{StaticResource Input.Select}" ItemsSource="{Binding RiskLevelOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedRiskLevel, Mode=TwoWay}" />
                         </StackPanel>
                         <!-- KYC Status -->
                         <StackPanel Grid.Column="4" Margin="0,0,16,12">
                             <TextBlock Text="KYC STATUS" Style="{StaticResource Text.FieldLabel}" />
-                            <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding KycStatusOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedKycStatus, Mode=TwoWay}" />
+                            <ComboBox t:ThemeAssist.Placeholder="All KYC statuses" Style="{StaticResource Input.Select}" ItemsSource="{Binding KycStatusOptions}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedKycStatus, Mode=TwoWay}" />
                         </StackPanel>
                     </Grid>
                     <!-- ROW 2 -->
@@ -91,7 +91,7 @@
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                 <Button Style="{StaticResource Button.Icon}" Margin="0,0,8,0" t:ThemeAssist.Icon="{StaticResource Icon.Refresh}" ToolTip="Refresh list" t:ThemeAssist.IsLoading="{Binding Table.IsLoading}" Command="{Binding RefreshCommand}" />
-                                <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" Command="{Binding ShowCreateFormCommand}" />
+                                <Button Content="Create Customer" Style="{StaticResource Button.Primary}" t:ThemeAssist.Icon="{StaticResource Icon.UserPlus}" Command="{Binding ShowCreateFormCommand}" Visibility="{Binding CanManageCustomers,                                  Converter={StaticResource BooleanToVisibilityConverter}}" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Customers" Style="{StaticResource Text.Title}" VerticalAlignment="Center" />

@@ -1,12 +1,58 @@
-<UserControl x:Class="bams.desktop.Views.Pages.Accounting.SessionScheduleEditorView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-<StackPanel><TextBlock Text="Officer / start time / end time / starting cash" Style="{StaticResource Text.Subheading}" Margin="0,0,0,10"/>
-<ItemsControl ItemsSource="{Binding Rows}"><ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource Card.Compact}" Margin="0,0,0,8"><WrapPanel>
-<ComboBox Style="{StaticResource Input.Select}" Width="240" Margin="0,0,8,0" ItemsSource="{Binding DataContext.Officers, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding Officer}" DisplayMemberPath="FullName" ToolTip="Assigned officer"/>
-<TextBox Width="95" Margin="0,0,8,0" Text="{Binding Start,UpdateSourceTrigger=PropertyChanged}" ToolTip="Start time (HH:mm)" Style="{StaticResource Input.Text}"/>
-<TextBox Width="95" Margin="0,0,8,0" Text="{Binding End,UpdateSourceTrigger=PropertyChanged}" ToolTip="End time (HH:mm)" Style="{StaticResource Input.Text}"/>
-<TextBox Width="140" Margin="0,0,8,0" Text="{Binding Cash,UpdateSourceTrigger=PropertyChanged}" ToolTip="Starting cash" Style="{StaticResource Input.Money}"/>
-<Button Content="Add" Style="{StaticResource Button.Secondary}" Command="{Binding DataContext.AddCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" Visibility="{Binding IsLast,Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0"/>
-<Button Content="Remove" Style="{StaticResource Button.Secondary}" Command="{Binding DataContext.RemoveCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
-</WrapPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-<Button Content="Add Session" Command="{Binding AddCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Visibility="{Binding HasNoRows,Converter={StaticResource BooleanToVisibilityConverter}}"/>
-</StackPanel></UserControl>
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.SessionScheduleEditorView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:t="clr-namespace:bams.desktop.Themes">
+    <StackPanel>
+        <TextBlock Text="Officer sessions &#x00B7; optional" Style="{StaticResource Text.Subheading}"/>
+        <TextBlock Text="Add a row only when an officer needs a cash session today. Choose the officer, enter a Myanmar-time start and end time, then enter the cash reserved for that session." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,6,0,4"/>
+        <TextBlock Text="End time must be after start time. Sessions for the same officer cannot overlap; back-to-back sessions are allowed." Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <ItemsControl ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="8">
+                                <TextBlock Text="Officer &#x00B7; required" Style="{StaticResource Text.FieldLabel}"/>
+                                <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding DataContext.Officers, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding Officer}" DisplayMemberPath="FullName" t:ThemeAssist.Placeholder="Choose officer"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="8">
+                                <TextBlock Text="Start time &#x00B7; required" Style="{StaticResource Text.FieldLabel}"/>
+                                <WrapPanel>
+                                    <ComboBox Style="{StaticResource Input.Select}" Width="74" ItemsSource="{Binding DataContext.Hours, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding StartHour}"/>
+                                    <TextBlock Text=":" VerticalAlignment="Center" Margin="5,0" FontWeight="Bold"/>
+                                    <ComboBox Style="{StaticResource Input.Select}" Width="74" ItemsSource="{Binding DataContext.Minutes, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding StartMinute}"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="8">
+                                <TextBlock Text="End time &#x00B7; required" Style="{StaticResource Text.FieldLabel}"/>
+                                <WrapPanel>
+                                    <ComboBox Style="{StaticResource Input.Select}" Width="74" ItemsSource="{Binding DataContext.Hours, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding EndHour}"/>
+                                    <TextBlock Text=":" VerticalAlignment="Center" Margin="5,0" FontWeight="Bold"/>
+                                    <ComboBox Style="{StaticResource Input.Select}" Width="74" ItemsSource="{Binding DataContext.Minutes, RelativeSource={RelativeSource AncestorType=ItemsControl}}" SelectedItem="{Binding EndMinute}"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="3" Margin="8">
+                                <TextBlock Text="Starting cash (MMK) &#x00B7; required" Style="{StaticResource Text.FieldLabel}"/>
+                                <TextBox Text="{Binding Cash,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Money}" t:ThemeAssist.Prefix="MMK" t:ThemeAssist.Placeholder="e.g. 500,000.00"/>
+                            </StackPanel>
+
+                            <WrapPanel Grid.Row="1" Grid.ColumnSpan="4" Margin="8,4,8,8">
+                                <Button Content="Add session" Style="{StaticResource Button.Secondary}" Command="{Binding DataContext.AddCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" Visibility="{Binding IsLast,Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0"/>
+                                <Button Content="Remove" Style="{StaticResource Button.Secondary}" Command="{Binding DataContext.RemoveCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Content="Add officer session" Command="{Binding AddCommand}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Visibility="{Binding HasNoRows,Converter={StaticResource BooleanToVisibilityConverter}}"/>
+    </StackPanel>
+</UserControl>

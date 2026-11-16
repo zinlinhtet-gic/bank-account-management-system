@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using bams.desktop.Commands;
 using bams.desktop.Constants;
 using bams.desktop.DTOs.Customers;
@@ -16,11 +18,20 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 {
     private readonly ICustomerService _customerService;
     private readonly IDialogService _dialogService;
+    private readonly INrcLookupClientService _nrcLookupService;
+
+    // Matches CustomerFieldRules.NrcNumberRegexPattern's shape, but with capture groups so an existing
+    // NrcNumber (edit mode) can be decomposed back into the four combo/text selections below.
+    private static readonly Regex NrcNumberPartsPattern = new(@"^(\d{2})/([A-Z]{3,6})\(([NEP])\)(\d{6})$");
 
     private CustomerTypeOption _selectedCustomerType = CustomerTypeOption.All[0];
     private string _fullName = string.Empty;
     private DateTime? _dateOfBirth;
     private string _nrcNumber = string.Empty;
+    private NrcStateResponse? _selectedNrcState;
+    private NrcTownshipResponse? _selectedNrcTownship;
+    private NrcTypeOption? _selectedNrcType;
+    private string _nrcSerialNumber = string.Empty;
     private string _passportNumber = string.Empty;
     private string _nationality = string.Empty;
     private string _phone = string.Empty;
@@ -37,6 +48,8 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     private string _dateOfBirthError = string.Empty;
     private string _nrcNumberError = string.Empty;
     private string _passportNumberError = string.Empty;
+
+    private string _emailError = string.Empty;
     private string _nationalityError = string.Empty;
     private string _phoneError = string.Empty;
     private string _addressLine1Error = string.Empty;
@@ -48,10 +61,11 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     private bool _isBusy;
     private long? _editingCustomerId;
 
-    public CustomerCreateViewModel(ICustomerService customerService, IDialogService dialogService)
+    public CustomerCreateViewModel(ICustomerService customerService, IDialogService dialogService, INrcLookupClientService nrcLookupService)
     {
         _customerService = customerService;
         _dialogService = dialogService;
+        _nrcLookupService = nrcLookupService;
 
         // Only the identity document matching the selected customer type starts out required;
         // SelectedCustomerType keeps the two in sync as it changes.
@@ -71,7 +85,7 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     /// <summary>Raised after Cancel, or after a successful Save; the host page returns to the customer list.</summary>
     public event EventHandler? Completed;
 
-    /// <summary>True after <see cref="LoadForEdit"/>; Save then updates the customer instead of creating one.</summary>
+    /// <summary>True after <see cref="LoadForEditAsync"/>; Save then updates the customer instead of creating one.</summary>
     public bool IsEditMode => _editingCustomerId is not null;
 
     public string Title => IsEditMode ? "Edit Customer" : "Create New Customer";
@@ -125,6 +139,8 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         }
     }
 
+    // The single string actually sent to and validated by the server; built from the four selections
+    // below rather than typed directly (see RecomposeNrcNumber).
     public string NrcNumber
     {
         get => _nrcNumber;
@@ -133,6 +149,69 @@ public sealed class CustomerCreateViewModel : ViewModelBase
             if (SetProperty(ref _nrcNumber, value))
             {
                 NrcNumberError = string.Empty;
+                OnPropertyChanged(nameof(HasComposedNrcNumber));
+            }
+        }
+    }
+
+    public bool HasComposedNrcNumber => !string.IsNullOrEmpty(NrcNumber);
+
+    public ObservableCollection<NrcStateResponse> NrcStates { get; } = [];
+
+    public ObservableCollection<NrcTownshipResponse> NrcTownships { get; } = [];
+
+    public IReadOnlyList<NrcTypeOption> NrcTypeOptions => NrcTypeOption.All;
+
+    public int NrcSerialNumberLength => CustomerFieldRules.NrcSerialNumberLength;
+
+    public NrcStateResponse? SelectedNrcState
+    {
+        get => _selectedNrcState;
+        set
+        {
+            if (SetProperty(ref _selectedNrcState, value))
+            {
+                // A different state invalidates whatever township was selected for the previous one.
+                SelectedNrcTownship = null;
+                NrcTownships.Clear();
+                RecomposeNrcNumber();
+                _ = LoadNrcTownshipsForSelectedStateAsync();
+            }
+        }
+    }
+
+    public NrcTownshipResponse? SelectedNrcTownship
+    {
+        get => _selectedNrcTownship;
+        set
+        {
+            if (SetProperty(ref _selectedNrcTownship, value))
+            {
+                RecomposeNrcNumber();
+            }
+        }
+    }
+
+    public NrcTypeOption? SelectedNrcType
+    {
+        get => _selectedNrcType;
+        set
+        {
+            if (SetProperty(ref _selectedNrcType, value))
+            {
+                RecomposeNrcNumber();
+            }
+        }
+    }
+
+    public string NrcSerialNumber
+    {
+        get => _nrcSerialNumber;
+        set
+        {
+            if (SetProperty(ref _nrcSerialNumber, value))
+            {
+                RecomposeNrcNumber();
             }
         }
     }
@@ -176,7 +255,13 @@ public sealed class CustomerCreateViewModel : ViewModelBase
     public string Email
     {
         get => _email;
-        set => SetProperty(ref _email, value);
+        set
+        {
+            if (SetProperty(ref _email, value))
+            {
+                EmailError = string.Empty;
+            }
+        }
     }
 
     public string Occupation
@@ -335,6 +420,20 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
     public bool HasNationalityError => !string.IsNullOrEmpty(NationalityError);
 
+
+    public string EmailError
+    {
+        get => _emailError;
+        private set
+        {
+            if (SetProperty(ref _emailError, value))
+            {
+                OnPropertyChanged(nameof(HasEmailError));
+            }
+        }
+    }
+
+    public bool HasEmailError => !string.IsNullOrEmpty(EmailError);
     public string PhoneError
     {
         get => _phoneError;
@@ -438,6 +537,25 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
     /// <summary>Resets every field back to its default, so the form starts empty the next time it opens
     /// in create mode.</summary>
+
+    private void ClearValidationErrors()
+    {
+        FullNameError = string.Empty;
+        DateOfBirthError = string.Empty;
+        NrcNumberError = string.Empty;
+        PassportNumberError = string.Empty;
+
+        NationalityError = string.Empty;
+        EmailError = string.Empty;
+        PhoneError = string.Empty;
+
+        AddressLine1Error = string.Empty;
+        CityError = string.Empty;
+        StateError = string.Empty;
+        CountryError = string.Empty;
+
+        FormError = string.Empty;
+    }
     public void Reset()
     {
         _editingCustomerId = null;
@@ -446,6 +564,10 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         FullName = string.Empty;
         DateOfBirth = null;
         NrcNumber = string.Empty;
+        SelectedNrcState = null;
+        SelectedNrcTownship = null;
+        SelectedNrcType = null;
+        NrcSerialNumber = string.Empty;
         PassportNumber = string.Empty;
         Nationality = string.Empty;
         Phone = string.Empty;
@@ -457,7 +579,7 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         State = string.Empty;
         PostalCode = string.Empty;
         Country = string.Empty;
-        FormError = string.Empty;
+        ClearValidationErrors();
 
         foreach (var document in AllDocuments)
         {
@@ -469,14 +591,20 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         OnPropertyChanged(nameof(SaveButtonText));
     }
 
-    /// <summary>Fills every field from an existing customer, so Save then updates it instead of creating one.</summary>
-    public void LoadForEdit(CustomerResponse customer)
+    /// <summary>Fills every field from an existing customer, so Save then updates it instead of creating one.
+    /// Also loads the NRC state list and, for a citizen, best-effort decomposes the stored NrcNumber back
+    /// into the State/Township/Type/Serial selections (see TryRestoreNrcSelectionAsync).</summary>
+    public async Task LoadForEditAsync(CustomerResponse customer)
     {
         _editingCustomerId = customer.Id;
 
         SelectedCustomerType = CustomerTypeOptions.First(option => option.Value == customer.CustomerType);
         FullName = customer.FullName;
         DateOfBirth = customer.DateOfBirth.ToDateTime(TimeOnly.MinValue);
+        SelectedNrcState = null;
+        SelectedNrcTownship = null;
+        SelectedNrcType = null;
+        NrcSerialNumber = string.Empty;
         NrcNumber = customer.NrcNumber ?? string.Empty;
         PassportNumber = customer.PassportNumber ?? string.Empty;
         Nationality = customer.Nationality ?? string.Empty;
@@ -503,6 +631,116 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsEditMode));
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(SaveButtonText));
+
+        await LoadNrcStatesAsync();
+        if (IsCitizen)
+        {
+            await TryRestoreNrcSelectionAsync(customer.NrcNumber);
+        }
+    }
+
+    /// <summary>Loads the NRC state/region reference list for the NRC-number builder. Called once when
+    /// the form opens (both create and edit); a failure is shown in the form banner rather than left silent.</summary>
+    public async Task LoadNrcStatesAsync()
+    {
+        try
+        {
+            var states = await _nrcLookupService.GetStatesAsync(CancellationToken.None);
+            NrcStates.Clear();
+            foreach (var state in states)
+            {
+                NrcStates.Add(state);
+            }
+        }
+        catch (AppException exception)
+        {
+            FormError = exception.Message;
+        }
+    }
+
+    // Reloads the township list whenever the selected state changes; fire-and-forget from the
+    // SelectedNrcState setter (a ComboBox selection, not an awaitable user action), matching the
+    // "async void is intentional: an event handler" pattern already used elsewhere in this codebase.
+    // Never throws: LoadNrcTownshipsAsync already turns a failure into FormError.
+    private async Task LoadNrcTownshipsForSelectedStateAsync()
+    {
+        if (SelectedNrcState is not null)
+        {
+            await LoadNrcTownshipsAsync(SelectedNrcState.StateCode);
+        }
+    }
+
+    private async Task LoadNrcTownshipsAsync(string stateCode)
+    {
+        try
+        {
+            var townships = await _nrcLookupService.GetTownshipsAsync(stateCode, CancellationToken.None);
+            NrcTownships.Clear();
+            foreach (var township in townships)
+            {
+                NrcTownships.Add(township);
+            }
+        }
+        catch (AppException exception)
+        {
+            FormError = exception.Message;
+        }
+    }
+
+    // Edit mode: best-effort reconstruction of the structured NRC fields from the single stored string,
+    // e.g. "9/AHMAYA(N)123456". Silently leaves the combo boxes empty when the value doesn't match the
+    // standard format, or the matching state/township can no longer be found; NrcNumber itself (already
+    // set from the customer record) is unaffected either way, so Save still sees the original value
+    // unless the user changes a selection.
+    private async Task TryRestoreNrcSelectionAsync(string? nrcNumber)
+    {
+        if (string.IsNullOrWhiteSpace(nrcNumber))
+        {
+            return;
+        }
+
+        var match = NrcNumberPartsPattern.Match(nrcNumber.Trim());
+        if (!match.Success)
+        {
+            return;
+        }
+
+        var state = NrcStates.FirstOrDefault(candidate => candidate.StateCode.PadLeft(2, '0') == match.Groups[1].Value);
+        if (state is null)
+        {
+            return;
+        }
+
+        // Set the backing fields directly (not the property setters) so this restoration does not
+        // itself trigger RecomposeNrcNumber or a second, redundant township reload.
+        _selectedNrcState = state;
+        OnPropertyChanged(nameof(SelectedNrcState));
+
+        await LoadNrcTownshipsAsync(state.StateCode);
+
+        _selectedNrcTownship = NrcTownships.FirstOrDefault(township => township.TownshipCode == match.Groups[2].Value);
+        OnPropertyChanged(nameof(SelectedNrcTownship));
+
+        _selectedNrcType = NrcTypeOptions.FirstOrDefault(type => type.Code == match.Groups[3].Value);
+        OnPropertyChanged(nameof(SelectedNrcType));
+
+        _nrcSerialNumber = match.Groups[4].Value;
+        OnPropertyChanged(nameof(NrcSerialNumber));
+    }
+
+    // Rebuilds the single NrcNumber string (the field actually sent to and validated by the server) from
+    // the four structured selections, e.g. State "9" + Township "AHMAYA" + Type "N" + "123456" becomes
+    // "09/AHMAYA(N)123456". Left blank while any part is still missing.
+    private void RecomposeNrcNumber()
+    {
+        if (SelectedNrcState is null || SelectedNrcTownship is null || SelectedNrcType is null
+            || NrcSerialNumber.Length != CustomerFieldRules.NrcSerialNumberLength)
+        {
+            NrcNumber = string.Empty;
+            return;
+        }
+
+        NrcNumber = $"{SelectedNrcState.StateCode.PadLeft(2, '0')}/{SelectedNrcTownship.TownshipCode}({SelectedNrcType.Code}){NrcSerialNumber}";
     }
 
     // Validates locally, confirms with the user, then creates or updates the customer.
@@ -567,16 +805,43 @@ public sealed class CustomerCreateViewModel : ViewModelBase
 
         DateOfBirthError = ValidateDateOfBirth();
 
-        NrcNumberError = IsCitizen && NrcNumber.Trim().Length == 0
-            ? MessageCatalog.GetMessage(MessageCode.NrcNumberRequired)
-            : string.Empty;
+        var nrc = NrcNumber.Trim();
 
-        PassportNumberError = IsForeigner && PassportNumber.Trim().Length == 0
+        NrcNumberError = !IsCitizen
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(nrc)
+            ? MessageCatalog.GetMessage(MessageCode.NrcNumberRequired)
+            : !Regex.IsMatch(nrc, CustomerFieldRules.NrcNumberRegexPattern)
+                ? MessageCatalog.GetMessage(MessageCode.NrcNumberInvalid)
+                : string.Empty;
+
+
+        var passport = PassportNumber.Trim();
+        PassportNumberError = !IsForeigner
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(passport)
             ? MessageCatalog.GetMessage(MessageCode.PassportNumberRequired)
+            : !Regex.IsMatch(passport, CustomerFieldRules.PassportNumberRegexPattern)
+                ? MessageCatalog.GetMessage(MessageCode.PassportNumberInvalid)
+                : string.Empty;
+
+        var email = Email.Trim();
+
+        EmailError = !string.IsNullOrWhiteSpace(email)
+        && !Regex.IsMatch(email, CustomerFieldRules.CustomerEmailRegexPattern)
+            ? "Please enter a valid email address."
             : string.Empty;
 
         NationalityError = Nationality.Trim().Length == 0 ? "Please enter the nationality." : string.Empty;
-        PhoneError = Phone.Trim().Length == 0 ? "Please enter a phone number." : string.Empty;
+        // PhoneError = Phone.Trim().Length == 0 ? "Please enter a phone number." : string.Empty 
+        //     : !Regex.IsMatch(Phone.Trim(), CustomerFieldRules.PhoneNumberRegexPattern)
+        //         ? "Please enter a valid phone number."
+        //         : string.Empty;
+
+        PhoneError = !string.IsNullOrWhiteSpace(Phone.Trim())
+        && !Regex.IsMatch(Phone.Trim(), CustomerFieldRules.PhoneNumberRegexPattern)
+            ? "Please enter a valid phone number."
+            : string.Empty;
         AddressLine1Error = AddressLine1.Trim().Length == 0 ? "Please enter the address." : string.Empty;
         CityError = City.Trim().Length == 0 ? "Please enter the city." : string.Empty;
         StateError = State.Trim().Length == 0 ? "Please enter the state or region." : string.Empty;
@@ -587,7 +852,7 @@ public sealed class CustomerCreateViewModel : ViewModelBase
         var documentsValid = AllDocuments.Aggregate(true, (valid, document) => document.Validate() & valid);
 
         return !HasFullNameError && !HasDateOfBirthError && !HasNrcNumberError && !HasPassportNumberError
-            && !HasNationalityError && !HasPhoneError && !HasAddressLine1Error && !HasCityError
+            && !HasNationalityError && !HasPhoneError && !HasEmailError && !HasAddressLine1Error && !HasCityError
             && !HasStateError && !HasCountryError && documentsValid;
     }
 
@@ -694,9 +959,11 @@ public sealed class CustomerCreateViewModel : ViewModelBase
                 DateOfBirthError = exception.Message;
                 break;
             case MessageCode.NrcNumberRequired:
+            case MessageCode.NrcNumberInvalid:
                 NrcNumberError = exception.Message;
                 break;
             case MessageCode.PassportNumberRequired:
+            case MessageCode.PassportNumberInvalid:
                 PassportNumberError = exception.Message;
                 break;
             default:

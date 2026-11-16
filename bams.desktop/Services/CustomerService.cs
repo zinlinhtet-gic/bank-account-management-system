@@ -193,8 +193,14 @@ public sealed class CustomerService : ICustomerService
 
             // Disposed together with the MultipartFormDataContent once the request completes.
             var fileContent = new StreamContent(File.OpenRead(document.FilePath));
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-            form.Add(fileContent, $"{prefix}.File", Path.GetFileName(document.FilePath));
+
+            fileContent.Headers.ContentType =
+                new MediaTypeHeaderValue(GetContentType(document.FilePath));
+
+            form.Add(
+                fileContent,
+                $"{prefix}.File",
+                Path.GetFileName(document.FilePath));
 
             index++;
         }
@@ -285,13 +291,30 @@ public sealed class CustomerService : ICustomerService
 
             if (!string.IsNullOrWhiteSpace(document.FilePath))
             {
-                // Disposed together with the MultipartFormDataContent once the request completes.
                 var fileContent = new StreamContent(File.OpenRead(document.FilePath));
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                form.Add(fileContent, $"{prefix}.File", Path.GetFileName(document.FilePath));
+
+                fileContent.Headers.ContentType =
+                    new MediaTypeHeaderValue(GetContentType(document.FilePath));
+
+                form.Add(
+                    fileContent,
+                    $"{prefix}.File",
+                    Path.GetFileName(document.FilePath));
             }
 
             index++;
         }
+    }
+    private static string GetContentType(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+        return extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            _ => "application/octet-stream"
+        };
     }
 }
