@@ -5,8 +5,8 @@ namespace bams.desktop.Constants;
 /// </summary>
 public static class ApiConstants
 {
-    public const string ServerBaseAddress = "http://localhost:5121";
-
+    //public const string ServerBaseAddress = "http://localhost:5121";
+    public const string ServerBaseAddress = "https://banking.1morebit.tech";
     public const string AuthEndpoint = "api/auth";
     public const string LoginEndpoint = AuthEndpoint + "/login";
     public const string PermissionsEndpoint = AuthEndpoint + "/permissions";

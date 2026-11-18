@@ -4,6 +4,7 @@ This folder describes the current `bams.server` implementation. Start with the t
 
 | Document | Use it for |
 | --- | --- |
+| [VPS deployment](Deployment.md) | Step-by-step publishing, database migrations, production configuration, service setup, HTTPS, backups, and updates. |
 | [Architecture](Architecture.md) | Runtime flow, project boundaries, persistence, security, and background work. |
 | [API contracts](ApiContracts.md) | HTTP routes, request behavior, pagination, envelopes, and errors. |
 | [Business rules](BusinessRules.md) | Domain invariants and lifecycle rules enforced by services. |
