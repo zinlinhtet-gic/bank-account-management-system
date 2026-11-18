@@ -29,4 +29,10 @@ public sealed record UpdateReconciliationExceptionRequest(string Status, string?
 public sealed record ReconciliationExceptionHistoryResponse(long Id, string OldStatus, string NewStatus,
     string? Note, long ActorId, DateTime CreatedAtUtc);
 public sealed record ReconciliationExceptionDetailResponse(ReconciliationExceptionResponse Exception,
-    IReadOnlyList<ReconciliationExceptionHistoryResponse> Timeline);
+    IReadOnlyList<ReconciliationExceptionHistoryResponse> Timeline)
+{
+    public string? FlagExplanation { get; init; }
+    public IReadOnlyList<SessionTransactionResponse> Transactions { get; init; } = [];
+    public IReadOnlyList<CashMovementHistoryResponse> Movements { get; init; } = [];
+    public IReadOnlyList<CashCountHistoryResponse> Counts { get; init; } = [];
+}

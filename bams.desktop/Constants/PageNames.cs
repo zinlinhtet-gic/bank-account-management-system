@@ -32,6 +32,7 @@ public static class PageNames
     public const string ReconciliationProposalEditor = "Prepare Correction Proposal";
     public const string Reconciliation = "Reconciliation";
     public const string ReconciliationMaster = "Reconciliation Checks";
+    public const string TaskDetail = "Reconciliation Task Detail";
     public const string AssignedReconciliationTasks = "Assigned Reconciliation Tasks";
     public const string ReconcileProposals = "Reconcile Proposals";
     public const string CashProposalEditor = "Perform Cash Reconciliation";
@@ -40,6 +41,7 @@ public static class PageNames
     public const string SessionCreation = "Session Creation";
     public const string SessionDetail = "Session Detail";
     public const string SessionHandoffs = "Session Handoff Requests";
+    public const string CashTransfer = "Cash Transfer";
     public const string CashRequests = "Cash Requests";
     public const string EndOfDay = "End of Day";
     // Audit child pages

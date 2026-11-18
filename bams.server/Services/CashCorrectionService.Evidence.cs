@@ -89,7 +89,8 @@ public sealed partial class CashCorrectionService
             new(offset, change > 0m ? "Credit" : "Debit", plan.Amount, input.AccountId)];
     }
 
-    private async Task<IReadOnlyList<CashPositionCorrectionEffect>> PositionEffectsAsync(CorrectionPlan plan,
+    // Projects each position using the count timing and custody adjustments used during verification.
+    private async Task<IReadOnlyList<CashPositionCorrectionEffect>> PositionEffectsAsync(long sourceSessionId, CorrectionPlan plan,
         CashCorrectionInputs input, CancellationToken ct)
     {
         List<CashPositionCorrectionEffect> effects = [];
@@ -99,8 +100,20 @@ public sealed partial class CashCorrectionService
             CashCount? count = await db.CashCounts.AsNoTracking().Where(x => x.SessionId == session.Id).OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
             decimal? beforeCounted = count is null ? null : await checks.CountedCashAfterHandoffsAsync(session.Id, count, ct);
             decimal? afterCounted = beforeCounted;
-            if (input.Kind == CashDiscrepancyKind.CountEntryError) afterCounted = plan.Amount;
-            else if (count is not null && effect.SourceMovementId.HasValue)
+            if (input.Kind == CashDiscrepancyKind.CountEntryError && session.Id == sourceSessionId)
+            {
+                HandoffCustody? custody = await FindAcceptedHandoffCustodyAsync(session.Id, ct);
+                CashCount projectedCount = new() { ActualAmount = plan.Amount, CountedAtUtc = DateTime.UtcNow };
+                if (custody is not null)
+                {
+                    CashCount original = await db.CashCounts.AsNoTracking().SingleAsync(x => x.Id == custody.Handoff.CashCountId, ct);
+                    projectedCount.CountedAtUtc = original.CountedAtUtc;
+                }
+                count = projectedCount;
+                afterCounted = await checks.CountedCashAfterHandoffsAsync(session.Id, projectedCount, ct);
+            }
+            // Only custody movements after this position's observation change its projected physical cash.
+            if (count is not null && effect.SourceMovementId.HasValue)
             {
                 CashMovement source = await db.CashMovements.AsNoTracking().SingleAsync(x => x.Id == effect.SourceMovementId, ct);
                 if (IsCustodyMovement(source.Type) && source.CreatedAtUtc > count.CountedAtUtc) afterCounted += effect.Change;

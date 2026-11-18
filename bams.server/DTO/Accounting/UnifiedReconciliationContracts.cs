@@ -5,12 +5,20 @@ namespace bams.server.DTO.Accounting;
 public sealed record UnifiedReconciliationRequest(DateOnly FromDate, DateOnly ToDate);
 public sealed record UnifiedExceptionRow(long Id, string Type, DateOnly BusinessDate, long? AccountId,
     long? PositionSessionId, long? RelatedTransactionId, decimal ExpectedAmount, decimal ActualAmount,
-    decimal Difference, string Status, long? AssignedTo, string? Notes);
+    decimal Difference, string Status, long? AssignedTo, string? Notes)
+{
+    public string? VerificationFailureReason { get; init; }
+}
 public sealed record UnifiedReconciliationResponse(long AccountRunId, DateOnly FromDate, DateOnly ToDate,
     IReadOnlyList<UnifiedExceptionRow> AccountAndGl, IReadOnlyList<UnifiedExceptionRow> Cash);
 public sealed record AssignReconciliationRequest(long InvestigatorId, string? Note);
 public sealed record FinalVaultCountRequest(DateOnly BusinessDate, decimal ActualAmount, string? Note);
 public sealed record ForcePassRequest(string Reason);
+/// <summary>A closed non-vault session whose expected cash is still above zero (shortage) or below zero (overage) after handoff.</summary>
+public sealed record UnresolvedCashSessionResponse(long SessionId, string OfficerName, decimal Residual, long? OpenExceptionId);
+/// <summary>Vault cash expectation separated from officer residuals so the bank-wide expectation is visible at final count.</summary>
+public sealed record VaultCashSummaryResponse(DateOnly BusinessDate, decimal? VaultExpected, decimal? VaultCounted,
+    IReadOnlyList<UnresolvedCashSessionResponse> UnresolvedSessions, decimal UnresolvedTotal, decimal BankExpectedTotal);
 public sealed record CashCorrectionInputs(CashDiscrepancyKind Kind, string Findings, string EvidenceReference,
     decimal? Amount = null, long? AccountId = null, long? TransactionId = null,
     long? MovementId = null, long? DestinationSessionId = null, string? Payee = null,

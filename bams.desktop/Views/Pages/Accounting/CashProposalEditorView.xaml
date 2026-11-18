@@ -30,7 +30,24 @@
             <StackPanel Visibility="{Binding IsStep3,Converter={StaticResource BooleanToVisibilityConverter}}">
                 <TextBlock Text="{Binding SelectedKind.Name}" FontWeight="Bold"/><TextBlock Text="{Binding Findings}" TextWrapping="Wrap" Margin="0,10"/><TextBlock Text="{Binding Preview.Explanation}" TextWrapping="Wrap"/>
                 <TextBlock Text="{Binding Preview.BusinessDate,StringFormat='Source date: {0:yyyy-MM-dd}'}" Margin="0,8"/><TextBlock Text="{Binding Preview.PostingDate,StringFormat='Posting date: {0:yyyy-MM-dd}'}"/><TextBlock Text="{Binding Preview.SuggestedAmount,StringFormat='Suggested amount: {0:N2}'}" Margin="0,12"/><TextBlock Text="{Binding Preview.CashChange,StringFormat='Cash position change: {0:N2}'}"/>
-                <ItemsControl ItemsSource="{Binding Preview.PositionEffects}" Margin="0,8"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding SessionId,StringFormat='Session {0}: '}" Style="{StaticResource Text.FieldLabel}"/><TextBlock Text="{Binding CashChange,StringFormat='Change {0:N2}'}" Style="{StaticResource Text.Body}"/><TextBlock Text="{Binding BeforeExpected,StringFormat=' | expected {0:N2}'}"/><TextBlock Text="{Binding AfterExpected,StringFormat=' -> {0:N2}'}"/><TextBlock Text="{Binding AfterCounted,StringFormat=' | physical {0:N2}'}"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Text="Expected cash comes from recorded movements. Projected physical cash uses the count adjusted for subsequent custody movements. A nonzero remaining difference means the position still does not reconcile." TextWrapping="Wrap" Margin="0,8"/>
+                <ItemsControl ItemsSource="{Binding PositionPreviewRows}" Margin="0,8">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card.Compact}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Effect.SessionId,StringFormat='Cash session #{0}'}" FontWeight="Bold" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding Effect.BeforeExpected,StringFormat='Recorded expected cash before approval: {0:N2}'}"/>
+                                    <TextBlock Text="{Binding Effect.CashChange,StringFormat='Proposed adjustment to expected cash: {0:N2}'}"/>
+                                    <TextBlock Text="{Binding Effect.AfterExpected,StringFormat='Expected cash after approval: {0:N2}'}"/>
+                                    <TextBlock Text="{Binding Effect.BeforeCounted,StringFormat='Current count adjusted for custody movements: {0:N2}',TargetNullValue='Current count: not submitted'}"/>
+                                    <TextBlock Text="{Binding Effect.AfterCounted,StringFormat='Projected physical cash after approval: {0:N2}',TargetNullValue='Projected physical cash: no count submitted'}"/>
+                                    <TextBlock Text="{Binding RemainingDifference,StringFormat='Remaining difference (physical minus expected): {0:N2}',TargetNullValue='Remaining difference: awaiting count'}" FontWeight="Bold" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <Button Content="Send proposal" Command="{Binding SubmitCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,15"/>
             </StackPanel>
             <WrapPanel Margin="0,16"><Button Style="{StaticResource Button.Secondary}" Content="Previous" Command="{Binding PreviousCommand}" Margin="0,0,8,0"/><Button Content="Continue / Preview" Command="{Binding ContinueCommand}"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource Button.Primary}"><Style.Triggers><DataTrigger Binding="{Binding IsStep3}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style></Button></WrapPanel>

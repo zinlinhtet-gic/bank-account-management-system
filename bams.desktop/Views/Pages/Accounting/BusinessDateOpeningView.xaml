@@ -7,7 +7,7 @@
                 <StackPanel.Style>
                     <Style TargetType="StackPanel">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding BusinessDate.Status}" Value="Open">
+                            <DataTrigger Binding="{Binding IsBusinessDateOpenToday}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                         </Style.Triggers>
@@ -25,7 +25,7 @@
                     <Style TargetType="Border" BasedOn="{StaticResource Card}">
                         <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding BusinessDate.Status}" Value="Open">
+                            <DataTrigger Binding="{Binding IsBusinessDateOpenToday}" Value="True">
                                 <Setter Property="Visibility" Value="Visible"/>
                             </DataTrigger>
                         </Style.Triggers>

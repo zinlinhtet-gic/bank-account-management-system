@@ -55,6 +55,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
         AuditCommand = new(LoadAuditAsync, () => !IsBusy && Summary.BusinessDate is not null);
         ExceptionCenter = new ExceptionCenterViewModel(reconciliationService, service, authContext);
         FinalReview = new FinalReviewViewModel();
+        VaultUnresolvedCash = new VaultUnresolvedCashViewModel();
         CashHandoffs = new CashHandoffCenterViewModel(cashOperations, authContext);
         RunPreCloseCommand = new AsyncRelayCommand(RunPreCloseAsync, () => CanRunPreClose);
         ReviewPreCloseCommand = new AsyncRelayCommand(ReviewPreCloseAsync, () => CanReviewPreClose);
@@ -85,6 +86,7 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
     public AccountReconciliationViewModel AccountReconciliation { get; }
     public ExceptionCenterViewModel ExceptionCenter { get; }
     public FinalReviewViewModel FinalReview { get; }
+    public VaultUnresolvedCashViewModel VaultUnresolvedCash { get; }
     public CashHandoffCenterViewModel CashHandoffs { get; }
     public AsyncRelayCommand RunPreCloseCommand { get; }
     public AsyncRelayCommand ReviewPreCloseCommand { get; }
@@ -270,6 +272,8 @@ public sealed class EndOfDayViewModel : ViewModelBase, IAsyncInitializable
             CashPositionSessionDetailResponse detail = await _cashOperations.GetSessionDetailAsync(_vault.Id, cancellationToken);
             _vaultCount = detail.Counts.OrderByDescending(count => count.Id).FirstOrDefault();
         }
+        // Officer residuals are shown beside the vault count so the bank-wide expectation is never hidden.
+        VaultUnresolvedCash.Update(await _unifiedClient.VaultSummaryAsync(date, cancellationToken));
         foreach (string name in new[] { nameof(VaultStatus), nameof(VaultExpected), nameof(VaultCounted), nameof(VaultDifference), nameof(CanRecordVaultCount) }) OnPropertyChanged(name);
         FinalVaultCountCommand.RaiseCanExecuteChanged();
     }

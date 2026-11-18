@@ -50,6 +50,7 @@ public sealed class NavigationService : INavigationService
             // Placeholder until reconciliation is built (shown by the generic page view).
             PageNames.Reconciliation => _serviceProvider.GetService<UnifiedReconciliationViewModel>(),
             PageNames.ReconciliationMaster => _serviceProvider.GetService<UnifiedReconciliationViewModel>(),
+            PageNames.TaskDetail => _serviceProvider.GetService<TaskDetailViewModel>(),
             PageNames.AssignedReconciliationTasks => _serviceProvider.GetService<AssignedReconciliationTasksViewModel>(),
             PageNames.ReconcileProposals => _serviceProvider.GetService<ReconcileProposalsViewModel>(),
             PageNames.CashProposalEditor => _serviceProvider.GetService<CashProposalEditorViewModel>(),
@@ -66,6 +67,8 @@ public sealed class NavigationService : INavigationService
             PageNames.CashReconciliation => _serviceProvider.GetService<SessionManagementViewModel>(),
             PageNames.SessionCreation => _serviceProvider.GetService<SessionCreationViewModel>(),
             PageNames.SessionDetail => _serviceProvider.GetService<SessionDetailViewModel>(),
+            PageNames.CashTransfer => string.Equals(AuthContext.Instance.Role, RoleCodes.Auditor, StringComparison.OrdinalIgnoreCase) && AuthContext.Instance.HasPermission(PermissionCodes.Audit)
+                ? _serviceProvider.GetService<CashTransferViewModel>() : null,
             PageNames.SessionHandoffs => _serviceProvider.GetService<CashHandoffCenterViewModel>(),
             PageNames.CashRequests => _serviceProvider.GetService<CashRequestCenterViewModel>(),
             PageNames.BusinessDateOpening => _serviceProvider.GetService<BusinessDateOpeningViewModel>(),

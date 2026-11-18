@@ -4,6 +4,10 @@ namespace bams.desktop.Services;
 
 public interface ICashOperationsClientService
 {
+    Task<IReadOnlyList<CashHandoffRecipientResponse>> GetAuditorReturnManagersAsync(CancellationToken ct);
+    Task<IReadOnlyList<AuditorCashReturnResponse>> GetAuditorReturnsAsync(DateOnly? date, CancellationToken ct);
+    Task<AuditorCashReturnResponse> CreateAuditorReturnAsync(CreateAuditorCashReturnRequest request, CancellationToken ct);
+    Task<AuditorCashReturnResponse> DecideAuditorReturnAsync(long id, CashHandoffActionRequest request, bool accept, CancellationToken ct);
     Task<IReadOnlyList<CashPositionSessionResponse>> CreateSchedulesAsync(CreateSessionSchedulesRequest request, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<CashPositionSessionResponse>> GetSessionsAsync(DateOnly? date, CancellationToken cancellationToken);

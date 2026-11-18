@@ -441,12 +441,26 @@ public sealed class EndOfDayWorkflowService(
         }
 
         await exclusions.ValidateAsync(run.BusinessDate, run.BusinessDate, cancellationToken);
-        if (await db.ReconciliationExceptions.AnyAsync(x => x.BusinessDate == run.BusinessDate &&
-                x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed, cancellationToken) ||
-            await db.CorrectionProposals.AnyAsync(x => x.Exception!.BusinessDate == run.BusinessDate && x.Exception.Status != OperationsConstants.ExceptionForcePassed && (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), cancellationToken) ||
-            await db.CashCorrectionProposals.AnyAsync(x => x.Exception!.BusinessDate == run.BusinessDate && x.Exception.Status != OperationsConstants.ExceptionForcePassed && (x.Status == ProposalStatus.PendingApproval || x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed), cancellationToken) ||
-            await db.BankExpenseRequests.AnyAsync(x => x.BusinessDate == run.BusinessDate && x.Status == "PendingApproval", cancellationToken))
-            throw new BusinessRuleException(MessageCode.ReconciliationBlocked);
+        // Scan lists exceptions, but unverified proposals remain close blockers even after their exception resolves.
+        List<long> exceptions = await db.ReconciliationExceptions.Where(x => x.BusinessDate == run.BusinessDate &&
+            x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed)
+            .Select(x => x.Id).ToListAsync(cancellationToken);
+        List<long> accountProposals = await db.CorrectionProposals.Where(x => x.Exception!.BusinessDate == run.BusinessDate &&
+            x.Exception.Status != OperationsConstants.ExceptionForcePassed && (x.Status == ProposalStatus.PendingApproval ||
+            x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed)).Select(x => x.Id).ToListAsync(cancellationToken);
+        List<long> cashProposals = await db.CashCorrectionProposals.Where(x => x.Exception!.BusinessDate == run.BusinessDate &&
+            x.Exception.Status != OperationsConstants.ExceptionForcePassed && (x.Status == ProposalStatus.PendingApproval ||
+            x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed)).Select(x => x.Id).ToListAsync(cancellationToken);
+        List<long> expenses = await db.BankExpenseRequests.Where(x => x.BusinessDate == run.BusinessDate && x.Status == "PendingApproval")
+            .Select(x => x.Id).ToListAsync(cancellationToken);
+        List<string> blockers = [];
+        if (exceptions.Count > 0) blockers.Add($"Unresolved reconciliation exception IDs: {string.Join(", ", exceptions)}");
+        if (accountProposals.Count > 0) blockers.Add($"Account correction proposals pending approval or verification IDs: {string.Join(", ", accountProposals)}");
+        if (cashProposals.Count > 0) blockers.Add($"Cash correction proposals pending approval or verification IDs: {string.Join(", ", cashProposals)}");
+        if (expenses.Count > 0) blockers.Add($"Bank expenses pending approval IDs: {string.Join(", ", expenses)}");
+        if (blockers.Count > 0)
+            throw new BusinessRuleException(MessageCode.ReconciliationBlocked,
+                $"Business date {run.BusinessDate:yyyy-MM-dd} cannot close. {string.Join("; ", blockers)}.");
         await EnsureNoClosingBlockersAsync(run.BusinessDate, cancellationToken);
     }
 
@@ -542,7 +556,8 @@ public sealed class EndOfDayWorkflowService(
             db.CashCounts.Any(count => count.SessionId == item.Id), cancellationToken);
         int missingVaultCount = hasFinalVaultCount ? 0 : 1;
         int pendingHandoffs = await db.CashHandoffs.CountAsync(item => item.BusinessDate == date &&
-              item.Status != OperationsConstants.CashHandoffAccepted, cancellationToken);
+              (item.Status == OperationsConstants.CashHandoffPendingAcceptance ||
+                  item.Status == OperationsConstants.CashHandoffAccepted && item.DestinationSessionId == null), cancellationToken);
         int pendingCashProposals = await db.CashProposals.CountAsync(item => item.Session!.BusinessDate == date &&
             (item.Status == "PendingApproval" || item.Status == "PendingReceipt"), cancellationToken);
         pendingCashProposals += await db.CashCorrectionProposals.CountAsync(item => item.Exception!.BusinessDate == date &&
@@ -567,7 +582,7 @@ public sealed class EndOfDayWorkflowService(
             new(OperationsConstants.EodStageLedgerReconciliation, !ledgerUnbalanced ? "Complete" : "Blocked", ledgerUnbalanced ? 1 : 0, null),
             new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount == 0 ? "Complete" : "Blocked",
                   openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount, openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount == 0 ? null :
-                      $"{openSessions} open or scheduled cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance or reassignment; {pendingCashProposals} cash proposal(s) awaiting resolution; {missingVaultCount} final vault count(s) missing."),
+                      $"{openSessions} open or scheduled cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance, reassignment, or return from Auditor; {pendingCashProposals} cash proposal(s) awaiting resolution; {missingVaultCount} final vault count(s) missing."),
             new(OperationsConstants.EodStageCriticalExceptions, criticalExceptions == 0 ? "Complete" : "Exceptions", criticalExceptions, null)
         ];
     }
@@ -643,11 +658,14 @@ public sealed class EndOfDayWorkflowService(
     private async Task EnsureNoClosingBlockersAsync(DateOnly date, CancellationToken cancellationToken)
     {
         List<EndOfDayStageResponse> stages = await BuildCompleteStageSummaryAsync(date, cancellationToken);
-        if (stages.Any(stage => stage.IssueCount > 0))
-            throw new BusinessRuleException(MessageCode.ReconciliationBlocked);
+        List<EndOfDayStageResponse> blockers = stages.Where(stage => stage.IssueCount > 0).ToList();
+        if (blockers.Count > 0)
+            throw new BusinessRuleException(MessageCode.ReconciliationBlocked,
+                $"Business date {date:yyyy-MM-dd} cannot close. " + string.Join("; ", blockers.Select(stage =>
+                    $"{stage.Name}: {stage.IssueCount} issue(s){(string.IsNullOrWhiteSpace(stage.MessageCode) ? "" : $" - {stage.MessageCode}")}")));
         EndOfDayRun? latest = await db.EndOfDayRuns.Where(item => item.BusinessDate == date && item.Status == OperationsConstants.EodApproved)
             .OrderByDescending(item => item.Id).FirstOrDefaultAsync(cancellationToken);
-        if (latest is null) throw new BusinessRuleException(MessageCode.ReconciliationBlocked);
+        if (latest is null) throw new BusinessRuleException(MessageCode.ReconciliationBlocked, $"Business date {date:yyyy-MM-dd} has no approved closing run. Run readiness checks, review, and approve before closing.");
     }
 
     private static IReadOnlyList<EndOfDayStageResponse> DeserializeStages(string json) =>

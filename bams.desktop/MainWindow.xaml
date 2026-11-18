@@ -94,6 +94,7 @@
                         <accountingViews:MonthlySummariesView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:UnifiedReconciliationViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:TaskDetailViewModel}"><accountingViews:TaskDetailView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:AssignedReconciliationTasksViewModel}"><accountingViews:UnifiedReconciliationView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:ReconcileProposalsViewModel}"><accountingViews:ReconcileProposalsView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:CashProposalEditorViewModel}"><accountingViews:CashProposalEditorView/></DataTemplate>
@@ -112,6 +113,7 @@
                     <DataTemplate DataType="{x:Type accountingViewModels:SessionManagementViewModel}"><accountingViews:SessionManagementView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:SessionCreationViewModel}"><accountingViews:SessionCreationView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:SessionDetailViewModel}"><accountingViews:SessionDetailView/></DataTemplate>
+                    <DataTemplate DataType="{x:Type accountingViewModels:CashTransferViewModel}"><accountingViews:CashTransferView/></DataTemplate>
                     <DataTemplate DataType="{x:Type accountingViewModels:CashHandoffCenterViewModel}"><accountingViews:SessionHandoffRequestsView/></DataTemplate>
 
                     <DataTemplate DataType="{x:Type accountingViewModels:CashRequestCenterViewModel}">

@@ -49,7 +49,13 @@ public sealed record ReconciliationExceptionResponse(
 public sealed record ReconciliationExceptionHistoryResponse(long Id, string OldStatus, string NewStatus,
     string? Note, long ActorId, DateTime CreatedAtUtc);
 public sealed record ReconciliationExceptionDetailResponse(ReconciliationExceptionResponse Exception,
-    IReadOnlyList<ReconciliationExceptionHistoryResponse> Timeline);
+    IReadOnlyList<ReconciliationExceptionHistoryResponse> Timeline)
+{
+    public string? FlagExplanation { get; init; }
+    public IReadOnlyList<SessionTransactionResponse> Transactions { get; init; } = [];
+    public IReadOnlyList<CashMovementHistoryResponse> Movements { get; init; } = [];
+    public IReadOnlyList<CashCountHistoryResponse> Counts { get; init; } = [];
+}
 public sealed record CorrectionTransactionCandidateResponse(long Id, string TransactionNo, string Type, string Status,
     decimal Amount, DateTime? PostedAt, string? Description, string JournalPreview);
 public sealed record ReconciliationAccountOptionResponse(long Id, string AccountNo, string AccountType, string Status);

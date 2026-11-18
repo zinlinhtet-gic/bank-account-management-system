@@ -34,12 +34,51 @@ public sealed partial class CashCorrectionService
         _ => throw new ValidationException(MessageCode.InvalidRequest)
     };
 
-    private static Task<CorrectionPlan> PlanCountEntryErrorAsync(CashPositionSession session,
+    // Custody records of a closed session's accepted handoff, with the amount that has effectively changed hands.
+    private sealed record HandoffCustody(CashHandoff Handoff, CashMovement Outgoing, CashMovement Incoming, decimal HandedAmount);
+
+    // A recount replaces the physical count. When the original count was already handed over and accepted, the cash
+    // that really changed hands differs by (recount - handed amount), so the receiving position must absorb that
+    // difference and the officer session keeps only the genuinely unresolved residual.
+    private async Task<CorrectionPlan> PlanCountEntryErrorAsync(CashPositionSession session,
         CashCorrectionInputs input, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
         decimal amount = RequireAmount(input.Amount, allowZero: true);
-        return Task.FromResult(new CorrectionPlan(amount, [new(session.Id, 0m)]));
+        HandoffCustody? custody = await FindAcceptedHandoffCustodyAsync(session.Id, ct);
+        if (custody is null || amount == custody.HandedAmount)
+            return new CorrectionPlan(amount, [new(session.Id, 0m)]);
+        decimal delta = amount - custody.HandedAmount;
+        // Restate the original custody movements (not a new transfer) so count-after-handoff verification stays consistent.
+        return await ValidateEffectsAsync(new(amount,
+            [new(session.Id, -delta, custody.Outgoing.Id, custody.Handoff.DestinationSessionId),
+             new(custody.Handoff.DestinationSessionId!.Value, delta, custody.Incoming.Id, session.Id)]), ct);
+    }
+
+    // Finds the latest accepted handoff of the session and its custody movement pair; null when nothing was handed over.
+    private async Task<HandoffCustody?> FindAcceptedHandoffCustodyAsync(long sessionId, CancellationToken ct)
+    {
+        CashHandoff? handoff = await db.CashHandoffs.AsNoTracking()
+            .Where(x => x.SessionId == sessionId && x.Status == OperationsConstants.CashHandoffAccepted && x.DestinationSessionId.HasValue)
+            .OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
+        if (handoff is null) return null;
+        string[] outgoingTypes = ["VaultReturnOut", "TransferOut"];
+        string[] incomingTypes = ["VaultReturnIn", "TransferIn"];
+        CashMovement outgoing = await db.CashMovements.AsNoTracking()
+            .Where(x => x.SessionId == sessionId && x.DestinationSessionId == handoff.DestinationSessionId &&
+                outgoingTypes.Contains(x.Type) && x.Status == OperationsConstants.CashMovementApproved &&
+                !x.CorrectsMovementId.HasValue && !x.CashCorrectionProposalId.HasValue && x.Amount == handoff.Amount &&
+                x.CreatedAtUtc >= handoff.CreatedAtUtc)
+            .OrderBy(x => x.Id).FirstOrDefaultAsync(ct) ?? throw new ValidationException(MessageCode.InvalidRequest);
+        CashMovement incoming = await db.CashMovements.AsNoTracking()
+            .Where(x => x.SessionId == handoff.DestinationSessionId && x.DestinationSessionId == sessionId &&
+                incomingTypes.Contains(x.Type) && x.Status == OperationsConstants.CashMovementApproved &&
+                !x.CorrectsMovementId.HasValue && !x.CashCorrectionProposalId.HasValue && x.Amount == handoff.Amount &&
+                x.CreatedAtUtc >= outgoing.CreatedAtUtc)
+            .OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id).FirstOrDefaultAsync(ct) ?? throw new ValidationException(MessageCode.InvalidRequest);
+        List<CashMovement> corrections = await db.CashMovements.AsNoTracking()
+            .Where(x => x.CorrectsMovementId == outgoing.Id).ToListAsync(ct);
+        decimal handed = -(SignedMovement(outgoing) + corrections.Sum(SignedMovement));
+        return new HandoffCustody(handoff, outgoing, incoming, handed);
     }
 
     private async Task<CorrectionPlan> PlanUnrecordedDepositAsync(ReconciliationException exception,

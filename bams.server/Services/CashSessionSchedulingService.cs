@@ -47,7 +47,7 @@ public sealed class CashSessionSchedulingService(ApplicationDbContext db, INotif
             where ids.Contains(user.Id) && user.Status == UserStatus.Active && role.Code == SecurityConstants.OfficerRole
             select user.Id).Distinct().ToListAsync(cancellationToken);
         var existing = await db.CashPositionSessions.Where(session => session.BusinessDate == vault.BusinessDate &&
-            ids.Contains(session.TellerId ?? 0) && session.Status != OperationsConstants.CashSessionCancelled &&
+            ids.Contains(session.TellerId ?? 0) && session.Status != OperationsConstants.CashSessionCancelled && session.Status != OperationsConstants.CashSessionClosed &&
             session.ScheduledStartAtMyanmar != null).ToListAsync(cancellationToken);
         decimal total = 0m;
         for (int index = 0; index < rows.Count; index++)

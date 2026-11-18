@@ -1,0 +1,28 @@
+<UserControl x:Class="bams.desktop.Views.Pages.Accounting.CashTransferView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:t="clr-namespace:bams.desktop.Themes">
+ <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24" Visibility="{Binding HasAccess,Converter={StaticResource BooleanToVisibilityConverter}}">
+  <TextBlock Text="Cash Transfer" Style="{StaticResource Text.Title}"/>
+  <TextBlock Text="Transfer the cash you physically hold to a Manager. Select whole handoffs from one business date. Pending transfers remain in your custody until receipt." Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap" Margin="0,8,0,16"/>
+  <Button Content="Refresh" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Style="{StaticResource Button.Secondary}"/>
+  <TextBlock Text="{Binding CashHeld,StringFormat=Cash held: {0:N2}}" Margin="0,16,0,8"/>
+  <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Handoffs}" AutoGenerateColumns="False" CanUserAddRows="False" MinHeight="180" MaxHeight="340"><DataGrid.Columns>
+   <DataGridTemplateColumn Header="Select"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsSelected,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsAvailable}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+   <DataGridTextColumn Header="Handoff" Binding="{Binding Handoff.Id}" IsReadOnly="True"/>
+   <DataGridTextColumn Header="Business date" Binding="{Binding Handoff.BusinessDate}" IsReadOnly="True"/>
+   <DataGridTextColumn Header="Teller" Binding="{Binding Handoff.SenderName}" IsReadOnly="True" Width="*"/>
+   <DataGridTextColumn Header="Amount" Binding="{Binding Handoff.Amount,StringFormat=N2}" IsReadOnly="True"/>
+   <DataGridCheckBoxColumn Header="Available" Binding="{Binding IsAvailable}" IsReadOnly="True"/>
+  </DataGrid.Columns></DataGrid>
+  <TextBlock Text="Receiving Manager" Margin="0,16,0,6"/>
+  <ComboBox ItemsSource="{Binding Managers}" SelectedItem="{Binding SelectedManager}" DisplayMemberPath="FullName" Style="{StaticResource Input.Select}" t:ThemeAssist.Placeholder="Select Manager"/>
+  <TextBox Text="{Binding Note,UpdateSourceTrigger=PropertyChanged}" MaxLength="500" Style="{StaticResource Input.Text}" t:ThemeAssist.Placeholder="Transfer note (optional)" Margin="0,12"/>
+  <Button Content="Send cash to Manager" Command="{Binding SendCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left"/>
+  <Border Padding="12" Margin="0,12" BorderBrush="{DynamicResource Text.Primary}" BorderThickness="1" CornerRadius="6"><TextBlock Text="{Binding Message}" TextWrapping="Wrap"/></Border>
+  <TextBlock Text="My transfer history" Style="{StaticResource Text.Title}" Margin="0,16,0,8"/>
+  <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Returns}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="160" MaxHeight="300"><DataGrid.Columns>
+   <DataGridTextColumn Header="Transfer" Binding="{Binding Id}"/><DataGridTextColumn Header="Date" Binding="{Binding BusinessDate}"/><DataGridTextColumn Header="Manager ID" Binding="{Binding ManagerId}"/><DataGridTextColumn Header="Status" Binding="{Binding Status}"/><DataGridTextColumn Header="Decision note" Binding="{Binding DecisionNote}" Width="*"/>
+  </DataGrid.Columns></DataGrid>
+ </StackPanel></ScrollViewer>
+</UserControl>

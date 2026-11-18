@@ -27,7 +27,57 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
             where ur.UserId == actor && (p.Code == SecurityConstants.Accounting || p.Code == SecurityConstants.EndOfDayApproval)
             select ur.UserId).AnyAsync(ct);
         if (!assigned && !accounting) throw new ForbiddenException(MessageCode.InsufficientPermission);
-        return await reports.GetExceptionByIdAsync(id, ct);
+        var detail = await reports.GetExceptionByIdAsync(id, ct);
+        var item = detail.Exception;
+        string explanation = item.Type switch
+        {
+            "CashBalance" => "Counted cash adjusted for handoffs differs from expected session cash.",
+            "CashMovementMissing" => "A posted cash transaction has no corresponding cash movement.",
+            "AccountBalance" => "The operational account balance differs from its ledger balance.",
+            "LedgerBalance" => "Ledger debit and credit totals do not balance.",
+            "JournalIntegrity" => "The transaction journal is missing or its debit and credit totals do not balance.",
+            _ => "A detailed explanation is unavailable for this exception type. Review its source and recorded amounts."
+        };
+        detail = detail with { FlagExplanation = explanation };
+        // Evidence is authorized by the exception above, never by a caller-supplied session id.
+        if (item.PositionSessionId is not long sessionId) return detail;
+        var movements = await db.CashMovements.AsNoTracking().Where(x => x.SessionId == sessionId)
+            .OrderBy(x => x.CreatedAtUtc).Select(x => new CashMovementHistoryResponse(x.Id, x.Type, x.Status, x.Amount,
+                x.DestinationSessionId, x.TransactionId, x.CorrectionTransactionId, x.ActorId, x.ApprovedBy, x.CreatedAtUtc, x.Note)).ToListAsync(ct);
+        var ids = movements.SelectMany(x => new long?[] { x.TransactionId, x.CorrectionTransactionId })
+            .Append(item.RelatedTransactionId).Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
+        var transactions = await db.Transactions.AsNoTracking().Where(x => ids.Contains(x.Id)).OrderByDescending(x => x.TransactionAt)
+            .Select(x => new SessionTransactionResponse(x.Id, x.TransactionNo, x.TransactionType.ToString(), x.TransactionStatus.ToString(), x.Amount, x.TransactionAt)).ToListAsync(ct);
+        var counts = await db.CashCounts.AsNoTracking().Where(x => x.SessionId == sessionId).OrderBy(x => x.CountedAtUtc)
+            .Select(x => new CashCountHistoryResponse(x.Id, x.ExpectedAmount, x.ActualAmount, x.Difference, x.CountedBy, x.CountedAtUtc, x.Notes)).ToListAsync(ct);
+        return detail with { Movements = movements, Transactions = transactions, Counts = counts };
+    }
+
+    // Vault expected cash excludes unresolved officer residuals; bank-wide expected cash is vault expected plus those residuals.
+    public async Task<VaultCashSummaryResponse> VaultCashSummaryAsync(DateOnly date, CancellationToken ct)
+    {
+        List<CashPositionSession> sessions = await db.CashPositionSessions.AsNoTracking()
+            .Where(x => x.BusinessDate == date).ToListAsync(ct);
+        CashPositionSession? vault = sessions.SingleOrDefault(x => x.PositionType == OperationsConstants.CashPositionVault);
+        decimal? vaultCounted = vault is null ? null : await db.CashCounts.AsNoTracking().Where(x => x.SessionId == vault.Id)
+            .OrderByDescending(x => x.Id).Select(x => (decimal?)x.ActualAmount).FirstOrDefaultAsync(ct);
+        List<long> residualSessionIds = sessions.Where(x => x.PositionType != OperationsConstants.CashPositionVault &&
+            x.Status == OperationsConstants.CashSessionClosed && x.ExpectedClosingCash != 0m).Select(x => x.Id).ToList();
+        Dictionary<long, long> openExceptions = (await db.ReconciliationExceptions.AsNoTracking()
+            .Where(x => x.Type == OperationsConstants.ExceptionCashBalance && x.PositionSessionId.HasValue &&
+                residualSessionIds.Contains(x.PositionSessionId.Value) &&
+                x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed)
+            .Select(x => new { SessionId = x.PositionSessionId!.Value, x.Id }).ToListAsync(ct))
+            .GroupBy(x => x.SessionId).ToDictionary(group => group.Key, group => group.Max(x => x.Id));
+        Dictionary<long, string> officerNames = await db.Users.AsNoTracking()
+            .Where(user => sessions.Select(x => x.TellerId).Contains(user.Id)).ToDictionaryAsync(user => user.Id, user => user.FullName, ct);
+        List<UnresolvedCashSessionResponse> unresolved = sessions.Where(x => residualSessionIds.Contains(x.Id))
+            .Select(x => new UnresolvedCashSessionResponse(x.Id,
+                x.TellerId.HasValue && officerNames.TryGetValue(x.TellerId.Value, out string? name) ? name : $"Session #{x.Id}",
+                x.ExpectedClosingCash, openExceptions.TryGetValue(x.Id, out long exceptionId) ? exceptionId : null)).ToList();
+        decimal unresolvedTotal = unresolved.Sum(x => x.Residual);
+        return new VaultCashSummaryResponse(date, vault?.ExpectedClosingCash, vaultCounted, unresolved, unresolvedTotal,
+            (vault?.ExpectedClosingCash ?? 0m) + unresolvedTotal);
     }
 
     public Task<IReadOnlyList<ReconciliationAccountOptionResponse>> AccountOptionsAsync(string? search, CancellationToken ct) =>
@@ -59,6 +109,7 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
             .Select(x => new UnifiedExceptionRow(x.Id, x.Type, x.BusinessDate, x.AccountId,
                 x.PositionSessionId, x.RelatedTransactionId, x.ExpectedAmount, x.ActualAmount,
                 x.Difference, x.Status, x.AssignedTo, x.Notes)).ToListAsync(ct);
+        rows = await AddVerificationReasonsAsync(rows, ct);
         return new(runId, from, to, rows.Where(x => x.PositionSessionId == null).ToList(),
             rows.Where(x => x.PositionSessionId != null).ToList());
     }
@@ -66,11 +117,28 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
     public async Task<IReadOnlyList<UnifiedExceptionRow>> MyTasksAsync(CancellationToken ct)
     {
         long actor = currentUser.GetCurrentUserId();
-        return await db.ReconciliationExceptions.AsNoTracking().Where(x => x.AssignedTo == actor &&
+        var rows = await db.ReconciliationExceptions.AsNoTracking().Where(x => x.AssignedTo == actor &&
                 x.Status != OperationsConstants.ExceptionResolved && x.Status != OperationsConstants.ExceptionForcePassed)
             .OrderByDescending(x => x.BusinessDate).Select(x => new UnifiedExceptionRow(x.Id, x.Type,
                 x.BusinessDate, x.AccountId, x.PositionSessionId, x.RelatedTransactionId,
                 x.ExpectedAmount, x.ActualAmount, x.Difference, x.Status, x.AssignedTo, x.Notes)).ToListAsync(ct);
+        return await AddVerificationReasonsAsync(rows, ct);
+    }
+
+    // Shows proposal verification evidence without overwriting the investigator's own notes.
+    private async Task<List<UnifiedExceptionRow>> AddVerificationReasonsAsync(List<UnifiedExceptionRow> rows, CancellationToken ct)
+    {
+        var ids = rows.Select(x => x.Id).ToList();
+        var account = await db.CorrectionProposals.AsNoTracking().Where(x => ids.Contains(x.ExceptionId) &&
+            x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed)
+            .Select(x => new { x.Id, x.ExceptionId, x.Verification, x.VerificationNote }).ToListAsync(ct);
+        var cash = await db.CashCorrectionProposals.AsNoTracking().Where(x => ids.Contains(x.ExceptionId) &&
+            x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed)
+            .Select(x => new { x.Id, x.ExceptionId, x.Verification, x.VerificationNote }).ToListAsync(ct);
+        var reasons = account.Select(x => new { x.ExceptionId, Text = $"Account proposal #{x.Id}: {x.Verification}. {x.VerificationNote ?? "Verification has not completed."}" })
+            .Concat(cash.Select(x => new { x.ExceptionId, Text = $"Cash proposal #{x.Id}: {x.Verification}. {x.VerificationNote ?? "Verification has not completed."}" }))
+            .GroupBy(x => x.ExceptionId).ToDictionary(g => g.Key, g => string.Join("; ", g.Select(x => x.Text)));
+        return rows.Select(row => row with { VerificationFailureReason = reasons.GetValueOrDefault(row.Id) }).ToList();
     }
 
     /// <summary>Lists posted account and cash corrections needing checks, scoped to managers or the assigned investigator.</summary>
@@ -173,7 +241,7 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
             await db.CashProposals.AnyAsync(x => x.Session!.BusinessDate == request.BusinessDate && (x.Status == "PendingApproval" || x.Status == "PendingReceipt"), ct) ||
             await db.CashCounts.AnyAsync(x => x.SessionId == session.Id, ct) ||
             await db.CashHandoffs.AnyAsync(x => x.BusinessDate == request.BusinessDate &&
-                x.Status != OperationsConstants.CashHandoffAccepted, ct) ||
+                (x.Status == OperationsConstants.CashHandoffPendingAcceptance || x.Status == OperationsConstants.CashHandoffAccepted && x.DestinationSessionId == null), ct) ||
             await db.BankExpenseRequests.AnyAsync(x => x.BusinessDate == request.BusinessDate && x.Status == "PendingApproval", ct))
             throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
         db.CashCounts.Add(new CashCount { Session = session, ExpectedAmount = session.ExpectedClosingCash,
@@ -191,6 +259,24 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
 
     private async Task RunCashChecksAsync(DateOnly from, DateOnly to, CancellationToken ct)
     {
+        // Balance matching cannot override a proposal's outstanding approval or verification.
+        // Reopen exceptions that older scans incorrectly resolved so the next Scan exposes them again.
+        var blockingProposals = await db.CashCorrectionProposals
+            .Where(x => x.Exception!.BusinessDate >= from && x.Exception.BusinessDate <= to &&
+                x.Exception.Status != OperationsConstants.ExceptionForcePassed &&
+                (x.Status == ProposalStatus.PendingApproval ||
+                    x.Status == ProposalStatus.Executed && x.Verification != VerificationStatus.Passed))
+            .Include(x => x.Exception).ToListAsync(ct);
+        List<ReconciliationException> proposalBlockedExceptions = blockingProposals.Select(x => x.Exception!).DistinctBy(x => x.Id).ToList();
+        HashSet<long> proposalBlockedIds = proposalBlockedExceptions.Select(x => x.Id).ToHashSet();
+        foreach (ReconciliationException blocked in proposalBlockedExceptions)
+            if (blocked.Status == OperationsConstants.ExceptionResolved)
+                SetStatus(blocked, OperationsConstants.ExceptionUnderInvestigation,
+                    "Reopened because cash correction approval or verification is outstanding. " +
+                    string.Join("; ", blockingProposals.Where(x => x.ExceptionId == blocked.Id).OrderByDescending(x => x.Id)
+                        .Select(x => $"Cash proposal #{x.Id}: {x.Verification}. {x.VerificationNote ?? "Approval or verification has not completed."}")));
+        if (proposalBlockedExceptions.Count > 0)
+            await db.SaveChangesAsync(ct);
         List<CashPositionSession> sessions = await db.CashPositionSessions.Where(x => x.BusinessDate >= from && x.BusinessDate <= to).ToListAsync(ct);
         foreach (CashPositionSession session in sessions)
         {
@@ -202,7 +288,8 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
             ReconciliationException? exception = await db.ReconciliationExceptions.Where(x => x.Type == OperationsConstants.ExceptionCashBalance &&
                 x.PositionSessionId == session.Id && x.Status != OperationsConstants.ExceptionResolved)
                 .OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
-            if (difference == 0m && exception is not null && exception.Status != OperationsConstants.ExceptionForcePassed)
+            if (difference == 0m && exception is not null && exception.Status != OperationsConstants.ExceptionForcePassed &&
+                !proposalBlockedIds.Contains(exception.Id))
                 SetStatus(exception, OperationsConstants.ExceptionResolved, "Physical cash count matches expected cash.");
             else if (difference != 0m && exception is null)
             {
@@ -251,6 +338,8 @@ public sealed partial class UnifiedReconciliationService(ApplicationDbContext db
                 x.RelatedTransactionId.HasValue).ToListAsync(ct);
         foreach (ReconciliationException exception in missingMovementExceptions)
         {
+            // A movement's existence alone does not verify the correction that created it.
+            if (proposalBlockedIds.Contains(exception.Id)) continue;
             if (!waivedByDate.TryGetValue(exception.BusinessDate, out HashSet<long>? waived))
             {
                 waived = await exclusions.ActiveSourceIdsAsync(exception.BusinessDate, "Transaction", ct);

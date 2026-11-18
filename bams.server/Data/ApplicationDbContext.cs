@@ -88,6 +88,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CashPositionSession> CashPositionSessions => Set<CashPositionSession>();
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<CashCount> CashCounts => Set<CashCount>();
+    public DbSet<AuditorCashReturn> AuditorCashReturns => Set<AuditorCashReturn>();
     public DbSet<CashHandoff> CashHandoffs => Set<CashHandoff>();
     public DbSet<CashHandoffHistory> CashHandoffHistories => Set<CashHandoffHistory>();
     public DbSet<CashProposal> CashProposals => Set<CashProposal>();

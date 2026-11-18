@@ -101,6 +101,55 @@ namespace bams.server.Data.Migrations
                     b.ToTable("AccountReconciliationRuns");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Accounting.AuditorCashReturn", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AuditorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("HandoffIdsJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<long>("ManagerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDate", "Status");
+
+                    b.ToTable("AuditorCashReturns");
+                });
+
             modelBuilder.Entity("bams.server.Models.Accounting.BankExpenseRequest", b =>
                 {
                     b.Property<long>("Id")

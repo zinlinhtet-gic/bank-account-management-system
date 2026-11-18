@@ -57,7 +57,15 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
         RefreshCommand = new AsyncRelayCommand(() => InitializeAsync(CancellationToken.None), () => !IsBusy);
     }
 
-    public BusinessDateResponse? BusinessDate { get => _businessDate; private set => SetProperty(ref _businessDate, value); }
+    public BusinessDateResponse? BusinessDate
+    {
+        get => _businessDate;
+        private set { if (SetProperty(ref _businessDate, value)) OnPropertyChanged(nameof(IsBusinessDateOpenToday)); }
+    }
+
+    // True only when the open business date is today's Myanmar date; an older unclosed date must not show the "opened" card.
+    public bool IsBusinessDateOpenToday =>
+        BusinessDate is { Status: "Open" } openDate && openDate.Date == (openDate.Today ?? openDate.Date);
     public CashPositionSessionResponse? VaultSession { get => _vaultSession; private set => SetProperty(ref _vaultSession, value); }
     public string StartingCashText { get => _startingCashText; set { if (SetProperty(ref _startingCashText, value)) { ErrorMessage = string.Empty; OnPropertyChanged(nameof(ReviewSummary)); OnPropertyChanged(nameof(VaultCashDisplay)); } } }
     public string ErrorMessage { get => _errorMessage; private set { if (SetProperty(ref _errorMessage, value)) OnPropertyChanged(nameof(HasError)); } }

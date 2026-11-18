@@ -111,6 +111,12 @@ public sealed class UnifiedReconciliationController(UnifiedReconciliationService
     public async Task<IActionResult> VerifyCash(long id, CancellationToken ct) =>
         Ok(ApiMessageResponse<CashCorrectionProposalResponse>.FromCode(MessageCode.Success, await cash.VerifyAsync(id, ct)));
 
+    // Returns vault expected cash, unresolved officer residuals and bank-wide expected cash for one business date.
+    [HttpGet("vault/summary/{date}")]
+    [RequirePermission(SecurityConstants.EndOfDayApproval, SecurityConstants.Audit, SecurityConstants.Accounting)]
+    public async Task<IActionResult> VaultCashSummary(DateOnly date, CancellationToken ct) =>
+        Ok(ApiMessageResponse<VaultCashSummaryResponse>.FromCode(MessageCode.Success, await checks.VaultCashSummaryAsync(date, ct)));
+
     [HttpPost("vault/final-count")]
     [RequirePermission(SecurityConstants.EndOfDayApproval)]
     public async Task<IActionResult> FinalVaultCount(FinalVaultCountRequest request, CancellationToken ct)

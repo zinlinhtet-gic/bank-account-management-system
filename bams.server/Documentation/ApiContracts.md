@@ -228,6 +228,7 @@ The desktop reconciliation workspace and End of Day use these unified endpoints.
 | POST | `/api/reconciliation/cash/proposals/{id}/review` | `transaction_correction_approval` | Approve/post or reject a cash proposal. |
 | GET | `/api/reconciliation/verification` | `reconciliation_investigation` or `transaction_correction_approval` | List executed account/GL and cash corrections with pending or failed verification; investigators see assigned work and approvers see all tasks. |
 | POST | `/api/reconciliation/cash/proposals/{id}/verify` | `reconciliation_investigation` or `transaction_correction_approval` | Retry checks after posting, restricted to the assignee or a correction approver. No financial posting is replayed. |
+| GET | `/api/reconciliation/vault/summary/{date}` | `end_of_day_approval`, `audit` or `accounting` | `VaultCashSummaryResponse`: vault expected and counted cash, closed officer sessions with an unresolved residual (expected cash still non-zero after handoff, with open exception id), their total, and bank-wide expected cash (vault expected + unresolved total). Vault expected never includes unresolved officer residuals; expense or over/short corrections lower only the officer residual, while a recount moves the handed-over difference into the vault. |
 | POST | `/api/reconciliation/vault/final-count` | `end_of_day_approval` | Record the final physical vault count for a business date. |
 
 Account/GL diagnosis and proposal routes are documented in [Account reconciliation correction workflow](#account-reconciliation-correction-workflow). Approval appends linked financial/accounting/GL records where appropriate; original records are preserved. Cash count observations do not overwrite expected cash. A count-entry error is resolved by recount. Other cash corrections use server-calculated previews and manager-approved operational postings. Preview hashes bind the submitted inputs to the displayed preview; stored proposal source hashes track source records only, independent of JSON input serialization. If the cash proposal source hash has changed by manager review, the proposal is marked `Superseded`, the API returns `CorrectionProposalStale`, and the investigator may submit a refreshed proposal. A normally closed business date returns `BusinessDateClosed`; a force-closed source redirects financial posting to the active open date. A sole active Manager may self-approve only when that manager is also the proposal author and holds the required permission.
@@ -246,7 +247,7 @@ Corrections for force-closed dates post on the current active open date. Cash pr
 Receipt uploads accept the implemented image/PDF formats and size limit; when no receipt is supplied, a reason is required. Approval creates the Bank Operating Expense debit, Cash on Hand credit, and corresponding cash movement atomically.
 ## Teller session cash handoffs
 
-Cash session close counts may include `handoffRecipientUserId` when `actualAmount` is positive. This closes the session and creates a pending custody transfer in the same database transaction. A positive count without a valid eligible recipient is rejected; a zero count needs no recipient. Recounting an already closed session does not create a second handoff.
+Cash session close counts may include `handoffRecipientUserId` when `actualAmount` is positive. This sets the session to `ClosePending` and creates a pending custody transfer in the same database transaction. Acknowledgement closes the session and sets its closure fields; rejection restores `Open` and clears those fields. Cash activity and recounting are blocked while closure is pending. Zero-cash sessions close immediately. A positive count without a valid eligible recipient is rejected; a zero count needs no recipient. Recounting an already closed session does not create a second handoff.
 
 Session opening and count-close requests require the standard `Idempotency-Key` header (maximum 64 characters). A retry with the same key and same payload returns the original session/count result; reuse with different details returns `IdempotencyKeyReused`. Cash-count requests also send `expectedSessionVersion`; handoff action/reassignment requests send `expectedVersion`. Responses include the latest `version`. A stale version returns HTTP 409 `ConcurrentModification`; refresh the selected session/handoff before making a new change. Repeated accept/decline requests in their already-applied state are treated as successful replays and do not append duplicate history.
 
@@ -256,8 +257,8 @@ Session opening and count-close requests require the standard `Idempotency-Key` 
 | GET | `/api/cash-handoffs?businessDate=YYYY-MM-DD` | Lists handoffs visible to the sender/recipient or an authorized reviewer. |
 | GET | `/api/cash-handoffs/{id}` | Returns a visible handoff and its append-only history. |
 | POST | `/api/cash-handoffs/{id}/accept` | Recipient acknowledges custody; optional note. |
-| POST | `/api/cash-handoffs/{id}/decline` | Recipient declines with a required note; remains an EOD blocker. |
-| PUT | `/api/cash-handoffs/{id}/recipient` | Sender or audit/EOD reviewer assigns an eligible recipient; status becomes pending. |
+| POST | `/api/cash-handoffs/{id}/decline` | Recipient declines with a required note; session returns to Open. A new handoff requires a fresh count. |
+| PUT | `/api/cash-handoffs/{id}/recipient` | Sender or audit/EOD reviewer changes the recipient of a pending handoff. Declined handoffs cannot be reassigned. |
 
 All routes require at least one of `cash_operations`, `audit`, or `end_of_day_approval`; business authorization is further restricted by actor and handoff state in the service. `CashHandoffRecipientRequired` and `CashHandoffNotPending` are stable error codes.
 
@@ -326,3 +327,10 @@ No schema migration is needed: cancellation uses existing status/closure fields,
 
 ## Account customer identities
 Account detail, create, status and balance responses and list summaries include Customers (customerId, customerNo, fullName, nullable nrcNumber/passportNumber, isPrimary), ordered primary first then customer ID. Account list search matches account number or any holder NRC by substring and preserves filters and cursor pagination. Desktop account list and details display these identities.
+
+### Reconciliation verification feedback
+
+`UnifiedExceptionRow` includes optional `verificationFailureReason` on Scan/read and assigned-task responses. It contains the linked executed proposal IDs, verification status, and saved verification notes while verification has not passed. Investigator `notes` remain unchanged. The desktop renders this field in the Verification reason column.
+
+## Assigned reconciliation task evidence
+GET `/api/reconciliation/exceptions/{id}/detail` includes FlagExplanation, Transactions, Movements and Counts. Evidence is read-only and authorized by exception assignment or existing accounting/review access. Related missing-movement transactions are included explicitly. Amounts on the exception are recorded values; histories reflect current evidence.

@@ -24,6 +24,18 @@
    <TextBlock Text="{Binding VaultExpected,StringFormat='Expected cash: {0:N2}'}" Margin="0,8"/>
    <TextBlock Text="{Binding VaultCounted,StringFormat='Latest physical count: {0:N2}'}"/>
    <TextBlock Text="{Binding VaultDifference,StringFormat='Difference: {0:N2}'}" Margin="0,6"/>
+   <StackPanel DataContext="{Binding VaultUnresolvedCash}" Margin="0,4,0,8">
+    <TextBlock Text="{Binding UnresolvedTotal,StringFormat='Unresolved officer cash: {0:N2}'}"/>
+    <TextBlock Text="{Binding BankExpectedTotal,StringFormat='Bank-wide expected cash (vault + unresolved): {0:N2}'}" Margin="0,2"/>
+    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Sessions}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" Margin="0,6"
+              Visibility="{Binding HasUnresolvedSessions,Converter={StaticResource BooleanToVisibilityConverter}}"><DataGrid.Columns>
+     <DataGridTextColumn Header="Officer" Binding="{Binding OfficerName}" Width="2*"/>
+     <DataGridTextColumn Header="Unresolved amount" Binding="{Binding Residual,StringFormat={}{0:N2}}" Width="*"/>
+     <DataGridTextColumn Header="Open exception" Binding="{Binding OpenExceptionId}" Width="*"/>
+    </DataGrid.Columns></DataGrid>
+    <TextBlock Text="{Binding ResolutionGuidance}" Style="{StaticResource Text.BodyMuted}" TextWrapping="Wrap"
+               Visibility="{Binding HasUnresolvedSessions,Converter={StaticResource BooleanToVisibilityConverter}}"/>
+   </StackPanel>
    <TextBlock Text="Physical cash amount" Style="{StaticResource Text.FieldLabel}"/><TextBox t:ThemeAssist.Placeholder="e.g. 25,000,000" Text="{Binding VaultActual,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Money}"/>
    <TextBlock Text="Count notes" Style="{StaticResource Text.FieldLabel}" Margin="0,8,0,0"/><TextBox t:ThemeAssist.Placeholder="e.g. Vault counted with two officers" Text="{Binding VaultNote,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input.Text}"/>
    <Button Content="Record final count and close vault" Command="{Binding FinalVaultCountCommand}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12"/>

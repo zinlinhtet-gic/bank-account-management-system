@@ -102,7 +102,20 @@ public sealed class CashProposalEditorViewModel:ReconciliationOperationViewModel
     public string Purpose { get=>_purpose; set { SetProperty(ref _purpose,value); Invalidate(); } }
     public string MissingReceiptReason { get=>_missingReceipt; set { SetProperty(ref _missingReceipt,value); Invalidate(); } }
     public string? ReceiptName=>_receiptName;
-    public CashCorrectionPreview? Preview { get=>_preview; private set=>SetProperty(ref _preview,value); }
+    public CashCorrectionPreview? Preview
+    {
+        get => _preview;
+        private set { if (SetProperty(ref _preview, value)) OnPropertyChanged(nameof(PositionPreviewRows)); }
+    }
+
+    // Keeps the projected physical balance and its unresolved difference distinct from the entered recount total.
+    public sealed record PositionPreviewRow(CashPositionCorrectionEffect Effect)
+    {
+        public decimal? RemainingDifference => Effect.AfterCounted - Effect.AfterExpected;
+    }
+
+    public IReadOnlyList<PositionPreviewRow> PositionPreviewRows =>
+        Preview?.PositionEffects.Select(effect => new PositionPreviewRow(effect)).ToList() ?? [];
     public RelayCommand PreviousCommand { get; }
     public AsyncRelayCommand ContinueCommand { get; }
     public AsyncRelayCommand SubmitCommand { get; }

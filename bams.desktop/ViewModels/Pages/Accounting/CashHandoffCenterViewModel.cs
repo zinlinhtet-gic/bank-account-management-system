@@ -19,6 +19,21 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializa
     private string _note = string.Empty;
     private string _message = string.Empty;
 
+    public ObservableCollection<AuditorCashReturnResponse> AuditorReturns { get; } = [];
+    private AuditorCashReturnResponse? _selectedReturn;
+    public AuditorCashReturnResponse? SelectedReturn
+    {
+        get => _selectedReturn;
+        set { if (SetProperty(ref _selectedReturn, value)) { AcceptReturnCommand.RaiseCanExecuteChanged(); DeclineReturnCommand.RaiseCanExecuteChanged(); } }
+    }
+    public sealed class ReturnSelection
+    {
+        public bool IsSelected { get; set; }
+        public bool IsAvailable { get; init; }
+        public required CashHandoffResponse Handoff { get; init; }
+    }
+    public AsyncRelayCommand AcceptReturnCommand { get; }
+    public AsyncRelayCommand DeclineReturnCommand { get; }
     public ObservableCollection<CashHandoffResponse> Handoffs { get; } = [];
     public ObservableCollection<CashHandoffRecipientResponse> Recipients { get; } = [];
     public ObservableCollection<CashHandoffHistoryResponse> History { get; } = [];
@@ -53,6 +68,8 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializa
     {
         _service = service;
         _auth = auth;
+        AcceptReturnCommand = new AsyncRelayCommand(() => DecideReturnAsync(true), () => SelectedReturn?.ManagerId == _auth.UserId && SelectedReturn?.Status == "PendingAcceptance");
+        DeclineReturnCommand = new AsyncRelayCommand(() => DecideReturnAsync(false), () => SelectedReturn?.ManagerId == _auth.UserId && SelectedReturn?.Status == "PendingAcceptance");
         RefreshCommand = new AsyncRelayCommand(() => RefreshAsync(), () => HasAccess);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync, () => HasAccess && SelectedHandoff is not null);
         AcceptCommand = new AsyncRelayCommand(AcceptAsync, () => HasAccess && SelectedHandoff?.RecipientUserId == _auth.UserId && SelectedHandoff?.Status == "PendingAcceptance");
@@ -79,6 +96,10 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializa
         if (!HasAccess) return;
         try
         {
+            var returnId = SelectedReturn?.Id;
+            AuditorReturns.Clear();
+            foreach (var item in await _service.GetAuditorReturnsAsync(_businessDate, cancellationToken)) AuditorReturns.Add(item);
+            SelectedReturn = AuditorReturns.FirstOrDefault(x => x.Id == returnId) ?? AuditorReturns.FirstOrDefault();
             Handoffs.Clear();
             foreach (var handoff in await _service.GetCashHandoffsAsync(_businessDate, cancellationToken)) Handoffs.Add(handoff);
             Recipients.Clear();
@@ -123,6 +144,20 @@ public sealed class CashHandoffCenterViewModel : ViewModelBase, IAsyncInitializa
         if (!HasAccess || SelectedHandoff is null || SelectedRecipient is null) return;
         await ExecuteAsync(() => _service.ReassignCashHandoffAsync(SelectedHandoff.Id,
             new ReassignCashHandoffRequest(SelectedRecipient.UserId, Note, SelectedHandoff.Version), CancellationToken.None), "Cash handoff reassigned and awaiting recipient acknowledgement.");
+    }
+
+    // Confirms the designated manager's physical receipt or refusal.
+    private async Task DecideReturnAsync(bool accept)
+    {
+        if (SelectedReturn is null) return;
+        if (!accept && string.IsNullOrWhiteSpace(Note)) { Message = "Enter a reason for declining."; return; }
+        try
+        {
+            await _service.DecideAuditorReturnAsync(SelectedReturn.Id, new CashHandoffActionRequest(Note, SelectedReturn.Version), accept, CancellationToken.None);
+            await RefreshAsync();
+            Message = accept ? "Cash received into vault." : "Cash remains with Auditor.";
+        }
+        catch (AppException exception) { Message = exception.Message; }
     }
 
     private async Task ExecuteAsync(Func<Task<CashHandoffResponse>> action, string success)

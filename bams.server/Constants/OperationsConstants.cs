@@ -11,6 +11,7 @@ public static class OperationsConstants
     public const string CashSessionCancelled = "Cancelled";
     public const string CashSessionScheduled = "Scheduled";
     public const string CashSessionOpen = "Open";
+    public const string CashSessionClosePending = "ClosePending";
     public const string CashSessionClosed = "Closed";
     public const string ReconciliationMatched = "Matched";
     public const string ReconciliationUnmatched = "Unmatched";

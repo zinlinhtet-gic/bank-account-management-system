@@ -23,6 +23,7 @@ public sealed class UnifiedReconciliationClient(ApiClient api)
     public Task<IReadOnlyList<ReconciliationVerificationTask>> VerificationTasksAsync(CancellationToken ct = default) => api.GetAsync<IReadOnlyList<ReconciliationVerificationTask>>(Root + "/verification",ct);
     public Task<CashCorrectionProposalResponse> VerifyCashAsync(long id,CancellationToken ct = default) => api.PostAsync<CashCorrectionProposalResponse>($"{Root}/cash/proposals/{id}/verify",ct);
     public Task<CashCorrectionProposalResponse> ReviewAsync(long id,bool approve,string note) => api.PostAsync<ReviewCorrectionRequest,CashCorrectionProposalResponse>($"{Root}/cash/proposals/{id}/review",new(approve,note),default);
+    public Task<VaultCashSummaryResponse> VaultSummaryAsync(DateOnly date, CancellationToken ct = default) => api.GetAsync<VaultCashSummaryResponse>($"{Root}/vault/summary/{date:yyyy-MM-dd}", ct);
     public Task<bool> FinalCountAsync(DateOnly date,decimal amount,string note) => api.PostAsync<FinalVaultCountRequest,bool>(Root + "/vault/final-count",new(date,amount,note),default);
     public Task<IReadOnlyList<BankExpenseResponse>> ExpensesAsync(CancellationToken ct = default) => api.GetAsync<IReadOnlyList<BankExpenseResponse>>("/api/cash-operations/expenses",ct);
     public Task<BankExpenseResponse> SubmitExpenseAsync(SubmitBankExpenseRequest input) => api.PostAsync<SubmitBankExpenseRequest,BankExpenseResponse>("/api/cash-operations/expenses",input,default);

@@ -6,6 +6,20 @@ namespace bams.desktop.Services;
 
 public sealed class CashOperationsClientService(ApiClient apiClient) : ICashOperationsClientService
 {
+    private const string AuditorReturnsEndpoint = "/api/cash-handoffs/auditor-returns";
+    // Loads Manager-only choices for physical cash transfer.
+    public Task<IReadOnlyList<CashHandoffRecipientResponse>> GetAuditorReturnManagersAsync(CancellationToken ct) =>
+        apiClient.GetAsync<IReadOnlyList<CashHandoffRecipientResponse>>("/api/cash-handoffs/auditor-return-managers", ct);
+    // Loads custody return requests for the selected business date.
+    public Task<IReadOnlyList<AuditorCashReturnResponse>> GetAuditorReturnsAsync(DateOnly? date, CancellationToken ct) =>
+        apiClient.GetAsync<IReadOnlyList<AuditorCashReturnResponse>>(AuditorReturnsEndpoint + (date.HasValue ? $"?businessDate={date:yyyy-MM-dd}" : ""), ct);
+    // Submits whole handoffs to the designated manager.
+    public Task<AuditorCashReturnResponse> CreateAuditorReturnAsync(CreateAuditorCashReturnRequest request, CancellationToken ct) =>
+        apiClient.PostAsync<CreateAuditorCashReturnRequest, AuditorCashReturnResponse>(AuditorReturnsEndpoint, request, ct);
+    // Records manager receipt or decline.
+    public Task<AuditorCashReturnResponse> DecideAuditorReturnAsync(long id, CashHandoffActionRequest request, bool accept, CancellationToken ct) =>
+        apiClient.PostAsync<CashHandoffActionRequest, AuditorCashReturnResponse>($"{AuditorReturnsEndpoint}/{id}/{(accept ? "accept" : "decline")}", request, ct);
+
     /// <summary>Submits a complete schedule batch with a stable retry key.</summary>
     public Task<IReadOnlyList<CashPositionSessionResponse>> CreateSchedulesAsync(CreateSessionSchedulesRequest request, CancellationToken cancellationToken) =>
         apiClient.PostAsync<CreateSessionSchedulesRequest, IReadOnlyList<CashPositionSessionResponse>>("/api/cash-operations/sessions/schedules", request, cancellationToken);

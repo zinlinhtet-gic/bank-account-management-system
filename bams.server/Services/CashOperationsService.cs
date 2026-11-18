@@ -147,7 +147,8 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         var ids = sessions.Select(item => item.Id).ToList();
         var startingCash = await db.CashProposals.AsNoTracking().Where(item => ids.Contains(item.SessionId) && item.IsInitialCash)
             .ToDictionaryAsync(item => item.SessionId, item => item.ApprovedAmount ?? 0m, cancellationToken);
-        bool hasOpen = sessions.Any(item => item.TellerId == actorId && item.Status == OperationsConstants.CashSessionOpen);
+        bool hasOpen = sessions.Any(item => item.TellerId == actorId &&
+            (item.Status == OperationsConstants.CashSessionOpen || item.Status == OperationsConstants.CashSessionClosePending));
         return sessions.Select(item => WithCapabilities(ToResponse(item) with { ScheduledStartingCash = startingCash.GetValueOrDefault(item.Id) },
             actorId, canManageCash, hasOpen, day)).ToList();
     }
@@ -172,7 +173,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             !await db.BusinessDates.AnyAsync(day => day.Date == session.BusinessDate && day.IsActive && day.Status == OperationsConstants.BusinessDateOpen, cancellationToken))
             throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
         if (await db.CashPositionSessions.AnyAsync(item => item.TellerId == actorId && item.BusinessDate == session.BusinessDate &&
-                item.Status == OperationsConstants.CashSessionOpen && item.PositionType == OperationsConstants.CashPositionTeller,
+                (item.Status == OperationsConstants.CashSessionOpen || item.Status == OperationsConstants.CashSessionClosePending) && item.PositionType == OperationsConstants.CashPositionTeller,
                 cancellationToken))
             throw new ConflictException(MessageCode.CashSessionAlreadyExists);
         session.Status = OperationsConstants.CashSessionOpen;
@@ -388,7 +389,8 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         var requests = await db.CashProposals.AsNoTracking().Where(item => item.SessionId == sessionId).OrderByDescending(item => item.CreatedAtUtc).ToListAsync(cancellationToken);
         var day = await db.BusinessDates.AsNoTracking().SingleOrDefaultAsync(item => item.Date == session.BusinessDate, cancellationToken);
         bool manager = await HasVaultPermissionAsync(actorId, cancellationToken);
-        bool hasOpen = await db.CashPositionSessions.AnyAsync(item => item.TellerId == actorId && item.BusinessDate == session.BusinessDate && item.Status == OperationsConstants.CashSessionOpen, cancellationToken);
+        bool hasOpen = await db.CashPositionSessions.AnyAsync(item => item.TellerId == actorId && item.BusinessDate == session.BusinessDate &&
+            (item.Status == OperationsConstants.CashSessionOpen || item.Status == OperationsConstants.CashSessionClosePending), cancellationToken);
         var response = WithCapabilities(ToResponse(session) with { ScheduledStartingCash = requests.FirstOrDefault(item => item.IsInitialCash)?.ApprovedAmount ?? 0m }, actorId, manager, hasOpen, day);
         return new CashPositionSessionDetailResponse(response, movements, counts, transactions, requests.Select(ToProposalResponse).ToList());
     }
@@ -492,9 +494,10 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         var difference = request.ActualAmount - session.ExpectedClosingCash;
         if (session.Status == OperationsConstants.CashSessionOpen)
         {
-            session.Status = OperationsConstants.CashSessionClosed;
-            session.ClosedBy = actorId;
-            session.ClosedAtUtc = now;
+            // Cash stays with the sender until the recipient acknowledges custody.
+            session.Status = recipient is null ? OperationsConstants.CashSessionClosed : OperationsConstants.CashSessionClosePending;
+            session.ClosedBy = recipient is null ? actorId : null;
+            session.ClosedAtUtc = recipient is null ? now : null;
         }
         var count = new CashCount
         {
@@ -516,7 +519,7 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             db.CashHandoffHistories.Add(new CashHandoffHistory
             {
                 CashHandoff = handoff, OldStatus = "None", NewStatus = handoff.Status, RecipientId = recipient.Id,
-                Note = "Cash handoff created when the session was closed.", ActorId = actorId, CreatedAtUtc = now
+                Note = "Cash handoff created; session closure awaits acknowledgement.", ActorId = actorId, CreatedAtUtc = now
             });
         }
         var existingException = await db.ReconciliationExceptions.Where(item => item.Type == OperationsConstants.ExceptionCashBalance &&
@@ -800,9 +803,12 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
             throw new BusinessRuleException(MessageCode.CashHandoffNotPending);
         if (handoff.Version != request.ExpectedVersion)
             throw new ConflictException(MessageCode.ConcurrentModification);
+        // Lock the source for either decision; pending-close sessions cannot transact or recount.
+        CashPositionSession source = await LockSessionAsync(handoff.SessionId, cancellationToken);
+        if (source.Status is not (OperationsConstants.CashSessionClosePending or OperationsConstants.CashSessionClosed))
+            throw new BusinessRuleException(MessageCode.CashSessionNotOpen);
         if (newStatus == OperationsConstants.CashHandoffAccepted)
         {
-            CashPositionSession source = await LockSessionAsync(handoff.SessionId, cancellationToken);
             await ValidateHandoffDestinationAsync(source, actorId, cancellationToken);
             long? destinationSessionId = null;
             // Recompute the destination after reassignment; a previous recipient's vault must not leak through.
@@ -857,6 +863,12 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
                     Note = request.Note ?? "Manager acknowledged teller return to vault." });
             }
         }
+        // Finalize closure atomically with accepted movements, or restore the sender on rejection.
+        source.Status = newStatus == OperationsConstants.CashHandoffAccepted
+            ? OperationsConstants.CashSessionClosed : OperationsConstants.CashSessionOpen;
+        source.ClosedAtUtc = newStatus == OperationsConstants.CashHandoffAccepted ? DateTime.UtcNow : null;
+        source.ClosedBy = newStatus == OperationsConstants.CashHandoffAccepted ? handoff.SenderId : null;
+        source.Version++;
         db.Entry(handoff).Property(item => item.Version).OriginalValue = request.ExpectedVersion;
         var oldStatus = handoff.Status;
         handoff.Status = newStatus;
@@ -884,7 +896,8 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
         var actorId = currentUser.GetCurrentUserId();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var handoff = await LockHandoffAsync(handoffId, cancellationToken);
-        if (handoff.Status == OperationsConstants.CashHandoffAccepted)
+        // A declined session can resume cash activity, so its old count must never be reused.
+        if (handoff.Status != OperationsConstants.CashHandoffPendingAcceptance)
             throw new BusinessRuleException(MessageCode.CashHandoffNotPending);
         if (handoff.SenderId != actorId && !await HasHandoffReviewPermissionAsync(actorId, cancellationToken))
             throw new ForbiddenException(MessageCode.InsufficientPermission);

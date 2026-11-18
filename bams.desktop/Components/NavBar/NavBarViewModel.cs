@@ -79,6 +79,8 @@ public partial class NavBarViewModel : ObservableObject
         if (flags.CanApproveEndOfDay)
             cashManagementPages.Add(PageNames.CashRequests);
         if (flags.CanManageCashOperations || flags.CanApproveEndOfDay) cashManagementPages.Add(PageNames.BankExpenses);
+        if (string.Equals(AuthContext.Instance.Role, RoleCodes.Auditor, StringComparison.OrdinalIgnoreCase) && flags.CanViewAudit)
+            cashManagementPages.Add(PageNames.CashTransfer);
         if (cashManagementPages.Count > 0)
             AddNavGroup(PageNames.CashManagement, "Icon.Finance", cashManagementPages.ToArray());
 

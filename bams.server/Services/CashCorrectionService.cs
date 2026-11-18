@@ -91,6 +91,15 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
             : [];
         string source = SerializeSourceSnapshot(exception, session, count, destinationSnapshot, movementSnapshot,
             accountSnapshot, transactionSnapshot, transactionEntries);
+        // A recount's effect depends on the accepted handoff; any change to it must invalidate the proposal.
+        if (input.Kind == CashDiscrepancyKind.CountEntryError)
+        {
+            CashHandoff? acceptedHandoff = await db.CashHandoffs.AsNoTracking()
+                .Where(x => x.SessionId == session.Id && x.Status == OperationsConstants.CashHandoffAccepted)
+                .OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
+            if (acceptedHandoff is not null)
+                source += $"|handoff:{acceptedHandoff.Id}:{acceptedHandoff.DestinationSessionId}:{NormalizeAmount(acceptedHandoff.Amount)}:{acceptedHandoff.Version}";
+        }
         CashMovement? counterpart = input.CounterpartMovementId.HasValue
             ? await db.CashMovements.AsNoTracking().SingleAsync(x => x.Id == input.CounterpartMovementId, ct) : null;
         CashHandoff? handoff = input.HandoffId.HasValue
@@ -146,7 +155,7 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
             "Append the case-specific account, GL, or cash position correction.", sourceHash, previewHash)
         {
             PostingDate = postingDate,
-            PositionEffects = await PositionEffectsAsync(plan, input, ct),
+            PositionEffects = await PositionEffectsAsync(session.Id, plan, input, ct),
             JournalLines = PlannedJournal(input, plan, cashChange),
             AccountEffects = accountSnapshot is null ? [] : [new(accountSnapshot.Id, accountSnapshot.LedgerBalance,
                 cashChange, accountSnapshot.LedgerBalance + cashChange, accountSnapshot.AvailableBalance, accountSnapshot.AvailableBalance + cashChange)]
@@ -324,7 +333,7 @@ public sealed partial class CashCorrectionService(ApplicationDbContext db, ICurr
         switch (input.Kind)
         {
             case CashDiscrepancyKind.CountEntryError:
-                await ExecuteCountEntryErrorAsync(proposal, session, input, preview, ct); break;
+                await ExecuteCountEntryErrorAsync(proposal, session, input, preview, plan, approver, ct); break;
             case CashDiscrepancyKind.UnrecordedDeposit:
                 await ExecuteUnrecordedDepositAsync(proposal, session, input, preview, approver, ct); break;
             case CashDiscrepancyKind.UnrecordedWithdrawal:

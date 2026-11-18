@@ -1299,3 +1299,5 @@ set (the one the design uses) and add it to `Themes/Icons.xaml`.
 
 *Last Updated: 2026-09-24*
 *Version: 1.2: dialogs (ShowDialog), SearchBox, row click, Button.IconDanger; Users business-rule block 4480-4489*
+
+Assigned Reconciliation Tasks: click a data row or press Enter to open task detail. Existing row action buttons retain their commands. Detail offers Back, Refresh and Perform reconcile, and displays exception values, explanation and current cash evidence.

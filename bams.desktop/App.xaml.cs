@@ -190,6 +190,7 @@ public partial class App : Application
         services.AddTransient<ReconciliationChecksViewModel>();
         services.AddSingleton<Services.UnifiedReconciliationClient>();
         services.AddTransient<UnifiedReconciliationViewModel>();
+        services.AddTransient<TaskDetailViewModel>();
         services.AddTransient<AssignedReconciliationTasksViewModel>();
         services.AddTransient<ReconcileProposalsViewModel>();
         services.AddTransient<CashProposalEditorViewModel>();
@@ -207,6 +208,7 @@ public partial class App : Application
         services.AddTransient<SessionCreationViewModel>();
         services.AddTransient<SessionDetailViewModel>();
         services.AddTransient<CashHandoffCenterViewModel>();
+        services.AddTransient<CashTransferViewModel>();
         services.AddTransient<CashRequestCenterViewModel>();
         services.AddTransient<BusinessDateOpeningViewModel>();
         services.AddSingleton<Services.ICashOperationsClientService, Services.CashOperationsClientService>();

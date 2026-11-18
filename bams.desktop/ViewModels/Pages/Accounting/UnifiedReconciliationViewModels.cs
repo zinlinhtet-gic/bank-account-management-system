@@ -55,11 +55,13 @@ public class UnifiedReconciliationViewModel : ReconciliationOperationViewModel
     public AsyncRelayCommand RefreshCommand { get; }
     public AsyncRelayCommand AssignCommand { get; }
     public AsyncRelayCommand ForcePassCommand { get; }
+    public RelayCommand DetailCommand { get; }
     public RelayCommand PerformCommand { get; }
     public UnifiedReconciliationViewModel(ReconciliationWorkflowClient c,IReconciliationService e,AuthContext a,
         UnifiedReconciliationClient unified,IDialogService dialogs):base(c,e,a)
     {
         _unified=unified;
+        DetailCommand=new(value=> { if(AssignedOnly && value is UnifiedExceptionRow row) Navigate(PageNames.TaskDetail,row.Id); });
         PollCommand = new(() => InitializeAsync(), () => !IsBusy);
         CheckCommand=new(()=>RunAsync(async()=>Apply(await unified.CheckAsync(DateOnly.FromDateTime(FromDate),DateOnly.FromDateTime(ToDate)))));
         RefreshCommand=new(()=>InitializeAsync());

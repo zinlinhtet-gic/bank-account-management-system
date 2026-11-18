@@ -43,7 +43,13 @@ public sealed partial class CashCorrectionService
     private async Task LockCorrectionSourcesAsync(long sourceSessionId, CashCorrectionInputs input, CancellationToken ct)
     {
         long destinationId = input.DestinationSessionId ?? sourceSessionId;
-        await db.CashPositionSessions.FromSql($"SELECT * FROM CashPositionSessions WHERE Id = {sourceSessionId} OR Id = {destinationId} ORDER BY Id FOR UPDATE").ToListAsync(ct);
+        // A recount can move handed-over cash, so the handoff receiver is locked even though the client never supplies it.
+        long handoffReceiverId = input.Kind == CashDiscrepancyKind.CountEntryError
+            ? await db.CashHandoffs.AsNoTracking().Where(x => x.SessionId == sourceSessionId &&
+                x.Status == OperationsConstants.CashHandoffAccepted && x.DestinationSessionId.HasValue)
+                .OrderByDescending(x => x.Id).Select(x => x.DestinationSessionId!.Value).FirstOrDefaultAsync(ct)
+            : 0;
+        await db.CashPositionSessions.FromSql($"SELECT * FROM CashPositionSessions WHERE Id = {sourceSessionId} OR Id = {destinationId} OR Id = {handoffReceiverId} ORDER BY Id FOR UPDATE").ToListAsync(ct);
         long movementId = input.MovementId ?? 0;
         long counterpartId = input.CounterpartMovementId ?? 0;
         await db.CashMovements.FromSql($"SELECT * FROM CashMovements WHERE Id = {movementId} OR Id = {counterpartId} ORDER BY Id FOR UPDATE").ToListAsync(ct);
@@ -55,15 +61,28 @@ public sealed partial class CashCorrectionService
             await db.Transactions.FromSql($"SELECT * FROM Transactions WHERE Id = {input.TransactionId} FOR UPDATE").ToListAsync(ct);
     }
 
-    private Task ExecuteCountEntryErrorAsync(CashCorrectionProposal proposal, CashPositionSession session,
-        CashCorrectionInputs input, CashCorrectionPreview preview, CancellationToken ct)
+    // Records the approved recount. If the counted cash was already handed over, the recount replaces the original
+    // count in time (so later custody movements are still subtracted during verification) and the handed-over
+    // difference moves between the officer session and the receiving position.
+    private async Task ExecuteCountEntryErrorAsync(CashCorrectionProposal proposal, CashPositionSession session,
+        CashCorrectionInputs input, CashCorrectionPreview preview, CorrectionPlan plan, long approver, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
-        db.CashCounts.Add(new CashCount { SessionId = session.Id, ExpectedAmount = session.ExpectedClosingCash,
-            ActualAmount = preview.SuggestedAmount, Difference = preview.SuggestedAmount - session.ExpectedClosingCash,
+        HandoffCustody? custody = await FindAcceptedHandoffCustodyAsync(session.Id, ct);
+        DateTime countedAt = DateTime.UtcNow;
+        decimal expectedAtCount = session.ExpectedClosingCash;
+        if (custody is not null)
+        {
+            // Keep the recount in the original count's time slot and measure it against what the officer was expected to hold then.
+            CashCount original = await db.CashCounts.AsNoTracking().SingleAsync(x => x.Id == custody.Handoff.CashCountId, ct);
+            countedAt = original.CountedAtUtc;
+            expectedAtCount = original.ExpectedAmount;
+        }
+        db.CashCounts.Add(new CashCount { SessionId = session.Id, ExpectedAmount = expectedAtCount,
+            ActualAmount = preview.SuggestedAmount, Difference = preview.SuggestedAmount - expectedAtCount,
             Notes = $"Approved recount proposal {proposal.Id}: {input.Findings}", CountedBy = proposal.ProposerId,
-            CountedAtUtc = DateTime.UtcNow });
-        return Task.CompletedTask;
+            CountedAtUtc = countedAt });
+        if (custody is not null && plan.Effects.Any(effect => effect.Change != 0m))
+            await AppendPlannedMovementsAsync(proposal, plan, input, approver, ct);
     }
 
     private Task ExecuteUnrecordedDepositAsync(CashCorrectionProposal proposal, CashPositionSession session,
@@ -135,7 +154,7 @@ public sealed partial class CashCorrectionService
     private Task<bool> VerifyCorrectionAsync(CashCorrectionProposal proposal, ReconciliationException exception,
         CashCorrectionInputs input, CancellationToken ct) => proposal.Kind switch
     {
-        CashDiscrepancyKind.CountEntryError => VerifyCountEntryErrorAsync(exception, ct),
+        CashDiscrepancyKind.CountEntryError => VerifyCountEntryErrorAsync(proposal, exception, ct),
         CashDiscrepancyKind.UnrecordedDeposit => VerifyUnrecordedDepositAsync(proposal, exception, ct),
         CashDiscrepancyKind.UnrecordedWithdrawal => VerifyUnrecordedWithdrawalAsync(proposal, exception, ct),
         CashDiscrepancyKind.MissingMovement => VerifyMissingMovementAsync(proposal, exception, input, ct),
@@ -149,8 +168,16 @@ public sealed partial class CashCorrectionService
         _ => throw new ValidationException(MessageCode.InvalidRequest)
     };
 
-    private Task<bool> VerifyCountEntryErrorAsync(ReconciliationException exception, CancellationToken ct) =>
-        VerifyPositionAsync(exception.PositionSessionId!.Value, ct);
+    // A recount that moved handed-over cash must leave both the officer and the receiving position matching their counts.
+    private async Task<bool> VerifyCountEntryErrorAsync(CashCorrectionProposal proposal, ReconciliationException exception, CancellationToken ct)
+    {
+        long sessionId = exception.PositionSessionId!.Value;
+        if (!await VerifyPositionAsync(sessionId, ct)) return false;
+        long? destinationId = await db.CashMovements.AsNoTracking()
+            .Where(x => x.CashCorrectionProposalId == proposal.Id && x.CorrectsMovementId.HasValue && x.SessionId == sessionId)
+            .Select(x => x.DestinationSessionId).FirstOrDefaultAsync(ct);
+        return !destinationId.HasValue || await VerifyPositionAsync(destinationId.Value, ct);
+    }
 
     private Task<bool> VerifyUnrecordedDepositAsync(CashCorrectionProposal proposal, ReconciliationException exception, CancellationToken ct) =>
         VerifyFinancialCorrectionAsync(proposal, exception, ct);
@@ -199,10 +226,13 @@ public sealed partial class CashCorrectionService
         return sourceMatches && destinationMatches;
     }
 
+    // Validates submitted counts while allowing vault counting to follow correction approval during EOD.
     private async Task<bool> VerifyPositionAsync(long sessionId, CancellationToken ct)
     {
         CashPositionSession session = await db.CashPositionSessions.SingleAsync(x => x.Id == sessionId, ct);
         CashCount? count = await db.CashCounts.AsNoTracking().Where(x => x.SessionId == sessionId).OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
-        return count is not null && await checks.CountedCashAfterHandoffsAsync(sessionId, count, ct) == session.ExpectedClosingCash;
+        // Assigned reconciliation tasks can be completed before the vault's EOD count is submitted.
+        if (count is null) return session.PositionType == OperationsConstants.CashPositionVault;
+        return await checks.CountedCashAfterHandoffsAsync(sessionId, count, ct) == session.ExpectedClosingCash;
     }
 }

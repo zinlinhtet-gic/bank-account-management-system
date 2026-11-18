@@ -84,7 +84,7 @@ public sealed partial class CashOperationsService
             Targets.CashRequest, proposal.Id), ct);
     }
 
-    // Asks the chosen recipient to accept or decline cash handed over when a session closed.
+    // Asks the chosen recipient to accept or decline cash handed over while a session awaits closure.
     private async Task NotifyHandoffReceivedAsync(CashHandoff handoff, long actorId, CancellationToken ct)
     {
         var sender = await notifications.GetUserNameAsync(handoff.SenderId, ct);
@@ -94,7 +94,7 @@ public sealed partial class CashOperationsService
             Targets.CashHandoff, handoff.Id, Groups.HandoffPending(handoff.Id)), ct);
     }
 
-    // Tells the sender the outcome; a decline also reaches everyone who can reassign it.
+    // Tells the sender the outcome; a decline also reaches the handoff reviewers.
     private async Task NotifyHandoffDecidedAsync(CashHandoff handoff, long actorId, bool accepted, string? note, CancellationToken ct)
     {
         await notifications.DismissGroupAsync(Groups.HandoffPending(handoff.Id), ct);
@@ -108,11 +108,11 @@ public sealed partial class CashOperationsService
             return;
         }
 
-        // A declined handoff blocks End of Day, so reviewers who can reassign it are told too.
+        // Rejection restores the session; reviewers are informed of the custody decision.
         var reviewers = await notifications.GetPermissionHolderIdsAsync(HandoffReviewerPermissions, ct);
         await notifications.NotifyUsersAsync(reviewers.Select(id => (long?)id).Append(handoff.SenderId), actorId,
             new NotificationMessage(Types.HandoffDeclined, CashCategory, "Cash handoff declined",
-                $"{recipient} declined {handoff.Amount:N2} from session #{handoff.SessionId}. Reason: {note}. Reassign it to another recipient.",
+                $"{recipient} declined {handoff.Amount:N2} from session #{handoff.SessionId}. Reason: {note}. The session is open again; submit a fresh count to request another handoff.",
                 Targets.CashHandoff, handoff.Id, Groups.HandoffDeclined(handoff.Id)), ct);
     }
 
