@@ -2629,6 +2629,9 @@ namespace bams.server.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("int");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -2638,6 +2641,9 @@ namespace bams.server.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LoginLockedUntilUtc")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("MustChangePassword")

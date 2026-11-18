@@ -106,6 +106,8 @@ public enum MessageCode
     UserAccountDisabled = 4003,
     UserAccountDeleted = 4004,
     Forbidden = 4005,
+    LoginTemporarilyLocked = 4006,
+    RateLimitExceeded = 4007,
 
     // Authorization: 4100 - 4199
     AccessDenied = 4100,

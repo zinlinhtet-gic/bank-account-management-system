@@ -1,3 +1,4 @@
+using bams.server.Configuration;
 using System.Text.RegularExpressions;
 using bams.server.Constants;
 using bams.server.Data;
@@ -23,10 +24,12 @@ public sealed class UserService : IUserService
     private static readonly Regex PhoneRegex = new(UserConstants.PhonePattern, RegexOptions.CultureInvariant);
 
     private readonly ApplicationDbContext _dbContext;
+    private readonly DefaultPasswordOptions _defaultPasswords;
 
-    public UserService(ApplicationDbContext dbContext)
+    public UserService(ApplicationDbContext dbContext, DefaultPasswordOptions defaultPasswords)
     {
         _dbContext = dbContext;
+        _defaultPasswords = defaultPasswords;
     }
 
     /// <summary>
@@ -142,8 +145,8 @@ public sealed class UserService : IUserService
             .ToListAsync(cancellationToken);
 
         return roles
-            .Where(role => UserConstants.DefaultPasswordsByRole.ContainsKey(role.Code))
-            .Select(role => new RoleResponse(role.Code, role.Name, UserConstants.DefaultPasswordsByRole[role.Code]))
+            .Where(role => _defaultPasswords.ByRole.ContainsKey(role.Code))
+            .Select(role => new RoleResponse(role.Code, role.Name, _defaultPasswords.ByRole[role.Code]))
             .ToList();
     }
 
@@ -164,7 +167,7 @@ public sealed class UserService : IUserService
             Email = input.Email,
             FullName = input.FullName,
             Phone = input.Phone,
-            PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[role.Code]),
+            PasswordHash = PasswordHasher.HashPassword(_defaultPasswords.ByRole[role.Code]),
             Status = UserStatus.Active,
             OnlineStatus = OnlineStatus.Inactive,
             // The manager knows the default password, so the new user must replace it at the first login.
@@ -227,7 +230,7 @@ public sealed class UserService : IUserService
         var roleCode = user.UserRoles.FirstOrDefault()?.Role?.Code ?? string.Empty;
 
         // A user whose role has no default password cannot be reset through this screen.
-        if (!UserConstants.DefaultPasswordsByRole.TryGetValue(roleCode, out var defaultPassword))
+        if (!_defaultPasswords.ByRole.TryGetValue(roleCode, out var defaultPassword))
         {
             throw new ValidationException(MessageCode.InvalidRole);
         }
@@ -285,7 +288,7 @@ public sealed class UserService : IUserService
     // Returns the role for the code, or throws InvalidRole when it does not exist or has no default password.
     private async Task<Role> GetAssignableRoleAsync(string roleCode, CancellationToken cancellationToken)
     {
-        if (!UserConstants.DefaultPasswordsByRole.ContainsKey(roleCode))
+        if (!_defaultPasswords.ByRole.ContainsKey(roleCode))
         {
             throw new ValidationException(MessageCode.InvalidRole);
         }

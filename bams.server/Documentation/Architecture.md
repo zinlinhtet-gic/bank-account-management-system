@@ -37,7 +37,19 @@ Uploaded customer and account documents use `IFileStorageService` (`LocalFileSto
 
 JWT authentication identifies the current user. `CurrentUserService` reads the user ID from the name-identifier claim, and services use that identity for audit attribution; clients cannot choose the actor for ordinary requests. `[RequirePermission]` checks permissions granted through roles. Authentication, disabled-user, and permission failures are represented by stable API error codes.
 
-Development-only security seed data is registered through `Program.cs`; it is not production authentication setup. Check the current seeder and environment guard before relying on seeded users or roles.
+Security roles and initial staff users are seeded at startup in all environments when permissions have not yet been seeded. `TestDataSeeder` creates development customers and accounts only; it does not create login credentials.
+
+Temporary staff passwords come from `DefaultPasswords:ByRole` in `appsettings.json`, shared by initial security seeding, user creation, password resets, role responses, and rejection of default passwords during password changes. The `manager`, `officer`, and `auditor` entries must all be non-empty; startup validates them before migrations or seeding. Existing users' password hashes are not changed by configuration updates or repeated startup. Newly seeded users must change their password at login.
+
+Environment variables override JSON values. On a VPS using systemd, put the following in a protected environment file and reference it with `EnvironmentFile=/etc/bams.env` in the service:
+
+```ini
+DefaultPasswords__ByRole__manager=REPLACE_WITH_MANAGER_PASSWORD
+DefaultPasswords__ByRole__officer=REPLACE_WITH_OFFICER_PASSWORD
+DefaultPasswords__ByRole__auditor=REPLACE_WITH_AUDITOR_PASSWORD
+```
+
+ASP.NET Core does not load a project `.env` file automatically. Supply these variables through the process environment or the systemd environment file. The checked-in JSON values are development defaults; override them for deployment.
 
 ## Background jobs
 

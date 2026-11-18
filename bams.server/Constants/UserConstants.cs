@@ -28,15 +28,4 @@ public static class UserConstants
     /// </summary>
     public static readonly TimeSpan OnlinePresenceTimeout = TimeSpan.FromSeconds(45);
 
-    /// <summary>
-    /// Password given to a new user and after a password reset. The user must change it at the next login.
-    /// Every role that can be assigned in User Management needs an entry here.
-    /// </summary>
-    public static readonly IReadOnlyDictionary<string, string> DefaultPasswordsByRole =
-        new Dictionary<string, string>
-        {
-            [SecurityConstants.ManagerRole] = "Manager123!",
-            [SecurityConstants.OfficerRole] = "Officer123!",
-            [SecurityConstants.AuditorRole] = "Auditor123!"
-        };
 }

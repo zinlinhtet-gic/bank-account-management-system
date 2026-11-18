@@ -25,6 +25,24 @@ public sealed class User
 
     public bool MustChangePassword { get; set; }
 
+    public int FailedLoginAttempts { get; set; }
+
+    public DateTime? LoginLockedUntilUtc { get; set; }
+
+    // Start a new failure cycle when an expired lock is followed by another incorrect password.
+    public void RegisterFailedLogin(DateTime nowUtc)
+    {
+        // Requests made during a lock must not extend its expiry.
+        if (LoginLockedUntilUtc > nowUtc)
+            return;
+        if (LoginLockedUntilUtc <= nowUtc)
+            FailedLoginAttempts = 0;
+        FailedLoginAttempts++;
+        LoginLockedUntilUtc = FailedLoginAttempts >= Constants.SecurityConstants.MaximumFailedLoginAttempts
+            ? nowUtc.Add(Constants.SecurityConstants.LoginLockoutDuration)
+            : null;
+    }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

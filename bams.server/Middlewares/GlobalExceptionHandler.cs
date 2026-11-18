@@ -63,6 +63,8 @@ public sealed class GlobalExceptionHandler
         }
 
         context.Response.StatusCode = (int)statusCode;
+        if (exception is LoginLockedException locked)
+            context.Response.Headers.RetryAfter = locked.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         context.Response.ContentType = "application/json";
 
         var response = new ApiErrorResponse(
@@ -79,6 +81,7 @@ public sealed class GlobalExceptionHandler
     {
         return exception switch
         {
+            LoginLockedException => HttpStatusCode.TooManyRequests,
             AuthenticationRequiredException => HttpStatusCode.Unauthorized,
             NotFoundException => HttpStatusCode.NotFound,
             ValidationException => HttpStatusCode.BadRequest,

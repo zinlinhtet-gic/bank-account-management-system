@@ -17,6 +17,7 @@ using bams.server.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features;
 using bams.server.Commands;
+using Microsoft.AspNetCore.HttpOverrides;
 
 // Standalone repair arguments are not ASP.NET key/value configuration switches.
 var isRepairCommand = AccountOpeningCashRepairCommand.IsRequested(args);
@@ -38,6 +39,17 @@ if (isRepairCommand)
     }
 }
 var builder = WebApplication.CreateBuilder(isRepairCommand ? Array.Empty<string>() : args);
+builder.Services.AddApiRateLimiting(builder.Configuration);
+
+// Validate temporary passwords before migrations or security seeding can change the database.
+var defaultPasswords = builder.Configuration
+    .GetSection(DefaultPasswordOptions.SectionName).Get<DefaultPasswordOptions>()
+    ?? new DefaultPasswordOptions();
+if (!defaultPasswords.HasRequiredPasswords())
+{
+    throw new InvalidOperationException("DefaultPasswords:ByRole must provide non-empty manager, officer and auditor passwords.");
+}
+builder.Services.AddSingleton(defaultPasswords);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -274,7 +286,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     await dbContext.Database.MigrateAsync();
     // Security data must be seeded before any other seeder adds users: on an empty database it clears the
     // Users table, which would otherwise delete the scheduled-jobs system actor created by ProductSeeder.
-    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext, defaultPasswords);
     await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
     await BranchSeeder.SeedBranchesAsync(dbContext);
 
@@ -311,6 +323,11 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 // Configure the HTTP request pipeline.
+// Trust only the framework's default loopback proxies for Nginx on the same VPS.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -325,6 +342,7 @@ else
 app.UseMiddleware<GlobalExceptionHandler>();
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -336,7 +354,7 @@ app.MapStaticAssets();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext);
+    await RolesAndPermissionsSeeder.SeedSecurityDataAsync(dbContext, defaultPasswords);
     await OtherBankSeeder.SeedAsync(dbContext);
     await ChartOfAccountsSeeder.SeedGlAccountsAsync(dbContext);
     await BranchSeeder.SeedBranchesAsync(dbContext);

@@ -1,3 +1,4 @@
+using bams.server.Configuration;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
@@ -19,13 +20,16 @@ namespace bams.server.Services;
 public sealed class AuthenticationService : IAuthenticationService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly DefaultPasswordOptions _defaultPasswords;
     private readonly IConfiguration _configuration;
 
     public AuthenticationService(
         ApplicationDbContext dbContext,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        DefaultPasswordOptions defaultPasswords)
     {
         _dbContext = dbContext;
+        _defaultPasswords = defaultPasswords;
         _configuration = configuration;
     }
 
@@ -36,18 +40,30 @@ public sealed class AuthenticationService : IAuthenticationService
         LoginRequest request,
         CancellationToken cancellationToken)
     {
-        var user = await _dbContext.Users
-            .Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Username == request.Username, cancellationToken);
+        // Serialize attempts on the MySQL user row so concurrent requests cannot lose failures.
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var matchingUsers = await _dbContext.Users
+            .FromSqlInterpolated($"SELECT * FROM `Users` WHERE `Username` = {request.Username} FOR UPDATE")
+            .ToListAsync(cancellationToken);
+        var user = matchingUsers.SingleOrDefault();
 
         if (user is null)
         {
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
+        var now = DateTime.UtcNow;
+        if (user.LoginLockedUntilUtc is { } lockedUntil && lockedUntil > now)
+            throw new LoginLockedException(lockedUntil - now);
+
         if (!PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
+            user.RegisterFailedLogin(now);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            // Commit before throwing: failed login counters must survive the error response.
+            await transaction.CommitAsync(cancellationToken);
+            if (user.LoginLockedUntilUtc is { } newLock && newLock > now)
+                throw new LoginLockedException(newLock - now);
             throw new ValidationException(MessageCode.InvalidCredentials);
         }
 
@@ -59,12 +75,17 @@ public sealed class AuthenticationService : IAuthenticationService
         var requiresPasswordChange = user.MustChangePassword || isFirstTimeLogin;
 
         // Update last login time and mark the user online
-        var now = DateTime.UtcNow;
+        user.FailedLoginAttempts = 0;
+        user.LoginLockedUntilUtc = null;
         user.LastLoginAt = now;
         user.LastSeenAt = now;
         user.OnlineStatus = OnlineStatus.Active;
         _dbContext.Users.Update(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        await _dbContext.Entry(user).Collection(u => u.UserRoles).Query()
+            .Include(ur => ur.Role).LoadAsync(cancellationToken);
 
         var role = user.UserRoles.FirstOrDefault()?.Role?.Code ?? string.Empty;
         var expiresAt = GetTokenExpiry();
@@ -208,7 +229,7 @@ public sealed class AuthenticationService : IAuthenticationService
         // Default passwords are known to every manager (they are shown when creating or resetting a user),
         // so a user may never keep one as their own. Checked first so a user changing away from the default
         // who retypes it gets the clearer message.
-        if (UserConstants.DefaultPasswordsByRole.Values.Contains(request.NewPassword, StringComparer.Ordinal))
+        if (_defaultPasswords.ByRole.Values.Contains(request.NewPassword, StringComparer.Ordinal))
         {
             throw new ValidationException(MessageCode.DefaultPasswordNotAllowed);
         }

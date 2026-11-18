@@ -1,3 +1,4 @@
+using bams.server.Configuration;
 using bams.server.Constants;
 using bams.server.Models.Security;
 using bams.server.Utils.Security;
@@ -8,7 +9,7 @@ namespace bams.server.Data.Seeders;
 /// <summary>
 /// Seeds initial security data: roles, permissions, role-permission mappings, and default users.
 /// This seeder is designed for fresh migration and development setup.
-/// For production, consider using more secure password hashing and configurable seeding.
+/// Temporary passwords are supplied through application configuration.
 /// </summary>
 public static class RolesAndPermissionsSeeder
 {
@@ -16,7 +17,7 @@ public static class RolesAndPermissionsSeeder
     /// Seeds all security data. Only seeds if database is empty to prevent accidental double-seeding.
     /// Safe for fresh migration and prevents data loss from accidental multiple runs.
     /// </summary>
-    public static async Task SeedSecurityDataAsync(ApplicationDbContext dbContext)
+    public static async Task SeedSecurityDataAsync(ApplicationDbContext dbContext, DefaultPasswordOptions defaultPasswords)
     {
         // Check if data already exists to prevent double-seeding
         if (await dbContext.Permissions.AnyAsync())
@@ -32,7 +33,7 @@ public static class RolesAndPermissionsSeeder
         await SeedPermissionsAsync(dbContext);
         await SeedRolesAsync(dbContext);
         await SeedRolePermissionsAsync(dbContext);
-        await SeedUsersAsync(dbContext);
+        await SeedUsersAsync(dbContext, defaultPasswords);
     }
 
     // Adds new feature permissions on upgrades without rebuilding existing users or role assignments.
@@ -263,16 +264,9 @@ public static class RolesAndPermissionsSeeder
     }
 
     /// <summary>
-    /// Seeds default users for each role with known credentials for testing.
-    /// 
-    /// Test Credentials:
-    /// - manager / Manager123!
-    /// - officer / Officer123!
-    /// - auditor / Auditor123!
-    /// 
-    /// Note: In production, use proper password hashing and never hardcode credentials.
+    /// Seeds default users with configured temporary passwords and requires a password change.
     /// </summary>
-    private static async Task SeedUsersAsync(ApplicationDbContext dbContext)
+    private static async Task SeedUsersAsync(ApplicationDbContext dbContext, DefaultPasswordOptions defaultPasswords)
     {
         var roles = await dbContext.Roles.ToListAsync();
         var managerRole = roles.First(r => r.Code == SecurityConstants.ManagerRole);
@@ -283,12 +277,12 @@ public static class RolesAndPermissionsSeeder
 
         var users = new List<User>
         {
-            // Manager user - Password: Manager123!
+            // Manager user receives the configured temporary password.
             new User
             {
                 Username = "manager",
                 Email = "manager@bams.local",
-                PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[SecurityConstants.ManagerRole]),
+                PasswordHash = PasswordHasher.HashPassword(defaultPasswords.ByRole[SecurityConstants.ManagerRole]),
                 FullName = "system manager",
                 Phone = "555-0100",
                 OnlineStatus = OnlineStatus.Inactive,
@@ -296,12 +290,12 @@ public static class RolesAndPermissionsSeeder
                 CreatedAt = now,
                 UpdatedAt = now
             },
-            // Officer user - Password: Officer123!
+            // Officer user receives the configured temporary password.
             new User
             {
                 Username = "officer",
                 Email = "officer@bams.local",
-                PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[SecurityConstants.OfficerRole]),
+                PasswordHash = PasswordHasher.HashPassword(defaultPasswords.ByRole[SecurityConstants.OfficerRole]),
                 FullName = "bank officer",
                 Phone = "555-0101",
                 OnlineStatus = OnlineStatus.Inactive,
@@ -309,12 +303,12 @@ public static class RolesAndPermissionsSeeder
                 CreatedAt = now,
                 UpdatedAt = now
             },
-            // Auditor user - Password: Auditor123!
+            // Auditor user receives the configured temporary password.
             new User
             {
                 Username = "auditor",
                 Email = "auditor@bams.local",
-                PasswordHash = PasswordHasher.HashPassword(UserConstants.DefaultPasswordsByRole[SecurityConstants.AuditorRole]),
+                PasswordHash = PasswordHasher.HashPassword(defaultPasswords.ByRole[SecurityConstants.AuditorRole]),
                 FullName = "system auditor",
                 Phone = "555-0102",
                 OnlineStatus = OnlineStatus.Inactive,

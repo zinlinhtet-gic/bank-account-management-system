@@ -4,6 +4,8 @@ Message codes are stable client/server contracts. Clients must branch on the num
 
 ## Canonical registries
 
+API throttling adds `4007 / RateLimitExceeded`; temporary account login lockout adds `4006 / LoginTemporarilyLocked`. Both return HTTP 429 with a `Retry-After` header and the standard error envelope. These additions are API-only; no desktop changes are included.
+
 Account document reuse adds `3133 / AccountDocumentSourceInvalid` (exactly one upload or source reference is required) and `3134 / ReusableAccountDocumentUnavailable` (refresh options because the source no longer satisfies ownership, type, expiry, or file requirements). Both are validation failures and are mirrored in the desktop client.
 
 - Server names and values: [`Messages/MessageCode.cs`](../Messages/MessageCode.cs).

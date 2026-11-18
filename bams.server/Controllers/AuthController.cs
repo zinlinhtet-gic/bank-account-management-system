@@ -23,6 +23,7 @@ public sealed class AuthController : ControllerBase
     /// Authenticates a user and returns a JWT token.
     /// </summary>
     [HttpPost("login")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(bams.server.Configuration.ApiRateLimitOptions.LoginPolicy)]
     public async Task<ActionResult<ApiMessageResponse<LoginResponse>>> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken)

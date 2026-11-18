@@ -13,6 +13,8 @@ public static class MessageCatalog
             [MessageCode.CorrectionLegacyResubmit] = "Submit this correction through the discrepancy proposal workflow.",
             [MessageCode.CorrectionEvidenceRequired] = "Investigation findings and a supporting evidence reference are required.",
             [MessageCode.Success] = "Operation completed successfully.",
+            [MessageCode.LoginTemporarilyLocked] = "Too many failed login attempts. Login is locked for five minutes. Try again after the lock expires.",
+            [MessageCode.RateLimitExceeded] = "Too many requests. Please try again later.",
             [MessageCode.UserCreatedSuccessfully] = "User created successfully.",
             [MessageCode.UserUpdatedSuccessfully] = "User updated successfully.",
             [MessageCode.UserPasswordResetSuccessfully] = "Password reset successfully. The user must change it at the next login.",

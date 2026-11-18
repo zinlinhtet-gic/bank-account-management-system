@@ -6,6 +6,12 @@ The [OpenAPI file](AccountsApi.openapi.yaml) is a machine-readable contract with
 
 ## Endpoint overview
 
+All controller endpoints have a fixed-window limit of 120 requests per minute per client IP. `POST /api/auth/login` additionally allows 20 requests per minute per IP, including successful requests and unknown usernames. Configure these positive limits through `RateLimiting:ApiRequestsPerMinute` and `RateLimiting:LoginRequestsPerMinute` (environment variables use `__`). Exceeded budgets return HTTP 429, `4007 / RateLimitExceeded`, the standard `ApiErrorResponse`, and `Retry-After` in seconds. Requests are rejected immediately rather than queued. Budgets are held in process memory and reset on restart; multiple API instances have separate budgets. Clients sharing a public IP share a budget.
+
+For an existing username, the fifth consecutive incorrect password locks login for five minutes. Attempts 1–4 retain `3004 / InvalidCredentials`; attempt 5 and all login attempts during the lock return HTTP 429, `4006 / LoginTemporarilyLocked`, and the remaining `Retry-After` seconds. Even a correct password cannot sign in during the lock; blocked requests do not extend it. After expiry the next incorrect password starts at attempt 1, and a successful login clears failures. Unknown users retain the invalid-credentials response and are covered by the IP throttle. The user-row counter and UTC expiry are persisted and updated under a MySQL row lock, so restart or concurrent login requests cannot bypass the account limit. This login lock does not revoke existing tokens or change the user's administrative status.
+
+Forwarded headers are processed before throttling and HTTPS handling, trusting only default loopback proxies. For Nginx on the same VPS, bind Kestrel to `127.0.0.1` and have Nginx supply `X-Forwarded-For` and `X-Forwarded-Proto`. A separate proxy requires an explicitly trusted proxy configuration; do not trust arbitrary forwarded headers.
+
 Successful API operations generally return `ApiMessageResponse<T>` with the payload in `data`; verify endpoints with special responses such as authentication or file delivery in their controller. Expected errors use `ApiErrorResponse` with a stable code and trace ID. Clients should branch on the numeric code rather than message text. The desktop `ApiClient` handles the common envelope.
 
 | Method | Route | Authentication | Purpose |

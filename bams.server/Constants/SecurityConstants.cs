@@ -5,6 +5,9 @@ namespace bams.server.Constants;
 /// </summary>
 public static class SecurityConstants
 {
+    public const int MaximumFailedLoginAttempts = 5;
+    public static readonly TimeSpan LoginLockoutDuration = TimeSpan.FromMinutes(5);
+
     // Role codes
     public const string ManagerRole = "manager";
     public const string OfficerRole = "officer";
