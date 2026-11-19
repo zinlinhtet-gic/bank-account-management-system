@@ -7,7 +7,7 @@ namespace bams.server.Services;
 /// <summary>Pure schedule invariants shared by persistence workflows and regression tests.</summary>
 public static class CashScheduleValidation
 {
-    /// <summary>Rejects invalid periods, amounts and overlap before any cash reservation is written.</summary>
+    /// <summary>Rejects invalid periods and amounts before any cash reservation is written.</summary>
     public static void Validate(IReadOnlyList<ScheduledCashSessionRequest> rows, DateOnly date)
     {
         for (int index = 0; index < rows.Count; index++)
@@ -18,8 +18,7 @@ public static class CashScheduleValidation
                 throw new ValidationException(MessageCode.InvalidRequest);
             if (row.StartingCash <= 0m || decimal.Round(row.StartingCash, 2) != row.StartingCash)
                 throw new ValidationException(MessageCode.InvalidAmount);
-            if (rows.Take(index).Any(other => other.OfficerId == row.OfficerId && other.StartAtMyanmar < row.EndAtMyanmar && other.EndAtMyanmar > row.StartAtMyanmar))
-                throw new ConflictException(MessageCode.CashSessionAlreadyExists);
+            // Rows are unopened schedules; overlapping assignments are allowed until activation.
         }
     }
 }

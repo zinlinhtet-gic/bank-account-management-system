@@ -52,7 +52,7 @@ public sealed class SessionScheduleEditorViewModel : ViewModelBase
         Officers.Clear();
         foreach (var officer in await client.GetSessionAssigneesAsync(cancellationToken)) Officers.Add(officer);
     }
-    /// <summary>Builds server inputs after validating row fields and overlapping periods.</summary>
+    /// <summary>Builds server inputs after validating each row; the server checks opened-session conflicts.</summary>
     public bool TryBuild(DateOnly today, out IReadOnlyList<ScheduledCashSessionRequest> schedules, out string error)
     {
         List<ScheduledCashSessionRequest> result = [];
@@ -64,8 +64,7 @@ public sealed class SessionScheduleEditorViewModel : ViewModelBase
             if (row.Officer is null || end <= start || !MoneyText.TryParse(row.Cash, out var cash) || cash <= 0m || decimal.Round(cash, 2) != cash)
             { error = "Each row needs an officer, a valid start/end period, and positive starting cash with at most two decimal places."; return false; }
             var item = new ScheduledCashSessionRequest(row.Officer.UserId, today.ToDateTime(start), today.ToDateTime(end), cash);
-            if (result.Any(other => other.OfficerId == item.OfficerId && other.StartAtMyanmar < item.EndAtMyanmar && other.EndAtMyanmar > item.StartAtMyanmar))
-            { error = "An officer's scheduled periods cannot overlap."; return false; }
+            // Unopened assignments may overlap; acceptance still requires no active officer session.
             result.Add(item);
         }
         return true;

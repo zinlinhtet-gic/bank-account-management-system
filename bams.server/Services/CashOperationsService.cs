@@ -87,8 +87,10 @@ public sealed partial class CashOperationsService(ApplicationDbContext db, ICurr
                 throw new BusinessRuleException(MessageCode.InsufficientBalance);
         }
 
+        // Unopened and completed schedules do not block a new overlapping assignment.
         if (tellerId.HasValue && await db.CashPositionSessions.AnyAsync(item => item.TellerId == tellerId && item.BusinessDate == date &&
-            item.Status != OperationsConstants.CashSessionCancelled && item.ScheduledStartAtMyanmar < request.ScheduledEndAtMyanmar &&
+            (item.Status == OperationsConstants.CashSessionOpen || item.Status == OperationsConstants.CashSessionClosePending) &&
+            item.ScheduledStartAtMyanmar < request.ScheduledEndAtMyanmar &&
             item.ScheduledEndAtMyanmar > request.ScheduledStartAtMyanmar, cancellationToken))
             throw new ConflictException(MessageCode.CashSessionAlreadyExists);
         var now = DateTime.UtcNow;

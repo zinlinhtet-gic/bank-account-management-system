@@ -47,13 +47,15 @@ public sealed class CashSessionSchedulingService(ApplicationDbContext db, INotif
             where ids.Contains(user.Id) && user.Status == UserStatus.Active && role.Code == SecurityConstants.OfficerRole
             select user.Id).Distinct().ToListAsync(cancellationToken);
         var existing = await db.CashPositionSessions.Where(session => session.BusinessDate == vault.BusinessDate &&
-            ids.Contains(session.TellerId ?? 0) && session.Status != OperationsConstants.CashSessionCancelled && session.Status != OperationsConstants.CashSessionClosed &&
+            ids.Contains(session.TellerId ?? 0) &&
+            (session.Status == OperationsConstants.CashSessionOpen || session.Status == OperationsConstants.CashSessionClosePending) &&
             session.ScheduledStartAtMyanmar != null).ToListAsync(cancellationToken);
         decimal total = 0m;
         for (int index = 0; index < rows.Count; index++)
         {
             var row = rows[index];
             if (!officers.Contains(row.OfficerId)) throw new ValidationException(MessageCode.InvalidRequest);
+            // Only sessions already opened by the officer can block an overlapping assignment.
             if (existing.Any(session => session.TellerId == row.OfficerId && session.ScheduledStartAtMyanmar < row.EndAtMyanmar &&
                     session.ScheduledEndAtMyanmar > row.StartAtMyanmar))
                 throw new ConflictException(MessageCode.CashSessionAlreadyExists);

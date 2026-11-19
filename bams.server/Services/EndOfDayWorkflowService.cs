@@ -510,7 +510,7 @@ public sealed class EndOfDayWorkflowService(
             item.BusinessDate == date || (item.TransactionAt >= startUtc && item.TransactionAt < endUtc) ||
             db.TransactionEntries.Any(entry => (entry.TransactionId == item.Id || entry.Transaction!.AccountingRootTransactionId == item.Id) &&
                 entry.PostingDate == date));
-        int pending = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Pending, cancellationToken);
+        // Pending transfers may settle on a later date and are not closing blockers.
         int failed = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Failed, cancellationToken);
         int pendingApprovals = await dayTransactions.CountAsync(item => item.TransactionStatus == TransactionStatus.Authorized, cancellationToken);
         pendingApprovals += await (from movement in db.CashMovements.AsNoTracking()
@@ -550,7 +550,9 @@ public sealed class EndOfDayWorkflowService(
         if (persistLedgerException)
             await UpsertLedgerReconciliationExceptionAsync(date, dailyTotals?.Debits ?? 0m, dailyTotals?.Credits ?? 0m,
                 ledgerUnbalanced, actorId, cancellationToken);
-        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date && item.Status != OperationsConstants.CashSessionClosed && item.Status != OperationsConstants.CashSessionCancelled, cancellationToken);
+        // Only sessions holding an open cash position block closing, regardless of closure timestamps.
+        int openSessions = await db.CashPositionSessions.CountAsync(item => item.BusinessDate == date &&
+            (item.Status == OperationsConstants.CashSessionOpen || item.Status == OperationsConstants.CashSessionClosePending), cancellationToken);
         bool hasFinalVaultCount = await db.CashPositionSessions.AnyAsync(item => item.BusinessDate == date &&
             item.PositionType == OperationsConstants.CashPositionVault && item.Status == OperationsConstants.CashSessionClosed &&
             db.CashCounts.Any(count => count.SessionId == item.Id), cancellationToken);
@@ -576,13 +578,13 @@ public sealed class EndOfDayWorkflowService(
             entry.Entity.Status != OperationsConstants.ExceptionResolved);
         return
         [
-            new(OperationsConstants.EodStageTransactions, pending == 0 && failed == 0 ? "Complete" : "Blocked", pending + failed, null),
+            new(OperationsConstants.EodStageTransactions, failed == 0 ? "Complete" : "Blocked", failed, null),
             new(OperationsConstants.EodStagePendingApprovals, pendingApprovals == 0 ? "Complete" : "Blocked", pendingApprovals, null),
             new(OperationsConstants.EodStageAccountingEntries, missingEntries + unbalanced == 0 ? "Complete" : "Blocked", missingEntries + unbalanced, null),
             new(OperationsConstants.EodStageLedgerReconciliation, !ledgerUnbalanced ? "Complete" : "Blocked", ledgerUnbalanced ? 1 : 0, null),
             new(OperationsConstants.EodStageCash, openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount == 0 ? "Complete" : "Blocked",
                   openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount, openSessions + pendingHandoffs + pendingCashProposals + missingVaultCount == 0 ? null :
-                      $"{openSessions} open or scheduled cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance, reassignment, or return from Auditor; {pendingCashProposals} cash proposal(s) awaiting resolution; {missingVaultCount} final vault count(s) missing."),
+                      $"{openSessions} open or close-pending cash session(s); {pendingHandoffs} handoff(s) awaiting acceptance, reassignment, or return from Auditor; {pendingCashProposals} cash proposal(s) awaiting resolution; {missingVaultCount} final vault count(s) missing."),
             new(OperationsConstants.EodStageCriticalExceptions, criticalExceptions == 0 ? "Complete" : "Exceptions", criticalExceptions, null)
         ];
     }
