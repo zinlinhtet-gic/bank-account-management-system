@@ -224,16 +224,31 @@ Get-FileHash .\dist\BAMS-Desktop-Setup-1.0.0-win-x64.exe -Algorithm SHA256
 
 If you Authenticode-sign the application or installer, use your organization's signing certificate and approved signing process. Sign the application before compiling it into the installer, and sign the finished installer before calculating the distributed checksum. Keep signing credentials out of the script and repository. The script above does not configure signing; an unsigned test installer may show an unknown-publisher or reputation warning. Signing alone does not guarantee that Windows reputation prompts disappear.
 
-## 10. Package the next version
+## 10. Package the next version (in-place upgrade)
 
-For version `1.0.1`:
+Running a newer installer upgrades the existing installation automatically:
 
-1. Keep `AppId=Bams.Desktop` and the installation scope/directory stable.
-2. Publish to a fresh `publish/desktop/win-x64/1.0.1` directory with `Version=1.0.1`, `AssemblyVersion=1.0.1.0`, and `FileVersion=1.0.1.0`.
-3. Change `MyAppVersion` in the installer script to `1.0.1`.
-4. Compile, verify an upgrade on a test machine, and distribute the new installer.
+- Same `AppId` (`Bams.Desktop`) is detected via the uninstall registry entry; no second app entry is created.
+- Previous install folder and shortcut choices are reused (`UsePreviousAppDir`, `UsePreviousTasks`); the folder page is skipped.
+- A running BAMS is closed before files are replaced (`CloseApplications`).
+- Program files are overwritten. User data is kept: logs in `%LOCALAPPDATA%\BAMS\Logs` and all server-side data live outside the install folder, and the script has no delete rules for them.
+- Downgrade is blocked: if the installed version is newer than the installer, Setup exits with a message. Same version reinstalls (repair).
 
-The [stable Inno Setup AppId](https://jrsoftware.org/inno-setup/documentation/topic_setup_appid.htm) links upgrades to the existing uninstall registration. This script installs over the existing folder; it does not implement an automatic updater or a downgrade policy. Inspect obsolete files when a release removes or renames dependencies; do not add broad deletion rules against a user-writable install folder without reviewing what they might remove.
+Release steps for `1.0.1`:
+
+1. Publish to a fresh `publish/desktop/win-x64/1.0.1` folder with `-p:Version=1.0.1 -p:AssemblyVersion=1.0.1.0 -p:FileVersion=1.0.1.0`.
+2. Compile, passing the version (no script edit needed):
+
+```powershell
+& "C:\Program Files\Inno Setup 7\ISCC.exe" /DMyAppVersion=1.0.1 ".\installer\BamsDesktop.iss"
+```
+
+3. Test on a machine with 1.0.0 installed: run the 1.0.1 installer (also try `/SILENT`), confirm version in **Settings > Apps**, logs still present, one app entry.
+4. Distribute the new installer.
+
+Never change `AppId` or install scope (per-user vs all-users) between releases; doing so breaks upgrade detection. Any future local user data (settings, caches) must be stored under `%LOCALAPPDATA%\BAMS`, never inside the install folder, since upgrade overwrites it. Old files removed in a later release are not deleted; review before adding `[InstallDelete]` rules.
+
+This is installer-driven upgrade, not an in-app auto-updater: users must run the new installer.
 
 ## Optional: Smaller framework-dependent packages
 
