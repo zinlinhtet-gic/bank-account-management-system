@@ -32,6 +32,26 @@ public partial class NavBarViewModel : ObservableObject
     }
 
     /// <summary>
+    /// True when the signed-in user's role may edit at least one personal setting (set by the shell after
+    /// asking the server). When false, the My Preferences item is not shown.
+    /// </summary>
+    public bool HasPersonalPreferences { get; private set; }
+
+    /// <summary>
+    /// Records whether My Preferences should appear and adds or removes its item without rebuilding the others.
+    /// </summary>
+    public void SetPersonalPreferencesAvailable(bool isAvailable)
+    {
+        HasPersonalPreferences = isAvailable;
+
+        NavItem? existing = Items.FirstOrDefault(item => item.Label == PageNames.PersonalPreferences);
+        if (isAvailable && existing is null)
+            AddNavItem(PageNames.PersonalPreferences, "Icon.Settings");
+        else if (!isAvailable && existing is not null)
+            Items.Remove(existing);
+    }
+
+    /// <summary>
     /// Builds navigation items based on user permissions.
     /// </summary>
     public void BuildNavigationItems(PermissionFlags flags)
@@ -94,6 +114,10 @@ public partial class NavBarViewModel : ObservableObject
 
         if (flags.CanConfigureSystem)
             AddNavGroup(PageNames.Configurations, "Icon.Settings", PageNames.InterestRate, PageNames.FeeRate, PageNames.BankPolicies, PageNames.OtherBanks);
+
+        // Personal preferences are data-driven: the server only lists settings the user's role may edit.
+        if (HasPersonalPreferences)
+            AddNavItem(PageNames.PersonalPreferences, "Icon.Settings");
 
         // Set first item as active if none is active
         if (Items.Count > 0 && !Items.Any(i => i.IsActive))

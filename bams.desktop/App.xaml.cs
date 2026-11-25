@@ -150,6 +150,7 @@ public partial class App : Application
 
         // Bank Policies
         services.AddSingleton<Services.IBankPolicyService, Services.BankPolicyService>();
+        services.AddSingleton<Services.IPersonalPreferenceService, Services.PersonalPreferenceService>();
 
         // Operations (per-customer interest, fees and fixed-deposit maturity)
         services.AddSingleton<Services.IOperationService, Services.OperationService>();
@@ -227,6 +228,7 @@ public partial class App : Application
         services.AddTransient<InterestRateViewModel>();
         services.AddTransient<FeeRateViewModel>();
         services.AddTransient<BankPoliciesViewModel>();
+        services.AddTransient<bams.desktop.ViewModels.Pages.Preferences.PersonalPreferencesViewModel>();
         services.AddTransient<OtherBanksViewModel>();
 
         // Register Operations sub-pages

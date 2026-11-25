@@ -2337,6 +2337,90 @@ namespace bams.server.Data.Migrations
                     b.ToTable("Branches");
                 });
 
+            modelBuilder.Entity("bams.server.Models.Preferences.PersonalPreference", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<long>("SettingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UpdateKey")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ValueSet")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SettingId");
+
+                    b.HasIndex("UserId", "SettingId")
+                        .IsUnique();
+
+                    b.ToTable("PersonalPreferences");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Preferences.Setting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("AuditorEditable")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("ManagerEditable")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<bool>("OfficerEditable")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("UniqueCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UniqueCode")
+                        .IsUnique();
+
+                    b.ToTable("Settings");
+                });
+
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>
                 {
                     b.Property<long>("Id")
@@ -3782,6 +3866,25 @@ namespace bams.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_Notification_Recipient");
+                });
+
+            modelBuilder.Entity("bams.server.Models.Preferences.PersonalPreference", b =>
+                {
+                    b.HasOne("bams.server.Models.Preferences.Setting", "Setting")
+                        .WithMany()
+                        .HasForeignKey("SettingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("bams.server.Models.Security.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Setting");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("bams.server.Models.Products.AccountType", b =>

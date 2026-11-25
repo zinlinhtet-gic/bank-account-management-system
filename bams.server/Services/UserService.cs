@@ -6,6 +6,7 @@ using bams.server.DTO.Users;
 using bams.server.Exceptions;
 using bams.server.Mapping;
 using bams.server.Messages;
+using bams.server.Models.Preferences;
 using bams.server.Models.Security;
 using bams.server.Services.Interfaces;
 using bams.server.Utils.Security;
@@ -178,6 +179,9 @@ public sealed class UserService : IUserService
         user.UserRoles.Add(new UserRole { Role = role });
 
         await _dbContext.Users.AddAsync(user, cancellationToken);
+        await AddDefaultPersonalPreferencesAsync(user, now, cancellationToken);
+
+        // One save: the user, the role link and the preference rows are stored together or not at all.
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return user.ToResponse();
@@ -263,6 +267,23 @@ public sealed class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    // Backfills one preference row per existing setting for a new user: disabled and without a value, so the
+    // user opts in (or a manager's later change) explicitly. The rows are saved with the user by the caller.
+    private async Task AddDefaultPersonalPreferencesAsync(User user, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        List<long> settingIds = await _dbContext.Settings
+            .AsNoTracking()
+            .Select(setting => setting.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (long settingId in settingIds)
+        {
+            PersonalPreference preference = PersonalPreferenceDefaults.CreateFor(settingId, enabled: false, nowUtc);
+            preference.User = user;
+            await _dbContext.PersonalPreferences.AddAsync(preference, cancellationToken);
+        }
     }
 
     // Loads a tracked, non-deleted user with their role for a change, or throws UserNotFound.

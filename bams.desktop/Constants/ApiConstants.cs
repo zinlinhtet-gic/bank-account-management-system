@@ -46,6 +46,10 @@ public static class ApiConstants
     public const string FeeRatesEndpoint = "api/fee-rates";
     public const string FeeRateAccountTypesEndpoint = FeeRatesEndpoint + "/account-types";
 
+    // Personal preferences of the signed-in user (any role). The PUT saves the "Default Vault Opening" setting.
+    public const string PersonalPreferencesEndpoint = "api/personal-preferences";
+    public const string DefaultVaultOpeningEndpoint = PersonalPreferencesEndpoint + "/default-vault-opening";
+
     // Bank Policies. Routes with an id: $"{BankPoliciesEndpoint}/{id}" (update).
     public const string BankPoliciesEndpoint = "api/bank-policies";
 

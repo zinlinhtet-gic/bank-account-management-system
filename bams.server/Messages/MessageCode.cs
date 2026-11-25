@@ -8,6 +8,7 @@ public enum MessageCode
     UserUpdatedSuccessfully = 1002,
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
+    PersonalPreferenceUpdatedSuccessfully = 1005,
     AccountCreatedSuccessfully = 1100,
     InterestRateCreatedSuccessfully = 1400,
     InterestRateUpdatedSuccessfully = 1401,
@@ -132,6 +133,7 @@ public enum MessageCode
     PayoutAccountUnavailable = 4208,
     KycReviewerNotFound = 4209,
     CustomerDocumentNotFound = 4210,
+    PersonalPreferenceNotFound = 4211,
 
     // Conflict: 4300 - 4399
     ConcurrentModification = 4304,

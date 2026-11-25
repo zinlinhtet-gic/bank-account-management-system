@@ -23,6 +23,9 @@ public sealed class MainViewModel : ViewModelBase
     private readonly ICashOperationsClientService _cashOperationsService;
     private readonly OfficerCashSessionContext _cashSessionContext;
     private readonly IDialogService _dialogService;
+    private readonly IPersonalPreferenceService _personalPreferenceService;
+    // Set once the server confirms the user's role may edit at least one personal setting.
+    private bool _hasPersonalPreferences;
     private object? _currentPage;
     private object? _previousPage;
     private string _activeItem = string.Empty;
@@ -37,8 +40,10 @@ public sealed class MainViewModel : ViewModelBase
         NotificationsViewModel notifications,
         ICashOperationsClientService cashOperationsService,
         OfficerCashSessionContext cashSessionContext,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IPersonalPreferenceService personalPreferenceService)
     {
+        _personalPreferenceService = personalPreferenceService;
         _authContext = authContext;
         _navigationService = navigationService;
         NavBar = navBarViewModel;
@@ -61,7 +66,8 @@ public sealed class MainViewModel : ViewModelBase
         
         // Initialize with user info from AuthContext
         UpdateUserInfo();
-        
+        LoadPersonalPreferencesAvailabilityAsync();
+
         // Load initial page
         if (IsOfficer)
             _cashSessionContext.Reset();
@@ -121,6 +127,13 @@ public sealed class MainViewModel : ViewModelBase
         var pageLabel = parameter.ToString();
         if (string.IsNullOrEmpty(pageLabel))
             return;
+
+        // My Preferences exists only when the server listed an editable setting for this user's role.
+        if (pageLabel == PageNames.PersonalPreferences && !_hasPersonalPreferences)
+        {
+            AppLog.WriteInformation("Navigation to My Preferences was rejected because no setting is editable for this role.");
+            return;
+        }
 
         // End of Day is a manager-only workspace. Keep programmatic navigation (for example,
         // a stale command or a future notification route) consistent with the sidebar.
@@ -422,6 +435,22 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     private bool IsOfficer => string.Equals(_authContext.Role, "officer", StringComparison.OrdinalIgnoreCase);
+
+    // Asks the server which settings this role may edit and shows My Preferences only when there is at least one.
+    // A failure leaves the item hidden: the screen is optional and must never block sign-in.
+    private async void LoadPersonalPreferencesAvailabilityAsync()
+    {
+        try
+        {
+            var preferences = await _personalPreferenceService.GetEditablePreferencesAsync(CancellationToken.None);
+            _hasPersonalPreferences = preferences.Count > 0;
+            NavBar.SetPersonalPreferencesAvailable(_hasPersonalPreferences);
+        }
+        catch (AppException exception)
+        {
+            LogError("Could not load personal preferences availability.", exception);
+        }
+    }
 
     // Lets themed action buttons react immediately when the officer's cash-session state changes.
     private void OnCashSessionContextPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

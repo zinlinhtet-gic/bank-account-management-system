@@ -53,6 +53,8 @@ public static class PageNames
     public const string OperationFees = "Fees";
     public const string FixedDepositMaturity = "Fixed Deposit Maturity";
     public const string Configurations = "Configurations";
+    // Shown to any user whose role may edit at least one personal setting (decided by the server).
+    public const string PersonalPreferences = "My Preferences";
 
     // Configuration sub-pages
     public const string InterestRate = "Interest Rate";

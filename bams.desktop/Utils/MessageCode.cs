@@ -13,6 +13,7 @@ public enum MessageCode
     UserUpdatedSuccessfully = 1002,
     UserPasswordResetSuccessfully = 1003,
     UserDeletedSuccessfully = 1004,
+    PersonalPreferenceUpdatedSuccessfully = 1005,
     InterestRateCreatedSuccessfully = 1400,
     InterestRateUpdatedSuccessfully = 1401,
     FeeRuleCreatedSuccessfully = 1402,
@@ -82,6 +83,7 @@ public enum MessageCode
     CustomerNotFound = 4202,
     AccountHolderKycNotVerified = 3132,
     UserNotFound = 4204,
+    PersonalPreferenceNotFound = 4211,
     InterestRateRuleNotFound = 4250,
     FeeRuleNotFound = 4251,
 
@@ -92,6 +94,7 @@ public enum MessageCode
     FeeAccrualNotFound = 4244,
 
     // Conflict: 4300 - 4399
+    ConcurrentModification = 4304,
     UsernameAlreadyExists = 4305,
     EmailAlreadyExists = 4306,
     CustomerAlreadyExists = 4307,

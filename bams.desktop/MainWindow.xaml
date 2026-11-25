@@ -10,6 +10,8 @@
         xmlns:viewmodels="clr-namespace:bams.desktop.ViewModels"
         xmlns:pageviewmodels="clr-namespace:bams.desktop.ViewModels.Pages"
         xmlns:configviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Configuration"
+        xmlns:preferenceviewmodels="clr-namespace:bams.desktop.ViewModels.Pages.Preferences"
+        xmlns:preferencepages="clr-namespace:bams.desktop.Views.Pages.Preferences"
         xmlns:views="clr-namespace:bams.desktop.Views"
         xmlns:pages="clr-namespace:bams.desktop.Views.Pages"
         xmlns:configpages="clr-namespace:bams.desktop.Views.Pages.Configuration"
@@ -140,6 +142,9 @@
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type configviewmodels:BankPoliciesViewModel}">
                         <configpages:BankPoliciesView />
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type preferenceviewmodels:PersonalPreferencesViewModel}">
+                        <preferencepages:PersonalPreferencesView />
                     </DataTemplate>
                     <DataTemplate DataType="{x:Type configviewmodels:OtherBanksViewModel}">
                         <configpages:OtherBanksView />

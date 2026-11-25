@@ -213,6 +213,7 @@ builder.Services.AddScoped<FeeRuleSeeder>();
 builder.Services.AddScoped<TestDataSeeder>();
 builder.Services.AddScoped<OperationSampleDataSeeder>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IPersonalPreferenceService, PersonalPreferenceService>();
 builder.Services.AddScoped<IOtherBankService, OtherBankService>();
 builder.Services.AddScoped<IInterestRateService, InterestRateService>();
 builder.Services.AddScoped<IFeeRateService, FeeRateService>();
@@ -306,6 +307,9 @@ await using (var scope = app.Services.CreateAsyncScope())
             await operationSampleDataSeeder.SeedAsync();
         }
     }
+
+    // Seeded users are created outside UserService, so give them their preference rows once all users exist.
+    await PersonalPreferenceSeeder.SeedMissingPreferencesAsync(dbContext);
 
     // Build any missing monthly GL summaries (first entry's month up to last month) after all data is seeded.
     // A failure here is logged and must not stop the server from starting; the monthly close job still runs normally.

@@ -109,6 +109,14 @@ This page summarizes invariants enforced by server services. Constants and servi
 - Soft deletion preserves historical references. The last active manager cannot be removed or demoted when that would leave the system without an active manager.
 - Auditing records the authenticated actor and is committed with the operation it describes.
 
+### Personal preferences
+
+- `Settings` is the catalog of personal settings (`Name`, `UniqueCode`, `Description`, `ValueType`, and one `ManagerEditable`/`AuditorEditable`/`OfficerEditable` flag per role). `PersonalPreferences` holds one row per user and setting (unique on `UserId` + `SettingId`) with `Enabled`, `ValueSet` (text, parsed by `ValueType`) and `UpdateKey`.
+- A role may list and change a setting only when its editable flag is true; otherwise the server returns 403 `InsufficientPermission`. Hiding the desktop screen is not authorization.
+- `UpdateKey` is a concurrency token (GUID text) regenerated on every save. A save with a missing key is `RequiredFieldMissing`; a stale key is 409 `ConcurrentModification`.
+- "Default Vault Opening" (`default_vault_opening`, type `Decimal`) is manager-editable only. When enabled its value must be a positive amount with at most two decimals (same rule as scheduled starting cash) and is stored as `F2` text. When disabled the value may be empty (stored as null).
+- Every new user gets one disabled, value-less row per setting from `UserService.CreateUserAsync`, saved in the same `SaveChanges` as the user. The migration backfills existing users (enabled only for managers), and `PersonalPreferenceSeeder` adds missing rows at startup for seeded users (enabled only for managers).
+
 ## Scheduled work
 
 - Job occurrences and attempts are persisted. Database leases prevent multiple server instances from executing the same occurrence concurrently.

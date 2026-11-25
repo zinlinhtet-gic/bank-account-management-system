@@ -5,6 +5,7 @@ using bams.server.Models.Customers;
 using bams.server.Models.External;
 using bams.server.Models.InterestFees;
 using bams.server.Models.Organization;
+using bams.server.Models.Preferences;
 using bams.server.Models.Jobs;
 using bams.server.Models;
 using bams.server.Models.Products;
@@ -24,6 +25,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    // Personal preferences
+    public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<PersonalPreference> PersonalPreferences => Set<PersonalPreference>();
 
     // Organization
     public DbSet<Branch> Branches => Set<Branch>();

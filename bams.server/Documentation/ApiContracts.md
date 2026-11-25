@@ -61,6 +61,15 @@ Successful API operations generally return `ApiMessageResponse<T>` with the payl
 | POST | `/api/operations/business-date/{date}/force-close-request` | `end_of_day_approval` | Request a blocker override with a reason; the requester's approval is recorded. |
 | POST | `/api/operations/business-date/runs/{id}/force-close-approve` | `end_of_day_approval` | Record this manager's approval; close is enabled after every active manager approves. |
 
+## Personal preferences
+
+Any authenticated user may call these; what a role can edit comes from the `Settings` editable flags, not a permission.
+
+| Method and route | Purpose |
+| --- | --- |
+| `GET /api/personal-preferences` | Settings the caller's role may edit: `settingId`, `uniqueCode`, `name`, `description`, `valueType`, `enabled`, `value`, `updateKey`. An empty list means the desktop hides My Preferences. |
+| `PUT /api/personal-preferences/default-vault-opening` | Body `{ enabled, value, updateKey }`. Returns the saved item with a new `updateKey` and `1005 / PersonalPreferenceUpdatedSuccessfully`. Errors: 403 `InsufficientPermission` (role not allowed), 404 `4211 / PersonalPreferenceNotFound`, 409 `ConcurrentModification` (stale `updateKey`), 400 `RequiredFieldMissing` / `InvalidAmount`. |
+
 ## Available account types
 
 `GET /api/account-types` returns active products ordered by ID. Each `AccountTypeResponse` includes opening and maintained balances, transaction limits and capabilities, required-product information, fixed-deposit classification, allowed customer types, and customer-type-specific referrer minimums.

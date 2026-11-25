@@ -12,6 +12,7 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
 {
     private readonly IEndOfDayClientService _businessDates;
     private readonly ICashOperationsClientService _cashOperations;
+    private readonly IPersonalPreferenceService _preferences;
     private readonly AuthContext _authContext;
     private BusinessDateResponse? _businessDate;
     private CashPositionSessionResponse? _vaultSession;
@@ -46,10 +47,11 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
     public AsyncRelayCommand RefreshCommand { get; }
 
     public BusinessDateOpeningViewModel(IEndOfDayClientService businessDates,
-        ICashOperationsClientService cashOperations, AuthContext authContext)
+        ICashOperationsClientService cashOperations, AuthContext authContext, IPersonalPreferenceService preferences)
     {
         _businessDates = businessDates;
         _cashOperations = cashOperations;
+        _preferences = preferences;
         _authContext = authContext;
         NextCommand = new(_ => AdvanceStep(), _ => !IsBusy && CanStartBusinessDate && Step < 3);
         PreviousCommand = new(_ => { if (Step > 1) Step--; }, _ => !IsBusy && Step > 1);
@@ -116,6 +118,13 @@ public sealed class BusinessDateOpeningViewModel : ViewModelBase, IAsyncInitiali
             OnPropertyChanged(nameof(VaultSummary));
             OnPropertyChanged(nameof(CanStartBusinessDate));
             OnPropertyChanged(nameof(ShowStartForm));
+            if (ShowStartForm && string.IsNullOrEmpty(StartingCashText))
+            {
+                var preferences = await _preferences.GetEditablePreferencesAsync(cancellationToken);
+                var vaultOpening = preferences.FirstOrDefault(p => p.UniqueCode == "default_vault_opening" && p.Enabled);
+                if (string.IsNullOrEmpty(StartingCashText) && MoneyText.TryParse(vaultOpening?.Value, out var amount))
+                    StartingCashText = MoneyText.Format(amount);
+            }
         }
         catch (AppException exception) { ErrorMessage = exception.Message; }
         finally { IsBusy = false; }

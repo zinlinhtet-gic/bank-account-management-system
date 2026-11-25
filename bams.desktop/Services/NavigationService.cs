@@ -83,6 +83,7 @@ public sealed class NavigationService : INavigationService
             PageNames.InterestRate => _serviceProvider.GetService<InterestRateViewModel>(),
             PageNames.FeeRate => _serviceProvider.GetService<FeeRateViewModel>(),
             PageNames.BankPolicies => _serviceProvider.GetService<BankPoliciesViewModel>(),
+            PageNames.PersonalPreferences => _serviceProvider.GetService<bams.desktop.ViewModels.Pages.Preferences.PersonalPreferencesViewModel>(),
             PageNames.OtherBanks => _serviceProvider.GetService<OtherBanksViewModel>(),
             _ => null
         };

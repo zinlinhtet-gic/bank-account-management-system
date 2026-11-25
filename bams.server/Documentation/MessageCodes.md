@@ -36,6 +36,8 @@ The enums are the complete registry. This page intentionally does not duplicate 
 4. Update API documentation when callers can observe the new behavior. Do not make clients parse the message string.
 
 
+Personal preferences add `1005 / PersonalPreferenceUpdatedSuccessfully` and `4211 / PersonalPreferenceNotFound`; they reuse `InsufficientPermission`, `ConcurrentModification`, `RequiredFieldMissing` and `InvalidAmount`. The desktop enum mirrors them (and now also `ConcurrentModification`).
+
 The reconciliation proposal workflow adds stable business-rule codes 4490 through 4493: `CorrectionProposalStale`, `CorrectionAlreadyApplied`, `CorrectionLegacyResubmit`, and `CorrectionEvidenceRequired`.
 
 EOD uses the existing stable error codes: ReconciliationBlocked for unresolved normal-close readiness, EndOfDayApprovalRequired for approval rules, and BusinessDateTransitionConflict for invalid date transitions. Force-close bypass does not suppress infrastructure errors. Audit batch/item statuses (CompletedWithExceptions, Exception, Waived) are persisted outcomes rather than new message codes.

@@ -19,6 +19,8 @@ public static class MessageCatalog
             [MessageCode.UserUpdatedSuccessfully] = "User updated successfully.",
             [MessageCode.UserPasswordResetSuccessfully] = "Password reset successfully. The user must change it at the next login.",
             [MessageCode.UserDeletedSuccessfully] = "User deleted successfully.",
+            [MessageCode.PersonalPreferenceUpdatedSuccessfully] = "Preference saved successfully.",
+            [MessageCode.PersonalPreferenceNotFound] = "Preference was not found.",
             [MessageCode.AccountCreatedSuccessfully] = "Account created successfully.",
             [MessageCode.InterestRateCreatedSuccessfully] = "Interest rate rule created successfully.",
             [MessageCode.InterestRateUpdatedSuccessfully] = "Interest rate rule updated successfully.",
