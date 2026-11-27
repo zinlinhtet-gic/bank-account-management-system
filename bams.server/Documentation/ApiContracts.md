@@ -308,7 +308,7 @@ Legacy `/correction-requests` and `/correction-review` routes reject new calls w
 
 ### Cash correction source evidence
 
-`CashCorrectionInputs` for `/api/reconciliation/cash/exceptions/{id}/preview` and `/proposals` now includes nullable `counterpartMovementId` and `handoffId`. Counterpart is required for duplicate, transfer and handoff discrepancies; for duplicates it identifies the retained movement. Handoff discrepancies additionally require an accepted handoff ID. Unrelated source identifiers are rejected. `CashCorrectionPreview.positionEffects` lists `{ sessionId, cashChange }` for every affected position, including the destination. Amount corrections specify a corrected total rather than a signed delta. See [cash discrepancy operations](CashDiscrepancyCorrections.md) for complete validation and verification rules.
+`CashCorrectionInputs` for `/api/reconciliation/cash/exceptions/{id}/preview` and `/proposals` now includes nullable `counterpartMovementId` and `handoffId`. Counterpart is required for duplicate, transfer and handoff discrepancies; for duplicates it identifies the retained movement. Handoff discrepancies additionally require an accepted handoff ID. Unrelated source identifiers are rejected. `CashCorrectionPreview.positionEffects` lists `{ sessionId, cashChange }` for every affected position, including the destination. Amount corrections specify a corrected total rather than a signed delta. See [cash discrepancy operations](BusinessRules.md#cash-discrepancy-decisions) for complete validation and verification rules.
 
 ### EOD approval and close responses
 

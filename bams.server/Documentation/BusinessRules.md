@@ -63,6 +63,8 @@ This page summarizes invariants enforced by server services. Constants and servi
 - Pending transfers cannot be completed twice. Failure/cancellation refunds the source under the applicable rules. NRC pickup uses a protected pickup code; reissue invalidates the previous code. After `MaximumFailedPickupAttempts` wrong codes or identity mismatches the transfer is blocked: it cannot be picked up or reissued a code, only cancelled and refunded.
 - Transfer fees and account-type restrictions are evaluated by the server. A caller cannot make an otherwise forbidden debit by choosing a different client screen.
 
+Internal transfers are fee-free when the two accounts share any holder, including a joint holder. For other internal transfers and interbank transfers, the source product's newest active rule effective on the Myanmar date supplies the fee. The service adds the fixed and percentage components, applies the minimum and maximum, then applies tax and rounds. A missing applicable rule gives a zero fee.
+
 ### Cash custody
 
 - A manager explicitly starts the current Myanmar business date, entering the starting vault cash in the same operation; the date and its vault session are created atomically. Only one open business date is active for ordinary posting. Starting a new date deactivates the previous open date without closing it.
@@ -75,12 +77,111 @@ This page summarizes invariants enforced by server services. Constants and servi
 - Positive account-opening balances are cash deposits: they require the initiating user's activated open teller session for the active posting business date, add one linked approved Deposit movement, and increase ExpectedClosingCash by the opening amount. These changes commit or roll back with account creation and its accounting entries. Zero opening balances produce no cash movement and require no teller session. Historical opening deposits are not backfilled by this change.
 - Historical missing opening-deposit cash movements can be repaired explicitly using `dotnet run --repair:account-opening-cash`. Preview is the default; `--apply --actor-id=<manager-id>` enables audited updates, and `--include-closed` permits original closed sessions. It never reposts accounting or customer balances and skips existing links and unresolved session matches. See [Repair commands](RepairCommands.md).
 
+### Auditor custody and return to the vault
+
+Auditor acceptance confirms physical custody. It closes the teller session but leaves its cash position outstanding until Manager receipt. Auditor sessions are not created. Cash held is the sum of accepted handoffs with no destination session. Existing accepted handoffs are included automatically.
+
+Cash Management > Cash Transfer is available only to the Auditor role with audit permission. An auditor selects whole handoffs for one business date and the receiving manager from a Manager-only selector. Managers acknowledge or decline returns in Session Handoff Requests under Manager Cash Receipts. Reserved handoffs cannot be selected again. Manager eligibility is enforced on the server with the vault permission. The designated manager accepts or declines using the shared note field; decline requires a reason.
+
+Submission reserves the selection without moving cash. Acceptance creates VaultReturnOut and VaultReturnIn movements for each original source and the open vault, assigns the original handoff destination, and records history. Decline releases the selection and leaves custody with the auditor. Date locking serializes submission, receipt, and closing. Versions protect decisions. Original accepted handoff recipients remain unchanged.
+
+Vault finalization and normal business-day closing block on accepted handoffs without destinations. Corrections can follow the original handoff destination and its existing vault-return movement pair after receipt.
+
+Receipt requires each closed source session to have enough expected cash to cover its handoff. While the date is open, repeating the same decision returns the saved result. Force close can bypass outstanding custody, but the return workflow requires an open source date and cannot settle those handoffs after force close.
+
+#### Auditor return API
+
+- `GET /api/cash-handoffs/auditor-return-managers`: active vault-authorized recipients; Auditor-only.
+- `GET /api/cash-handoffs/auditor-returns?businessDate=yyyy-MM-dd`: visible return history.
+- `POST /api/cash-handoffs/auditor-returns`: `{ managerId, handoffIds: [1, 2], note }`.
+- `POST /api/cash-handoffs/auditor-returns/{id}/accept`: `{ note, expectedVersion }`.
+- `POST /api/cash-handoffs/auditor-returns/{id}/decline`: `{ note, expectedVersion }`.
+
+Run the AuditorCashReturns EF migration before using these endpoints. No existing custody or cash movement is rewritten by the migration.
+
+#### Auditor return acceptance checks
+
+1. Close two teller sessions to an auditor and accept both. Verify vault cash is unchanged and both appear as held cash, including existing accepted handoffs.
+2. Select both and send to a manager. Verify they remain held, cannot be reserved twice, and do not increase vault cash.
+3. Accept as the designated manager. Verify each source decreases by its handoff amount, vault increases by the combined amount, and exactly one movement pair exists per handoff. Repeat acceptance: balances must remain unchanged.
+4. Decline a fresh return with a reason. Verify no movements, custody unchanged, and handoffs selectable for resubmission. Empty decline reason must fail.
+5. Attempt submission with another auditor's handoff, mixed dates, duplicate IDs, already delivered cash, or a recipient without vault authority. Each must fail atomically.
+6. Attempt a decision as another manager or with a stale version. Each must fail without cash effects.
+7. Try final vault count and business-day closing with outstanding auditor custody. Both must block; after receipt the custody blocker must clear.
+8. Verify closed business dates reject submissions and decisions, and unavailable vault receipt rolls back the whole batch.
+9. Recount/correct a returned source using the existing correction workflow; verify it locates the linked vault movement pair.
+
 ## Accounting and business dates
 
-- Cash discrepancies use separate planning, execution and verification functions for each case. Movement repairs preserve original records and link appended movements to their proposal and corrected source. Transfers and accepted handoffs require explicit counterpart evidence and verification of both positions. See [Cash discrepancy correction operations](CashDiscrepancyCorrections.md) for inputs, supported source types and posting rules.
+### Cash discrepancy decisions
+
+#### Investigation and approval
+
+Run the unified reconciliation check, assign an exception, record findings and evidence, preview the selected discrepancy, and submit the proposal. An authorized manager approves the exact source snapshot. A proposer may approve only when that user is the sole active Manager. Posting commits before verification starts. A failed verification remains available for investigation and verification retry; retry never posts again.
+
+`CashCorrectionService` coordinates approval and transactions. `CashCorrectionService.Planning.cs` contains a planner for each discrepancy. `CashCorrectionService.Operations.cs` contains the corresponding execution and verification functions. Shared helpers validate journals, preserve reserved cash, append movements, and compare physical counts.
+
+#### Required evidence and effects
+
+All cases require `Findings` and `EvidenceReference`. An entered amount must have at most two decimal places. Financial cases can use the absolute detected difference as their suggested amount; recounts and corrected movement totals require an explicit amount.
+
+| Discrepancy | Additional input | Approved operation |
+| --- | --- | --- |
+| CountEntryError | Amount, including zero | Append an approved physical count (no transaction or GL entry). If the original count was already handed over and accepted, the recount keeps the original count time and the difference between the new count and the handed amount is restated on the original custody movements: the officer session decreases and the receiving session (vault) increases by that difference, so bank-wide expected cash is unchanged. Verification checks both positions. |
+| UnrecordedDeposit | AccountId, Amount | New deposit transaction, customer account transaction, balanced journal and incoming cash movement. |
+| UnrecordedWithdrawal | AccountId, Amount | New withdrawal transaction, customer account transaction, balanced journal and outgoing cash movement. |
+| MissingMovement | TransactionId | Validate the completed transaction and its journal; append only its missing net cash movement. |
+| DuplicateMovement | MovementId, CounterpartMovementId | Identify the duplicate and the retained movement explicitly; append the duplicate's opposite cash effect. |
+| IncorrectMovementAmount | MovementId, Amount | Amount is the corrected total, not a delta. Append the difference from the original movement. |
+| WrongCashPosition | MovementId, DestinationSessionId | Append opposite effects to remove the financial movement from the wrong position and record it against the correct position. |
+| TransferMismatch | MovementId, CounterpartMovementId, DestinationSessionId, Amount | Validate reciprocal TransferOut/TransferIn or VaultIssue/CashReceipt movements; independently calculate and append the required delta on both ends. |
+| HandoffMismatch | MovementId, CounterpartMovementId, HandoffId, DestinationSessionId, Amount | Validate the accepted handoff, source count, reciprocal VaultReturnOut/VaultReturnIn records and original recorded amounts; append corrections on both ends. |
+| UnexplainedOverShort | Amount | New balanced Cash on Hand/Cash Over Short transaction and matching movement. Amount must equal the absolute detected difference. |
+| BankExpenseNotRecorded | Amount, Payee, Purpose, receipt or MissingReceiptReason | Reuse BankExpenseService to create a new expense request, expense transaction, balanced Bank Operating Expense/Cash on Hand journal and movement. |
+
+Customer accounts must be active; debits preserve account ledger and available balances. Every affected cash position must retain at least its reserved cash. Paired positions must be different sessions on the same original business date. Unrelated source identifiers are rejected.
+
+A duplicate must match its explicitly selected retained movement's session, type, amount, transaction and destination. Financial duplicates are checked against their existing journal. Custody duplicates require a supported custody movement type; the investigator's evidence and manager's decision establish which record is redundant.
+
+Incorrect-amount and wrong-position cases apply to financial movements backed by an already valid journal. Custody pair errors use TransferMismatch or HandoffMismatch so both sides are considered. Changes to the financial journal itself belong to the account/GL correction workflow. Movement corrections do not repeat GL entries. Previously corrected sources and correction-generated movements cannot be reused as new correction sources; unresolved residual differences require a fresh investigation and the appropriate discrepancy.
+
+#### Source links and verification
+
+New correction movements store `CashCorrectionProposalId`. Movements that correct an existing record also store `CorrectsMovementId`; missing financial movements link to the existing `TransactionId`. Original movements, transactions, journals and accepted handoffs are preserved. Nullable links leave historical rows intact.
+
+Approval and submission lock business dates, the exception/proposal, affected sessions in ID order, and the selected source records. The source hash contains database evidence, including the counterpart, accepted handoff and destination count. The preview hash separately binds that evidence to the investigator's inputs and calculated posting date. Decimal request amounts are normalized before preview hashing. Proposals created with the earlier snapshot format must be refreshed and resubmitted; they must not bypass the additional source checks.
+
+Paired verification compares the latest submitted counts of both affected positions against their resulting expected cash. A vault session without any submitted count skips this comparison, allowing assigned reconciliation corrections to be approved and verified before EOD step 2. Missing non-vault counts and remaining differences in any submitted count still fail verification; a submitted zero is a count and is validated normally. Successful correction verification does not replace the later EOD vault count or its reconciliation checks. Financial verification also validates the posted journal. Missing-movement exceptions can clear when their required movement and journal are present; an independent cash-balance exception remains responsible for any physical mismatch.
+
+Physical count calculations include transfers, vault issues/receipts and accepted vault returns after the observation. A linked custody correction takes effect at the original movement's occurrence time, regardless of when the correction was recorded. A correction to a custody movement before the latest count does not simulate another physical transfer after that count.
+
+Financial corrections for a force-closed date use the current active open business date and retain the source exception/session. Recounts and movement-only repairs retain their original source date and need no new financial posting date. Finalized summaries are not rewritten.
+
+For incorrect-count previews, the entered total applies only to the source session's projected count. After an accepted handoff, the projection uses the original count time and includes subsequent custody movements and planned corrections. The receiving vault uses its own count and timing; when it has no submitted count, its projected physical amount remains unavailable. Expected before/after amounts continue to reflect each session's planned movement effect.
+
+The investigator preview displays each session separately with recorded expected cash, proposed adjustment, resulting expected cash, custody-adjusted physical counts, and the remaining difference (physical minus expected). Missing counts are labeled explicitly. Zero adjustment does not imply successful reconciliation, and negative expected balances remain visible for investigation.
+
+#### Deployment checkpoint
+
+Apply the `CashMovementCorrectionSources` EF migration before using the updated service. It adds nullable proposal/source links and restrictive foreign keys to CashMovements. Migration generation does not apply the migration to a database. Force-close execution and audit changes are a separate review checkpoint.
+
+#### Evidence selection and review
+
+Investigators select sources through the exception-scoped catalog and can inspect the original journal before previewing. Selection searches preserve already chosen source/counterpart records. Financial previews include proposed journal lines and customer effects; every affected cash position includes before/after expected and counted values. Managers receive the current source-hash comparison and original journal in a dedicated review form. A stale cash source disables acceptance. Approval retries return an existing Executed proposal without replaying posting or verification; pending/failed verification is handled through the recovery queue.
+
+##### Scan and proposal verification
+
+Cash Scan must not resolve a cash exception solely because its physical count matches expected cash or a previously missing movement now exists. A linked cash proposal awaiting approval, or an executed proposal whose verification has not passed, keeps the exception unresolved. Scan reopens previously resolved exceptions with those blockers as Under Investigation, with history, so they remain visible. Explicit Force Pass exceptions remain excluded. Successful proposal verification still resolves the exception through the verification workflow.
+
+##### Verification reasons in the exception list
+
+Scan and assigned-task responses include `verificationFailureReason` for executed account/cash proposals whose verification has not passed. The Reconciliation list displays the proposal ID, verification state, and saved verification note in a wrapping Verification reason column. Pending verification without a saved note is explicitly labeled as incomplete. Reopening history includes the cash proposal verification note; investigator Notes are preserved. No database migration is required.
+
+### Reconciliation and date closure
 
 - The unified reconciliation check evaluates account/GL consistency and cash custody discrepancies, including physical cash versus the server-calculated expected cash position. Each run retains its result snapshot and exception history.
 - Journal validation checks the exact GL account, direction, amount, and customer account for every line. Transfer fees add matching customer-deposit and fee-income lines; interbank refunds return the original fee through matching fee-income and customer-deposit lines. Customer-deposit journal lines are reconciled to account transactions by account, direction, and amount.
+
 - Active exceptions are grouped by account/GL and cash discrepancy in the reconciliation workspace. An investigator must be assigned before investigation; only the assignee can prepare the corresponding correction. Diagnosis is separate from the detected condition, and a proposal contains evidence, typed inputs, a server-generated preview, and the source revision.
 - Submitted correction proposals are immutable. An authorized manager must approve or reject the exact preview. A proposer may self-approve only when they are the sole active Manager system-wide and hold correction approval permission.
 - Approval, correction records, live account effects, and audit history commit atomically. A failed operation leaves no partial financial posting. Successful retries return the existing execution.
@@ -104,6 +205,8 @@ This page summarizes invariants enforced by server services. Constants and servi
 
 ## Users, roles, and permissions
 
+- Self-service password changes require the current password. The replacement must differ from the current password and all configured role defaults, contain at least eight characters, and include uppercase, lowercase, a digit and a non-alphanumeric character.
+
 - Role and permission checks are enforced by the server. Hiding a desktop action is not authorization.
 - User creation/update validates role assignment, username/email uniqueness, and status. Passwords are hashed through the shared password utility; reset credentials and forced-change behavior follow the user-management service.
 - Soft deletion preserves historical references. The last active manager cannot be removed or demoted when that would leave the system without an active manager.
@@ -119,19 +222,18 @@ This page summarizes invariants enforced by server services. Constants and servi
 
 ## Scheduled work
 
+- Monthly savings interest applies to eligible active or dormant accounts opened by the first day of the period. The service selects a termless rate effective at period end whose band includes the ledger balance, preferring the highest lower bound and then the newest effective date. It rounds the ledger balance multiplied by the annual percentage rate divided by 12 months. An unmatched balance tier earns no accrual for that month.
+- Maintenance fees accrue monthly and are collected at calendar quarter end, including older unpaid maintenance accruals. Dormant penalties are collected monthly. Insufficient funds leave the charge accrued for later collection.
+
 - Job occurrences and attempts are persisted. Database leases prevent multiple server instances from executing the same occurrence concurrently.
 - Automatic retries and manager-requested retries follow configured limits and eligibility checks. A retry uses the same scheduled occurrence and period; it is not a new business event.
 - Financial job handlers must use the same posting and audit rules as interactive operations.
 
-## Change checklist
-
-When changing a rule, update its service/constants first, then the relevant API contract and this page. Update [Message Codes](MessageCodes.md) if callers receive a new or changed code. Keep the OpenAPI contract in sync with public request/response changes.
-
-### Normal and forced EOD close
+## Normal and forced EOD close
 
 - Normal close retains preparation, independent manager recheck/approval (sole eligible manager exception), and a final readiness check under the business-date lock. Open sessions, pending handoffs/funding/expenses, missing final vault validation, unresolved exceptions/proposals or failed correction verification, and accounting inequalities block closure.
-- Final vault count requires an open business date and vault, other cash sessions closed, no reserved vault cash, accepted handoffs and no pending cash funding/receipt or expense requests. It appends the count, closes the vault and then runs reconciliation. A count mismatch does not silently approve the business-date close.
-- Accepting a handoff credits the vault with the officer's counted amount, so any shortage stays as an unresolved residual on the closed officer session and is not vault expected cash. Bank-wide expected cash = vault expected + unresolved officer residuals. Resolving by recount (the counted cash was really higher/lower) moves the handed-over difference between officer and vault; resolving by expense or cash over/short lowers only the officer residual and leaves vault expected cash unchanged. End of Day step 2 shows the residuals and the bank-wide total beside the vault count.
+- Final vault count requires an open business date and vault, other cash sessions closed, no reserved vault cash, settled handoffs (including vault receipt of auditor-held cash) and no pending cash funding/receipt or expense requests. It appends the count, closes the vault and then runs reconciliation. A count mismatch does not silently approve the business-date close.
+- A manager accepting a teller-to-vault handoff credits the vault with the officer's counted amount, so any shortage stays as an unresolved residual on the closed officer session and is not vault expected cash. Bank-wide expected cash = vault expected + unresolved officer residuals. Resolving by recount (the counted cash was really higher/lower) moves the handed-over difference between officer and vault; resolving by expense or cash over/short lowers only the officer residual and leaves vault expected cash unchanged. End of Day step 2 shows the residuals and the bank-wide total beside the vault count.
 - Force close bypasses readiness, reconciliation and accounting validation blockers. The request captures the required eligible managers and counts the requester as approved. The last required manager approval performs audit, final summaries and date closure atomically; a sole-manager request does the same immediately. Permission and persistence failures still roll back the transaction. Blocker snapshots are refreshed at execution without resolving investigations or approving pending proposals.
 - EOD mutations acquire open business-date locks in date order before locking the run. Repeating a completed close, or an already-recorded force approval, returns the persisted result without creating another audit or summary. A persisted EOD batch without DailySummary rows is valid for a date without financial activity.
 - EOD audit FindingsJson preserves missing-journal transaction IDs, unbalanced raw and combined journals, actual debit/credit totals, effective validation totals, explicit waiver source IDs, override mode and reconciliation outcome. Missing journals are findings rather than invented transaction-entry rows. CompletedWithExceptions and item Exception/Waived statuses retain inequalities and exclusions; journal repair components validate with their original root while summaries retain their actual posting dates. IsReconciled requires both complete and balanced effective journals; offsetting unbalanced journals do not produce a successful reconciliation result merely because daily totals balance.
@@ -171,3 +273,8 @@ Only the selected recipient can acknowledge a handoff. Today's officer recipient
 ### Closing diagnostics
 
 A clean reconciliation Scan does not prove closing readiness. Normal close also checks pending approvals, unverified executed correction proposals (including proposals whose exceptions are resolved), cash session lifecycle, final vault count, failed transactions, and ledger stages. Pending transactions, including other-bank and NRC transfers, do not block closing solely because they are pending. Only Open and ClosePending cash sessions block the session lifecycle check; Scheduled, Cancelled, and Closed sessions do not, regardless of closure timestamps. Cash reservations, funding proposals, handoffs and accounting integrity retain their separate checks. Rejected close requests preserve the ReconciliationBlocked code and identify blocking exception/proposal/expense IDs or current failing readiness stages. Rejection rolls back the closing transaction, so the last saved approved run may still show earlier results. No financial blocker is bypassed by these diagnostics.
+
+## Change checklist
+
+
+When changing a rule, update its service/constants first, then the relevant API contract and this page. Update [Message Codes](MessageCodes.md) if callers receive a new or changed code. Keep the OpenAPI contract in sync with public request/response changes.

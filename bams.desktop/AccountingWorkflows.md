@@ -38,7 +38,7 @@ Bank Expense Recording captures a bank-funded operating expense, payee, purpose,
 
 ## Cash reconciliation
 
-The cash proposal stepper shows a counterpart/retained movement ID for duplicate, transfer and handoff discrepancies, and an accepted handoff ID for handoff corrections. These fields use the shared themed input components. The preview lists the change to every affected cash session. Transfer and handoff verification checks both positions; a missing destination count or remaining mismatch keeps verification failed. Corrected movement amounts are totals, not adjustment deltas. Financial movement errors backed by a valid journal use incorrect-amount/wrong-position operations; custody pair errors use transfer/handoff operations. See the server's `Documentation/CashDiscrepancyCorrections.md` for source requirements.
+The cash proposal stepper shows a counterpart/retained movement ID for duplicate, transfer and handoff discrepancies, and an accepted handoff ID for handoff corrections. These fields use the shared themed input components. The preview lists the change to every affected cash session. Transfer and handoff verification checks both positions; a missing non-vault count or remaining mismatch keeps verification failed. A vault awaiting its first count may pass proposal verification. Corrected movement amounts are totals, not adjustment deltas. Financial movement errors backed by a valid journal use incorrect-amount/wrong-position operations; custody pair errors use transfer/handoff operations. See [the server cash discrepancy rules](../bams.server/Documentation/BusinessRules.md#cash-discrepancy-decisions) for source requirements.
 
 ## Session Management
 
